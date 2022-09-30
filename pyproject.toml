@@ -28,6 +28,9 @@ packages = ["cachi2"]
 [tool.setuptools_scm]
 version_scheme = "post-release"
 
+[tool.mypy]
+plugins = ["pydantic.mypy"]
+
 [[tool.mypy.overrides]]
 module = ["semver"]
 ignore_missing_imports = true
