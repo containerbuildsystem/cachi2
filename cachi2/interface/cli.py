@@ -10,6 +10,7 @@ from typer import Option
 
 from cachi2.core.models import Request
 from cachi2.core.package_managers import gomod
+from cachi2.interface.logging import LogLevel, setup_logging
 
 app = typer.Typer()
 log = logging.getLogger(__name__)
@@ -37,6 +38,20 @@ def cachi2(  # noqa: D103; docstring becomes part of --help message
 ) -> None:
     # Process top-level options here
     pass
+
+
+def log_level_callback(log_level: LogLevel) -> None:
+    """Set the specified log level."""
+    setup_logging(log_level)
+
+
+# Add this to subcommands, not the top-level options.
+LOG_LEVEL_OPTION = Option(
+    LogLevel.INFO.value,
+    case_sensitive=False,
+    callback=log_level_callback,
+    help="Set log level.",
+)
 
 
 def maybe_load_json(opt_name: str, opt_value: str) -> Optional[Union[dict, list]]:
@@ -67,6 +82,7 @@ def fetch_deps(
         help="Pass additional flags as a comma-separated list.",
         metavar="FLAGS",
     ),
+    log_level: LogLevel = LOG_LEVEL_OPTION,
 ) -> None:
     """Fetch dependencies for supported package managers."""
 
@@ -94,3 +110,5 @@ def fetch_deps(
         flags=parsed_flags,
     )
     gomod.fetch_gomod_source(request)
+
+    log.info(r"All dependencies fetched successfully \o/")

@@ -27,7 +27,6 @@ from cachi2.core.models import Request
 from cachi2.core.packages_data import PackagesData
 from cachi2.core.utils import load_json_stream, run_cmd
 
-logging.basicConfig(format="%(asctime)s %(levelname)s %(message)s", level=logging.DEBUG)
 log = logging.getLogger(__name__)
 
 
