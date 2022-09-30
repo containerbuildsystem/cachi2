@@ -20,7 +20,11 @@ dependencies = [
     "requests",
     "semver",
     "setuptools",
+    "typer",
 ]
+
+[project.scripts]
+cachi2 = "cachi2.interface.cli:app"
 
 [tool.setuptools]
 packages = ["cachi2"]
