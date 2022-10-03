@@ -1,14 +1,16 @@
 import importlib.metadata
 import json
 import logging
+import sys
 from itertools import chain
 from pathlib import Path
 from typing import Optional, Union
 
+import pydantic
 import typer
 from typer import Option
 
-from cachi2.core.models import Request
+from cachi2.core.models.input import Request
 from cachi2.core.package_managers import gomod
 from cachi2.interface.logging import LogLevel, setup_logging
 
@@ -17,6 +19,11 @@ log = logging.getLogger(__name__)
 
 DEFAULT_SOURCE = "."
 DEFAULT_OUTPUT = "./cachi2-output"
+
+
+def print_error(msg: str) -> None:
+    """Print the error message to stderr."""
+    print("ERROR:", msg, file=sys.stderr)
 
 
 def version_callback(value: bool) -> None:
@@ -74,8 +81,19 @@ def fetch_deps(
         help="Specify package (within the source repo) to process. Can be used multiple times.",
         metavar="PKG",
     ),
-    source: Path = Option(DEFAULT_SOURCE, help="Process the git repository at this path."),
-    output: Path = Option(DEFAULT_OUTPUT, help="Write output files to this directory."),
+    source: Path = Option(
+        DEFAULT_SOURCE,
+        exists=True,
+        file_okay=False,
+        resolve_path=True,
+        help="Process the git repository at this path.",
+    ),
+    output: Path = Option(
+        DEFAULT_OUTPUT,
+        file_okay=False,
+        resolve_path=True,
+        help="Write output files to this directory.",
+    ),
     # TODO: let's have actual flags like --gomod-vendor instead?
     flags: str = Option(
         "",
@@ -99,16 +117,21 @@ def fetch_deps(
 
     parsed_packages = tuple(chain.from_iterable(map(parse_packages, package)))
     if flags:
-        parsed_flags = tuple(flag.strip() for flag in flags.split(","))
+        parsed_flags = frozenset(flag.strip() for flag in flags.split(","))
     else:
-        parsed_flags = ()
+        parsed_flags = frozenset()
 
-    request = Request(
-        packages=parsed_packages,
-        source_dir=source,
-        output_dir=output,
-        flags=parsed_flags,
-    )
+    try:
+        request = Request(
+            source_dir=source,
+            output_dir=output,
+            packages=parsed_packages,
+            flags=parsed_flags,
+        )
+    except pydantic.ValidationError as e:
+        print_error(str(e))
+        raise typer.Exit(1)
+
     gomod.fetch_gomod_source(request)
 
     log.info(r"All dependencies fetched successfully \o/")

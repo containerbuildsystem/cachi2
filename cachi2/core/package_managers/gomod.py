@@ -23,7 +23,7 @@ from cachi2.core.errors import (
     UnsupportedFeature,
     ValidationError,
 )
-from cachi2.core.models import Request
+from cachi2.core.models.input import Request
 from cachi2.core.packages_data import PackagesData
 from cachi2.core.utils import load_json_stream, run_cmd
 
@@ -50,11 +50,10 @@ def fetch_gomod_source(request):
     log.info(f"Go version: {version_output.strip()}")
 
     config = get_worker_config()
-    subpaths = [os.path.normpath(c["path"]) for c in request.packages if c.get("path")]
+    subpaths = [str(package.path) for package in request.packages]
 
     if not subpaths:
-        # Default to the root of the application source
-        subpaths = [os.curdir]
+        return
 
     invalid_gomod_files = _find_missing_gomod_files(request.source_dir, subpaths)
 
