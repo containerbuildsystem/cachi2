@@ -24,7 +24,7 @@ from cachi2.core.errors import (
     ValidationError,
 )
 from cachi2.core.models.input import Request
-from cachi2.core.packages_data import PackagesData
+from cachi2.core.models.output import RequestOutput
 from cachi2.core.utils import load_json_stream, run_cmd
 
 log = logging.getLogger(__name__)
@@ -34,13 +34,11 @@ _run_gomod_cmd = functools.partial(run_cmd, exc_msg="Processing gomod dependenci
 _MODULE_VERSION_RE = re.compile(r"/v\d+$")
 
 
-def fetch_gomod_source(request):
+def fetch_gomod_source(request: Request) -> RequestOutput:
     """
     Resolve and fetch gomod dependencies for a given request.
 
-    :param list dep_replacements: dependency replacements with the keys "name" and "version"; only
-        supported with a single path
-    :param list package_configs: the list of optional package configurations submitted by the user
+    :param request: the request to process
     :raises FileAccessError: if a file is not present for the gomod package manager
     :raises UnsupportedFeature: if dependency replacements are provided for
         a non-single go module path
@@ -53,7 +51,7 @@ def fetch_gomod_source(request):
     subpaths = [str(package.path) for package in request.packages]
 
     if not subpaths:
-        return
+        return RequestOutput.empty()
 
     invalid_gomod_files = _find_missing_gomod_files(request.source_dir, subpaths)
 
@@ -64,7 +62,7 @@ def fetch_gomod_source(request):
         # missing gomod files is supported if there is only one path referenced
         if config.cachito_gomod_ignore_missing_gomod_file and len(subpaths) == 1:
             log.warning("go.mod file missing for request at %s", invalid_files_print)
-            return
+            return RequestOutput.empty()
 
         raise FileAccessError(
             "The {} file{} must be present for the gomod package manager".format(
@@ -84,7 +82,7 @@ def fetch_gomod_source(request):
     }
     env_vars.update(config.cachito_default_environment_variables.get("gomod", {}))
 
-    packages_json_data = PackagesData()
+    packages = []
 
     for i, subpath in enumerate(subpaths):
         log.info("Fetching the gomod dependencies for request in subpath %s", subpath)
@@ -100,15 +98,20 @@ def fetch_gomod_source(request):
 
         module_info = gomod["module"]
 
-        packages_json_data.add_package(module_info, subpath, gomod["module_deps"])
+        packages.append({**module_info, "path": subpath, "dependencies": gomod["module_deps"]})
 
         # add package deps
         for package in gomod["packages"]:
             pkg_info = package["pkg"]
             package_subpath = _package_subpath(module_info["name"], pkg_info["name"], subpath)
-            packages_json_data.add_package(pkg_info, package_subpath, package.get("pkg_deps", []))
+            packages.append(
+                {**pkg_info, "path": package_subpath, "dependencies": package.get("pkg_deps", [])}
+            )
 
-    packages_json_data.write_to_file(request.output_dir / "gomod_packages.json")
+    return RequestOutput(
+        packages=packages,
+        environment_variables=[{"name": name, **obj} for name, obj in env_vars.items()],
+    )
 
 
 def _find_missing_gomod_files(source_path: Path, subpaths: list[str]):

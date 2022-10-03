@@ -132,6 +132,9 @@ def fetch_deps(
         print_error(str(e))
         raise typer.Exit(1)
 
-    gomod.fetch_gomod_source(request)
+    request_output = gomod.fetch_gomod_source(request)
+
+    request.output_dir.mkdir(parents=True, exist_ok=True)
+    request.output_dir.joinpath("output.json").write_text(request_output.json())
 
     log.info(r"All dependencies fetched successfully \o/")

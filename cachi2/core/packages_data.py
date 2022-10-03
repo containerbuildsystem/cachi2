@@ -10,6 +10,8 @@ from cachi2.core.errors import InvalidRequestData
 
 log = logging.getLogger(__name__)
 
+# TODO: delete the whole module (RequestOutput does the same thing)
+
 
 def _package_sort_key(package: Dict[str, Any]) -> Tuple[str, bool, str, Optional[str]]:
     """Return the sort key for sorting packages.
