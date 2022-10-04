@@ -4,6 +4,8 @@ from typing import ClassVar, Literal
 
 import pydantic
 
+from cachi2.core.models.validators import unique
+
 # Supported package managers
 PackageManagerType = Literal["gomod"]
 
@@ -29,7 +31,7 @@ class Request(pydantic.BaseModel):
 
     source_dir: Path
     output_dir: Path
-    packages: tuple[PackageInput, ...]
+    packages: list[PackageInput]
     flags: frozenset[str] = frozenset()  # TODO
     dep_replacements: tuple[dict, ...] = ()  # TODO: do we want dep replacements at all?
 
@@ -39,6 +41,11 @@ class Request(pydantic.BaseModel):
         if not path.is_absolute():
             raise ValueError(f"path must be absolute: {path}")
         return path.resolve()
+
+    @pydantic.validator("packages")
+    def unique_packages(cls, packages: list[PackageInput]) -> list[PackageInput]:
+        """De-duplicate the packages to be processed."""
+        return unique(packages, by=lambda pkg: (pkg.type, pkg.path))
 
     @pydantic.validator("packages", each_item=True)
     def check_package_paths(cls, package: PackageInput, values: dict) -> PackageInput:
