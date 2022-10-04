@@ -56,7 +56,7 @@ def fetch_gomod_source(request: Request) -> RequestOutput:
     invalid_gomod_files = _find_missing_gomod_files(request.source_dir, subpaths)
 
     if invalid_gomod_files:
-        invalid_files_print = "; ".join(invalid_gomod_files)
+        invalid_files_print = "; ".join(map(str, invalid_gomod_files))
         file_suffix = "s" if len(invalid_gomod_files) > 1 else ""
 
         # missing gomod files is supported if there is only one path referenced
@@ -114,7 +114,7 @@ def fetch_gomod_source(request: Request) -> RequestOutput:
     )
 
 
-def _find_missing_gomod_files(source_path: Path, subpaths: list[str]):
+def _find_missing_gomod_files(source_path: Path, subpaths: list[str]) -> list[Path]:
     """
     Find all go modules with missing gomod files.
 
