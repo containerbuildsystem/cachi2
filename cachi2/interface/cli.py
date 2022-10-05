@@ -78,7 +78,7 @@ def maybe_load_json(opt_name: str, opt_value: str) -> Optional[Union[dict, list]
 def fetch_deps(
     package: list[str] = Option(
         ...,  # Ellipsis makes this option required
-        help="Specify package (within the source repo) to process. Can be used multiple times.",
+        help="Specify package (within the source repo) to process. See usage examples.",
         metavar="PKG",
     ),
     source: Path = Option(
@@ -102,7 +102,38 @@ def fetch_deps(
     ),
     log_level: LogLevel = LOG_LEVEL_OPTION,
 ) -> None:
-    """Fetch dependencies for supported package managers."""
+    """Fetch dependencies for supported package managers.
+
+    \b
+    # gomod package in the current directory
+    cachi2 fetch-deps --package gomod
+
+    \b
+    # pip package (not supported yet) in the root of the source directory
+    cachi2 fetch-deps --source ./my-repo --package pip
+
+    \b
+    # gomod package in a subpath of the source directory (./my-repo/subpath)
+    cachi2 fetch-deps --source ./my-repo --package '{
+        "type": "gomod",
+        "path": "subpath"
+    }'
+
+    \b
+    # multiple packages
+    cachi2 fetch-deps \\
+        --package gomod \\
+        --package '{"type": "gomod", "path": "subpath"}' \\
+        --package '{"type": "pip", "path": "other-path"}'
+
+    \b
+    # multiple packages as a JSON list
+    cachi2 fetch-deps --package '[
+        {"type": "gomod"},
+        {"type": "gomod", "path": "subpath"},
+        {"type": "pip", "path": "other-path"}
+    ]'
+    """  # noqa: D301, D202; backslashes intentional, blank line required by black
 
     def parse_packages(package_str: str) -> list[dict]:
         """Parse a --package argument into a list of packages (--package may be a JSON list)."""
