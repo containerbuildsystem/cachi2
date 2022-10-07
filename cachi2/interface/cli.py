@@ -94,9 +94,33 @@ def fetch_deps(
         resolve_path=True,
         help="Write output files to this directory.",
     ),
-    # TODO: let's have actual flags like --gomod-vendor instead?
-    flags: str = Option(
+    cgo_disable: bool = Option(
+        False, "--cgo-disable", help="Set CGO_ENABLED=0 while processing gomod packages."
+    ),
+    force_gomod_tidy: bool = Option(
+        False,
+        "--force-gomod-tidy",
+        help="Run 'go mod tidy' before processing gomod packages.",
+    ),
+    gomod_vendor: bool = Option(
+        False,
+        "--gomod-vendor",
+        help=(
+            "Fetch go deps via 'go mod vendor' rather than 'go mod download'. If you "
+            "have a vendor/ dir, one of --gomod-vendor/--gomod-vendor-check is required."
+        ),
+    ),
+    gomod_vendor_check: bool = Option(
+        False,
+        "--gomod-vendor-check",
+        help=(
+            "Same as gomod-vendor, but will not make unexpected changes if you "
+            "already have a vendor/ directory (will fail if changes would be made)."
+        ),
+    ),
+    more_flags: str = Option(
         "",
+        "--flags",
         help="Pass additional flags as a comma-separated list.",
         metavar="FLAGS",
     ),
@@ -146,18 +170,22 @@ def fetch_deps(
             packages = json_obj
         return packages
 
+    def combine_flags() -> list[str]:
+        flag_names = ["cgo-disable", "force-gomod-tidy", "gomod-vendor", "gomod-vendor-check"]
+        flag_values = [cgo_disable, force_gomod_tidy, gomod_vendor, gomod_vendor_check]
+        flags = [name for name, value in zip(flag_names, flag_values) if value]
+        if more_flags:
+            flags.extend(flag.strip() for flag in more_flags.split(","))
+        return flags
+
     parsed_packages = tuple(chain.from_iterable(map(parse_packages, package)))
-    if flags:
-        parsed_flags = frozenset(flag.strip() for flag in flags.split(","))
-    else:
-        parsed_flags = frozenset()
 
     try:
         request = Request(
             source_dir=source,
             output_dir=output,
             packages=parsed_packages,
-            flags=parsed_flags,
+            flags=combine_flags(),
         )
     except pydantic.ValidationError as e:
         print_error(str(e))

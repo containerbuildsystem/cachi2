@@ -132,3 +132,13 @@ class TestRequest:
                 output_dir=tmp_path,
                 packages=[PackageInput(type="gomod", path=path)],
             )
+
+    def test_invalid_flags(self):
+        expect_error = r"flags -> 0\n  unexpected value; permitted: .* given=no-such-flag"
+        with pytest.raises(pydantic.ValidationError, match=expect_error):
+            Request(
+                source_dir="/source",
+                output_dir="/output",
+                packages=[],
+                flags=["no-such-flag"],
+            )

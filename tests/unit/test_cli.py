@@ -3,7 +3,7 @@ import os
 import re
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Iterator, Optional
+from typing import Iterator, Optional, Union
 from unittest import mock
 
 import pytest
@@ -46,6 +46,15 @@ def invoke_expecting_sucess(app, args: list[str]) -> typer.testing.Result:
     result = runner.invoke(app, args, catch_exceptions=False)
     assert result.exit_code == 0, result.output
     return result
+
+
+def assert_pattern_in_output(pattern: Union[str, re.Pattern], output: str) -> None:
+    if isinstance(pattern, re.Pattern):
+        match = bool(pattern.search(output))
+    else:
+        match = pattern in output
+
+    assert match, f"pattern {pattern!r} not found!\noutput:\n{output}"
 
 
 class TestTopLevelOpts:
@@ -288,12 +297,58 @@ class TestFetchDeps:
         assert result.exit_code != 0
 
         for pattern in expect_error_lines:
-            if isinstance(pattern, re.Pattern):
-                match = bool(pattern.search(result.output))
-            else:
-                match = pattern in result.output
+            assert_pattern_in_output(pattern, result.output)
 
-            assert match, f"pattern {pattern!r} not found!\noutput:\n{result.output}"
+    @pytest.mark.parametrize(
+        "flag_args, expect_flags",
+        [
+            ([], {}),
+            (["--gomod-vendor"], {"gomod-vendor"}),
+            (["--flags=gomod-vendor"], {"gomod-vendor"}),
+            (["--gomod-vendor", "--flags=gomod-vendor"], {"gomod-vendor"}),
+            (
+                [
+                    "--gomod-vendor",
+                    "--gomod-vendor-check",
+                    "--cgo-disable",
+                    "--force-gomod-tidy",
+                ],
+                {"gomod-vendor", "gomod-vendor-check", "cgo-disable", "force-gomod-tidy"},
+            ),
+            (
+                ["--flags=gomod-vendor,gomod-vendor-check, cgo-disable,\tforce-gomod-tidy"],
+                {"gomod-vendor", "gomod-vendor-check", "cgo-disable", "force-gomod-tidy"},
+            ),
+        ],
+    )
+    def test_specify_flags(self, flag_args: list[str], expect_flags: set[str], tmp_cwd):
+        expect_request = Request(
+            source_dir=tmp_cwd / DEFAULT_SOURCE,
+            output_dir=tmp_cwd / DEFAULT_OUTPUT,
+            packages=[{"type": "gomod"}],
+            flags=frozenset(expect_flags),
+        )
+        with mock_fetch_deps(expect_request):
+            invoke_expecting_sucess(app, ["fetch-deps", "--package=gomod", *flag_args])
+
+    @pytest.mark.parametrize(
+        "flag_args, expect_error",
+        [
+            (["--no-such-flag"], "Error: No such option: --no-such-flag"),
+            (
+                ["--flags=no-such-flag"],
+                re.compile(
+                    r"1 validation error for Request\n"
+                    r"flags -> 0\n"
+                    r"  unexpected value; permitted: .* given=no-such-flag",
+                ),
+            ),
+        ],
+    )
+    def test_invalid_flags(self, flag_args: list[str], expect_error: str):
+        result = runner.invoke(app, ["fetch-deps", "--package=gomod", *flag_args])
+        assert result.exit_code != 0
+        assert_pattern_in_output(expect_error, result.output)
 
     @pytest.mark.parametrize(
         "request_output",

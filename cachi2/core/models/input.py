@@ -9,6 +9,8 @@ from cachi2.core.models.validators import unique
 # Supported package managers
 PackageManagerType = Literal["gomod"]
 
+Flag = Literal["cgo-disable", "force-gomod-tidy", "gomod-vendor", "gomod-vendor-check"]
+
 
 class PackageInput(pydantic.BaseModel, extra="forbid"):
     """Specification of a package to process, as received from the user."""
@@ -32,7 +34,7 @@ class Request(pydantic.BaseModel):
     source_dir: Path
     output_dir: Path
     packages: list[PackageInput]
-    flags: frozenset[str] = frozenset()  # TODO
+    flags: frozenset[Flag] = frozenset()
     dep_replacements: tuple[dict, ...] = ()  # TODO: do we want dep replacements at all?
 
     @pydantic.validator("source_dir", "output_dir")
