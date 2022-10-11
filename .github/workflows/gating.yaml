@@ -64,6 +64,7 @@ jobs:
         tox_env:
           - bandit
           - black
+          - isort
           - flake8
           - mypy
     runs-on: ubuntu-latest
