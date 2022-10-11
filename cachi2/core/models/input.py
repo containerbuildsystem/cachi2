@@ -1,11 +1,10 @@
-import os.path
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable, ClassVar, Literal, TypeVar
+from typing import TYPE_CHECKING, Annotated, Callable, ClassVar, Literal, Optional, TypeVar, Union
 
 import pydantic
 
 from cachi2.core.errors import InvalidInput
-from cachi2.core.models.validators import unique
+from cachi2.core.models.validators import check_sane_relpath, unique
 
 if TYPE_CHECKING:
     from pydantic.error_wrappers import ErrorDict
@@ -51,20 +50,48 @@ PackageManagerType = Literal["gomod", "pip"]
 Flag = Literal["cgo-disable", "force-gomod-tidy", "gomod-vendor", "gomod-vendor-check"]
 
 
-class PackageInput(pydantic.BaseModel, extra="forbid"):
-    """Specification of a package to process, as received from the user."""
+class _PackageInputBase(pydantic.BaseModel, extra="forbid"):
+    """Common input attributes accepted for all package types."""
 
     type: PackageManagerType
     path: Path = Path(".")
 
     @pydantic.validator("path")
-    def check_path(cls, path: Path) -> Path:
-        """Check that the path is relative and looks sane."""
-        if path.is_absolute():
-            raise ValueError(f"package path must be relative: {path}")
-        if os.path.pardir in path.parts:
-            raise ValueError(f"package path contains {os.path.pardir}: {path}")
-        return path
+    def _path_is_relative(cls, path: Path) -> Path:
+        return check_sane_relpath(path)
+
+
+class GomodPackageInput(_PackageInputBase):
+    """Accepted input for a gomod package."""
+
+    type: Literal["gomod"]
+
+
+class PipPackageInput(_PackageInputBase):
+    """Accepted input for a pip package."""
+
+    type: Literal["pip"]
+    requirements_files: Optional[list[Path]] = None
+    requirements_build_files: Optional[list[Path]] = None
+
+    @pydantic.validator("requirements_files", "requirements_build_files")
+    def _no_explicit_none(cls, paths: Optional[list[Path]]) -> list[Path]:
+        """Fail if the user explicitly passes None."""
+        if paths is None:
+            # Note: same error message as pydantic's default
+            raise TypeError("none is not an allowed value")
+        return paths
+
+    @pydantic.validator("requirements_files", "requirements_build_files", each_item=True)
+    def _requirements_file_path_is_relative(cls, path: Path) -> Path:
+        return check_sane_relpath(path)
+
+
+PackageInput = Annotated[
+    Union[GomodPackageInput, PipPackageInput],
+    # https://pydantic-docs.helpmanual.io/usage/types/#discriminated-unions-aka-tagged-unions
+    pydantic.Field(discriminator="type"),
+]
 
 
 class Request(pydantic.BaseModel):
@@ -106,17 +133,17 @@ class Request(pydantic.BaseModel):
         return package
 
     @property
-    def gomod_packages(self) -> list[PackageInput]:
+    def gomod_packages(self) -> list[GomodPackageInput]:
         """Get the gomod packages specified for this request."""
-        return self._packages_by_type("gomod")
+        return self._packages_by_type(GomodPackageInput)
 
     @property
-    def pip_packages(self) -> list[PackageInput]:
+    def pip_packages(self) -> list[PipPackageInput]:
         """Get the pip packages specified for this request."""
-        return self._packages_by_type("pip")
+        return self._packages_by_type(PipPackageInput)
 
-    def _packages_by_type(self, pkgtype: PackageManagerType) -> list[PackageInput]:
-        return [package for package in self.packages if package.type == pkgtype]
+    def _packages_by_type(self, pkgtype: type[T]) -> list[T]:
+        return [package for package in self.packages if isinstance(package, pkgtype)]
 
     # This is kept here temporarily, should be refactored
     go_mod_cache_download_part: ClassVar[Path] = Path("pkg", "mod", "cache", "download")
