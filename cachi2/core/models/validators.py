@@ -1,3 +1,5 @@
+import os
+from pathlib import Path
 from typing import Any, Callable, Iterable, TypeVar
 
 T = TypeVar("T")
@@ -30,3 +32,12 @@ def unique_sorted(items: Iterable[T], by: Callable[[T], Any], dedupe: bool = Tru
     unique_items = unique(items, by, dedupe)
     unique_items.sort(key=by)
     return unique_items
+
+
+def check_sane_relpath(path: Path) -> Path:
+    """Check that the path is relative and looks sane."""
+    if path.is_absolute():
+        raise ValueError(f"path must be relative: {path}")
+    if os.path.pardir in path.parts:
+        raise ValueError(f"path contains {os.path.pardir}: {path}")
+    return path

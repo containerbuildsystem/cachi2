@@ -3,7 +3,7 @@ from typing import Literal, Optional
 
 import pydantic
 
-from cachi2.core.models.validators import unique_sorted
+from cachi2.core.models.validators import check_sane_relpath, unique_sorted
 
 # Supported package types (a superset of the supported package *manager* types)
 PackageType = Literal["gomod", "go-package", "pip"]
@@ -35,11 +35,8 @@ class Package(pydantic.BaseModel):
     dependencies: list[Dependency]
 
     @pydantic.validator("path")
-    def check_path(cls, path: Path) -> Path:
-        """Check that the package path is relative."""
-        if path.is_absolute():
-            raise ValueError(f"package path must be relative: {path}")
-        return path
+    def _path_is_relative(cls, path: Path) -> Path:
+        return check_sane_relpath(path)
 
     @pydantic.validator("dependencies")
     def unique_deps(cls, dependencies: list[Dependency]) -> list[Dependency]:

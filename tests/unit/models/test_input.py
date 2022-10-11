@@ -6,7 +6,13 @@ import pydantic
 import pytest as pytest
 
 from cachi2.core.errors import InvalidInput
-from cachi2.core.models.input import PackageInput, Request, parse_user_input
+from cachi2.core.models.input import (
+    GomodPackageInput,
+    PackageInput,
+    PipPackageInput,
+    Request,
+    parse_user_input,
+)
 
 
 def test_parse_user_input():
@@ -16,7 +22,7 @@ def test_parse_user_input():
         r"  unexpected value; permitted: .* \(given=go-package; permitted=[^;]*\)"
     )
     with pytest.raises(InvalidInput, match=expect_error):
-        parse_user_input(PackageInput.parse_obj, {"type": "go-package"})
+        parse_user_input(GomodPackageInput.parse_obj, {"type": "go-package"})
 
 
 class TestPackageInput:
@@ -31,10 +37,28 @@ class TestPackageInput:
                 {"type": "gomod", "path": "./some/path"},
                 {"type": "gomod", "path": Path("some/path")},
             ),
+            (
+                {"type": "pip"},
+                {
+                    "type": "pip",
+                    "path": Path("."),
+                    "requirements_files": None,
+                    "requirements_build_files": None,
+                },
+            ),
+            (
+                {"type": "pip", "requirements_files": ["reqs.txt"], "requirements_build_files": []},
+                {
+                    "type": "pip",
+                    "path": Path("."),
+                    "requirements_files": [Path("reqs.txt")],
+                    "requirements_build_files": [],
+                },
+            ),
         ],
     )
     def test_valid_packages(self, input_data: dict[str, Any], expect_data: dict[str, Any]):
-        package = PackageInput.parse_obj(input_data)
+        package = pydantic.parse_obj_as(PackageInput, input_data)
         assert package.dict() == expect_data
 
     @pytest.mark.parametrize(
@@ -42,29 +66,45 @@ class TestPackageInput:
         [
             (
                 {},
-                r"type\n  field required",
+                r"Discriminator 'type' is missing",
             ),
             (
                 {"type": "go-package"},
-                r"type\n  unexpected value; permitted: .* given=go-package;",
+                r"No match for discriminator 'type' and value 'go-package' \(allowed values: .*",
             ),
             (
                 {"type": "gomod", "path": "/absolute"},
-                r"path\n  package path must be relative: /absolute",
+                r"path\n  path must be relative: /absolute",
             ),
             (
                 {"type": "gomod", "path": ".."},
-                r"path\n  package path contains ..: ..",
+                r"path\n  path contains ..: ..",
             ),
             (
                 {"type": "gomod", "path": "weird/../subpath"},
-                r"path\n  package path contains ..: weird/../subpath",
+                r"path\n  path contains ..: weird/../subpath",
+            ),
+            (
+                {"type": "pip", "requirements_files": ["weird/../subpath"]},
+                r"requirements_files -> 0\n  path contains ..: weird/../subpath",
+            ),
+            (
+                {"type": "pip", "requirements_build_files": ["weird/../subpath"]},
+                r"requirements_build_files -> 0\n  path contains ..: weird/../subpath",
+            ),
+            (
+                {"type": "pip", "requirements_files": None},
+                r"requirements_files\n  none is not an allowed value",
+            ),
+            (
+                {"type": "pip", "requirements_build_files": None},
+                r"requirements_build_files\n  none is not an allowed value",
             ),
         ],
     )
     def test_invalid_packages(self, input_data: dict[str, Any], expect_error: str):
         with pytest.raises(pydantic.ValidationError, match=expect_error):
-            PackageInput.parse_obj(input_data)
+            pydantic.parse_obj_as(PackageInput, input_data)
 
 
 class TestRequest:
@@ -77,9 +117,11 @@ class TestRequest:
             packages=[
                 {"type": "gomod"},
                 {"type": "gomod", "path": "subpath"},
+                {"type": "pip", "requirements_build_files": []},
                 # check de-duplication
                 {"type": "gomod"},
                 {"type": "gomod", "path": "subpath"},
+                {"type": "pip", "requirements_build_files": []},
             ],
         )
 
@@ -87,8 +129,9 @@ class TestRequest:
             "source_dir": tmp_path,
             "output_dir": tmp_path,
             "packages": [
-                PackageInput(type="gomod"),
-                PackageInput(type="gomod", path="subpath"),
+                GomodPackageInput(type="gomod"),
+                GomodPackageInput(type="gomod", path="subpath"),
+                PipPackageInput(type="pip", requirements_build_files=[]),
             ],
             "flags": frozenset(),
             "dep_replacements": (),
@@ -97,8 +140,8 @@ class TestRequest:
     def test_packages_properties(self, tmp_path: Path):
         packages = [{"type": "gomod"}, {"type": "pip"}]
         request = Request(source_dir=tmp_path, output_dir=tmp_path, packages=packages)
-        assert request.gomod_packages == [PackageInput(type="gomod")]
-        assert request.pip_packages == [PackageInput(type="pip")]
+        assert request.gomod_packages == [GomodPackageInput(type="gomod")]
+        assert request.pip_packages == [PipPackageInput(type="pip")]
 
     @pytest.mark.parametrize("which_path", ["source_dir", "output_dir"])
     def test_path_not_absolute(self, which_path: str):
@@ -113,18 +156,14 @@ class TestRequest:
             Request.parse_obj(input_data)
 
     def test_conflicting_packages(self, tmp_path: Path):
-        class MadeUpPackage(PackageInput):
-            type: str
-            some_attr: str = "hello"
-
-        expect_error = f"packages\n  conflict by {('made-up-type', Path('.'))}"
+        expect_error = f"packages\n  conflict by {('pip', Path('.'))}"
         with pytest.raises(pydantic.ValidationError, match=re.escape(expect_error)):
             Request(
                 source_dir=tmp_path,
                 output_dir=tmp_path,
                 packages=[
-                    MadeUpPackage(type="made-up-type"),
-                    MadeUpPackage(type="made-up-type", some_attr="goodbye"),
+                    PipPackageInput(type="pip"),
+                    PipPackageInput(type="pip", requirements_files=["foo.txt"]),
                 ],
             )
 
@@ -147,7 +186,7 @@ class TestRequest:
             Request(
                 source_dir=tmp_path,
                 output_dir=tmp_path,
-                packages=[PackageInput(type="gomod", path=path)],
+                packages=[GomodPackageInput(type="gomod", path=path)],
             )
 
     def test_invalid_flags(self):

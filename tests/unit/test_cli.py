@@ -228,47 +228,51 @@ class TestFetchDeps:
                 ["--package=idk"],
                 [
                     "1 validation error for user input",
-                    "packages -> 0 -> type",
-                    re.compile(r"unexpected value; permitted: .*\(given=idk;"),
+                    "packages -> 0",
+                    "No match for discriminator 'type' and value 'idk' (allowed values:",
                 ],
             ),
             (
                 ["--package=", '--package={"type": "idk"}'],
                 [
                     "2 validation errors for user input",
-                    "packages -> 0 -> type",
-                    re.compile(r"unexpected value; permitted: .*\(given=;"),
-                    "packages -> 1 -> type",
-                    re.compile(r"unexpected value; permitted: .*\(given=idk;"),
+                    "packages -> 0",
+                    "No match for discriminator 'type' and value 'idk' (allowed values:",
+                    "packages -> 1",
+                    "No match for discriminator 'type' and value 'idk' (allowed values:",
                 ],
             ),
             (
                 ["--package={}"],
-                ["1 validation error for user input", "packages -> 0 -> type", "field required"],
+                [
+                    "1 validation error for user input",
+                    "packages -> 0",
+                    "Discriminator 'type' is missing",
+                ],
             ),
             (
                 ['--package=[{"type": "gomod"}, {}]', "--package={}"],
                 [
                     "2 validation errors for user input",
-                    "packages -> 1 -> type",
-                    "packages -> 2 -> type",
-                    "field required",
+                    "packages -> 1",
+                    "packages -> 2",
+                    "Discriminator 'type' is missing",
                 ],
             ),
             (
                 ['--package={"type": "gomod", "path": "/absolute"}'],
                 [
                     "1 validation error for user input",
-                    "packages -> 0 -> path",
-                    "package path must be relative: /absolute",
+                    "packages -> 0 -> GomodPackageInput -> path",
+                    "path must be relative: /absolute",
                 ],
             ),
             (
                 ['--package={"type": "gomod", "path": "weird/../subpath"}'],
                 [
                     "1 validation error for user input",
-                    "packages -> 0 -> path",
-                    "package path contains ..: weird/../subpath",
+                    "packages -> 0 -> GomodPackageInput -> path",
+                    "path contains ..: weird/../subpath",
                 ],
             ),
             (
@@ -291,7 +295,7 @@ class TestFetchDeps:
                 ['--package={"type": "gomod", "what": "dunno"}'],
                 [
                     "1 validation error for user input",
-                    "packages -> 0 -> what",
+                    "packages -> 0 -> GomodPackageInput -> what",
                     "extra fields not permitted",
                 ],
             ),
