@@ -43,10 +43,7 @@ from cachi2.core.package_managers.gomod import (
     _vet_local_deps,
 )
 from cachi2.core.packages_data import _package_sort_key
-from tests.unit.package_managers.helper_utils import (
-    assert_directories_equal,
-    write_file_tree,
-)
+from tests.unit.package_managers.helper_utils import assert_directories_equal, write_file_tree
 
 
 def setup_module():
