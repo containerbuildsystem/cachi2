@@ -4,12 +4,7 @@ from typing import Any
 import pydantic
 import pytest
 
-from cachi2.core.models.output import (
-    Dependency,
-    EnvironmentVariable,
-    Package,
-    RequestOutput,
-)
+from cachi2.core.models.output import Dependency, EnvironmentVariable, Package, RequestOutput
 
 
 class TestDependency:
