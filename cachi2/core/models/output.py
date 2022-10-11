@@ -54,6 +54,18 @@ class EnvironmentVariable(pydantic.BaseModel):
     value: str
     kind: Literal["literal", "path"]
 
+    def resolve_value(self, relative_to_path: Path) -> str:
+        """Return the resolved value of this environment variable.
+
+        For "literal" variables, the resolved value is simply the value it was created with.
+        For "path" variables, the value is joined to the specified path.
+        """
+        if self.kind == "path":
+            value = str(relative_to_path / self.value)
+        else:
+            value = self.value
+        return value
+
 
 class RequestOutput(pydantic.BaseModel):
     """Results of processing one or more package managers."""
