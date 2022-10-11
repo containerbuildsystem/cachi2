@@ -3,7 +3,8 @@ import os
 import re
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Iterator, Optional, Union
+from textwrap import dedent
+from typing import Callable, Iterator, Optional, Union
 from unittest import mock
 
 import pytest
@@ -378,3 +379,103 @@ class TestFetchDeps:
         written_output = RequestOutput.parse_file(output_json)
 
         assert written_output == request_output
+
+
+class TestGenerateEnv:
+    ENV_VARS = [
+        {"name": "GOCACHE", "value": "deps/gomod", "kind": "path"},
+        {"name": "GOSUMDB", "value": "off", "kind": "literal"},
+    ]
+
+    @staticmethod
+    def env_file_as_json(for_output_dir: Path) -> str:
+        gocache = f'{{"name": "GOCACHE", "value": "{for_output_dir}/deps/gomod"}}'
+        gosumdb = '{"name": "GOSUMDB", "value": "off"}'
+        return f"[{gocache}, {gosumdb}]\n"
+
+    @staticmethod
+    def env_file_as_env(for_output_dir: Path) -> str:
+        return dedent(
+            f"""
+            export GOCACHE={for_output_dir}/deps/gomod
+            export GOSUMDB=off
+            """
+        ).lstrip()
+
+    @pytest.fixture
+    def tmp_cwd_as_output_dir(self, tmp_cwd: Path) -> Path:
+        """Change working directory to a tmpdir and write output.json into it."""
+        request_output = RequestOutput(packages=[], environment_variables=self.ENV_VARS)
+        tmp_cwd.joinpath("output.json").write_text(request_output.json())
+        return tmp_cwd
+
+    @pytest.mark.parametrize(
+        "extra_args, make_output, output_file",
+        [
+            ([], env_file_as_json, None),
+            (["--format=env"], env_file_as_env, None),
+            (["--output=cachi2-env.json"], env_file_as_json, "cachi2-env.json"),
+            (["--output=cachi2.env"], env_file_as_env, "cachi2.env"),
+            (["--output=cachi2-env.sh"], env_file_as_env, "cachi2-env.sh"),
+            (["--format=json", "--output=cachi2.env"], env_file_as_json, "cachi2.env"),
+        ],
+    )
+    def test_generate_env(
+        self,
+        extra_args: list[str],
+        make_output: Callable[[Path], str],
+        output_file: Optional[str],
+        tmp_cwd_as_output_dir: Path,
+    ):
+        result = invoke_expecting_sucess(
+            app, ["generate-env", str(tmp_cwd_as_output_dir), *extra_args]
+        )
+
+        expect_output = make_output(tmp_cwd_as_output_dir)
+        if output_file is None:
+            assert result.output == expect_output
+        else:
+            assert result.output == ""
+            assert Path(output_file).read_text() == expect_output
+
+    @pytest.mark.parametrize("fmt", ["env", "json"])
+    @pytest.mark.parametrize(
+        "for_output_dir, expect_output_dir",
+        [
+            ("relative/dir", "{cwd}/relative/dir"),
+            ("/absolute/dir", "/absolute/dir"),
+        ],
+    )
+    def test_generate_for_different_output_dir(
+        self, fmt: str, for_output_dir: str, expect_output_dir: str, tmp_cwd_as_output_dir: Path
+    ):
+        result = invoke_expecting_sucess(
+            app,
+            [
+                "generate-env",
+                str(tmp_cwd_as_output_dir),
+                "--for-output-dir",
+                for_output_dir,
+                "--format",
+                fmt,
+            ],
+        )
+
+        resolved_output_dir = Path(expect_output_dir.format(cwd=tmp_cwd_as_output_dir))
+        if fmt == "env":
+            expect_output = self.env_file_as_env(resolved_output_dir)
+        else:
+            expect_output = self.env_file_as_json(resolved_output_dir)
+
+        assert result.stdout == expect_output
+
+    def test_invalid_format(self):
+        # Note: .sh is a recognized suffix, but the --format option accepts only 'json' and 'env'
+        result = runner.invoke(app, ["generate-env", ".", "-f", "sh"])
+        assert result.exit_code != 0
+        assert "Invalid value for '-f' / '--format': 'sh' is not one of" in result.output
+
+    def test_unsupported_suffix(self):
+        result = runner.invoke(app, ["generate-env", ".", "-o", "env.yaml"])
+        assert result.exit_code != 0
+        assert "Cannot determine envfile format, unsupported suffix: yaml" in result.output

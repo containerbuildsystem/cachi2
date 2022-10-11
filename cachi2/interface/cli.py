@@ -9,10 +9,12 @@ from typing import Callable, Optional, Union
 
 import pydantic
 import typer
-from typer import Option
+from typer import Argument, Option
 
 from cachi2.core.errors import Cachi2Error
+from cachi2.core.extras.envfile import EnvFormat, generate_envfile
 from cachi2.core.models.input import Request
+from cachi2.core.models.output import RequestOutput
 from cachi2.core.package_managers import gomod
 from cachi2.interface.logging import LogLevel, setup_logging
 
@@ -213,3 +215,45 @@ def fetch_deps(
     request.output_dir.joinpath("output.json").write_text(request_output.json())
 
     log.info(r"All dependencies fetched successfully \o/")
+
+
+@app.command()
+@friendly_errors
+def generate_env(
+    from_output_dir: Path = Argument(
+        ...,
+        exists=True,
+        file_okay=False,
+        help="The output directory populated by a previous fetch-deps command.",
+    ),
+    for_output_dir: Optional[Path] = Option(
+        None, help="Generate output as if the output directory was at this path instead."
+    ),
+    output: Optional[Path] = Option(
+        None,
+        "-o",
+        "--output",
+        dir_okay=False,
+        help="Write to this file instead of standard output.",
+    ),
+    fmt: Optional[EnvFormat] = Option(
+        None,
+        "-f",
+        "--format",
+        help="Specify format to use. Default json or based on output file name.",
+    ),
+):
+    """Generate the environment variables needed to use the fetched dependencies."""
+    fmt = fmt or (EnvFormat.based_on_suffix(output) if output else EnvFormat.json)
+    for_output_dir = (for_output_dir or from_output_dir).resolve()
+
+    output_json = from_output_dir / "output.json"
+    fetch_deps_output = RequestOutput.parse_raw(output_json.read_text())
+
+    env_file_content = generate_envfile(fetch_deps_output, fmt, for_output_dir)
+
+    if output:
+        with output.open("w") as f:
+            print(env_file_content, file=f)
+    else:
+        print(env_file_content)
