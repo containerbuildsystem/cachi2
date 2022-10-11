@@ -14,7 +14,7 @@ from cachi2.core.errors import Cachi2Error
 from cachi2.core.extras.envfile import EnvFormat, generate_envfile
 from cachi2.core.models.input import Request, parse_user_input
 from cachi2.core.models.output import RequestOutput
-from cachi2.core.package_managers import gomod
+from cachi2.core.resolver import resolve_packages
 from cachi2.interface.logging import LogLevel, setup_logging
 
 app = typer.Typer()
@@ -211,7 +211,7 @@ def fetch_deps(
         },
     )
 
-    request_output = gomod.fetch_gomod_source(request)
+    request_output = resolve_packages(request)
 
     request.output_dir.mkdir(parents=True, exist_ok=True)
     request.output_dir.joinpath("output.json").write_text(request_output.json())

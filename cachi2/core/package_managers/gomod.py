@@ -60,7 +60,7 @@ def fetch_gomod_source(request: Request) -> RequestOutput:
     log.info(f"Go version: {version_output.strip()}")
 
     config = get_worker_config()
-    subpaths = [str(package.path) for package in request.packages]
+    subpaths = [str(package.path) for package in request.gomod_packages]
 
     if not subpaths:
         return RequestOutput.empty()

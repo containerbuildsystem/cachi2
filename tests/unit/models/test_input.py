@@ -94,6 +94,12 @@ class TestRequest:
             "dep_replacements": (),
         }
 
+    def test_packages_properties(self, tmp_path: Path):
+        packages = [{"type": "gomod"}, {"type": "pip"}]
+        request = Request(source_dir=tmp_path, output_dir=tmp_path, packages=packages)
+        assert request.gomod_packages == [PackageInput(type="gomod")]
+        assert request.pip_packages == [PackageInput(type="pip")]
+
     @pytest.mark.parametrize("which_path", ["source_dir", "output_dir"])
     def test_path_not_absolute(self, which_path: str):
         input_data = {
