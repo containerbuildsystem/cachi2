@@ -35,12 +35,12 @@ def mock_fetch_deps(
 ) -> Iterator[mock.MagicMock]:
     output = output or RequestOutput.empty()
 
-    with mock.patch("cachi2.core.package_managers.gomod.fetch_gomod_source") as mock_gomod:
-        mock_gomod.return_value = output
-        yield mock_gomod
+    with mock.patch("cachi2.interface.cli.resolve_packages") as mock_resolve_packages:
+        mock_resolve_packages.return_value = output
+        yield mock_resolve_packages
 
     if expect_request is not None:
-        mock_gomod.assert_called_once_with(expect_request)
+        mock_resolve_packages.assert_called_once_with(expect_request)
 
 
 def invoke_expecting_sucess(app, args: list[str]) -> typer.testing.Result:

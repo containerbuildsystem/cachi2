@@ -111,3 +111,15 @@ class TestRequestOutput:
             EnvironmentVariable(name="A", value="x", kind="literal"),
             EnvironmentVariable(name="B", value="y", kind="literal"),
         ]
+
+
+def mock_output(pkg_names: list[str], env_names: list[str]) -> RequestOutput:
+    return RequestOutput(
+        packages=[
+            Package(type="pip", name=name, version="1.0.0", path=".", dependencies=[])
+            for name in pkg_names
+        ],
+        environment_variables=[
+            EnvironmentVariable(name=name, value="foo", kind="literal") for name in env_names
+        ],
+    )

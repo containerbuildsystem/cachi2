@@ -46,7 +46,7 @@ def _present_user_input_error(validation_error: pydantic.ValidationError) -> str
 
 
 # Supported package managers
-PackageManagerType = Literal["gomod"]
+PackageManagerType = Literal["gomod", "pip"]
 
 Flag = Literal["cgo-disable", "force-gomod-tidy", "gomod-vendor", "gomod-vendor-check"]
 
@@ -104,6 +104,19 @@ class Request(pydantic.BaseModel):
                     f"package path does not exist (or is not a directory): {package.path}"
                 )
         return package
+
+    @property
+    def gomod_packages(self) -> list[PackageInput]:
+        """Get the gomod packages specified for this request."""
+        return self._packages_by_type("gomod")
+
+    @property
+    def pip_packages(self) -> list[PackageInput]:
+        """Get the pip packages specified for this request."""
+        return self._packages_by_type("pip")
+
+    def _packages_by_type(self, pkgtype: PackageManagerType) -> list[PackageInput]:
+        return [package for package in self.packages if package.type == pkgtype]
 
     # This is kept here temporarily, should be refactored
     go_mod_cache_download_part: ClassVar[Path] = Path("pkg", "mod", "cache", "download")

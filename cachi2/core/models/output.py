@@ -6,7 +6,7 @@ import pydantic
 from cachi2.core.models.validators import unique_sorted
 
 # Supported package types (a superset of the supported package *manager* types)
-PackageType = Literal["gomod", "go-package"]
+PackageType = Literal["gomod", "go-package", "pip"]
 
 
 class Dependency(pydantic.BaseModel):
