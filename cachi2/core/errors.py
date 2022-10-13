@@ -1,6 +1,10 @@
 from enum import Enum
 
 
+class Cachi2Error(Exception):
+    """Root of the error hierarchy. Don't raise this directly, use more specific error types."""
+
+
 class RequestErrorOrigin(str, Enum):
     """An Enum that represents the request error origin."""
 
@@ -8,7 +12,7 @@ class RequestErrorOrigin(str, Enum):
     server = "server"
 
 
-class CachitoCalledProcessError(Exception):
+class CachitoCalledProcessError(Cachi2Error):
     """Command executed with subprocess.run() returned non-zero value."""
 
     def __init__(self, err_msg: str, retcode: int):
@@ -17,18 +21,18 @@ class CachitoCalledProcessError(Exception):
         self.retcode = retcode
 
 
-class ValidationError(ValueError):
+class ValidationError(ValueError, Cachi2Error):
     """An error was encountered during validation."""
 
 
 # Request error classifiers
-class ClientError(Exception):
+class ClientError(Cachi2Error):
     """Client Error."""
 
     origin = RequestErrorOrigin.client
 
 
-class ServerError(Exception):
+class ServerError(Cachi2Error):
     """Server Error."""
 
     origin = RequestErrorOrigin.server
@@ -67,7 +71,7 @@ class RepositoryAccessError(ServerError):
     pass
 
 
-class GoModError(Exception):
+class GoModError(Cachi2Error):
     """Go mod related error. A module can't be downloaded by go mod download command."""
 
     pass
