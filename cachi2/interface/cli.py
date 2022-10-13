@@ -1,15 +1,17 @@
+import functools
 import importlib.metadata
 import json
 import logging
 import sys
 from itertools import chain
 from pathlib import Path
-from typing import Optional, Union
+from typing import Callable, Optional, Union
 
 import pydantic
 import typer
 from typer import Option
 
+from cachi2.core.errors import Cachi2Error
 from cachi2.core.models.input import Request
 from cachi2.core.package_managers import gomod
 from cachi2.interface.logging import LogLevel, setup_logging
@@ -21,9 +23,27 @@ DEFAULT_SOURCE = "."
 DEFAULT_OUTPUT = "./cachi2-output"
 
 
-def print_error(msg: str) -> None:
-    """Print the error message to stderr."""
-    print("ERROR:", msg, file=sys.stderr)
+def die(msg: str) -> None:
+    """Print the error message to stderr and exit."""
+    print("Error:", msg, file=sys.stderr)
+    raise typer.Exit(1)
+
+
+def friendly_errors(cmd: Callable[..., None]) -> Callable[..., None]:
+    """Decorate a CLI command function with an error handler.
+
+    Expected errors will be printed in a friendlier format rather than showing the whole traceback.
+    """
+
+    @functools.wraps(cmd)
+    def cmd_with_friendlier_errors(*args, **kwargs) -> None:
+        try:
+            cmd(*args, **kwargs)
+        # TODO: wrap pydantic ValidationErrors in our own errors?
+        except (Cachi2Error, pydantic.ValidationError) as e:
+            die(f"{type(e).__name__}: {e}")
+
+    return cmd_with_friendlier_errors
 
 
 def version_callback(value: bool) -> None:
@@ -75,6 +95,7 @@ def maybe_load_json(opt_name: str, opt_value: str) -> Optional[Union[dict, list]
 
 
 @app.command()
+@friendly_errors
 def fetch_deps(
     package: list[str] = Option(
         ...,  # Ellipsis makes this option required
@@ -179,17 +200,12 @@ def fetch_deps(
         return flags
 
     parsed_packages = tuple(chain.from_iterable(map(parse_packages, package)))
-
-    try:
-        request = Request(
-            source_dir=source,
-            output_dir=output,
-            packages=parsed_packages,
-            flags=combine_flags(),
-        )
-    except pydantic.ValidationError as e:
-        print_error(str(e))
-        raise typer.Exit(1)
+    request = Request(
+        source_dir=source,
+        output_dir=output,
+        packages=parsed_packages,
+        flags=combine_flags(),
+    )
 
     request_output = gomod.fetch_gomod_source(request)
 
