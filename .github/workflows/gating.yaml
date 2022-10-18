@@ -17,7 +17,10 @@ jobs:
         python-version: ["3.10", "3.9"]
 
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+
     - name: Install required packages
       run: |
         sudo apt-get install -y \
@@ -69,7 +72,7 @@ jobs:
           - mypy
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v3
     - name: Install required packages
       run: |
         sudo apt-get install -y \
