@@ -175,10 +175,10 @@ environment since Cachito has dependencies on other services.
 *NOTE:* you may need to ensure that you have some packages installed. In Fedora, you will need
 
 ```
-yum install python3.9 python3-devel python3-virtualenv gcc krb5-devel
+yum install python3.10 python3-devel python3-virtualenv gcc krb5-devel
 ```
 
-where `python3.9` is the version of python required based on `tox.ini`.
+where `python3.10` is the version of python required based on `tox.ini`.
 
 ### Run a Containerized Development Environment
 
@@ -287,7 +287,7 @@ environment can be configured with `TOX_ENVLIST`.
 make test-suite TOX_ARGS="-x --no-cov tests/test_workers/test_tasks/test_gomod.py"
 ```
 
-By default, `TOX_ENVLIST` is set to `py39` indicating that it should run with Python 3.9. If adding
+By default, `TOX_ENVLIST` is set to `python3.10` indicating that it should run with Python 3.10. If adding
 environment parameters to `tox`, ensure that you are setting the Python version if needed.
 
 ### Clean Up
