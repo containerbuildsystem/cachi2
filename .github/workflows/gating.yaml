@@ -84,3 +84,17 @@ jobs:
         pip install tox
     - name: Test '${{ matrix.tox_env }}' with tox
       run: tox -e ${{ matrix.tox_env }}
+
+  hadolint:
+    name: Hadolint
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - uses: hadolint/hadolint-action@v1.5.0
+      with:
+        dockerfile: Containerfile
+        # Ignore list:
+        # * DL3041 - Specify version with dnf install -y <package>-<version>
+        ignore: DL3041
+        failure-threshold: warning
+
