@@ -5,7 +5,7 @@
 Cachi2 is a CLI tool that pre-fetches your project's dependencies to aid in making your build process
 [hermetic](https://slsa.dev/spec/v0.1/requirements#hermetic).
 
-The primary intended use of Cachi2's outputs is for network-isolated container builds.
+The primary intended use of Cachi2's outputs is for network-isolated container builds (see [usage](docs/usage.md)).
 
 ## Supported package managers (so far)
 
@@ -40,7 +40,23 @@ In return, Cachi2 will help make your build
 The ability to achieve the goals depends on the hermeticity of the build process. Ideally, you should try to isolate the
 build from both the internet and the underlying host system to avoid implicit dependencies, irreproducible behavior and
 whole hosts of other issues. Cachi2 itself is not a hermetic build system. We suggest you take advantage of existing
-technologies - such as containers - to achieve isolation.
+technologies - such as containers - to achieve isolation (see [usage](docs/usage.md)).
+
+## Basic usage
+
+```shell
+cachi2 fetch-deps \
+  --source ./my-repo \
+  --output ./cachi2-output \
+  --package gomod
+```
+
+The `fetch-deps` command fetches your project's dependencies and stores them on your disk. You can then use these
+outputs to, say, build a container image.
+
+See [docs/usage.md](docs/usage.md) for a more detailed, practical (*cough*) example of Cachi2 usage.
+
+You might also like to check out `cachi2 --help` and the `--help` texts of the available subcommands.
 
 ## Project status
 
