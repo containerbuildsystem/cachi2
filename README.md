@@ -7,6 +7,14 @@ Cachi2 is a CLI tool that pre-fetches your project's dependencies to aid in maki
 
 The primary intended use of Cachi2's outputs is for network-isolated container builds (see [usage](docs/usage.md)).
 
+## Table of contents
+
+* [Supported package managers](#supported-package-managers-so-far)
+* [Goals](#goals)
+* [Basic usage](#basic-usage)
+* [Development](#development)
+* [Project status](#project-status)
+
 ## Supported package managers (so far)
 
 * [Go modules](https://go.dev/ref/mod)
