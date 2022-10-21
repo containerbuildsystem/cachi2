@@ -58,6 +58,85 @@ See [docs/usage.md](docs/usage.md) for a more detailed, practical (*cough*) exam
 
 You might also like to check out `cachi2 --help` and the `--help` texts of the available subcommands.
 
+## Development
+
+### Virtualenv
+
+Set up a virtual environment that has everything you will need for development:
+
+```shell
+make venv
+source venv/bin/activate
+```
+
+This installs the Cachi2 CLI in [editable mode](https://setuptools.pypa.io/en/latest/userguide/development_mode.html),
+which means changes to the source code will reflect in the behavior of the CLI without the need for reinstalling.
+
+You may need to install the following dependencies before creating the virtualenv:
+
+```shell
+dnf install python3.9 python3-virtualenv
+```
+
+The CLI also depends on the following non-Python dependencies:
+
+```shell
+dnf install golang-bin git
+```
+
+You should now have everything needed to [try out](#basic-usage) the CLI or hack on the code in ~~vim~~ your favorite
+editor.
+
+### Coding standards
+
+Cachi2's codebase conforms to standards enforced by a collection of formatters, linters and other code checkers:
+
+* [black](https://black.readthedocs.io/en/stable/) (with a line-length of 100) for consistent formatting
+* [isort](https://pycqa.github.io/isort/) to keep imports sorted
+* [flake8](https://flake8.pycqa.org/en/latest/) to (de-)lint the code and ~~politely~~ ask for docstrings
+* [mypy](https://mypy.readthedocs.io/en/stable/) for type-checking. Please include type annotations for new code.
+* [pytest](https://docs.pytest.org/en/7.1.x/) to run unit tests and report coverage stats. Please aim for (near) full
+  coverage of new code.
+
+Options for all the tools are configured in [pyproject.toml](./pyproject.toml) and [tox.ini](./tox.ini).
+
+Run all the checks that your pull request will be subjected to:
+
+```shell
+make test
+```
+
+### Running unit tests
+
+Run all unit tests (but no other checks):
+
+```shell
+make test-unit
+```
+
+For finer control over which tests get executed, e.g. to run all tests in a specific file, activate
+the [virtualenv](#virtualenv) and run:
+
+```shell
+tox -e python3.9 -- tests/unit/test_cli.py
+```
+
+Even better, run it stepwise (exit on first failure, re-start from the failed test next time):
+
+```shell
+tox -e python3.9 -- tests/unit/test_cli.py --stepwise
+```
+
+You can also run a single test class or a single test method:
+
+```shell
+tox -e python3.9 -- tests/unit/test_cli.py::TestGenerateEnv
+tox -e python3.9 -- tests/unit/test_cli.py::TestGenerateEnv::test_invalid_format
+tox -e python3.9 -- tests/unit/extras/test_envfile.py::test_cannot_determine_format
+```
+
+In short, tox passes all arguments to the right of `--` directly to pytest.
+
 ## Project status
 
 Cachi2 was derived (but is not a direct fork) from [Cachito](https://github.com/containerbuildsystem/cachito) and is
