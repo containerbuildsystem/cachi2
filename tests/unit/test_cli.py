@@ -381,26 +381,26 @@ class TestFetchDeps:
         assert written_output == request_output
 
 
+def env_file_as_json(for_output_dir: Path) -> str:
+    gocache = f'{{"name": "GOCACHE", "value": "{for_output_dir}/deps/gomod"}}'
+    gosumdb = '{"name": "GOSUMDB", "value": "off"}'
+    return f"[{gocache}, {gosumdb}]\n"
+
+
+def env_file_as_env(for_output_dir: Path) -> str:
+    return dedent(
+        f"""
+        export GOCACHE={for_output_dir}/deps/gomod
+        export GOSUMDB=off
+        """
+    ).lstrip()
+
+
 class TestGenerateEnv:
     ENV_VARS = [
         {"name": "GOCACHE", "value": "deps/gomod", "kind": "path"},
         {"name": "GOSUMDB", "value": "off", "kind": "literal"},
     ]
-
-    @staticmethod
-    def env_file_as_json(for_output_dir: Path) -> str:
-        gocache = f'{{"name": "GOCACHE", "value": "{for_output_dir}/deps/gomod"}}'
-        gosumdb = '{"name": "GOSUMDB", "value": "off"}'
-        return f"[{gocache}, {gosumdb}]\n"
-
-    @staticmethod
-    def env_file_as_env(for_output_dir: Path) -> str:
-        return dedent(
-            f"""
-            export GOCACHE={for_output_dir}/deps/gomod
-            export GOSUMDB=off
-            """
-        ).lstrip()
 
     @pytest.fixture
     def tmp_cwd_as_output_dir(self, tmp_cwd: Path) -> Path:
@@ -463,9 +463,9 @@ class TestGenerateEnv:
 
         resolved_output_dir = Path(expect_output_dir.format(cwd=tmp_cwd_as_output_dir))
         if fmt == "env":
-            expect_output = self.env_file_as_env(resolved_output_dir)
+            expect_output = env_file_as_env(resolved_output_dir)
         else:
-            expect_output = self.env_file_as_json(resolved_output_dir)
+            expect_output = env_file_as_json(resolved_output_dir)
 
         assert result.stdout == expect_output
 
