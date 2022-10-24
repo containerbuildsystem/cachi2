@@ -9,11 +9,7 @@ along, clone the repository to your local disk.
 git clone https://github.com/junegunn/fzf --branch=0.34.0
 ```
 
-If you don't have Cachi2 installed locally, you can run it via the container image:
-
-```shell
-alias cachi2='podman run --rm -ti -v "$PWD:$PWD:z" -w "$PWD" quay.io/containerbuildsystem/cachi2:latest'
-```
+If you don't have Cachi2 installed locally, you can run it via the [container image](../README.md#container-image).
 
 ### Pre-fetch dependencies
 
