@@ -1,6 +1,7 @@
 # Cachi2
 
 [![coverage][cachi2-coveralls-badge]][cachi2-coveralls]
+[![container][cachi2-container-status]][cachi2-container]
 
 Cachi2 is a CLI tool that pre-fetches your project's dependencies to aid in making your build process
 [hermetic](https://slsa.dev/spec/v0.1/requirements#hermetic).
@@ -11,6 +12,7 @@ The primary intended use of Cachi2's outputs is for network-isolated container b
 
 * [Supported package managers](#supported-package-managers-so-far)
 * [Goals](#goals)
+* [Installation](#installation)
 * [Basic usage](#basic-usage)
 * [Development](#development)
 * [Project status](#project-status)
@@ -49,6 +51,33 @@ The ability to achieve the goals depends on the hermeticity of the build process
 build from both the internet and the underlying host system to avoid implicit dependencies, irreproducible behavior and
 whole hosts of other issues. Cachi2 itself is not a hermetic build system. We suggest you take advantage of existing
 technologies - such as containers - to achieve isolation (see [usage](docs/usage.md)).
+
+## Installation
+
+### Standalone
+
+We do not distribute Cachi2 as a standalone package as of now.
+
+To install Cachi2 for local development, see the [development](#development) section.
+
+### Container image
+
+[![container][cachi2-container-status]][cachi2-container]
+
+```text
+quay.io/containerbuildsystem/cachi2:latest
+```
+
+The container is re-built automatically on every merge to the main branch.
+
+You may wish to set up an alias to make local usage more convenient:
+
+```shell
+alias cachi2='podman run --rm -ti -v "$PWD:$PWD:z" -w "$PWD" quay.io/containerbuildsystem/cachi2:latest'
+```
+
+Note that the alias mounts the current working directory - the container will have access to files in that directory
+and nowhere else.
 
 ## Basic usage
 
@@ -152,5 +181,7 @@ still in early development phase.
 
 [cachi2-coveralls]: https://coveralls.io/github/containerbuildsystem/cachi2?branch=main
 [cachi2-coveralls-badge]: https://coveralls.io/repos/github/containerbuildsystem/cachi2/badge.svg?branch=main
+[cachi2-container]: https://quay.io/repository/containerbuildsystem/cachi2
+[cachi2-container-status]: https://quay.io/repository/containerbuildsystem/cachi2/status
 [wheel-spec]: https://packaging.python.org/en/latest/specifications/binary-distribution-format/
 [setuppy-discouraged]: https://setuptools.pypa.io/en/latest/userguide/quickstart.html#setuppy-discouraged
