@@ -1,5 +1,5 @@
-PYTHON_VERSION_VENV ?= python3.10
-TOX_ENVLIST ?= python3.10
+PYTHON_VERSION_VENV ?= python3.9
+TOX_ENVLIST ?= python3.9
 TOX_ARGS ?=
 
 all: venv
