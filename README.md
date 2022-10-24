@@ -6,20 +6,18 @@
 Cachi2 is a CLI tool that pre-fetches your project's dependencies to aid in making your build process
 [hermetic](https://slsa.dev/spec/v0.1/requirements#hermetic).
 
+To see if we support your package manager(s), please check the [package managers](#package-managers) section.
+
 The primary intended use of Cachi2's outputs is for network-isolated container builds (see [usage](docs/usage.md)).
 
 ## Table of contents
 
-* [Supported package managers](#supported-package-managers-so-far)
 * [Goals](#goals)
 * [Installation](#installation)
 * [Basic usage](#basic-usage)
 * [Development](#development)
+* [Package managers](#package-managers)
 * [Project status](#project-status)
-
-## Supported package managers (so far)
-
-* [Go modules](https://go.dev/ref/mod)
 
 ## Goals
 
@@ -174,6 +172,49 @@ tox -e python3.9 -- tests/unit/extras/test_envfile.py::test_cannot_determine_for
 
 In short, tox passes all arguments to the right of `--` directly to pytest.
 
+## Package managers
+
+Supported:
+
+* [gomod](#gomod)
+
+Planned:
+
+* pip (coming soon)
+* npm
+* yarn
+* rubygems
+
+*Based on the [supported package managers](https://github.com/containerbuildsystem/cachito#package-managers) in the
+original Cachito.*
+
+### [gomod](https://go.dev/ref/mod)
+
+Current version: 1.18 [^go-version] [^go-compat]
+
+The gomod package manager works by parsing the [go.mod](https://go.dev/ref/mod#go-mod-file) file present in the source
+repository to determine which dependencies to download. Cachi2 does not parse this file on its own - rather, we rely on
+the `go` command to download and list the required dependencies.
+
+From go 1.17 onward, the go.mod file includes all the transitively required dependencies of your application - see the
+section about *Pruned module graphs* in the [1.17 changelog][go117-changelog]. In previous go versions, the go.mod file
+included only direct dependencies. Cachi2 does support downloading and listing all transitive dependencies for earlier
+versions thanks to Go's backwards compatibility[^go-compat]. Note that using go >= 1.17 in your project has the added
+benefit of downloading fewer dependencies (as noted in the changelog), in some cases drastically so.
+
+See [docs/gomod.md](docs/gomod.md) for more details.
+
+[^go-version]: Cachi2 expects to use a specific version of the `go` command when downloading dependencies. This is the
+  version installed in the [cachi2 container](#container-image). We do not guarantee correctness if you run Cachi2
+  locally (outside the container) with a different Go version. You *are* free to use a different version to build your
+  project.
+
+[^go-compat]: The `go` command promises to be backwards compatible with previous versions. If your go.mod file specifies
+  the intended go version, Cachi2 should handle it appropriately. If your go version is *higher* than what Cachi2 uses,
+  there is a good chance it will be compatible regardless, as long as the dependency resolution did not change between
+  the two versions. For example, dependency resolution did change in [go 1.18][go118-changelog] but not in
+  [go 1.19][go119-changelog].
+
 ## Project status
 
 Cachi2 was derived (but is not a direct fork) from [Cachito](https://github.com/containerbuildsystem/cachito) and is
@@ -185,3 +226,6 @@ still in early development phase.
 [cachi2-container-status]: https://quay.io/repository/containerbuildsystem/cachi2/status
 [wheel-spec]: https://packaging.python.org/en/latest/specifications/binary-distribution-format/
 [setuppy-discouraged]: https://setuptools.pypa.io/en/latest/userguide/quickstart.html#setuppy-discouraged
+[go117-changelog]: https://tip.golang.org/doc/go1.17#go-command
+[go118-changelog]: https://tip.golang.org/doc/go1.18#go-command
+[go119-changelog]: https://tip.golang.org/doc/go1.19#go-command
