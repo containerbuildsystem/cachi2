@@ -9,7 +9,7 @@ along, clone the repository to your local disk.
 git clone https://github.com/junegunn/fzf --branch=0.34.0
 ```
 
-If you don't have Cachi2 installed locally, you can run it via the [container image](../README.md#container-image).
+The best way to run `cachi2` is via the [container image](../README.md#container-image).
 
 ### Pre-fetch dependencies
 
