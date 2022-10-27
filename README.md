@@ -37,9 +37,9 @@ To play nicely with Cachi2, the build process for your project must be
 * **Reproducible** - Cachi2 will refuse to fetch a dependency if it's not pinned to an exact version. This goes
   for transitive dependencies as well (and ties to the Defined point). Most package managers pin all dependencies
   automatically in lockfiles.
-* **Secure** - Even with a lockfile, your build is not truly safe from supply chain attacks unless you verify the
-  checksums of all dependencies. If your package manager supports specifying the expected checksums, we strongly
-  encourage you to make use of them.
+* **Secure** - Even with a lockfile, your build is not truly safe from supply chain attacks (such as
+  [dependency confusion](docs/dependency_confusion.md)) unless you verify the checksums of all dependencies. If your
+  package manager supports specifying the expected checksums, we strongly encourage you to make use of them.
 
   ⚠ Cachi2 will verify checksums if present, but doesn't require them by default. This may change in the future.
 
