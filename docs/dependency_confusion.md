@@ -145,5 +145,17 @@ when using dependency replacements.
 > Cachito, it will download the dependency directly without relying on npm/yarn dependency resolution.
 > That does not necessarily make using unofficial registries a good idea. If the registry is private,
 > your build will either fail or leak internal package names.
+>
+> ## RubyGems (Bundler)
+>
+> *TL;DR: allowing `https://rubygems.org` as the only source should mitigate the issue for GEM dependencies*
+>
+> Cachito parses `Gemfile.lock` which pins all dependencies to exact versions. Cachito allows GEM dependencies
+> to be fetched only from `https://rubygems.org`, otherwise raises an error. GIT dependencies are specified using
+> a repo URL and pinned to a commit hash.
+>
+> Bundler doesn't verify checksums of dependencies yet, however, there's an effort to bring
+> [internal GitLab implementation](https://gitlab.com/gitlab-org/gitlab/-/merge_requests/92633)
+> to [the upstream](https://github.com/rubygems/rubygems/pull/5808).
 
 [cachito-1]: https://github.com/containerbuildsystem/cachito
