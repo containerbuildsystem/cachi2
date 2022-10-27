@@ -1,9 +1,8 @@
 # Problem Statement
 
-Recent research has shown novel
-[ways](https://medium.com/@alex.birsan/dependency-confusion-4a5d60fec610)
-to inject malicious content into applications. The question has been raised as to whether or not
-using Cachi2 makes this issue worse. This document is an analysis of each package manager
+In February 2021, a [blog post](https://medium.com/@alex.birsan/dependency-confusion-4a5d60fec610)
+popularized a novel way to inject malicious content into applications. The question was raised as to
+whether using Cachi2 makes this issue worse. This document is an analysis of each package manager
 supported by Cachi2 to address the security concern named *dependency confusion*.
 
 # Dependency Confusion
