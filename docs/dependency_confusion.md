@@ -3,8 +3,8 @@
 Recent research has shown novel
 [ways](https://medium.com/@alex.birsan/dependency-confusion-4a5d60fec610)
 to inject malicious content into applications. The question has been raised as to whether or not
-using Cachito makes this issue worse. This document is an analysis of each package manager
-supported by Cachito to address the security concern named *dependency confusion*.
+using Cachi2 makes this issue worse. This document is an analysis of each package manager
+supported by Cachi2 to address the security concern named *dependency confusion*.
 
 # Dependency Confusion
 
@@ -19,46 +19,40 @@ of the internal one.
 
 ## Potential Impact
 
-What happens when Cachito is tricked into downloading a malicious version of one of your
-dependencies? To Cachito itself, nothing. Cachito never executes your code, or the code of any of
-your dependencies. What about your build?
+What happens when Cachi2 is tricked into downloading a malicious version of one of your dependencies?
+To the system that runs Cachi2, nothing. Cachi2 never executes your code, or the code of any of your
+dependencies. What about your build?
 
-You are likely using Cachito through OSBS. Cachito will serve the malicious dependency to the OSBS
-build, where you will subsequently use it to build your application container. The malicious
-behaviour may or may not manifest at build time. In the best case scenario, the build will fail.
-In the worst case scenario, you will end up shipping malicious code to customers.
+Hopefully, you are building your application in an isolated environment (such as a container build
+with no network access) to protect your own system. In the best case scenario, the malicious behaviour
+will manifest at build time and the build will fail. In the worst case scenario, the build will succeed
+but the built product will contain malicious code, which may then affect whoever tries to run it.
 
-## Dependency Confusion vs Cachito
+## Dependency Confusion vs Cachi2
 
 Before delving into the specifics of each supported package manager, let us make a general statement
-about Cachito’s stance towards dependency confusion.
+about Cachi2’s stance towards dependency confusion.
 
-Cachito aims to match the behaviour of your package manager as closely as possible. Generally
-speaking, Cachito is as vulnerable to dependency confusion as your package manager, not more, not
+Cachi2 aims to match the behaviour of your package manager as closely as possible. Generally
+speaking, Cachi2 is as vulnerable to dependency confusion as your package manager, not more, not
 less. However, all the supported package managers provide means to protect yourself by following
 best practices. For example, you can remove all known attack vectors by simply verifying the
 checksums of your dependencies.
 
-Cachito enforces *some* of these best practices. Typically, each package manager provides a lockfile
-or other mechanism for pinning dependency versions. Cachito requires this. Verifying checksums is
+Cachi2 enforces *some* of these best practices. Typically, each package manager provides a lockfile
+or other mechanism for pinning dependency versions. Cachi2 requires this. Verifying checksums is
 usually up to you.
-
-Additionally, due to the caching nature of Cachito, you should never be affected by dependency
-confusion during a *rebuild*. If you build the same revision of your repository, or a different
-revision which uses the same versions of dependencies, Cachito will use the dependencies that it has
-already downloaded. Dependency confusion should only be a concern when building for the first time
-or when changing the version of a dependency.
 
 # Package Managers
 
-*Sometimes users may state that Cachito supports a certain programming language. This is not
-entirely accurate. Cachito only supports package managers. The ecosystem of a programming language
+*Sometimes users may state that Cachi2 supports a certain programming language. This is not
+entirely accurate. Cachi2 only supports package managers. The ecosystem of a programming language
 may provide different package managers, for example, npm and yarn are both available for managing
 JavaScript packages.*
 
 ## gomod
 
-*TL;DR: commit your go.sum. Be cautious when using Cachito’s dependency replacements.*
+*TL;DR: commit your go.sum.*
 
 Golang modules are defined by their [go.mod](https://golang.org/ref/mod#go-mod-file) files. These
 define the name of your module as well as the names and versions of its direct dependencies.
@@ -68,19 +62,10 @@ reproducible builds on its own.
 However, due to golang versions being tied to git tags, you are technically at the mercy of
 repository maintainers. To prevent surprises, whenever go downloads any dependencies, it
 saves their checksums in a [go.sum](https://golang.org/ref/mod#go) file. This file is later used to
-verify that the content of all direct and indirect dependencies is what you expect it to be. It’s
-important to note that once Cachito downloads a dependency from the Internet, it caches it for
-future usage. So even if a repository maintainer changes the git tags, Cachito will not detect this
-change. 
+verify that the content of all direct and indirect dependencies is what you expect it to be.
 
 As long as you make sure to always commit your go.sum file, your Golang module should be safe from
 dependency attacks.
-
-The one caveat is Cachito’s own
-[dependency replacements](https://github.com/release-engineering/cachito#feature-support) feature.
-This feature allows you to replace dependencies with different versions on the fly. Currently, there
-is no way to verify their checksums. Always check that the replacement versions are what you want
-when using dependency replacements.
 
 ## *[Cachito][cachito-1] also supports the following package managers, but Cachi2 does not (yet).*
 
