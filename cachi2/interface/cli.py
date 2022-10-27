@@ -123,7 +123,7 @@ def fetch_deps(
     force_gomod_tidy: bool = Option(
         False,
         "--force-gomod-tidy",
-        help="Run 'go mod tidy' before processing gomod packages.",
+        help="Run 'go mod tidy' after downloading go dependencies.",
     ),
     gomod_vendor: bool = Option(
         False,
