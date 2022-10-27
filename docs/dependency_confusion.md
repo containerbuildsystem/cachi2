@@ -54,14 +54,14 @@ JavaScript packages.*
 *TL;DR: commit your go.sum.*
 
 Golang modules are defined by their [go.mod](https://golang.org/ref/mod#go-mod-file) files. These
-define the name of your module as well as the names and versions of its direct dependencies.
-Thanks to golang’s unique system of dependency management, this file is enough to ensure
-reproducible builds on its own.
+define the name of your module as well as the names and versions of its dependencies. Thanks to
+golang’s unique system of dependency management, this file is enough to ensure reproducible builds
+on its own.
 
 However, due to golang versions being tied to git tags, you are technically at the mercy of
-repository maintainers. To prevent surprises, whenever go downloads any dependencies, it
-saves their checksums in a [go.sum](https://golang.org/ref/mod#go) file. This file is later used to
-verify that the content of all direct and indirect dependencies is what you expect it to be.
+repository maintainers. To prevent surprises, whenever go downloads any dependencies, it saves
+their checksums in a [go.sum](https://golang.org/ref/mod#go-sum-files) file. This file is later used
+to verify that the content of all direct and indirect dependencies is what you expect it to be.
 
 As long as you make sure to always commit your go.sum file, your Golang module should be safe from
 dependency attacks.
