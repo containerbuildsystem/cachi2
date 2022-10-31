@@ -215,8 +215,50 @@ that uses all the available configuration options.
 }
 ```
 
+## Debugging build failures
+
+Python's packaging system has its oddities, even more so when used through Cachito. The
+[packaging glossary][packaging-glossary] may be useful to you throughout this section.
+
+### Per project index
+
+Your build uses a per project index, specified by the `PIP_INDEX_URL` environment
+variable. This index contains only the source distributions (sdists) for your packages,
+not wheels. That means all packages need to be built from source.
+
+### Building from source
+
+When building a package from source, the most important files are typically
+**pyproject.toml** and, if the build backend is setuptools, **setup.cfg** or
+**setup.py**. If you want to know more, check out [PEP 517][pep-517] and
+[PEP 518][pep-518].
+
+> :warning: PEPs 518 and 517 were implemented in pip versions 10.0 and 19.0,
+> respectively. Additionally, only pip>=18.0 supports sdists for PEP 518. Older
+> versions of pip will fail to install packages that rely on these PEPs.
+
+If you just want to try installing packages from sdists, you do not need to go through
+Cachito. You can simply pass the `--no-binary :all:` option to pip.
+
+```shell
+pip install --no-binary :all: -r requirements.txt
+```
+
+### Building extension modules
+
+For pure Python modules, building from source is usually not a problem if you have all
+the build dependencies. For extension modules written in C or other languages, this is
+a bit trickier.
+
+The build will still work if you have the build dependencies, but you cannot fetch them
+through Cachito, not to mention that it is nearly impossible to determine what they are.
+As always, `pip install --no-binary :all:` is your friend. Just keep trying until you
+make it work.
+
 [setuptools-docs]: https://setuptools.readthedocs.io/en/latest/setuptools.html
+[pep-517]: https://www.python.org/dev/peps/pep-0517/
 [pep-518]: https://www.python.org/dev/peps/pep-0518/
 [setup-py-docs]: https://setuptools.readthedocs.io/en/latest/setuptools.html#basic-use
 [setup-cfg-docs]: https://setuptools.readthedocs.io/en/latest/setuptools.html#configuring-setup-using-setup-cfg-files
 [cachito-pip-py]: ../cachito/workers/pkg_managers/pip.py
+[packaging-glossary]: https://packaging.python.org/glossary/
