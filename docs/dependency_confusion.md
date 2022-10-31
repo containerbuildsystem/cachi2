@@ -44,11 +44,6 @@ usually up to you.
 
 # Package Managers
 
-*Sometimes users may state that Cachi2 supports a certain programming language. This is not
-entirely accurate. Cachi2 only supports package managers. The ecosystem of a programming language
-may provide different package managers, for example, npm and yarn are both available for managing
-JavaScript packages.*
-
 ## gomod
 
 *TL;DR: commit your go.sum.*
