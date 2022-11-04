@@ -48,17 +48,8 @@ class SubprocessCallError(ServerError):
     pass
 
 
-class NetworkError(ServerError):
-    """Network connection error."""
-
-    pass
-
-
-# Third-party service errors
-class RepositoryAccessError(ServerError):
-    """Repository is not accessible and can't be cloned."""
-
-    pass
+class FetchError(Cachi2Error):
+    """Cachi2 failed to fetch a dependency or other data needed to process a package."""
 
 
 class GoModError(Cachi2Error):

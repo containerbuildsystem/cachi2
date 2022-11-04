@@ -16,9 +16,9 @@ import semver
 from cachi2.core.config import get_worker_config
 from cachi2.core.errors import (
     CachitoCalledProcessError,
+    FetchError,
     GoModError,
     PackageRejected,
-    RepositoryAccessError,
     UnsupportedFeature,
 )
 from cachi2.core.models.input import Request
@@ -451,7 +451,7 @@ def _get_golang_version(module_name, git_path, commit_sha=None, update_tags=Fals
     :param str subpath: path to the module, relative to the root repository folder
     :return: a version as `go list` would provide
     :rtype: str
-    :raises RepositoryAccessError: if failed to fetch the tags on the Git repository
+    :raises FetchError: if failed to fetch the tags on the Git repository
     """
     # If the module is version v2 or higher, the major version of the module is included as /vN at
     # the end of the module path. If the module is version v0 or v1, the major version is omitted
@@ -466,7 +466,7 @@ def _get_golang_version(module_name, git_path, commit_sha=None, update_tags=Fals
         try:
             repo.remote().fetch(force=True, tags=True)
         except Exception as ex:
-            raise RepositoryAccessError(
+            raise FetchError(
                 "Failed to fetch the tags on the Git repository (%s) for %s ",
                 type(ex).__name__,
                 module_name,
@@ -561,8 +561,8 @@ def _get_highest_semver_tag(repo, target_commit, major_version, all_reachable=Fa
         tag_names = g.execute(cmd).splitlines()
     except git.GitCommandError:
         msg = f"Failed to get the tags associated with the reference {target_commit.hexsha}"
-        log.exception(msg)
-        raise RepositoryAccessError(msg)
+        log.error(msg)
+        raise
 
     # Keep only semantic version tags related to the path being processed
     prefix = f"{subpath}/v" if subpath else "v"
