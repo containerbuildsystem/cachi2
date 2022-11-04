@@ -4,6 +4,7 @@ import logging
 import os
 import re
 import shutil
+import subprocess  # nosec
 import tempfile
 from datetime import datetime
 from pathlib import Path, PureWindowsPath
@@ -14,13 +15,7 @@ import git
 import semver
 
 from cachi2.core.config import get_worker_config
-from cachi2.core.errors import (
-    CachitoCalledProcessError,
-    FetchError,
-    GoModError,
-    PackageRejected,
-    UnsupportedFeature,
-)
+from cachi2.core.errors import FetchError, GoModError, PackageRejected, UnsupportedFeature
 from cachi2.core.models.input import Request
 from cachi2.core.models.output import RequestOutput
 from cachi2.core.utils import load_json_stream, run_cmd
@@ -28,8 +23,14 @@ from cachi2.core.utils import load_json_stream, run_cmd
 log = logging.getLogger(__name__)
 
 
-_run_gomod_cmd = functools.partial(run_cmd, exc_msg="Processing gomod dependencies failed")
 _MODULE_VERSION_RE = re.compile(r"/v\d+$")
+
+
+def _run_gomod_cmd(cmd: Iterable[str], params: dict[str, Any]) -> str:
+    try:
+        return run_cmd(cmd, params)
+    except subprocess.CalledProcessError as e:
+        raise GoModError("Processing gomod dependencies failed") from e
 
 
 def fetch_gomod_source(request: Request) -> RequestOutput:
@@ -387,7 +388,7 @@ def _run_download_cmd(cmd: Iterable[str], params: Dict[str, Any]) -> str:
 
     @backoff.on_exception(
         backoff.expo,
-        CachitoCalledProcessError,
+        GoModError,
         jitter=None,  # use deterministic backoff, do not apply jitter
         max_tries=n_tries,
         logger=log,
@@ -398,12 +399,12 @@ def _run_download_cmd(cmd: Iterable[str], params: Dict[str, Any]) -> str:
 
     try:
         return run_go(cmd, params)
-    except CachitoCalledProcessError:
+    except GoModError:
         err_msg = (
             f"Processing gomod dependencies failed. Cachito tried the {' '.join(cmd)} command "
             f"{n_tries} times. This may indicate a problem with your repository or Cachito itself."
         )
-        raise GoModError(err_msg)
+        raise GoModError(err_msg) from None
 
 
 def _should_vendor_deps(flags: Iterable[str], app_dir: Path, strict: bool) -> Tuple[bool, bool]:

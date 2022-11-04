@@ -2,15 +2,6 @@ class Cachi2Error(Exception):
     """Root of the error hierarchy. Don't raise this directly, use more specific error types."""
 
 
-class CachitoCalledProcessError(Cachi2Error):
-    """Command executed with subprocess.run() returned non-zero value."""
-
-    def __init__(self, err_msg: str, retcode: int):
-        """Initialize the error with a message and the return code of the failing command."""
-        super().__init__(err_msg)
-        self.retcode = retcode
-
-
 class PackageRejected(Cachi2Error):
     """Cachi2 refused to process the package the user requested.
 

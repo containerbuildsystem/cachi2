@@ -5,18 +5,16 @@ import subprocess  # nosec
 from typing import Iterator
 
 from cachi2.core.config import get_worker_config
-from cachi2.core.errors import CachitoCalledProcessError
 
 log = logging.getLogger(__name__)
 
 
-def run_cmd(cmd, params, exc_msg=None):
+def run_cmd(cmd, params):
     """
     Run the given command with provided parameters.
 
     :param iter cmd: iterable representing command to be executed
     :param dict params: keyword parameters for command execution
-    :param str exc_msg: an optional exception message when the command fails
     :returns: the command output
     :rtype: str
     :raises SubprocessCallError: if the command fails
@@ -30,11 +28,11 @@ def run_cmd(cmd, params, exc_msg=None):
 
     response = subprocess.run(cmd, **params)  # nosec
 
-    if response.returncode != 0:
+    try:
+        response.check_returncode()
+    except subprocess.CalledProcessError:
         log.error('The command "%s" failed with: %s', " ".join(cmd), response.stderr)
-        raise CachitoCalledProcessError(
-            exc_msg or "An unexpected error occurred", response.returncode
-        )
+        raise
 
     return response.stdout
 

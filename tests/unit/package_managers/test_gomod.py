@@ -1,23 +1,20 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 import os
 import re
+import subprocess
 import tarfile
 import textwrap
 from contextlib import nullcontext
 from pathlib import Path
 from tempfile import TemporaryDirectory as tempDir
 from textwrap import dedent
+from typing import Optional, Union
 from unittest import mock
 
 import git
 import pytest
 
-from cachi2.core.errors import (
-    CachitoCalledProcessError,
-    GoModError,
-    PackageRejected,
-    UnsupportedFeature,
-)
+from cachi2.core.errors import GoModError, PackageRejected, UnsupportedFeature
 from cachi2.core.models.input import Request
 from cachi2.core.package_managers import gomod
 from cachi2.core.package_managers.gomod import (
@@ -57,6 +54,12 @@ def gomod_request(tmp_path: Path) -> Request:
         output_dir=tmp_path / "output",
         packages=[{"type": "gomod"}],
     )
+
+
+def proc_mock(
+    args: Union[str, list[str]] = "", *, returncode: int, stdout: Optional[str]
+) -> subprocess.CompletedProcess:
+    return subprocess.CompletedProcess(args, returncode=returncode, stdout=stdout)
 
 
 mock_pkg_list = dedent(
@@ -283,16 +286,16 @@ def test_resolve_gomod(
     # Mock the "subprocess.run" calls
     run_side_effects = []
     if dep_replacement:
-        run_side_effects.append(mock.Mock(returncode=0, stdout=None))  # go mod edit -replace
-    run_side_effects.append(mock.Mock(returncode=0, stdout=None))  # go mod download
+        run_side_effects.append(proc_mock("go mod edit -replace", returncode=0, stdout=None))
+    run_side_effects.append(proc_mock("go mod download", returncode=0, stdout=None))
     if force_gomod_tidy or dep_replacement:
-        run_side_effects.append(mock.Mock(returncode=0, stdout=None))  # go mod tidy
+        run_side_effects.append(proc_mock("go mod tidy", returncode=0, stdout=None))
     run_side_effects.append(
-        mock.Mock(returncode=0, stdout="github.com/release-engineering/retrodep/v2")  # go list -m
+        proc_mock("go list -m", returncode=0, stdout="github.com/release-engineering/retrodep/v2")
     )
-    run_side_effects.append(mock.Mock(returncode=0, stdout=mock_cmd_output))  # go list -m all
-    run_side_effects.append(mock.Mock(returncode=0, stdout=mock_pkg_list))  # go list -find ./...
-    run_side_effects.append(mock.Mock(returncode=0, stdout=mock_pkg_deps))  # go list -deps -json
+    run_side_effects.append(proc_mock("go list -m all", returncode=0, stdout=mock_cmd_output))
+    run_side_effects.append(proc_mock("go list -find ./...", returncode=0, stdout=mock_pkg_list))
+    run_side_effects.append(proc_mock("go list -deps -json", returncode=0, stdout=mock_pkg_deps))
     mock_run.side_effect = run_side_effects
 
     mock_golang_version.return_value = "v2.1.1"
@@ -399,18 +402,20 @@ def test_resolve_gomod_vendor_dependencies(
 
     # Mock the "subprocess.run" calls
     run_side_effects = []
-    run_side_effects.append(mock.Mock(returncode=0, stdout=None))  # go mod vendor
+    run_side_effects.append(proc_mock("go mod vendor", returncode=0, stdout=None))
     if force_gomod_tidy:
-        run_side_effects.append(mock.Mock(returncode=0, stdout=None))  # go mod tidy
+        run_side_effects.append(proc_mock("go mod tidy", returncode=0, stdout=None))
     run_side_effects.append(
-        mock.Mock(returncode=0, stdout="github.com/release-engineering/retrodep/v2")  # go list -m
+        proc_mock("go list -m", returncode=0, stdout="github.com/release-engineering/retrodep/v2")
     )
     run_side_effects.append(
-        mock.Mock(returncode=0, stdout="github.com/release-engineering/retrodep/v2")
-    )  # go list -find ./...
+        proc_mock(
+            "go list -find ./...", returncode=0, stdout="github.com/release-engineering/retrodep/v2"
+        )
+    )
     run_side_effects.append(
-        mock.Mock(returncode=0, stdout=mock_pkg_deps_no_deps)
-    )  # go list -deps -json
+        proc_mock("go list -deps -json", returncode=0, stdout=mock_pkg_deps_no_deps)
+    )
     mock_run.side_effect = run_side_effects
     mock_module_lines.return_value = []
     mock_golang_version.return_value = "v2.1.1"
@@ -465,13 +470,13 @@ def test_resolve_gomod_strict_mode_raise_error(
 
     # Mock the "subprocess.run" call
     mock_run.side_effect = [
-        mock.Mock(returncode=0, stdout=""),  # go mod edit -replace
-        mock.Mock(returncode=0, stdout=""),  # go mod download
-        mock.Mock(returncode=0, stdout=""),  # go mod tidy
-        mock.Mock(returncode=0, stdout="pizza"),  # go list -m
-        mock.Mock(returncode=0, stdout="pizza v1.0.0 => pizza v1.0.1\n"),  # go list -mod readonly
-        mock.Mock(returncode=0, stdout=""),  # go list -find
-        mock.Mock(returncode=0, stdout=""),  # go list -deps -json
+        proc_mock("go mod edit -replace", returncode=0, stdout=""),
+        proc_mock("go mod download", returncode=0, stdout=""),
+        proc_mock("go mod tidy", returncode=0, stdout=""),
+        proc_mock("go list -m", returncode=0, stdout="pizza"),
+        proc_mock("go list mod readonly", returncode=0, stdout="pizza v1.0.0 => pizza v1.0.1\n"),
+        proc_mock("go list -find", returncode=0, stdout=""),
+        proc_mock("go list -deps -json", returncode=0, stdout=""),
     ]
 
     archive_path = gomod_request.source_dir / "path/to/archive.tar.gz"
@@ -513,19 +518,21 @@ def test_resolve_gomod_no_deps(
 
     # Mock the "subprocess.run" calls
     run_side_effects = []
-    run_side_effects.append(mock.Mock(returncode=0, stdout=None))  # go mod download
+    run_side_effects.append(proc_mock("go mod download", returncode=0, stdout=None))
     if force_gomod_tidy:
-        run_side_effects.append(mock.Mock(returncode=0, stdout=None))  # go mod tidy
+        run_side_effects.append(proc_mock("go mod tidy", returncode=0, stdout=None))
     run_side_effects.append(
-        mock.Mock(returncode=0, stdout="github.com/release-engineering/retrodep/v2")  # go list -m
+        proc_mock("go list -m", returncode=0, stdout="github.com/release-engineering/retrodep/v2")
     )
-    run_side_effects.append(mock.Mock(returncode=0, stdout=""))  # go list -m all
+    run_side_effects.append(proc_mock("go list -m all", returncode=0, stdout=""))
     run_side_effects.append(
-        mock.Mock(returncode=0, stdout="github.com/release-engineering/retrodep/v2")
-    )  # go list -find ./...
+        proc_mock(
+            "go list -find ./...", returncode=0, stdout="github.com/release-engineering/retrodep/v2"
+        )
+    )
     run_side_effects.append(
-        mock.Mock(returncode=0, stdout=mock_pkg_deps_no_deps)
-    )  # go list -deps -json
+        proc_mock("go list -deps -json", returncode=0, stdout=mock_pkg_deps_no_deps)
+    )
     mock_run.side_effect = run_side_effects
 
     mock_golang_version.return_value = "v2.1.1"
@@ -561,11 +568,11 @@ def test_resolve_gomod_unused_dep(mock_run, mock_temp_dir, tmpdir, gomod_request
 
     # Mock the "subprocess.run" calls
     mock_run.side_effect = [
-        mock.Mock(returncode=0, stdout=None),  # go mod edit -replace
-        mock.Mock(returncode=0, stdout=None),  # go mod download
-        mock.Mock(returncode=0, stdout=None),  # go mod tidy
-        mock.Mock(returncode=0, stdout="github.com/release-engineering/retrodep/v2"),  # go list -m
-        mock.Mock(returncode=0, stdout=_generate_mock_cmd_output()),  # go list -m all
+        proc_mock("go mod edit -replace", returncode=0, stdout=None),
+        proc_mock("go mod download", returncode=0, stdout=None),
+        proc_mock("go mod tidy", returncode=0, stdout=None),
+        proc_mock("go list -m", returncode=0, stdout="github.com/release-engineering/retrodep/v2"),
+        proc_mock("go list -m all", returncode=0, stdout=_generate_mock_cmd_output()),
     ]
 
     expected_error = "The following gomod dependency replacements don't apply: pizza"
@@ -591,12 +598,12 @@ def test_go_list_cmd_failure(
 
     # Mock the "subprocess.run" calls
     mock_run.side_effect = [
-        mock.Mock(returncode=go_mod_rc, stdout=None),  # go mod download
-        mock.Mock(returncode=go_list_rc, stdout=_generate_mock_cmd_output()),  # go list -m all
+        proc_mock("go mod download", returncode=go_mod_rc, stdout=None),
+        proc_mock("go list -m all", returncode=go_list_rc, stdout=_generate_mock_cmd_output()),
     ]
 
     with pytest.raises(
-        (CachitoCalledProcessError, GoModError),
+        GoModError,
         match="Processing gomod dependencies failed",
     ):
         _resolve_gomod(archive_path, gomod_request)
@@ -1441,8 +1448,8 @@ def test_get_dep_version(dep_info, expect_version):
 def test_run_download_cmd_success(mock_sleep, mock_run, mock_worker_config, tries_needed, caplog):
     mock_worker_config.return_value.cachito_gomod_download_max_tries = 5
 
-    failure = mock.Mock(returncode=1, stdout="")
-    success = mock.Mock(returncode=0, stdout="")
+    failure = proc_mock(returncode=1, stdout="")
+    success = proc_mock(returncode=0, stdout="")
     mock_run.side_effect = [failure for _ in range(tries_needed - 1)] + [success]
 
     _run_download_cmd(["go", "mod", "download"], {})
@@ -1460,7 +1467,7 @@ def test_run_download_cmd_success(mock_sleep, mock_run, mock_worker_config, trie
 def test_run_download_cmd_failure(mock_sleep, mock_run, mock_worker_config, caplog):
     mock_worker_config.return_value.cachito_gomod_download_max_tries = 5
 
-    failure = mock.Mock(returncode=1, stdout="")
+    failure = proc_mock(returncode=1, stdout="")
     mock_run.side_effect = [failure] * 5
 
     expect_msg = (
