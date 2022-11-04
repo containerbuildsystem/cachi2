@@ -1,15 +1,5 @@
-from enum import Enum
-
-
 class Cachi2Error(Exception):
     """Root of the error hierarchy. Don't raise this directly, use more specific error types."""
-
-
-class RequestErrorOrigin(str, Enum):
-    """An Enum that represents the request error origin."""
-
-    client = "client"
-    server = "server"
 
 
 class CachitoCalledProcessError(Cachi2Error):
@@ -29,25 +19,6 @@ class PackageRejected(Cachi2Error):
     """
 
 
-# Request error classifiers
-class ClientError(Cachi2Error):
-    """Client Error."""
-
-    origin = RequestErrorOrigin.client
-
-
-class ServerError(Cachi2Error):
-    """Server Error."""
-
-    origin = RequestErrorOrigin.server
-
-
-class SubprocessCallError(ServerError):
-    """Error calling subprocess."""
-
-    pass
-
-
 class FetchError(Cachi2Error):
     """Cachi2 failed to fetch a dependency or other data needed to process a package."""
 
@@ -58,7 +29,7 @@ class GoModError(Cachi2Error):
     pass
 
 
-class UnsupportedFeature(ClientError):
+class UnsupportedFeature(Cachi2Error):
     """Unsupported feature."""
 
     pass

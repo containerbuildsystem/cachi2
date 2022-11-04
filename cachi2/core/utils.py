@@ -5,7 +5,7 @@ import subprocess  # nosec
 from typing import Iterator
 
 from cachi2.core.config import get_worker_config
-from cachi2.core.errors import CachitoCalledProcessError, SubprocessCallError
+from cachi2.core.errors import CachitoCalledProcessError
 
 log = logging.getLogger(__name__)
 
@@ -28,10 +28,7 @@ def run_cmd(cmd, params, exc_msg=None):
     conf = get_worker_config()
     params.setdefault("timeout", conf.cachito_subprocess_timeout)
 
-    try:
-        response = subprocess.run(cmd, **params)  # nosec
-    except subprocess.TimeoutExpired as e:
-        raise SubprocessCallError(str(e))
+    response = subprocess.run(cmd, **params)  # nosec
 
     if response.returncode != 0:
         log.error('The command "%s" failed with: %s', " ".join(cmd), response.stderr)
