@@ -16,12 +16,10 @@ import semver
 from cachi2.core.config import get_worker_config
 from cachi2.core.errors import (
     CachitoCalledProcessError,
-    FileAccessError,
     GoModError,
-    InvalidFileFormat,
+    PackageRejected,
     RepositoryAccessError,
     UnsupportedFeature,
-    ValidationError,
 )
 from cachi2.core.models.input import Request
 from cachi2.core.models.output import RequestOutput
@@ -39,7 +37,7 @@ def fetch_gomod_source(request: Request) -> RequestOutput:
     Resolve and fetch gomod dependencies for a given request.
 
     :param request: the request to process
-    :raises FileAccessError: if a file is not present for the gomod package manager
+    :raises PackageRejected: if a file is not present for the gomod package manager
     :raises UnsupportedFeature: if dependency replacements are provided for
         a non-single go module path
     :raises GoModError: if failed to fetch gomod dependencies
@@ -64,7 +62,7 @@ def fetch_gomod_source(request: Request) -> RequestOutput:
             log.warning("go.mod file missing for request at %s", invalid_files_print)
             return RequestOutput.empty()
 
-        raise FileAccessError(
+        raise PackageRejected(
             "The {} file{} must be present for the gomod package manager".format(
                 invalid_files_print.strip(), file_suffix
             )
@@ -420,7 +418,7 @@ def _should_vendor_deps(flags: Iterable[str], app_dir: Path, strict: bool) -> Tu
     :param app_dir: absolute path to the app directory
     :param strict: fail the request if the vendor dir is present but the flags are not used?
     :return: (should vendor: bool, allowed to make changes in the vendor directory: bool)
-    :raise ValidationError: if the vendor dir is present, the flags are not used and we are strict
+    :raise PackageRejected: if the vendor dir is present, the flags are not used and we are strict
     """
     vendor = app_dir.joinpath("vendor")
 
@@ -430,7 +428,7 @@ def _should_vendor_deps(flags: Iterable[str], app_dir: Path, strict: bool) -> Tu
         return True, True
 
     if strict and vendor.is_dir():
-        raise ValidationError(
+        raise PackageRejected(
             'The "gomod-vendor" or "gomod-vendor-check" flag must be set when your repository has '
             "vendored dependencies."
         )
@@ -901,13 +899,13 @@ def _module_lines_from_modules_txt(app_dir: Path) -> List[str]:
 
         if not line.startswith("#"):  # this is a package line
             if not module_lines:
-                raise FileAccessError(f"vendor/modules.txt: package has no parent module: {line}")
+                raise PackageRejected(f"vendor/modules.txt: package has no parent module: {line}")
             has_packages[module_lines[-1]] = True
         elif line.startswith("# "):  # this is a module line or a wildcard replacement (4)
             module_lines.append(line[2:])
         elif not line.startswith("##"):
             # at this point, the line must be a marker, otherwise we don't know what it is
-            raise InvalidFileFormat(f"vendor/modules.txt: unexpected format: {line!r}")
+            raise PackageRejected(f"vendor/modules.txt: unexpected format: {line!r}")
 
     return list(filter(has_packages.get, module_lines))
 
@@ -922,13 +920,13 @@ def _vendor_deps(run_params: dict, can_make_changes: bool, git_dir: str):
     :param run_params: common params for the subprocess calls to `go`
     :param can_make_changes: is Cachito allowed to make changes?
     :param git_dir: path to the repository root
-    :raise ValidationError: if vendor directory changed and Cachito is not allowed to make changes
+    :raise PackageRejected: if vendor directory changed and Cachito is not allowed to make changes
     """
     log.info("Vendoring the gomod dependencies")
     _run_download_cmd(("go", "mod", "vendor"), run_params)
     app_dir = run_params["cwd"]
     if not can_make_changes and _vendor_changed(git_dir, app_dir):
-        raise ValidationError(
+        raise PackageRejected(
             "The content of the vendor directory is not consistent with go.mod. Run "
             "`go mod vendor` locally to fix this problem. See the logs for more details."
         )

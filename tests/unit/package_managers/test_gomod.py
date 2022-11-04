@@ -14,11 +14,9 @@ import pytest
 
 from cachi2.core.errors import (
     CachitoCalledProcessError,
-    FileAccessError,
     GoModError,
-    InvalidFileFormat,
+    PackageRejected,
     UnsupportedFeature,
-    ValidationError,
 )
 from cachi2.core.models.input import Request
 from cachi2.core.package_managers import gomod
@@ -483,7 +481,7 @@ def test_resolve_gomod_strict_mode_raise_error(
         'The "gomod-vendor" or "gomod-vendor-check" flag must be set when your repository has '
         "vendored dependencies."
     )
-    with strict_vendor and pytest.raises(ValidationError, match=expected_error) or nullcontext():
+    with strict_vendor and pytest.raises(PackageRejected, match=expected_error) or nullcontext():
         _resolve_gomod(archive_path, gomod_request)
 
 
@@ -1180,7 +1178,7 @@ def test_should_vendor_deps_strict(flags, vendor_exists, expect_error, tmp_path)
 
     if expect_error:
         msg = 'The "gomod-vendor" or "gomod-vendor-check" flag must be set'
-        with pytest.raises(ValidationError, match=msg):
+        with pytest.raises(PackageRejected, match=msg):
             _should_vendor_deps(flags, tmp_path, True)
     else:
         _should_vendor_deps(flags, tmp_path, True)
@@ -1199,7 +1197,7 @@ def test_vendor_deps(mock_vendor_changed, mock_run_cmd, can_make_changes, vendor
 
     if expect_error:
         msg = "The content of the vendor directory is not consistent with go.mod."
-        with pytest.raises(ValidationError, match=msg):
+        with pytest.raises(PackageRejected, match=msg):
             _vendor_deps(run_params, can_make_changes, git_dir)
     else:
         _vendor_deps(run_params, can_make_changes, git_dir)
@@ -1345,7 +1343,7 @@ def test_module_lines_from_modules_txt_invalid_format(file_content, expect_error
     vendor.mkdir()
     vendor.joinpath("modules.txt").write_text(file_content)
 
-    with pytest.raises((InvalidFileFormat, FileAccessError), match=expect_error_msg):
+    with pytest.raises(PackageRejected, match=expect_error_msg):
         _module_lines_from_modules_txt(tmp_path)
 
 
