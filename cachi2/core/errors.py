@@ -21,8 +21,12 @@ class CachitoCalledProcessError(Cachi2Error):
         self.retcode = retcode
 
 
-class ValidationError(ValueError, Cachi2Error):
-    """An error was encountered during validation."""
+class PackageRejected(Cachi2Error):
+    """Cachi2 refused to process the package the user requested.
+
+    a) The package appears invalid (e.g. missing go.mod for a Go module).
+    b) The package does not meet Cachi2's extra requirements (e.g. missing checksums).
+    """
 
 
 # Request error classifiers
@@ -36,20 +40,6 @@ class ServerError(Cachi2Error):
     """Server Error."""
 
     origin = RequestErrorOrigin.server
-
-
-# Web errors
-class InvalidRequestData(ClientError):
-    """Invalid request data."""
-
-    pass
-
-
-# Low-level errors
-class FileAccessError(ServerError):
-    """File not found."""
-
-    pass
 
 
 class SubprocessCallError(ServerError):
@@ -79,11 +69,5 @@ class GoModError(Cachi2Error):
 
 class UnsupportedFeature(ClientError):
     """Unsupported feature."""
-
-    pass
-
-
-class InvalidFileFormat(ClientError):
-    """Invalid file format."""
 
     pass
