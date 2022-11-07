@@ -41,8 +41,10 @@ def friendly_errors(cmd: Callable[..., None]) -> Callable[..., None]:
     def cmd_with_friendlier_errors(*args, **kwargs) -> None:
         try:
             cmd(*args, **kwargs)
+        except Cachi2Error as e:
+            die(f"{type(e).__name__}: {e.friendly_msg()}")
         # TODO: wrap pydantic ValidationErrors in our own errors?
-        except (Cachi2Error, pydantic.ValidationError) as e:
+        except pydantic.ValidationError as e:
             die(f"{type(e).__name__}: {e}")
 
     return cmd_with_friendlier_errors

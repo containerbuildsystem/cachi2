@@ -25,6 +25,10 @@ log = logging.getLogger(__name__)
 
 _MODULE_VERSION_RE = re.compile(r"/v\d+$")
 
+GOMOD_DOC = "https://github.com/containerbuildsystem/cachi2/blob/main/docs/gomod.md"
+GOMOD_INPUT_DOC = f"{GOMOD_DOC}#specifying-modules-to-process"
+VENDORING_DOC = f"{GOMOD_DOC}#vendoring"
+
 
 def _run_gomod_cmd(cmd: Iterable[str], params: dict[str, Any]) -> str:
     try:
@@ -55,8 +59,7 @@ def fetch_gomod_source(request: Request) -> RequestOutput:
     invalid_gomod_files = _find_missing_gomod_files(request.source_dir, subpaths)
 
     if invalid_gomod_files:
-        invalid_files_print = "; ".join(map(str, invalid_gomod_files))
-        file_suffix = "s" if len(invalid_gomod_files) > 1 else ""
+        invalid_files_print = "; ".join(str(file.parent) for file in invalid_gomod_files)
 
         # missing gomod files is supported if there is only one path referenced
         if config.cachito_gomod_ignore_missing_gomod_file and len(subpaths) == 1:
@@ -64,9 +67,9 @@ def fetch_gomod_source(request: Request) -> RequestOutput:
             return RequestOutput.empty()
 
         raise PackageRejected(
-            "The {} file{} must be present for the gomod package manager".format(
-                invalid_files_print.strip(), file_suffix
-            )
+            f"The go.mod file must be present for the Go module(s) at: {invalid_files_print}",
+            solution="Please double-check that you have specified correct paths to your Go modules",
+            docs=GOMOD_INPUT_DOC,
         )
 
     if len(subpaths) > 1 and request.dep_replacements:
@@ -430,8 +433,16 @@ def _should_vendor_deps(flags: Iterable[str], app_dir: Path, strict: bool) -> Tu
 
     if strict and vendor.is_dir():
         raise PackageRejected(
-            'The "gomod-vendor" or "gomod-vendor-check" flag must be set when your repository has '
-            "vendored dependencies."
+            reason=(
+                'The "gomod-vendor" or "gomod-vendor-check" flag must be set when your repository '
+                "has vendored dependencies."
+            ),
+            solution=(
+                "Consider removing the vendor/ directory and letting Cachi2 download dependencies "
+                "instead.\n"
+                "If you do want to keep using vendoring, please pass one of the required flags."
+            ),
+            docs=VENDORING_DOC,
         )
 
     return False, False
@@ -886,6 +897,10 @@ def _module_lines_from_modules_txt(app_dir: Path) -> List[str]:
     has_packages = {}
 
     log.debug("Parsing modules from vendor/modules.txt")
+    unexpected_format_solution = (
+        "Does `go mod vendor` make any changes to modules.txt?\n"
+        "If not, please let the maintainers know that Cachi2 fails to parse valid modules.txt"
+    )
 
     for line in modules_txt.read_text().splitlines():
         # modules.txt contains lines in one of 4 formats:
@@ -900,13 +915,19 @@ def _module_lines_from_modules_txt(app_dir: Path) -> List[str]:
 
         if not line.startswith("#"):  # this is a package line
             if not module_lines:
-                raise PackageRejected(f"vendor/modules.txt: package has no parent module: {line}")
+                raise PackageRejected(
+                    f"vendor/modules.txt: package has no parent module: {line}",
+                    solution=unexpected_format_solution,
+                )
             has_packages[module_lines[-1]] = True
         elif line.startswith("# "):  # this is a module line or a wildcard replacement (4)
             module_lines.append(line[2:])
         elif not line.startswith("##"):
             # at this point, the line must be a marker, otherwise we don't know what it is
-            raise PackageRejected(f"vendor/modules.txt: unexpected format: {line!r}")
+            raise PackageRejected(
+                f"vendor/modules.txt: unexpected format: {line!r}",
+                solution=unexpected_format_solution,
+            )
 
     return list(filter(has_packages.get, module_lines))
 
@@ -928,8 +949,16 @@ def _vendor_deps(run_params: dict, can_make_changes: bool, git_dir: str):
     app_dir = run_params["cwd"]
     if not can_make_changes and _vendor_changed(git_dir, app_dir):
         raise PackageRejected(
-            "The content of the vendor directory is not consistent with go.mod. Run "
-            "`go mod vendor` locally to fix this problem. See the logs for more details."
+            reason=(
+                "The content of the vendor directory is not consistent with go.mod. "
+                "Please check the logs for more details."
+            ),
+            solution=(
+                "Please try running `go mod vendor` and committing the changes.\n"
+                "Note that you may need to `git add --force` ignored files in the vendor/ dir.\n"
+                "Also consider whether you really want the -check variant of the flag."
+            ),
+            docs=VENDORING_DOC,
         )
 
 
