@@ -101,3 +101,52 @@ jobs:
         ignore: DL3041
         failure-threshold: warning
 
+  build-image:
+    name: Build Cachi2 image and run smoketest on it
+    runs-on: ubuntu-latest
+    steps:
+      - name: add checkout action...
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Build Cachi2 image
+        uses: redhat-actions/buildah-build@v2
+        with:
+          image: cachi2
+          tags: ${{ github.sha }}
+          arch: amd64
+          containerfiles: |
+            ./Containerfile
+
+      - name: Check image created and Cachi2 version
+        run: |
+          buildah images | grep 'cachi2'
+          podman run -t cachi2:${{ github.sha }} --version
+
+      - name: Run smoketest on built images
+        run: |
+          git clone -b v2.1.1 https://github.com/release-engineering/retrodep.git /tmp/source
+          podman run -t -v /tmp/source:/tmp/source \
+            cachi2:${{ github.sha }} \
+            fetch-deps \
+            --source /tmp/source \
+            --output ./cachi2-output \
+            --package '{"path": ".", "type": "gomod"}'
+
+     # Authenticate to container image registry to push the image
+      - name: Podman Login
+        uses: redhat-actions/podman-login@v1
+        if: github.ref == 'refs/heads/main'
+        with:
+          registry: quay.io
+          username: ${{ secrets.QUAY_USER }}
+          password: ${{ secrets.QUAY_PWD }}
+
+      - name: Push image to Quay.io registry
+        if: github.ref == 'refs/heads/main'
+        run: |
+          podman push cachi2:${{ github.sha }} \
+            quay.io/containerbuildsystem/cachi2:${{ github.sha }}
+          podman push cachi2:${{ github.sha }} \
+            quay.io/containerbuildsystem/cachi2:latest
