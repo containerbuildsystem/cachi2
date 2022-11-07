@@ -10,6 +10,10 @@ class Cachi2Error(Exception):
         return str(self)
 
 
+class InvalidInput(Cachi2Error):
+    """User input was invalid."""
+
+
 class PackageRejected(Cachi2Error):
     """Cachi2 refused to process the package the user requested.
 

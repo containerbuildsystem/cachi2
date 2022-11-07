@@ -1,10 +1,23 @@
 import os.path
 from pathlib import Path
-from typing import ClassVar, Literal
+from typing import Callable, ClassVar, Literal, TypeVar
 
 import pydantic
 
+from cachi2.core.errors import InvalidInput
 from cachi2.core.models.validators import unique
+
+T = TypeVar("T")
+ModelT = TypeVar("ModelT", bound=pydantic.BaseModel)
+
+
+def parse_user_input(to_model: Callable[[T], ModelT], input_obj: T) -> ModelT:
+    """Parse user input into a model, re-raise validation errors as InvalidInput."""
+    try:
+        return to_model(input_obj)
+    except pydantic.ValidationError as e:
+        raise InvalidInput(str(e)) from None
+
 
 # Supported package managers
 PackageManagerType = Literal["gomod"]
