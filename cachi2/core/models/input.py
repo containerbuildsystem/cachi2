@@ -1,10 +1,49 @@
 import os.path
 from pathlib import Path
-from typing import ClassVar, Literal
+from typing import TYPE_CHECKING, Callable, ClassVar, Literal, TypeVar
 
 import pydantic
 
+from cachi2.core.errors import InvalidInput
 from cachi2.core.models.validators import unique
+
+if TYPE_CHECKING:
+    from pydantic.error_wrappers import ErrorDict
+
+T = TypeVar("T")
+ModelT = TypeVar("ModelT", bound=pydantic.BaseModel)
+
+
+def parse_user_input(to_model: Callable[[T], ModelT], input_obj: T) -> ModelT:
+    """Parse user input into a model, re-raise validation errors as InvalidInput."""
+    try:
+        return to_model(input_obj)
+    except pydantic.ValidationError as e:
+        raise InvalidInput(_present_user_input_error(e)) from e
+
+
+def _present_user_input_error(validation_error: pydantic.ValidationError) -> str:
+    """Make a slightly nicer representation of a pydantic.ValidationError.
+
+    Compared to pydantic's default message:
+    - don't show the model name, just say "user input"
+    - don't show the underlying error type (e.g. "type=value_error.const")
+    """
+    errors = validation_error.errors()
+    n_errors = len(errors)
+
+    def show_error(error: "ErrorDict") -> str:
+        location = " -> ".join(map(str, error["loc"]))
+        context = "; ".join(f"{k}={v}" for k, v in error.get("ctx", {}).items())
+        if context:
+            return f"{location}\n  {error['msg']} ({context})"
+        else:
+            return f"{location}\n  {error['msg']}"
+
+    header = f"{n_errors} validation error{'' if n_errors == 1 else 's'} for user input"
+    details = "\n".join(map(show_error, errors))
+    return f"{header}\n{details}"
+
 
 # Supported package managers
 PackageManagerType = Literal["gomod"]
