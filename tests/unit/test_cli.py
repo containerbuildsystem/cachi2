@@ -219,29 +219,29 @@ class TestFetchDeps:
             (
                 ["--package=idk"],
                 [
-                    "1 validation error for Request",
+                    "1 validation error for user input",
                     "packages -> 0 -> type",
-                    re.compile(r"unexpected value; permitted: .* given=idk;"),
+                    re.compile(r"unexpected value; permitted: .*\(given=idk;"),
                 ],
             ),
             (
                 ["--package=", '--package={"type": "idk"}'],
                 [
-                    "2 validation errors for Request",
+                    "2 validation errors for user input",
                     "packages -> 0 -> type",
-                    re.compile(r"unexpected value; permitted: .* given=;"),
+                    re.compile(r"unexpected value; permitted: .*\(given=;"),
                     "packages -> 1 -> type",
-                    re.compile(r"unexpected value; permitted: .* given=idk;"),
+                    re.compile(r"unexpected value; permitted: .*\(given=idk;"),
                 ],
             ),
             (
                 ["--package={}"],
-                ["1 validation error for Request", "packages -> 0 -> type", "field required"],
+                ["1 validation error for user input", "packages -> 0 -> type", "field required"],
             ),
             (
                 ['--package=[{"type": "gomod"}, {}]', "--package={}"],
                 [
-                    "2 validation errors for Request",
+                    "2 validation errors for user input",
                     "packages -> 1 -> type",
                     "packages -> 2 -> type",
                     "field required",
@@ -250,7 +250,7 @@ class TestFetchDeps:
             (
                 ['--package={"type": "gomod", "path": "/absolute"}'],
                 [
-                    "1 validation error for Request",
+                    "1 validation error for user input",
                     "packages -> 0 -> path",
                     "package path must be relative: /absolute",
                 ],
@@ -258,7 +258,7 @@ class TestFetchDeps:
             (
                 ['--package={"type": "gomod", "path": "weird/../subpath"}'],
                 [
-                    "1 validation error for Request",
+                    "1 validation error for user input",
                     "packages -> 0 -> path",
                     "package path contains ..: weird/../subpath",
                 ],
@@ -266,7 +266,7 @@ class TestFetchDeps:
             (
                 ['--package={"type": "gomod", "path": "suspicious-symlink"}'],
                 [
-                    "1 validation error for Request",
+                    "1 validation error for user input",
                     "packages -> 0",
                     "package path (a symlink?) leads outside source directory: suspicious-symlink",
                 ],
@@ -274,7 +274,7 @@ class TestFetchDeps:
             (
                 ['--package={"type": "gomod", "path": "no-such-dir"}'],
                 [
-                    "1 validation error for Request",
+                    "1 validation error for user input",
                     "packages -> 0",
                     "package path does not exist (or is not a directory): no-such-dir",
                 ],
@@ -282,7 +282,7 @@ class TestFetchDeps:
             (
                 ['--package={"type": "gomod", "what": "dunno"}'],
                 [
-                    "1 validation error for Request",
+                    "1 validation error for user input",
                     "packages -> 0 -> what",
                     "extra fields not permitted",
                 ],
@@ -339,9 +339,9 @@ class TestFetchDeps:
             (
                 ["--flags=no-such-flag"],
                 re.compile(
-                    r"1 validation error for Request\n"
+                    r"1 validation error for user input\n"
                     r"flags -> 0\n"
-                    r"  unexpected value; permitted: .* given=no-such-flag",
+                    r"  unexpected value; permitted: .*\(given=no-such-flag",
                 ),
             ),
         ],

@@ -5,7 +5,18 @@ from typing import Any
 import pydantic
 import pytest as pytest
 
-from cachi2.core.models.input import PackageInput, Request
+from cachi2.core.errors import InvalidInput
+from cachi2.core.models.input import PackageInput, Request, parse_user_input
+
+
+def test_parse_user_input():
+    expect_error = re.compile(
+        r"1 validation error for user input\n"
+        r"type\n"
+        r"  unexpected value; permitted: .* \(given=go-package; permitted=[^;]*\)"
+    )
+    with pytest.raises(InvalidInput, match=expect_error):
+        parse_user_input(PackageInput.parse_obj, {"type": "go-package"})
 
 
 class TestPackageInput:

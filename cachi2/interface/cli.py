@@ -7,13 +7,12 @@ from itertools import chain
 from pathlib import Path
 from typing import Callable, Optional, Union
 
-import pydantic
 import typer
 from typer import Argument, Option
 
 from cachi2.core.errors import Cachi2Error
 from cachi2.core.extras.envfile import EnvFormat, generate_envfile
-from cachi2.core.models.input import Request
+from cachi2.core.models.input import Request, parse_user_input
 from cachi2.core.models.output import RequestOutput
 from cachi2.core.package_managers import gomod
 from cachi2.interface.logging import LogLevel, setup_logging
@@ -23,12 +22,6 @@ log = logging.getLogger(__name__)
 
 DEFAULT_SOURCE = "."
 DEFAULT_OUTPUT = "./cachi2-output"
-
-
-def die(msg: str) -> None:
-    """Print the error message to stderr and exit."""
-    print("Error:", msg, file=sys.stderr)
-    raise typer.Exit(1)
 
 
 def friendly_errors(cmd: Callable[..., None]) -> Callable[..., None]:
@@ -42,10 +35,8 @@ def friendly_errors(cmd: Callable[..., None]) -> Callable[..., None]:
         try:
             cmd(*args, **kwargs)
         except Cachi2Error as e:
-            die(f"{type(e).__name__}: {e.friendly_msg()}")
-        # TODO: wrap pydantic ValidationErrors in our own errors?
-        except pydantic.ValidationError as e:
-            die(f"{type(e).__name__}: {e}")
+            print(f"Error: {type(e).__name__}: {e.friendly_msg()}", file=sys.stderr)
+            raise typer.Exit(1)
 
     return cmd_with_friendlier_errors
 
@@ -204,11 +195,14 @@ def fetch_deps(
         return flags
 
     parsed_packages = tuple(chain.from_iterable(map(parse_packages, package)))
-    request = Request(
-        source_dir=source,
-        output_dir=output,
-        packages=parsed_packages,
-        flags=combine_flags(),
+    request = parse_user_input(
+        Request.parse_obj,
+        {
+            "source_dir": source,
+            "output_dir": output,
+            "packages": parsed_packages,
+            "flags": combine_flags(),
+        },
     )
 
     request_output = gomod.fetch_gomod_source(request)
