@@ -1,11 +1,14 @@
 import os.path
 from pathlib import Path
-from typing import Callable, ClassVar, Literal, TypeVar
+from typing import TYPE_CHECKING, Callable, ClassVar, Literal, TypeVar
 
 import pydantic
 
 from cachi2.core.errors import InvalidInput
 from cachi2.core.models.validators import unique
+
+if TYPE_CHECKING:
+    from pydantic.error_wrappers import ErrorDict
 
 T = TypeVar("T")
 ModelT = TypeVar("ModelT", bound=pydantic.BaseModel)
@@ -16,7 +19,7 @@ def parse_user_input(to_model: Callable[[T], ModelT], input_obj: T) -> ModelT:
     try:
         return to_model(input_obj)
     except pydantic.ValidationError as e:
-        raise InvalidInput(str(e)) from None
+        raise InvalidInput(_custom_validation_msg(e)) from e
 
 
 # Supported package managers
@@ -87,3 +90,20 @@ class Request(pydantic.BaseModel):
     def gomod_download_dir(self):
         """Directory where the fetched dependencies will be placed."""
         return self.output_dir / "deps" / "gomod" / self.go_mod_cache_download_part
+
+
+def _custom_validation_msg(validation_error: pydantic.ValidationError) -> str:
+    errors = validation_error.errors()
+    n_errors = len(errors)
+
+    def show_error(error: "ErrorDict") -> str:
+        location = " -> ".join(map(str, error["loc"]))
+        context = "; ".join(f"{k}={v}" for k, v in error.get("ctx", {}).items())
+        if context:
+            return f"{location}\n  {error['msg']} ({context})"
+        else:
+            return f"{location}\n  {error['msg']}"
+
+    header = f"{n_errors} validation error{'' if n_errors == 1 else 's'} for user input"
+    details = "\n".join(map(show_error, errors))
+    return f"{header}\n{details}"
