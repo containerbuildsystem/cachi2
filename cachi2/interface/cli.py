@@ -10,7 +10,7 @@ from typing import Callable, Optional, Union
 import typer
 from typer import Argument, Option
 
-from cachi2.core.errors import Cachi2Error
+from cachi2.core import errors
 from cachi2.core.extras.envfile import EnvFormat, generate_envfile
 from cachi2.core.models.input import Request, parse_user_input
 from cachi2.core.models.output import RequestOutput
@@ -24,10 +24,19 @@ DEFAULT_SOURCE = "."
 DEFAULT_OUTPUT = "./cachi2-output"
 
 
-def die(msg: str) -> None:
-    """Print the error message to stderr and exit."""
-    print("Error:", msg, file=sys.stderr)
-    raise typer.Exit(1)
+def die(error: errors.Cachi2Error) -> None:
+    """Fail with a known error (as opposed to an uncaught error).
+
+    Print a user-friendly message to stderr.
+    Exit with a return code specific to the error type.
+    """
+    if error.considered_user_error:
+        # Typer uses rc=2 for invalid usage and it's somewhat standard in Unix
+        retcode = 2
+    else:
+        retcode = 1
+    print(f"Error: {type(error).__name__}: {error.friendly_msg()}", file=sys.stderr)
+    raise typer.Exit(retcode)
 
 
 def friendly_errors(cmd: Callable[..., None]) -> Callable[..., None]:
@@ -40,8 +49,8 @@ def friendly_errors(cmd: Callable[..., None]) -> Callable[..., None]:
     def cmd_with_friendlier_errors(*args, **kwargs) -> None:
         try:
             cmd(*args, **kwargs)
-        except Cachi2Error as e:
-            die(f"{type(e).__name__}: {e.friendly_msg()}")
+        except errors.Cachi2Error as e:
+            die(e)
 
     return cmd_with_friendlier_errors
 

@@ -1,9 +1,11 @@
-from typing import Optional
+from typing import ClassVar, Optional
 import textwrap
 
 
 class Cachi2Error(Exception):
     """Root of the error hierarchy. Don't raise this directly, use more specific error types."""
+
+    considered_user_error: ClassVar[bool] = False
 
     def friendly_msg(self) -> str:
         """Return the user-friendly representation of this error."""
@@ -13,6 +15,8 @@ class Cachi2Error(Exception):
 class InvalidInput(Cachi2Error):
     """User input was invalid."""
 
+    considered_user_error: ClassVar[bool] = True
+
 
 class PackageRejected(Cachi2Error):
     """Cachi2 refused to process the package the user requested.
@@ -20,6 +24,8 @@ class PackageRejected(Cachi2Error):
     a) The package appears invalid (e.g. missing go.mod for a Go module).
     b) The package does not meet Cachi2's extra requirements (e.g. missing checksums).
     """
+
+    considered_user_error: ClassVar[bool] = True
 
     def __init__(self, reason: str, *, solution: Optional[str], docs: Optional[str] = None) -> None:
         """Initialize a Package Rejected error.
@@ -37,6 +43,15 @@ class PackageRejected(Cachi2Error):
         return _friendly_error_msg(str(self), self.solution, self.docs)
 
 
+class UnsupportedFeature(Cachi2Error):
+    """Cachi2 doesn't support a feature the user requested.
+
+    The requested feature might be valid, but Cachi2 doesn't implement it.
+    """
+
+    considered_user_error: ClassVar[bool] = True
+
+
 class FetchError(Cachi2Error):
     """Cachi2 failed to fetch a dependency or other data needed to process a package."""
 
@@ -46,13 +61,6 @@ class GoModError(Cachi2Error):
 
     Maybe the module is invalid, maybe the go tool was unable to fetch a dependency, maybe the
     error is intermittent. We don't really know, but we do at least log the stderr.
-    """
-
-
-class UnsupportedFeature(Cachi2Error):
-    """Cachi2 doesn't support a feature the user requested.
-
-    The requested feature might be valid, but Cachi2 doesn't implement it.
     """
 
 
