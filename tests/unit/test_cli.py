@@ -49,6 +49,16 @@ def invoke_expecting_sucess(app, args: list[str]) -> typer.testing.Result:
     return result
 
 
+def invoke_expecting_invalid_usage(app, args: list[str]) -> typer.testing.Result:
+    result = runner.invoke(app, args)
+    assert result.exit_code == 2, (
+        f"expected exit_code=2, got exit_code={result.exit_code}\n"
+        "command output:\n"
+        f"{result.output}"
+    )
+    return result
+
+
 def assert_pattern_in_output(pattern: Union[str, re.Pattern], output: str) -> None:
     if isinstance(pattern, re.Pattern):
         match = bool(pattern.search(output))
@@ -92,8 +102,7 @@ class TestLogLevelOpt:
     @mock.patch("cachi2.interface.cli.setup_logging")
     def test_unknown_loglevel(self, mock_setup_logging, tmp_cwd):
         args = ["fetch-deps", "--package=gomod", "--log-level=unknown"]
-        result = runner.invoke(app, args)
-        assert result.exit_code != 0
+        result = invoke_expecting_invalid_usage(app, args)
         assert "Error: Invalid value for '--log-level': 'unknown' is not one of" in result.output
 
 
@@ -148,13 +157,11 @@ class TestFetchDeps:
     def test_invalid_paths(self, path_args: list[str], expect_error: str, tmp_cwd: Path):
         tmp_cwd.joinpath("not-a-directory").touch()
 
-        result = runner.invoke(app, ["fetch-deps", *path_args])
-        assert result.exit_code != 0
+        result = invoke_expecting_invalid_usage(app, ["fetch-deps", *path_args])
         assert expect_error in result.output
 
     def test_no_packages(self):
-        result = runner.invoke(app, ["fetch-deps"])
-        assert result.exit_code != 0
+        result = invoke_expecting_invalid_usage(app, ["fetch-deps"])
         assert "Error: Missing option '--package'" in result.output
 
     @pytest.mark.parametrize(
@@ -294,8 +301,7 @@ class TestFetchDeps:
     ):
         tmp_cwd.joinpath("suspicious-symlink").symlink_to("..")
 
-        result = runner.invoke(app, ["fetch-deps", *package_args])
-        assert result.exit_code != 0
+        result = invoke_expecting_invalid_usage(app, ["fetch-deps", *package_args])
 
         for pattern in expect_error_lines:
             assert_pattern_in_output(pattern, result.output)
@@ -347,8 +353,7 @@ class TestFetchDeps:
         ],
     )
     def test_invalid_flags(self, flag_args: list[str], expect_error: str):
-        result = runner.invoke(app, ["fetch-deps", "--package=gomod", *flag_args])
-        assert result.exit_code != 0
+        result = invoke_expecting_invalid_usage(app, ["fetch-deps", "--package=gomod", *flag_args])
         assert_pattern_in_output(expect_error, result.output)
 
     @pytest.mark.parametrize(
@@ -471,12 +476,10 @@ class TestGenerateEnv:
 
     def test_invalid_format(self):
         # Note: .sh is a recognized suffix, but the --format option accepts only 'json' and 'env'
-        result = runner.invoke(app, ["generate-env", ".", "-f", "sh"])
-        assert result.exit_code != 0
+        result = invoke_expecting_invalid_usage(app, ["generate-env", ".", "-f", "sh"])
         assert "Invalid value for '-f' / '--format': 'sh' is not one of" in result.output
 
     def test_unsupported_suffix(self):
-        result = runner.invoke(app, ["generate-env", ".", "-o", "env.yaml"])
-        assert result.exit_code != 0
+        result = invoke_expecting_invalid_usage(app, ["generate-env", ".", "-o", "env.yaml"])
         assert "Cannot determine envfile format, unsupported suffix: yaml" in result.output
         assert "  Please use one of the supported suffixes: " in result.output

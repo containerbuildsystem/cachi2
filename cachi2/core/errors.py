@@ -1,9 +1,11 @@
 import textwrap
-from typing import Optional
+from typing import ClassVar, Optional
 
 
 class Cachi2Error(Exception):
     """Root of the error hierarchy. Don't raise this directly, use more specific error types."""
+
+    is_invalid_usage: ClassVar[bool] = False
 
     def friendly_msg(self) -> str:
         """Return the user-friendly representation of this error."""
@@ -13,6 +15,8 @@ class Cachi2Error(Exception):
 class InvalidInput(Cachi2Error):
     """User input was invalid."""
 
+    is_invalid_usage: ClassVar[bool] = True
+
 
 class PackageRejected(Cachi2Error):
     """Cachi2 refused to process the package the user requested.
@@ -20,6 +24,8 @@ class PackageRejected(Cachi2Error):
     a) The package appears invalid (e.g. missing go.mod for a Go module).
     b) The package does not meet Cachi2's extra requirements (e.g. missing checksums).
     """
+
+    is_invalid_usage: ClassVar[bool] = True
 
     def __init__(self, reason: str, *, solution: Optional[str], docs: Optional[str] = None) -> None:
         """Initialize a Package Rejected error.
@@ -43,6 +49,7 @@ class UnsupportedFeature(Cachi2Error):
     The requested feature might be valid, but Cachi2 doesn't implement it.
     """
 
+    is_invalid_usage: ClassVar[bool] = True
     default_solution = "If you need Cachi2 to support this feature, please contact the maintainers."
 
     def __init__(

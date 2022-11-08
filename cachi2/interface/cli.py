@@ -24,21 +24,22 @@ DEFAULT_SOURCE = "."
 DEFAULT_OUTPUT = "./cachi2-output"
 
 
-def friendly_errors(cmd: Callable[..., None]) -> Callable[..., None]:
+def handle_errors(cmd: Callable[..., None]) -> Callable[..., None]:
     """Decorate a CLI command function with an error handler.
 
     Expected errors will be printed in a friendlier format rather than showing the whole traceback.
+    Errors that we consider invalid usage will result in exit code 2.
     """
 
     @functools.wraps(cmd)
-    def cmd_with_friendlier_errors(*args, **kwargs) -> None:
+    def cmd_with_error_handling(*args, **kwargs) -> None:
         try:
             cmd(*args, **kwargs)
         except Cachi2Error as e:
             print(f"Error: {type(e).__name__}: {e.friendly_msg()}", file=sys.stderr)
-            raise typer.Exit(1)
+            raise typer.Exit(2 if e.is_invalid_usage else 1)
 
-    return cmd_with_friendlier_errors
+    return cmd_with_error_handling
 
 
 def version_callback(value: bool) -> None:
@@ -90,7 +91,7 @@ def maybe_load_json(opt_name: str, opt_value: str) -> Optional[Union[dict, list]
 
 
 @app.command()
-@friendly_errors
+@handle_errors
 def fetch_deps(
     package: list[str] = Option(
         ...,  # Ellipsis makes this option required
@@ -214,7 +215,7 @@ def fetch_deps(
 
 
 @app.command()
-@friendly_errors
+@handle_errors
 def generate_env(
     from_output_dir: Path = Argument(
         ...,
