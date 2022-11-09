@@ -35,7 +35,10 @@ def die(error: errors.Cachi2Error) -> None:
         retcode = 2
     else:
         retcode = 1
-    print(f"Error: {type(error).__name__}: {error.friendly_msg()}", file=sys.stderr)
+
+    err_type_name = type(error).__name__
+    log.error("%s: %s", err_type_name, error)
+    print(f"Error: {err_type_name}: {error.friendly_msg()}", file=sys.stderr)
     raise typer.Exit(retcode)
 
 
