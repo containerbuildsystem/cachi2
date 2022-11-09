@@ -27,17 +27,25 @@ DEFAULT_OUTPUT = "./cachi2-output"
 def handle_errors(cmd: Callable[..., None]) -> Callable[..., None]:
     """Decorate a CLI command function with an error handler.
 
+    All errors will be logged at ERROR level before exiting.
     Expected errors will be printed in a friendlier format rather than showing the whole traceback.
     Errors that we consider invalid usage will result in exit code 2.
     """
+
+    def log_error(error: Exception) -> None:
+        log.error("%s: %s", type(error).__name__, error)
 
     @functools.wraps(cmd)
     def cmd_with_error_handling(*args, **kwargs) -> None:
         try:
             cmd(*args, **kwargs)
         except Cachi2Error as e:
+            log_error(e)
             print(f"Error: {type(e).__name__}: {e.friendly_msg()}", file=sys.stderr)
             raise typer.Exit(2 if e.is_invalid_usage else 1)
+        except Exception as e:
+            log_error(e)
+            raise
 
     return cmd_with_error_handling
 
@@ -59,20 +67,17 @@ def cachi2(  # noqa: D103; docstring becomes part of --help message
         help="Show version and exit.",
     ),
 ) -> None:
-    # Process top-level options here
-    pass
+    # The default level for subcommands that don't have the --log-level option is ERROR
+    # Such commands generally don't do any logging, but we do still want to log errors
+    setup_logging(LogLevel.ERROR)
 
 
-def log_level_callback(log_level: LogLevel) -> None:
-    """Set the specified log level."""
-    setup_logging(log_level)
-
-
-# Add this to subcommands, not the top-level options.
+# Allow the user to change the log level for a subcommand
+# Also changes the default level for that subcommand to INFO
 LOG_LEVEL_OPTION = Option(
     LogLevel.INFO.value,
     case_sensitive=False,
-    callback=log_level_callback,
+    callback=lambda level: setup_logging(level),
     help="Set log level.",
 )
 

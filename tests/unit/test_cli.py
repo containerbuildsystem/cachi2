@@ -1,4 +1,5 @@
 import importlib.metadata
+import logging
 import os
 import re
 from contextlib import contextmanager
@@ -13,7 +14,6 @@ import typer.testing
 from cachi2.core.models.input import Request
 from cachi2.core.models.output import RequestOutput
 from cachi2.interface.cli import DEFAULT_OUTPUT, DEFAULT_SOURCE, app
-from cachi2.interface.logging import LogLevel
 
 runner = typer.testing.CliRunner()
 
@@ -76,7 +76,6 @@ class TestTopLevelOpts:
 
 
 class TestLogLevelOpt:
-    @mock.patch("cachi2.interface.cli.setup_logging")
     @pytest.mark.parametrize(
         "loglevel_args, expected_level",
         [
@@ -87,7 +86,6 @@ class TestLogLevelOpt:
     )
     def test_loglevel_option(
         self,
-        mock_setup_logging,
         loglevel_args: list[str],
         expected_level: str,
         tmp_cwd,
@@ -97,10 +95,11 @@ class TestLogLevelOpt:
         with mock_fetch_deps():
             invoke_expecting_sucess(app, args)
 
-        mock_setup_logging.assert_called_once_with(LogLevel(expected_level))
+        loglevel = logging.getLogger("cachi2").getEffectiveLevel()
+        loglevel_name = logging.getLevelName(loglevel)
+        assert loglevel_name == expected_level
 
-    @mock.patch("cachi2.interface.cli.setup_logging")
-    def test_unknown_loglevel(self, mock_setup_logging, tmp_cwd):
+    def test_unknown_loglevel(self, tmp_cwd):
         args = ["fetch-deps", "--package=gomod", "--log-level=unknown"]
         result = invoke_expecting_invalid_usage(app, args)
         assert "Error: Invalid value for '--log-level': 'unknown' is not one of" in result.output
@@ -479,7 +478,13 @@ class TestGenerateEnv:
         result = invoke_expecting_invalid_usage(app, ["generate-env", ".", "-f", "sh"])
         assert "Invalid value for '-f' / '--format': 'sh' is not one of" in result.output
 
-    def test_unsupported_suffix(self):
+    def test_unsupported_suffix(self, caplog: pytest.LogCaptureFixture):
         result = invoke_expecting_invalid_usage(app, ["generate-env", ".", "-o", "env.yaml"])
-        assert "Cannot determine envfile format, unsupported suffix: yaml" in result.output
+
+        msg = "Cannot determine envfile format, unsupported suffix: yaml"
+        assert msg in result.output
         assert "  Please use one of the supported suffixes: " in result.output
+
+        # Error message should also be logged, but the extra info should not
+        assert msg in caplog.text
+        assert "  Please use one of the supported suffixes: " not in caplog.text
