@@ -47,3 +47,15 @@ def test_gomod_error_friendly_msg():
         """
     ).strip()
     assert err.friendly_msg() == expect_msg
+
+
+def test_fetch_error_friendly_msg():
+    err = errors.FetchError("Failed to fetch something")
+    expect_msg = dedent(
+        """
+        Failed to fetch something
+          The error might be intermittent, please try again.
+          If the issue seems to be on the Cachi2 side, please contact the maintainers.
+        """
+    ).strip()
+    assert err.friendly_msg() == expect_msg
