@@ -762,10 +762,7 @@ def _vet_local_deps(dependencies: List[dict], module_name: str, allowed_patterns
                 version,
             )
             if ".." in Path(version).parts:
-                raise UnsupportedFeature(
-                    f"Path to gomod dependency contains '..': {version}. "
-                    "Cachito does not support this case."
-                )
+                raise UnsupportedFeature(f"Path to gomod dependency contains '..': {version}.")
             _fail_unless_allowed(module_name, name, allowed_patterns)
         elif version.startswith("/") or PureWindowsPath(version).root:
             # This will disallow paths starting with '/', '\' or '<drive letter>:\'
@@ -974,9 +971,14 @@ def _fail_unless_allowed(module_name: str, package_name: str, allowed_patterns: 
     is_submodule = _contains_package(versionless_module_name, package_name)
     if not is_submodule and not any(fnmatch.fnmatch(package_name, pat) for pat in allowed_patterns):
         raise UnsupportedFeature(
-            f"The module {module_name} is not allowed to replace {package_name} with a local "
-            f"dependency. Please contact the maintainers of this Cachito instance about adding "
-            "an exception."
+            reason=(
+                f"The module {module_name} is not allowed to replace {package_name} with a local "
+                "dependency."
+            ),
+            solution=(
+                "Please allow the replacement in Cachi2's configuration, or contact someone who "
+                "has access to the configuration."
+            ),
         )
 
 

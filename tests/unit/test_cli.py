@@ -479,3 +479,4 @@ class TestGenerateEnv:
         result = runner.invoke(app, ["generate-env", ".", "-o", "env.yaml"])
         assert result.exit_code != 0
         assert "Cannot determine envfile format, unsupported suffix: yaml" in result.output
+        assert "  Please use one of the supported suffixes: " in result.output
