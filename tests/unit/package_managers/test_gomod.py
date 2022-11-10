@@ -1473,7 +1473,7 @@ def test_run_download_cmd_failure(mock_sleep, mock_run, mock_worker_config, capl
     mock_run.side_effect = [failure] * 5
 
     expect_msg = (
-        "Processing gomod dependencies failed. Cachito tried the go mod download command 5 times."
+        "Processing gomod dependencies failed. Cachi2 tried the go mod download command 5 times."
     )
 
     with pytest.raises(GoModError, match=expect_msg):
