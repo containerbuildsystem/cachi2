@@ -147,7 +147,7 @@ def _resolve_gomod(path: Path, request: Request, git_dir_path=None):
     Resolve and fetch gomod dependencies for given app source archive.
 
     :param str path: the full path to the application source code
-    :param dict request: the Cachito request this is for
+    :param dict request: the Cachi2 request this is for
     :param list dep_replacements: dependency replacements with the keys "name" and "version"; this
         results in a series of `go mod edit -replace` commands
     :param RequestBundleDir git_dir_path: the full path to the application's git repository
@@ -245,7 +245,7 @@ def _resolve_gomod(path: Path, request: Request, git_dir_path=None):
                 old_name, old_version = parts[:2]
                 # Only keep track of user provided replaces. There could be existing "replace"
                 # directives in the go.mod file, but they are an implementation detail specific to
-                # Go and they don't need to be recorded in Cachito.
+                # Go and they don't need to be recorded in Cachi2.
                 if old_name in replaced_dep_names:
                     used_replaced_dep_names.add(old_name)
                     replaces = {
@@ -288,7 +288,7 @@ def _resolve_gomod(path: Path, request: Request, git_dir_path=None):
         module = {"name": module_name, "type": "gomod", "version": module_version}
 
         if "gomod-vendor" in flags:
-            # Create an empty gomod cache in the bundle directory so that any Cachito
+            # Create an empty gomod cache in the bundle directory so that any Cachi2
             # user does not have to guard against this directory not existing
             request.gomod_download_dir.mkdir(exist_ok=True, parents=True)
         else:
@@ -390,8 +390,8 @@ def _run_download_cmd(cmd: Iterable[str], params: Dict[str, Any]) -> str:
     Such commands may fail due to network errors (go is bad at retrying), so the entire operation
     will be retried a configurable number of times.
 
-    Cachito will reuse the same cache directory between retries, so Go will not have to download
-    the same dependency twice. The backoff is exponential, Cachito will wait 1s -> 2s -> 4s -> ...
+    Cachi2 will reuse the same cache directory between retries, so Go will not have to download
+    the same dependency twice. The backoff is exponential, Cachi2 will wait 1s -> 2s -> 4s -> ...
     before retrying.
     """
     n_tries = get_worker_config().cachito_gomod_download_max_tries
@@ -411,7 +411,7 @@ def _run_download_cmd(cmd: Iterable[str], params: Dict[str, Any]) -> str:
         return run_go(cmd, params)
     except GoModError:
         err_msg = (
-            f"Processing gomod dependencies failed. Cachito tried the {' '.join(cmd)} command "
+            f"Processing gomod dependencies failed. Cachi2 tried the {' '.join(cmd)} command "
             f"{n_tries} times."
         )
         raise GoModError(err_msg) from None
@@ -419,13 +419,13 @@ def _run_download_cmd(cmd: Iterable[str], params: Dict[str, Any]) -> str:
 
 def _should_vendor_deps(flags: Iterable[str], app_dir: Path, strict: bool) -> Tuple[bool, bool]:
     """
-    Determine if Cachito should vendor dependencies and if it is allowed to make changes.
+    Determine if Cachi2 should vendor dependencies and if it is allowed to make changes.
 
     This is based on the presence of flags:
     - gomod-vendor-check => should vendor, can only make changes if vendor dir does not exist
     - gomod-vendor => should vendor, can make changes
 
-    :param flags: flags from the Cachito request
+    :param flags: flags from the Cachi2 request
     :param app_dir: absolute path to the app directory
     :param strict: fail the request if the vendor dir is present but the flags are not used?
     :return: (should vendor: bool, allowed to make changes in the vendor directory: bool)
@@ -940,13 +940,13 @@ def _vendor_deps(run_params: dict, can_make_changes: bool, git_dir: str):
     """
     Vendor golang dependencies.
 
-    If Cachito is not allowed to make changes, it will verify that the vendor directory already
+    If Cachi2 is not allowed to make changes, it will verify that the vendor directory already
     contained the correct content.
 
     :param run_params: common params for the subprocess calls to `go`
-    :param can_make_changes: is Cachito allowed to make changes?
+    :param can_make_changes: is Cachi2 allowed to make changes?
     :param git_dir: path to the repository root
-    :raise PackageRejected: if vendor directory changed and Cachito is not allowed to make changes
+    :raise PackageRejected: if vendor directory changed and Cachi2 is not allowed to make changes
     """
     log.info("Vendoring the gomod dependencies")
     _run_download_cmd(("go", "mod", "vendor"), run_params)
