@@ -62,6 +62,15 @@ class UnsupportedFeature(Cachi2Error):
 class FetchError(Cachi2Error):
     """Cachi2 failed to fetch a dependency or other data needed to process a package."""
 
+    please_retry = (
+        "The error might be intermittent, please try again.\n"
+        "If the issue seems to be on the Cachi2 side, please contact the maintainers."
+    )
+
+    def friendly_msg(self) -> str:
+        """Return the user-friendly representation of this error."""
+        return _friendly_error_msg(str(self), self.please_retry)
+
 
 class GoModError(Cachi2Error):
     """The 'go' command used while processing a Go module returned an error.
