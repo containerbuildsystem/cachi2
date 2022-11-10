@@ -30,8 +30,17 @@ def test_format_based_on_suffix(filename: str, expect_format: EnvFormat):
 )
 def test_cannot_determine_format(filename: str, expect_reason: str):
     expect_error = f"Cannot determine envfile format, {expect_reason}"
-    with pytest.raises(UnsupportedFeature, match=expect_error):
+    with pytest.raises(UnsupportedFeature, match=expect_error) as exc_info:
         EnvFormat.based_on_suffix(Path(filename))
+
+    expect_friendly_msg = dedent(
+        f"""
+        Cannot determine envfile format, {expect_reason}
+          Please use one of the supported suffixes: json, env, sh[==env]
+          You can also define the format explicitly instead of letting Cachi2 choose.
+        """
+    ).strip()
+    assert exc_info.value.friendly_msg() == expect_friendly_msg
 
 
 def test_generate_env_as_json():

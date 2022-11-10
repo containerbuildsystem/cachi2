@@ -24,7 +24,20 @@ class EnvFormat(str, Enum):
             reason = (
                 f"file has no suffix: {filepath}" if not suffix else f"unsupported suffix: {suffix}"
             )
-            raise UnsupportedFeature(f"Cannot determine envfile format, {reason}") from e
+            raise UnsupportedFeature(
+                f"Cannot determine envfile format, {reason}",
+                solution=(
+                    f"Please use one of the supported suffixes: {cls._suffixes_repr()}\n"
+                    "You can also define the format explicitly instead of letting Cachi2 choose."
+                ),
+            ) from e
+
+    @classmethod
+    def _suffixes_repr(cls) -> str:
+        return ", ".join(
+            f"{suffix}[=={fmt}]" if suffix != fmt else suffix
+            for suffix, fmt in cls.__members__.items()
+        )
 
 
 def generate_envfile(output: RequestOutput, fmt: EnvFormat, relative_to_path: Path) -> str:

@@ -33,6 +33,32 @@ class PackageRejected(Cachi2Error):
         return _friendly_error_msg(str(self), self.solution, self.docs)
 
 
+class UnsupportedFeature(Cachi2Error):
+    """Cachi2 doesn't support a feature the user requested.
+
+    The requested feature might be valid, but Cachi2 doesn't implement it.
+    """
+
+    default_solution = "If you need Cachi2 to support this feature, please contact the maintainers."
+
+    def __init__(
+        self, reason: str, *, solution: Optional[str] = default_solution, docs: Optional[str] = None
+    ) -> None:
+        """Initialize an Unsupported Feature error.
+
+        :param reason: explain why the feature is not supported
+        :param solution: politely suggest a potential solution (or workaround) to the user
+        :param docs: include a link to relevant documentation (if there is any)
+        """
+        super().__init__(reason)
+        self.solution = solution
+        self.docs = docs
+
+    def friendly_msg(self) -> str:
+        """Return the user-friendly representation of this error."""
+        return _friendly_error_msg(str(self), self.solution, self.docs)
+
+
 class FetchError(Cachi2Error):
     """Cachi2 failed to fetch a dependency or other data needed to process a package."""
 
@@ -42,13 +68,6 @@ class GoModError(Cachi2Error):
 
     Maybe the module is invalid, maybe the go tool was unable to fetch a dependency, maybe the
     error is intermittent. We don't really know, but we do at least log the stderr.
-    """
-
-
-class UnsupportedFeature(Cachi2Error):
-    """Cachi2 doesn't support a feature the user requested.
-
-    The requested feature might be valid, but Cachi2 doesn't implement it.
     """
 
 
