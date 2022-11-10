@@ -576,7 +576,7 @@ def test_resolve_gomod_unused_dep(mock_run, mock_temp_dir, tmpdir, gomod_request
     ]
 
     expected_error = "The following gomod dependency replacements don't apply: pizza"
-    with pytest.raises(GoModError, match=expected_error):
+    with pytest.raises(PackageRejected, match=expected_error):
         _resolve_gomod(
             Path("./source/path/archive.tar.gz"),
             gomod_request,
@@ -601,6 +601,10 @@ def test_go_list_cmd_failure(
         proc_mock("go mod download", returncode=go_mod_rc, stdout=None),
         proc_mock("go list -m all", returncode=go_list_rc, stdout=_generate_mock_cmd_output()),
     ]
+
+    expect_error = "Processing gomod dependencies failed"
+    if go_mod_rc == 0:
+        expect_error += ": `go list -m all` failed with rc=1"
 
     with pytest.raises(
         GoModError,
@@ -1469,8 +1473,7 @@ def test_run_download_cmd_failure(mock_sleep, mock_run, mock_worker_config, capl
     mock_run.side_effect = [failure] * 5
 
     expect_msg = (
-        "Processing gomod dependencies failed. Cachito tried the go mod download command 5 times. "
-        "This may indicate a problem with your repository or Cachito itself."
+        "Processing gomod dependencies failed. Cachito tried the go mod download command 5 times."
     )
 
     with pytest.raises(GoModError, match=expect_msg):

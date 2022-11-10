@@ -34,7 +34,10 @@ def _run_gomod_cmd(cmd: Iterable[str], params: dict[str, Any]) -> str:
     try:
         return run_cmd(cmd, params)
     except subprocess.CalledProcessError as e:
-        raise GoModError("Processing gomod dependencies failed") from e
+        rc = e.returncode
+        raise GoModError(
+            f"Processing gomod dependencies failed: `{' '.join(cmd)}` failed with {rc=}"
+        ) from e
 
 
 def fetch_gomod_source(request: Request) -> RequestOutput:
@@ -74,7 +77,8 @@ def fetch_gomod_source(request: Request) -> RequestOutput:
 
     if len(subpaths) > 1 and request.dep_replacements:
         raise UnsupportedFeature(
-            "Dependency replacements are only supported for a single go module path."
+            "Dependency replacements are only supported for a single go module path.",
+            solution="Dependency replacements are deprecated! Please don't use them.",
         )
 
     env_vars = {
@@ -95,7 +99,7 @@ def fetch_gomod_source(request: Request) -> RequestOutput:
         try:
             gomod = _resolve_gomod(gomod_source_path, request)
         except GoModError:
-            log.exception("Failed to fetch gomod dependencies")
+            log.error("Failed to fetch gomod dependencies")
             raise
 
         module_info = gomod["module"]
@@ -265,9 +269,12 @@ def _resolve_gomod(path: Path, request: Request, git_dir_path=None):
 
         unused_dep_replacements = replaced_dep_names - used_replaced_dep_names
         if unused_dep_replacements:
-            raise GoModError(
-                "The following gomod dependency replacements don't apply: "
-                f'{", ".join(unused_dep_replacements)}'
+            raise PackageRejected(
+                reason=(
+                    "The following gomod dependency replacements don't apply: "
+                    f'{", ".join(unused_dep_replacements)}'
+                ),
+                solution="Dependency replacements are deprecated! Please don't use them.",
             )
 
         # In case a submodule is being processed, we need to determine its path
@@ -405,7 +412,7 @@ def _run_download_cmd(cmd: Iterable[str], params: Dict[str, Any]) -> str:
     except GoModError:
         err_msg = (
             f"Processing gomod dependencies failed. Cachito tried the {' '.join(cmd)} command "
-            f"{n_tries} times. This may indicate a problem with your repository or Cachito itself."
+            f"{n_tries} times."
         )
         raise GoModError(err_msg) from None
 
@@ -976,8 +983,9 @@ def _fail_unless_allowed(module_name: str, package_name: str, allowed_patterns: 
                 "dependency."
             ),
             solution=(
-                "Please allow the replacement in Cachi2's configuration, or contact someone who "
-                "has access to the configuration."
+                "Please allow the replacement in Cachi2's configuration.\n"
+                "If you're using Cachi2 in a managed environment, please contact the "
+                "administrators."
             ),
         )
 

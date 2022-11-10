@@ -32,3 +32,18 @@ def test_unsupported_feature_default_friendly_msg():
 
     no_default = errors.UnsupportedFeature("This feature is not supported", solution=None)
     assert no_default.friendly_msg() == "This feature is not supported"
+
+
+def test_gomod_error_friendly_msg():
+    err = errors.GoModError("Some go command failed")
+    expect_msg = dedent(
+        """
+        Some go command failed
+          The cause of the failure could be:
+          - something is broken in Cachi2
+          - something is wrong with your Go module
+          - communication with an external service failed (please try again)
+          The output of the failing go command should provide more details, please check the logs.
+        """
+    ).strip()
+    assert err.friendly_msg() == expect_msg

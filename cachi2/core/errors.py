@@ -70,8 +70,24 @@ class GoModError(Cachi2Error):
     error is intermittent. We don't really know, but we do at least log the stderr.
     """
 
+    notice = textwrap.dedent(
+        """
+        The cause of the failure could be:
+        - something is broken in Cachi2
+        - something is wrong with your Go module
+        - communication with an external service failed (please try again)
+        The output of the failing go command should provide more details, please check the logs.
+        """
+    ).strip()
 
-def _friendly_error_msg(reason: str, solution: Optional[str], docs_link: Optional[str]) -> str:
+    def friendly_msg(self) -> str:
+        """Return the user-friendly representation of this error."""
+        return _friendly_error_msg(str(self), self.notice)
+
+
+def _friendly_error_msg(
+    reason: str, solution: Optional[str], docs_link: Optional[str] = None
+) -> str:
     msg = reason
     if solution:
         msg += f"\n{textwrap.indent(solution, prefix='  ')}"
