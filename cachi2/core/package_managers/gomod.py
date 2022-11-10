@@ -60,7 +60,7 @@ def fetch_gomod_source(request: Request) -> RequestOutput:
 
         # missing gomod files is supported if there is only one path referenced
         if config.cachito_gomod_ignore_missing_gomod_file and len(subpaths) == 1:
-            log.warning("go.mod file missing for request at %s", invalid_files_print)
+            log.warning("go.mod file missing at %s", invalid_files_print)
             return RequestOutput.empty()
 
         raise PackageRejected(
@@ -84,7 +84,7 @@ def fetch_gomod_source(request: Request) -> RequestOutput:
     packages = []
 
     for i, subpath in enumerate(subpaths):
-        log.info("Fetching the gomod dependencies for request in subpath %s", subpath)
+        log.info("Fetching the gomod dependencies at subpath %s", subpath)
 
         log.info(f'Fetching the gomod dependencies at the "{subpath}" directory')
 
@@ -92,7 +92,7 @@ def fetch_gomod_source(request: Request) -> RequestOutput:
         try:
             gomod = _resolve_gomod(gomod_source_path, request)
         except GoModError:
-            log.exception("Failed to fetch gomod dependencies for request %d")
+            log.exception("Failed to fetch gomod dependencies")
             raise
 
         module_info = gomod["module"]
