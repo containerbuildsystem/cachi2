@@ -140,14 +140,12 @@ jobs:
      # Authenticate to container image registry to push the image
       - name: Podman Login
         uses: redhat-actions/podman-login@v1
-        if: github.ref == 'refs/heads/main'
         with:
           registry: quay.io
           username: ${{ secrets.QUAY_USER }}
           password: ${{ secrets.QUAY_PWD }}
 
       - name: Push image to Quay.io registry
-        if: github.ref == 'refs/heads/main'
         run: |
           if [[ "${{ github.event_name }}" == "push" ]]; then
             podman push cachi2:${{ github.sha }} \
