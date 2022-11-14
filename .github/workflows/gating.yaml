@@ -8,14 +8,8 @@ on:
   workflow_dispatch:
     inputs: {}
 
-env:
-  IMAGE_NAME: cachi2
-  IMAGE_REGISTRY: quay.io
-  IMAGE_NAMESPACE: containerbuildsystem
-  IMAGE_TAG: latest
-  TEST_REPO: https://github.com/release-engineering/retrodep.git
-  TEST_BRANCH: v2.1.1
-  TEST_FOLDER: /tmp/source
+  release:
+    types: [published]
 
 jobs:
   tests:
@@ -116,38 +110,51 @@ jobs:
     steps:
       - name: add checkout action...
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
 
       - name: Build Cachi2 image
         uses: redhat-actions/buildah-build@v2
         with:
-          image: ${{ env.IMAGE_NAME }}
+          image: cachi2
           tags: ${{ github.sha }}
           arch: amd64
           containerfiles: |
             ./Containerfile
 
-      - name: Check images created
-        run: buildah images | grep '${{ env.IMAGE_NAME }}'
+      - name: Check image created and Cachi2 version
+        run: |
+          buildah images | grep 'cachi2'
+          podman run -t cachi2:${{ github.sha }} --version
 
       - name: Run smoketest on built images
         run: |
-          git clone -b ${{ env.TEST_BRANCH }} ${{ env.TEST_REPO }} ${{ env.TEST_FOLDER }}
-          podman run -t -v ${{ env.TEST_FOLDER }}:${{ env.TEST_FOLDER }} \
-            ${{ env.IMAGE_NAME }}:${{ github.sha }} \
+          git clone -b v2.1.1 https://github.com/release-engineering/retrodep.git /tmp/source
+          podman run -t -v /tmp/source:/tmp/source \
+            cachi2:${{ github.sha }} \
             fetch-deps \
-            --source ${{ env.TEST_FOLDER }} \
+            --source /tmp/source \
             --output ./cachi2-output \
             --package '{"path": ".", "type": "gomod"}'
 
      # Authenticate to container image registry to push the image
       - name: Podman Login
         uses: redhat-actions/podman-login@v1
+        if: github.ref == 'refs/heads/main'
         with:
-          registry: ${{ env.IMAGE_REGISTRY }}
+          registry: quay.io
           username: ${{ secrets.QUAY_USER }}
           password: ${{ secrets.QUAY_PWD }}
 
       - name: Push image to Quay.io registry
+        if: github.ref == 'refs/heads/main'
         run: |
-          podman push ${{ env.IMAGE_NAME }}:${{ github.sha }} \
-            ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            podman push cachi2:${{ github.sha }} \
+              quay.io/containerbuildsystem/cachi2:${{ github.sha }}
+            podman tag cachi2:${{ github.sha }} \
+              quay.io/containerbuildsystem/cachi2:latest
+          elif [[ "${{ github.event_name }}" == "release" ]]; then
+            podman push cachi2:${{ github.sha }} \
+              quay.io/containerbuildsystem/cachi2:${{ github.ref_name }}
+          fi
