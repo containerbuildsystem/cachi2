@@ -8,9 +8,6 @@ on:
   workflow_dispatch:
     inputs: {}
 
-  release:
-    types: [published]
-
 jobs:
   tests:
     name: Unit tests
@@ -147,14 +144,5 @@ jobs:
 
       - name: Push image to Quay.io registry
         run: |
-          if [[ "${{ github.event_name }}" == "push" ]]; then
-            podman push cachi2:${{ github.sha }} \
-              quay.io/containerbuildsystem/cachi2:${{ github.sha }}
-            podman tag cachi2:${{ github.sha }} \
-              quay.io/containerbuildsystem/cachi2:latest
-            podman tag cachi2:${{ github.sha }} \
-              quay.io/containerbuildsystem/cachi2:lkolacek-test
-          elif [[ "${{ github.event_name }}" == "release" ]]; then
-            podman push cachi2:${{ github.sha }} \
-              quay.io/containerbuildsystem/cachi2:${{ github.ref_name }}
-          fi
+          podman push cachi2:${{ github.sha }} \
+            quay.io/containerbuildsystem/cachi2:${{ github.sha }}
