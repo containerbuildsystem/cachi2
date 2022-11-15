@@ -5,7 +5,7 @@ import logging
 import sys
 from itertools import chain
 from pathlib import Path
-from typing import Callable, Optional, Union
+from typing import Callable, Optional
 
 import typer
 from typer import Argument, Option
@@ -82,17 +82,17 @@ LOG_LEVEL_OPTION = Option(
 )
 
 
-def maybe_load_json(opt_name: str, opt_value: str) -> Optional[Union[dict, list]]:
-    """If the option string looks like a JSON dict or list, parse it. Otherwise, return None."""
-    if not opt_value.lstrip().startswith(("{", "[")):
-        return None
-
-    try:
-        value = json.loads(opt_value)
-    except json.JSONDecodeError:
-        raise typer.BadParameter(f"{opt_name}: looks like JSON but is not valid JSON")
-
+def _if_json_then_validate(value: str) -> str:
+    if _looks_like_json(value):
+        try:
+            json.loads(value)
+        except json.JSONDecodeError:
+            raise typer.BadParameter(f"Looks like JSON but is not valid JSON: {value!r}")
     return value
+
+
+def _looks_like_json(value: str) -> bool:
+    return value.lstrip().startswith(("{", "["))
 
 
 @app.command()
@@ -102,6 +102,7 @@ def fetch_deps(
         ...,  # Ellipsis makes this option required
         help="Specify package (within the source repo) to process. See usage examples.",
         metavar="PKG",
+        callback=lambda args: [_if_json_then_validate(arg) for arg in args],
     ),
     source: Path = Option(
         DEFAULT_SOURCE,
@@ -183,10 +184,9 @@ def fetch_deps(
 
     def parse_packages(package_str: str) -> list[dict]:
         """Parse a --package argument into a list of packages (--package may be a JSON list)."""
-        json_obj = maybe_load_json("--package", package_str)
-        if json_obj is None:
+        if not _looks_like_json(package_str):
             packages = [{"type": package_str, "path": "."}]
-        elif isinstance(json_obj, dict):
+        elif isinstance(json_obj := json.loads(package_str), dict):
             packages = [json_obj]
         else:
             packages = json_obj
