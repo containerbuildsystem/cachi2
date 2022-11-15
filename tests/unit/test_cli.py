@@ -212,15 +212,15 @@ class TestFetchDeps:
         [
             (
                 ["--package={notjson}"],
-                ["--package: looks like JSON but is not valid JSON"],
+                ["'--package': Looks like JSON but is not valid JSON: '{notjson}'"],
             ),
             (
                 ["--package=[notjson]"],
-                ["--package: looks like JSON but is not valid JSON"],
+                ["'--package': Looks like JSON but is not valid JSON: '[notjson]'"],
             ),
             (
                 ["--package=gomod", "--package={notjson}"],
-                ["--package: looks like JSON but is not valid JSON"],
+                ["'--package': Looks like JSON but is not valid JSON: '{notjson}'"],
             ),
             (
                 ["--package=idk"],
