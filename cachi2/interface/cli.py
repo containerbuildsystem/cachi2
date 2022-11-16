@@ -33,7 +33,7 @@ def handle_errors(cmd: Callable[..., None]) -> Callable[..., None]:
     """
 
     def log_error(error: Exception) -> None:
-        log.error("%s: %s", type(error).__name__, error)
+        log.error("%s: %s", type(error).__name__, str(error).replace("\n", r"\n"))
 
     @functools.wraps(cmd)
     def cmd_with_error_handling(*args, **kwargs) -> None:
