@@ -14,7 +14,6 @@ class Config:
     cachito_default_environment_variables = {
         "gomod": {"GOSUMDB": {"value": "off", "kind": "literal"}},
     }
-    cachito_gomod_ignore_missing_gomod_file = False
     cachito_gomod_download_max_tries = 5
     cachito_gomod_file_deps_allowlist: Dict[str, Dict[str, str]] = {}
     cachito_gomod_strict_vendor = False

@@ -64,11 +64,6 @@ def fetch_gomod_source(request: Request) -> RequestOutput:
     if invalid_gomod_files:
         invalid_files_print = "; ".join(str(file.parent) for file in invalid_gomod_files)
 
-        # missing gomod files is supported if there is only one path referenced
-        if config.cachito_gomod_ignore_missing_gomod_file and len(subpaths) == 1:
-            log.warning("go.mod file missing at %s", invalid_files_print)
-            return RequestOutput.empty()
-
         raise PackageRejected(
             f"The go.mod file must be present for the Go module(s) at: {invalid_files_print}",
             solution="Please double-check that you have specified correct paths to your Go modules",
