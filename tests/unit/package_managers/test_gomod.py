@@ -36,6 +36,7 @@ from cachi2.core.package_managers.gomod import (
     _vendor_changed,
     _vendor_deps,
     _vet_local_deps,
+    fetch_gomod_source,
 )
 from cachi2.core.packages_data import _package_sort_key
 from tests.unit.package_managers.helper_utils import assert_directories_equal, write_file_tree
@@ -1487,3 +1488,28 @@ def test_run_download_cmd_failure(mock_sleep, mock_run, mock_worker_config, capl
     assert "Backing off run_go(...) for 4.0s" in caplog.text
     assert "Backing off run_go(...) for 8.0s" in caplog.text
     assert "Giving up run_go(...) after 5 tries" in caplog.text
+
+
+@pytest.mark.parametrize(
+    "file_tree",
+    (
+        {".": {}},
+        {"foo": {}, "bar": {}},
+        {"foo": {}, "bar": {"go.mod": ""}},
+    ),
+)
+def test_missing_gomod_file(file_tree, tmp_path):
+    write_file_tree(file_tree, tmp_path, exist_ok=True)
+
+    packages = [{"path": path, "type": "gomod"} for path, _ in file_tree.items()]
+    request = Request(source_dir=tmp_path, output_dir=tmp_path, packages=packages)
+
+    paths_without_gomod = [
+        str(tmp_path / path)
+        for path, contents in file_tree.items()
+        if "go.mod" not in contents.keys()
+    ]
+    path_error_string = "; ".join(paths_without_gomod)
+
+    with pytest.raises(PackageRejected, match=path_error_string):
+        fetch_gomod_source(request)
