@@ -4,7 +4,7 @@ from unittest import mock
 import pytest
 import requests
 
-from cachi2._compat.errors import InvalidChecksum, NetworkError
+from cachi2.core.errors import FetchError, PackageRejected
 from cachi2.core.package_managers import general
 from cachi2.core.package_managers.general import (
     ChecksumInfo,
@@ -37,7 +37,7 @@ def test_verify_checksum_invalid_hexdigest(tmpdir):
     file.write("Beetlejuice! Beetlejuice! Beetlejuice!")
 
     expected_error = "The file spells.txt has an unexpected checksum value"
-    with pytest.raises(InvalidChecksum, match=expected_error):
+    with pytest.raises(PackageRejected, match=expected_error):
         verify_checksum(str(file), ChecksumInfo("sha512", "spam"))
 
 
@@ -46,7 +46,7 @@ def test_verify_checksum_unsupported_algorithm(tmpdir):
     file.write("Beetlejuice! Beetlejuice! Beetlejuice!")
 
     expected_error = "Cannot perform checksum on the file spells.txt,.*bacon.*"
-    with pytest.raises(InvalidChecksum, match=expected_error):
+    with pytest.raises(PackageRejected, match=expected_error):
         verify_checksum(str(file), ChecksumInfo("bacon", "spam"))
 
 
@@ -76,7 +76,7 @@ def test_download_binary_file_failed(mock_get):
     mock_get.side_effect = [requests.RequestException("Something went wrong")]
 
     expected = "Could not download http://example.org/example.tar.gz: Something went wrong"
-    with pytest.raises(NetworkError, match=expected):
+    with pytest.raises(FetchError, match=expected):
         download_binary_file("http://example.org/example.tar.gz", "/example.tar.gz")
 
 

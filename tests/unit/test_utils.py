@@ -2,8 +2,7 @@ import hashlib
 
 import pytest
 
-from cachi2._compat.errors import UnknownHashAlgorithm
-from cachi2.core.utils import hash_file
+from cachi2.core.utils import UnknownHashAlgorithm, hash_file
 
 
 def test_get_unknown_hash_algorithm():

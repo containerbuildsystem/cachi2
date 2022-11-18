@@ -3,6 +3,7 @@ import logging
 import re
 from pathlib import Path
 from textwrap import dedent
+from typing import Union
 from unittest import mock
 from urllib.parse import urlparse
 
@@ -10,13 +11,7 @@ import bs4
 import pytest
 import requests
 
-from cachi2._compat.errors import (
-    FileAccessError,
-    InvalidChecksum,
-    InvalidRequestData,
-    NetworkError,
-    ValidationError,
-)
+from cachi2.core.errors import FetchError, PackageRejected, UnsupportedFeature
 from cachi2.core.package_managers import general, pip
 from tests.unit.package_managers.helper_utils import write_file_tree
 
@@ -81,7 +76,7 @@ def test_get_pip_metadata(
         assert name == expect_name
         assert version == expect_version
     else:
-        with pytest.raises(InvalidRequestData) as exc_info:
+        with pytest.raises(PackageRejected) as exc_info:
             pip._get_pip_metadata(PKG_DIR)
 
         if expect_name:
@@ -230,7 +225,7 @@ class TestSetupCFG:
         if expect_error is None:
             assert setup_cfg.get_version() == expect_version
         else:
-            with pytest.raises(ValidationError) as exc_info:
+            with pytest.raises(PackageRejected) as exc_info:
                 setup_cfg.get_version()
             assert str(exc_info.value) == expect_error.format(tmpdir=tmpdir.strpath)
 
@@ -1772,6 +1767,7 @@ class TestPipRequirementsFile:
     @pytest.mark.parametrize(
         "file_contents, expected_error",
         (
+            # Invalid (probably) format
             ("--spam", "Unknown requirements file option '--spam'"),
             (
                 "--prefer-binary=spam",
@@ -1786,46 +1782,50 @@ class TestPipRequirementsFile:
                 ),
             ),
             (
-                "pip @ file:///localbuilds/pip-1.3.1.zip",
-                "Direct references with 'file' scheme are not supported",
-            ),
-            (
-                "file:///localbuilds/pip-1.3.1.zip",
-                "Direct references with 'file' scheme are not supported",
-            ),
-            (
-                "file:///localbuilds/pip-1.3.1.zip",
-                "Direct references with 'file' scheme are not supported",
-            ),
-            (
                 "aiowsgi==0.7 asn1crypto==1.3.0",
                 "Unable to parse the requirement 'aiowsgi==0.7 asn1crypto==1.3.0'",
-            ),
-            (
-                "https://github.com/quay/appr/archive/58c88e49.tar.gz",
-                "Egg name could not be determined from the requirement",
-            ),
-            (
-                "https://github.com/quay/appr/archive/58c88e49.tar.gz#egg=",
-                "Egg name could not be determined from the requirement",
-            ),
-            (
-                "https://github.com/quay/appr/archive/58c88e49.tar.gz#egg",
-                "Egg name could not be determined from the requirement",
             ),
             (
                 "cnr_server@foo@https://github.com/quay/appr/archive/58c88e49.tar.gz",
                 "Unable to extract scheme from direct access requirement",
             ),
+            # Valid format but Cachi2 doesn't support it
+            (
+                "pip @ file:///localbuilds/pip-1.3.1.zip",
+                UnsupportedFeature("Direct references with 'file' scheme are not supported"),
+            ),
+            (
+                "file:///localbuilds/pip-1.3.1.zip",
+                UnsupportedFeature("Direct references with 'file' scheme are not supported"),
+            ),
+            (
+                "https://github.com/quay/appr/archive/58c88e49.tar.gz",
+                UnsupportedFeature("Egg name could not be determined from the requirement"),
+            ),
+            (
+                "https://github.com/quay/appr/archive/58c88e49.tar.gz#egg=",
+                UnsupportedFeature("Egg name could not be determined from the requirement"),
+            ),
+            (
+                "https://github.com/quay/appr/archive/58c88e49.tar.gz#egg",
+                UnsupportedFeature("Egg name could not be determined from the requirement"),
+            ),
         ),
     )
-    def test_parsing_of_invalid_cases(self, file_contents, expected_error, tmpdir):
+    def test_parsing_of_invalid_cases(
+        self, file_contents, expected_error: Union[str, Exception], tmpdir
+    ):
         """Test the invalid use cases of requirements in a requirements file."""
         requirements_file = tmpdir.join("requirements.txt")
         requirements_file.write(file_contents)
 
         pip_requirements = pip.PipRequirementsFile(requirements_file.strpath)
-        with pytest.raises(ValidationError, match=expected_error):
+
+        expected_err_type = (
+            type(expected_error) if isinstance(expected_error, Exception) else PackageRejected
+        )
+
+        with pytest.raises(expected_err_type, match=str(expected_error)):
             pip_requirements.requirements
 
     def test_corner_cases_when_parsing_single_line(self):
@@ -1833,9 +1833,7 @@ class TestPipRequirementsFile:
         # Empty lines are ignored
         assert pip.PipRequirement.from_line("     ", []) is None
 
-        with pytest.raises(
-            ValidationError, match="Multiple requirements per line are not supported"
-        ):
+        with pytest.raises(RuntimeError, match="Didn't expect to find multiple requirements in:"):
             pip.PipRequirement.from_line("aiowsgi==0.7 \nasn1crypto==1.3.0", [])
 
     def test_replace_requirements(self, tmpdir):
@@ -2394,7 +2392,7 @@ class TestDownload:
                 absolute_file_url, download_info["path"], auth=("user", "password")
             )
         else:
-            with pytest.raises((InvalidRequestData, NetworkError)) as exc_info:
+            with pytest.raises((PackageRejected, FetchError)) as exc_info:
                 pip._download_pypi_package(
                     mock_requirement, tmp_path, "https://pypi-proxy.org", ("user", "password")
                 )
@@ -2681,7 +2679,7 @@ class TestDownload:
         ]
         options = all_rejected + ["-c", "constraints.txt", "--use-feature", "some_feature", "--foo"]
         req_file = self.mock_requirements_file(options=options)
-        with pytest.raises(ValidationError) as exc_info:
+        with pytest.raises(UnsupportedFeature) as exc_info:
             pip._download_dependencies(Path(), req_file)
 
         err_msg = (
@@ -2703,10 +2701,10 @@ class TestDownload:
         ],
     )
     def test_pypi_dep_not_pinned(self, version_specs):
-        """Test that unpinned PyPI deps cause a ValidationError."""
+        """Test that unpinned PyPI deps cause a PackageRejected error."""
         req = self.mock_requirement("foo", "pypi", version_specs=version_specs)
         req_file = self.mock_requirements_file(requirements=[req])
-        with pytest.raises(ValidationError) as exc_info:
+        with pytest.raises(PackageRejected) as exc_info:
             pip._download_dependencies(Path(), req_file)
         msg = f"Requirement must be pinned to an exact version: {req.download_line}"
         assert str(exc_info.value) == msg
@@ -2725,11 +2723,11 @@ class TestDownload:
         ],
     )
     def test_vcs_dep_no_git_ref(self, url):
-        """Test that VCS deps with no git ref cause a ValidationError."""
+        """Test that VCS deps with no git ref cause a PackageRejected error."""
         req = self.mock_requirement("eggs", "vcs", url=url, download_line=f"eggs @ {url}")
         req_file = self.mock_requirements_file(requirements=[req])
 
-        with pytest.raises(ValidationError) as exc_info:
+        with pytest.raises(PackageRejected) as exc_info:
             pip._download_dependencies(Path(), req_file)
 
         msg = f"No git ref in {req.download_line} (expected 40 hexadecimal characters)"
@@ -2737,15 +2735,15 @@ class TestDownload:
 
     @pytest.mark.parametrize("scheme", ["svn", "svn+https"])
     def test_vcs_dep_not_git(self, scheme):
-        """Test that VCS deps not from git cause a ValidationError."""
+        """Test that VCS deps not from git cause an UnsupportedFeature error."""
         url = f"{scheme}://example.org/spam/eggs"
         req = self.mock_requirement("eggs", "vcs", url=url, download_line=f"eggs @ {url}")
         req_file = self.mock_requirements_file(requirements=[req])
 
-        with pytest.raises(ValidationError) as exc_info:
+        with pytest.raises(UnsupportedFeature) as exc_info:
             pip._download_dependencies(Path(), req_file)
 
-        msg = f"Unsupported VCS for {req.download_line}: {scheme}"
+        msg = f"Unsupported VCS for {req.download_line}: {scheme} (only git is supported)"
         assert str(exc_info.value) == msg
 
     @pytest.mark.parametrize(
@@ -2769,13 +2767,11 @@ class TestDownload:
         )
         req_file = self.mock_requirements_file(requirements=[req])
 
-        with pytest.raises(ValidationError) as exc_info:
+        with pytest.raises(PackageRejected) as exc_info:
             pip._download_dependencies(Path(), req_file)
 
         assert str(exc_info.value) == (
-            f"URL requirement must specify exactly one hash, but specifies {total}: foo @ {url}. "
-            "Use the --hash option or the #cachito_hash URL fragment, but not both (or more than "
-            "one --hash)."
+            f"URL requirement must specify exactly one hash, but specifies {total}: foo @ {url}."
         )
 
     @pytest.mark.parametrize(
@@ -2793,7 +2789,7 @@ class TestDownload:
         req = self.mock_requirement("foo", "url", url=url, download_line=f"foo @ {url}")
         req_file = self.mock_requirements_file(requirements=[req])
 
-        with pytest.raises(ValidationError) as exc_info:
+        with pytest.raises(PackageRejected) as exc_info:
             pip._download_dependencies(Path(), req_file)
 
         assert str(exc_info.value) == (
@@ -2822,7 +2818,7 @@ class TestDownload:
         req_2 = self.mock_requirement("bar", requirement_kind)
         req_file = self.mock_requirements_file(requirements=[req_1, req_2], options=options)
 
-        with pytest.raises(ValidationError) as exc_info:
+        with pytest.raises(PackageRejected) as exc_info:
             pip._download_dependencies(Path(), req_file)
 
         if global_require_hash:
@@ -2852,7 +2848,7 @@ class TestDownload:
         req = self.mock_requirement("foo", requirement_kind, hashes=hashes, qualifiers=qualifiers)
         req_file = self.mock_requirements_file(requirements=[req])
 
-        with pytest.raises(ValidationError) as exc_info:
+        with pytest.raises(PackageRejected) as exc_info:
             pip._download_dependencies(Path(), req_file)
 
         msg = "Not a valid hash specifier: 'malformed' (expected algorithm:digest)"
@@ -3031,7 +3027,9 @@ class TestDownload:
         path = Path("/foo/bar.tar.gz")
 
         mock_verify_checksum.side_effect = [
-            None if hash_spec == "sha256:good" else InvalidChecksum("Something went wrong")
+            None
+            if hash_spec == "sha256:good"
+            else PackageRejected("Invalid checksum", solution=None)
             for hash_spec in hashes
         ]
 
@@ -3043,7 +3041,7 @@ class TestDownload:
             num_calls = hashes.index("sha256:good") + 1
             num_fails = num_calls - 1
         else:
-            with pytest.raises(InvalidChecksum) as exc_info:
+            with pytest.raises(PackageRejected) as exc_info:
                 pip._verify_hash(path, hashes)
 
             msg = "Failed to verify checksum of bar.tar.gz against any of the provided hashes"
@@ -3058,7 +3056,7 @@ class TestDownload:
         mock_verify_checksum.assert_has_calls(calls)
         assert mock_verify_checksum.call_count == num_calls
 
-        assert caplog.text.count("Something went wrong") == num_fails
+        assert caplog.text.count("Invalid checksum") == num_fails
         assert "Verifying checksum of bar.tar.gz" in caplog.text
 
     @mock.patch("cachi2.core.package_managers.pip._download_pypi_package")
@@ -3123,8 +3121,8 @@ def test_resolve_pip_no_deps(mock_metadata, tmp_path):
 @mock.patch("cachi2.core.package_managers.pip._get_pip_metadata")
 def test_resolve_pip_incompatible(mock_metadata, tmp_path):
     expected_error = "Could not resolve package metadata: name"
-    mock_metadata.side_effect = InvalidRequestData(expected_error)
-    with pytest.raises(InvalidRequestData, match=expected_error):
+    mock_metadata.side_effect = PackageRejected(expected_error, solution=None)
+    with pytest.raises(PackageRejected, match=expected_error):
         pip.resolve_pip(tmp_path, tmp_path / "output")
 
 
@@ -3132,9 +3130,9 @@ def test_resolve_pip_incompatible(mock_metadata, tmp_path):
 def test_resolve_pip_invalid_req_file_path(mock_metadata, tmp_path):
     mock_metadata.return_value = ("foo", "1.0")
     invalid_path = "/foo/bar.txt"
-    expected_error = f"Following requirement file has an invalid path: {invalid_path}"
+    expected_error = f"The requirements file does not exist: {invalid_path}"
     requirement_files = [invalid_path]
-    with pytest.raises(FileAccessError, match=expected_error):
+    with pytest.raises(PackageRejected, match=expected_error):
         pip.resolve_pip(tmp_path, tmp_path / "output", requirement_files, None)
 
 
@@ -3142,9 +3140,9 @@ def test_resolve_pip_invalid_req_file_path(mock_metadata, tmp_path):
 def test_resolve_pip_invalid_bld_req_file_path(mock_metadata, tmp_path):
     mock_metadata.return_value = ("foo", "1.0")
     invalid_path = "/foo/bar.txt"
-    expected_error = f"Following requirement file has an invalid path: {invalid_path}"
+    expected_error = f"The requirements file does not exist: {invalid_path}"
     build_requirement_files = [invalid_path]
-    with pytest.raises(FileAccessError, match=expected_error):
+    with pytest.raises(PackageRejected, match=expected_error):
         pip.resolve_pip(tmp_path, tmp_path / "output", None, build_requirement_files)
 
 
@@ -3249,10 +3247,14 @@ def test_skip_check_on_tar_z(sdist_filename: str, data_dir: Path, caplog):
         ["myapp-0.1.tar.fake.zip", "a Zip file. Error:"],
         ["myapp-0.1.zip.fake.tar", "a Tar file. Error:"],
         ["myapp-without-pkg-info.tar.gz", "not include metadata"],
-        ["myapp-0.2.tar.ZZZ", "Cannot check metadata from"],
     ],
 )
-def test_metadata_check_fails_from_sdist(sdist_filename: str, expected_error: str, data_dir: Path):
+def test_metadata_check_fails_from_sdist(sdist_filename: Path, expected_error: str, data_dir: Path):
     sdist_path = data_dir / sdist_filename
-    with pytest.raises(ValidationError, match=expected_error):
+    with pytest.raises(PackageRejected, match=expected_error):
         pip._check_metadata_in_sdist(sdist_path)
+
+
+def test_metadata_check_invalid_argument():
+    with pytest.raises(ValueError, match="Cannot check metadata"):
+        pip._check_metadata_in_sdist(Path("myapp-0.2.tar.ZZZ"))

@@ -6,10 +6,13 @@ import subprocess  # nosec
 from pathlib import Path
 from typing import Iterator, Union
 
-from cachi2._compat.errors import UnknownHashAlgorithm
 from cachi2.core.config import get_worker_config
 
 log = logging.getLogger(__name__)
+
+
+class UnknownHashAlgorithm(ValueError):
+    """The hash algorithm is unknown by Cachi2."""
 
 
 def run_cmd(cmd, params):
