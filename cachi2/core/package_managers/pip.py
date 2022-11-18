@@ -3,9 +3,7 @@ import ast
 import configparser
 import logging
 import os.path
-import random
 import re
-import secrets
 import shutil
 import tarfile
 import urllib
@@ -25,20 +23,14 @@ from cachito.errors import (
     InvalidChecksum,
     InvalidRequestData,
     NetworkError,
-    NexusError,
     ValidationError,
 )
-from cachito.workers import nexus
-from cachito.workers.config import get_worker_config
-from cachito.workers.errors import NexusScriptError, UploadError
 from cachito.workers.paths import RequestBundleDir
 from cachito.workers.pkg_managers import general
 from cachito.workers.pkg_managers.general import (
     ChecksumInfo,
-    download_raw_component,
     extract_git_info,
     pkg_requests_session,
-    upload_raw_package,
     verify_checksum,
 )
 from cachito.workers.scm import Git
@@ -58,6 +50,8 @@ ZIP_FILE_EXT = ".zip"
 COMPRESSED_TAR_EXT = ".tar.Z"
 SDIST_FILE_EXTENSIONS = [ZIP_FILE_EXT, ".tar.gz", ".tar.bz2", ".tar.xz", COMPRESSED_TAR_EXT, ".tar"]
 SDIST_EXT_PATTERN = r"|".join(map(re.escape, SDIST_FILE_EXTENSIONS))
+
+PYPI_URL = "https://pypi.org"
 
 
 def get_pip_metadata(package_dir):
@@ -1216,61 +1210,9 @@ class PipRequirement:
         return hashes, reduced_options
 
 
-def prepare_nexus_for_pip_request(pip_repo_name, raw_repo_name):
-    """
-    Prepare Nexus so that Cachito can stage Python content.
-
-    :param str pip_repo_name: the name of the pip repository for the request
-    :param str raw_repo_name: the name of the raw repository for the request
-    :raise NexusError: if the script execution fails
-    """
-    payload = {
-        "pip_repository_name": pip_repo_name,
-        "raw_repository_name": raw_repo_name,
-    }
-    script_name = "pip_before_content_staged"
-    try:
-        nexus.execute_script(script_name, payload)
-    except NexusScriptError:
-        log.exception("Failed to execute the script %s", script_name)
-        raise NexusError("Failed to prepare Nexus for Cachito to stage Python content")
-
-
-def finalize_nexus_for_pip_request(pip_repo_name, raw_repo_name, username):
-    """
-    Configure Nexus so that the request's Pyhton repositories are ready for consumption.
-
-    :param str pip_repo_name: the name of the pip repository for the Cachito pip request
-    :param str raw_repo_name: the name of the raw repository for the Cachito pip request
-    :param str username: the username of the user to be created for the Cachito pip request
-    :return: the password of the Nexus user that has access to the request's Python repositories
-    :rtype: str
-    :raise NexusError: if the script execution fails
-    """
-    # Generate a 24-32 character (each byte is two hex characters) password
-    password = secrets.token_hex(random.randint(12, 16))  # nosec
-    payload = {
-        "password": password,
-        "pip_repository_name": pip_repo_name,
-        "raw_repository_name": raw_repo_name,
-        "username": username,
-    }
-    script_name = "pip_after_content_staged"
-    try:
-        nexus.execute_script(script_name, payload)
-    except NexusScriptError:
-        log.exception("Failed to execute the script %s", script_name)
-        raise NexusError("Failed to configure Nexus Python repositories for final consumption")
-    return password
-
-
 def download_dependencies(request_id, requirements_file):
     """
     Download sdists (source distributions) of all dependencies in a requirements.txt file.
-
-    After downloading, upload all VCS and URL dependencies to the Nexus raw repo if they
-    were not already present. PyPI dependencies get cached automatically just by being
-    downloaded from the right URL, see _download_pypi_package().
 
     :param int request_id: ID of the request these dependencies are being downloaded for
     :param PipRequirementsFile requirements_file: A requirements.txt file
@@ -1300,32 +1242,18 @@ def download_dependencies(request_id, requirements_file):
     bundle_dir = RequestBundleDir(request_id)
     bundle_dir.pip_deps_dir.mkdir(parents=True, exist_ok=True)
 
-    config = get_worker_config()
-    pypi_proxy_url = config.cachito_nexus_pypi_proxy_url
-    pip_raw_repo_name = config.cachito_nexus_pip_raw_repo_name
-
-    nexus_username, nexus_password = nexus.get_nexus_hoster_credentials()
-    nexus_auth = requests.auth.HTTPBasicAuth(nexus_username, nexus_password)
-    pypi_proxy_auth = nexus_auth
-
     downloads = []
 
     for req in requirements_file.requirements:
         log.info("Downloading %s", req.download_line)
 
         if req.kind == "pypi":
-            download_info = _download_pypi_package(
-                req, bundle_dir.pip_deps_dir, pypi_proxy_url, pypi_proxy_auth
-            )
+            download_info = _download_pypi_package(req, bundle_dir.pip_deps_dir, PYPI_URL)
             check_metadata_in_sdist(download_info["path"])
         elif req.kind == "vcs":
-            download_info = _download_vcs_package(
-                req, bundle_dir.pip_deps_dir, pip_raw_repo_name, nexus_auth
-            )
+            download_info = _download_vcs_package(req, bundle_dir.pip_deps_dir)
         elif req.kind == "url":
-            download_info = _download_url_package(
-                req, bundle_dir.pip_deps_dir, pip_raw_repo_name, nexus_auth, trusted_hosts
-            )
+            download_info = _download_url_package(req, bundle_dir.pip_deps_dir, trusted_hosts)
         else:
             # Should not happen
             raise RuntimeError(f"Unexpected requirement kind: {req.kind!r}")
@@ -1339,23 +1267,6 @@ def download_dependencies(request_id, requirements_file):
         if require_hashes or req.kind == "url":
             hashes = req.hashes or [req.qualifiers["cachito_hash"]]
             _verify_hash(download_info["path"], hashes)
-
-        # If the raw component is not in the Nexus hoster instance, upload it there
-        if req.kind in ("vcs", "url") and not download_info["have_raw_component"]:
-            log.debug(
-                "Uploading %r to %r as %r",
-                download_info["path"].name,
-                pip_raw_repo_name,
-                download_info["raw_component_name"],
-            )
-            dest_dir, filename = download_info["raw_component_name"].rsplit("/", 1)
-            upload_raw_package(
-                pip_raw_repo_name,
-                download_info["path"],
-                dest_dir,
-                filename,
-                is_request_repository=False,
-            )
 
         download_info["kind"] = req.kind
         downloads.append(download_info)
@@ -1519,7 +1430,7 @@ def _validate_provided_hashes(requirements, require_hashes):
                 raise ValidationError(msg)
 
 
-def _download_pypi_package(requirement, pip_deps_dir, pypi_proxy_url, pypi_proxy_auth):
+def _download_pypi_package(requirement, pip_deps_dir, pypi_url, pypi_auth=None):
     """
     Download the sdist (source distribution) of a PyPI package.
 
@@ -1533,8 +1444,8 @@ def _download_pypi_package(requirement, pip_deps_dir, pypi_proxy_url, pypi_proxy
 
     :param PipRequirement requirement: PyPI requirement from a requirement.txt file
     :param Path pip_deps_dir: The deps/pip directory in a Cachito request bundle
-    :param str pypi_proxy_url: URL of Nexus PyPI proxy
-    :param requests.auth.AuthBase pypi_proxy_auth: Authorization for the PyPI proxy
+    :param str pypi_url: URL of the PyPI server or a proxy
+    :param (requests.auth.AuthBase | None) pypi_auth: Authorization for the PyPI server
 
     :return: Dict with package name, version and download path
     :raises NetworkError: if PyPI query failed
@@ -1544,9 +1455,9 @@ def _download_pypi_package(requirement, pip_deps_dir, pypi_proxy_url, pypi_proxy
     version = requirement.version_specs[0][1]
 
     # See https://www.python.org/dev/peps/pep-0503/
-    package_url = f"{pypi_proxy_url.rstrip('/')}/simple/{canonicalize_name(package)}/"
+    package_url = f"{pypi_url.rstrip('/')}/simple/{canonicalize_name(package)}/"
     try:
-        pypi_resp = pkg_requests_session.get(package_url, auth=pypi_proxy_auth)
+        pypi_resp = pkg_requests_session.get(package_url, auth=pypi_auth)
         pypi_resp.raise_for_status()
     except requests.RequestException as e:
         raise NetworkError(f"PyPI query failed: {e}")
@@ -1568,9 +1479,9 @@ def _download_pypi_package(requirement, pip_deps_dir, pypi_proxy_url, pypi_proxy
     package_dir.mkdir(exist_ok=True)
     download_path = package_dir / sdist["filename"]
 
-    # Nexus turns package URLs into relative URLs
-    proxied_url = f"{package_url.rstrip('/')}/{sdist['url']}"
-    general.download_binary_file(proxied_url, download_path, auth=pypi_proxy_auth)
+    # URLs may be absolute or relative, see https://peps.python.org/pep-0503/
+    sdist_url = urllib.parse.urljoin(package_url, sdist["url"])
+    general.download_binary_file(sdist_url, download_path, auth=pypi_auth)
 
     return {
         "package": sdist["name"],
@@ -1652,20 +1563,14 @@ def _sdist_preference(sdist_pkg):
     return yanked_pref, filetype_pref
 
 
-def _download_vcs_package(requirement, pip_deps_dir, pip_raw_repo_name, nexus_auth):
+def _download_vcs_package(requirement, pip_deps_dir):
     """
     Fetch the source for a Python package from VCS (only git is supported).
 
-    If the package is already present in Nexus as a raw component, download it
-    from there instead of fetching from the original location.
-
     :param PipRequirement requirement: VCS requirement from a requirements.txt file
     :param Path pip_deps_dir: The deps/pip directory in a Cachito request bundle
-    :param str pip_raw_repo_name: Name of the Nexus raw repository for Pip
-    :param requests.auth.AuthBase nexus_auth: Authorization for the Nexus raw repo
 
-    :return: Dict with package name, download path, git info, name of raw component in Nexus
-        and boolean whether we already have the raw component in Nexus
+    :return: Dict with package name, download path and git info
     """
     git_info = extract_git_info(requirement.url)
 
@@ -1677,46 +1582,30 @@ def _download_vcs_package(requirement, pip_deps_dir, pip_raw_repo_name, nexus_au
     package_dir = pip_deps_dir.joinpath(git_info["host"], *namespace_parts, repo_name)
     package_dir.mkdir(parents=True, exist_ok=True)
 
-    raw_component_name = get_raw_component_name(requirement)
-    filename = raw_component_name.rsplit("/", 1)[-1]
+    filename = get_external_requirement_filename(requirement)
     download_path = package_dir / filename
 
-    # Download raw component if we already have it
-    have_raw_component = download_raw_component(
-        raw_component_name, pip_raw_repo_name, download_path, nexus_auth
-    )
-
-    if not have_raw_component:
-        log.debug("Raw component not found, will fetch from git")
-        repo = Git(git_info["url"], ref)
-        repo.fetch_source(gitsubmodule=False)
-        # Copy downloaded archive to expected download path
-        shutil.copy(repo.sources_dir.archive_path, download_path)
+    repo = Git(git_info["url"], ref)
+    repo.fetch_source(gitsubmodule=False)
+    # Copy downloaded archive to expected download path
+    shutil.copy(repo.sources_dir.archive_path, download_path)
 
     return {
         "package": requirement.package,
         "path": download_path,
         **git_info,
-        "raw_component_name": raw_component_name,
-        "have_raw_component": have_raw_component,
     }
 
 
-def _download_url_package(requirement, pip_deps_dir, pip_raw_repo_name, nexus_auth, trusted_hosts):
+def _download_url_package(requirement, pip_deps_dir, trusted_hosts):
     """
     Download a Python package from a URL.
 
-    If the package is already present in Nexus as a raw component, download it
-    from there instead of fetching from the original location.
-
     :param PipRequirement requirement: VCS requirement from a requirements.txt file
     :param Path pip_deps_dir: The deps/pip directory in a Cachito request bundle
-    :param str pip_raw_repo_name: Name of the Nexus raw repository for Pip
-    :param requests.auth.AuthBase nexus_auth: Authorization for the Nexus raw repo
     :param set[str] trusted_hosts: If host (or host:port) is trusted, do not verify SSL
 
-    :return: Dict with package name, download path, original URL, URL with hash, name of raw
-        component in Nexus and boolean whether we already have the raw component in Nexus
+    :return: Dict with package name, download path, original URL and URL with hash
     """
     package = requirement.package
 
@@ -1725,33 +1614,22 @@ def _download_url_package(requirement, pip_deps_dir, pip_raw_repo_name, nexus_au
 
     url = urllib.parse.urlparse(requirement.url)
 
-    raw_component_name = get_raw_component_name(requirement)
-    filename = raw_component_name.rsplit("/", 1)[-1]
+    filename = get_external_requirement_filename(requirement)
 
     package_dir = pip_deps_dir / f"external-{package}"
     package_dir.mkdir(exist_ok=True)
     download_path = package_dir / filename
 
-    # Download raw component if we already have it
-    have_raw_component = download_raw_component(
-        raw_component_name, pip_raw_repo_name, download_path, nexus_auth
-    )
+    if url.hostname in trusted_hosts:
+        log.debug("Disabling SSL verification, %s is a --trusted-host", url.hostname)
+        insecure = True
+    elif url.port is not None and f"{url.hostname}:{url.port}" in trusted_hosts:
+        log.debug("Disabling SSL verification, %s:%s is a --trusted-host", url.hostname, url.port)
+        insecure = True
+    else:
+        insecure = False
 
-    if not have_raw_component:
-        log.debug("Raw component not found, will download from %r", requirement.url)
-
-        if url.hostname in trusted_hosts:
-            log.debug("Disabling SSL verification, %s is a --trusted-host", url.hostname)
-            insecure = True
-        elif url.port is not None and f"{url.hostname}:{url.port}" in trusted_hosts:
-            log.debug(
-                "Disabling SSL verification, %s:%s is a --trusted-host", url.hostname, url.port
-            )
-            insecure = True
-        else:
-            insecure = False
-
-        general.download_binary_file(requirement.url, download_path, insecure=insecure)
+    general.download_binary_file(requirement.url, download_path, insecure=insecure)
 
     if "cachito_hash" in requirement.qualifiers:
         url_with_hash = requirement.url
@@ -1763,8 +1641,6 @@ def _download_url_package(requirement, pip_deps_dir, pip_raw_repo_name, nexus_au
         "path": download_path,
         "original_url": requirement.url,
         "url_with_hash": url_with_hash,
-        "raw_component_name": raw_component_name,
-        "have_raw_component": have_raw_component,
     }
 
 
@@ -1807,113 +1683,6 @@ def _verify_hash(download_path, hashes):
     raise InvalidChecksum(msg)
 
 
-def upload_pypi_package(repo_name, artifact_path):
-    """
-    Upload a PyPI Python package to a Nexus repository.
-
-    :param str repo_name: the name of the hosted PyPI repository to upload the package to
-    :param str artifact_path: the path for the PyPI package to be uploaded
-    :raise NetworkError: if the upload fails
-    :raise ValueError: if uploading to an unsupported or non-asset-only repository type
-    """
-    log.debug("Uploading %r as a PyPI package to the %r Nexus repository", artifact_path, repo_name)
-    # PyPI packages should always be uploaded to a hosted repository. Hence, we never use the
-    # hoster instance, which holds only the PyPI proxy and the hosted raw repository.
-    nexus.upload_asset_only_component(repo_name, "pypi", artifact_path, to_nexus_hoster=False)
-
-
-def get_pypi_hosted_repo_name(request_id):
-    """
-    Get the name of the Nexus PyPI hosted repository for the request.
-
-    :param int request_id: the ID of the request this repository is for
-    :return: the name of the PyPI hosted repository for the request
-    :rtype: str
-    """
-    config = get_worker_config()
-    return f"{config.cachito_nexus_request_repo_prefix}pip-hosted-{request_id}"
-
-
-def get_raw_hosted_repo_name(request_id):
-    """
-    Get the name of the Nexus raw hosted repository for the request.
-
-    :param int request_id: the ID of the request this repository is for
-    :return: the name of the raw hosted repository for the request
-    :rtype: str
-    """
-    config = get_worker_config()
-    return f"{config.cachito_nexus_request_repo_prefix}pip-raw-{request_id}"
-
-
-def get_pypi_hosted_repo_url(request_id):
-    """
-    Get the URL for the Nexus PyPI hosted repository for the request.
-
-    :param int request_id: the ID of the request this repository is for
-    :return: the URL for the Nexus PyPI hosted repository for the request
-    :rtype: str
-    """
-    config = get_worker_config()
-    repo_name = get_pypi_hosted_repo_name(request_id)
-    return f"{config.cachito_nexus_url.rstrip('/')}/repository/{repo_name}/"
-
-
-def get_raw_hosted_repo_url(request_id):
-    """
-    Get the URL for the Nexus PyPI hosted repository for the request.
-
-    :param int request_id: the ID of the request this repository is for
-    :return: the URL for the Nexus PyPI hosted repository for the request
-    :rtype: str
-    """
-    config = get_worker_config()
-    repo_name = get_raw_hosted_repo_name(request_id)
-    return f"{config.cachito_nexus_url.rstrip('/')}/repository/{repo_name}/"
-
-
-def get_hosted_repositories_username(request_id):
-    """
-    Get the username that has read access on the PyPI and raw hosted repositories for the request.
-
-    :param int request_id: the ID of the request this repository is for
-    :return: the username
-    :rtype: str
-    """
-    return f"cachito-pip-{request_id}"
-
-
-def get_index_url(nexus_pypi_hosted_repo_url, username, password):
-    """
-    Get index url for the nexus pypi hosted repository for the request.
-
-    This is to be set as PIP_INDEX_URL.
-
-    :param str nexus_pypi_hosted_repo_url: the URL for the Nexus PyPI hosted repository
-        for the request
-    :param str username: the username of the Nexus user that has access to the request's Python
-        repositories
-    :param str password: the password of the Nexus user that has access to the request's Python
-        repositories
-    :return: the index url
-    :rtype: str
-    :raises ValidationError: if URL is not valid
-    """
-    # Instead of getting the token from Nexus, use basic authentication as supported by Pip:
-    # https://pip.pypa.io/en/stable/user_guide/#basic-authentication-credentials
-    # Create the request specific nexus repo url to be passed as `index-url` within pip.conf
-    if "://" in nexus_pypi_hosted_repo_url:
-        index_url = nexus_pypi_hosted_repo_url.replace("://", f"://{username}:{password}@", 1)
-    else:
-        raise ValidationError(
-            f"Nexus PyPI hosted repo URL: {nexus_pypi_hosted_repo_url} is not a valid URL"
-        )
-
-    # Append endpoint for the simple repository API
-    simple_api_url = f'{index_url.rstrip("/")}/simple'
-    return simple_api_url
-
-
 def _download_from_requirement_files(request_id, files):
     """
     Download dependencies listed in the requirement files.
@@ -1945,77 +1714,6 @@ def _default_requirement_file_list(path, devel=False):
     filename = DEFAULT_BUILD_REQUIREMENTS_FILE if devel else DEFAULT_REQUIREMENTS_FILE
     req = path / filename
     return [str(req)] if req.is_file() else []
-
-
-def _push_downloaded_requirement(requirement, pip_repo_name, raw_repo_name):
-    """
-    Upload a dependency to the proper Request temporary Nexus repository.
-
-    :param dict requirement: Single entry with the info about downloaded packages retrieved from the
-        list returned by the download_dependencies function
-    :param str pip_repo_name: Name of the Nexus Python hosted repository to push the requirement to
-        (if pypi)
-    :param str raw_repo_name: Name of the Nexus raw hosted repository to push the requirement to
-        (if not pypi)
-    :return: dict with the cachito Dependency representation
-    :rtype: dict
-    :raise NetworkError: if the upload fails
-    :raise ValueError: if uploading to an unsupported or non-asset-only repository type
-    """
-    if requirement["kind"] == "pypi":
-        try:
-            upload_pypi_package(pip_repo_name, requirement["path"])
-        except UploadError:
-            if nexus.get_component_info_from_nexus(
-                pip_repo_name,
-                "pypi",
-                requirement["package"],
-                version=requirement["version"],
-                max_attempts=3,  # make sure the repo has been created
-                from_nexus_hoster=False,
-            ):
-                log.info(
-                    "dependency at '%s' has been uploaded to '%s' already. Skipping",
-                    requirement["path"],
-                    pip_repo_name,
-                )
-            else:
-                raise
-
-        dep = {"name": requirement["package"], "version": requirement["version"], "type": "pip"}
-    elif requirement["kind"] in ("vcs", "url"):
-        dest_dir, filename = requirement["raw_component_name"].rsplit("/", 1)
-        try:
-            upload_raw_package(raw_repo_name, requirement["path"], dest_dir, filename, True)
-        except UploadError:
-            if nexus.get_component_info_from_nexus(
-                raw_repo_name,
-                "raw",
-                requirement["raw_component_name"],
-                max_attempts=3,  # make sure the repo has been created
-                from_nexus_hoster=False,
-            ):
-                log.info(
-                    "dependency at '%s' has been uploaded to '%s' already. Skipping",
-                    requirement["path"],
-                    raw_repo_name,
-                )
-            else:
-                raise
-
-        if requirement["kind"] == "vcs":
-            # Version is "git+" followed by the URL used to to fetch from git
-            version = f"git+{requirement['url']}@{requirement['ref']}"
-        else:
-            # Version is the original URL with #cachito_hash added if it was not present
-            version = requirement["url_with_hash"]
-
-        dep = {"name": requirement["package"], "version": version, "type": "pip"}
-    else:
-        raise ValueError(f"Invalid pip requirement kind {requirement['kind']!r}")
-
-    dep["dev"] = requirement.get("dev", False)
-    return dep
 
 
 def resolve_pip(path, request, requirement_files=None, build_requirement_files=None):
@@ -2062,13 +1760,26 @@ def resolve_pip(path, request, requirement_files=None, build_requirement_files=N
     for dependency in buildrequires:
         dependency["dev"] = True
 
-    # Upload dependencies and prepare return value
-    dependencies = []
-    pip_repo_name = get_pypi_hosted_repo_name(request["id"])
-    raw_repo_name = get_raw_hosted_repo_name(request["id"])
-    for requirement in requires + buildrequires:
-        dep = _push_downloaded_requirement(requirement, pip_repo_name, raw_repo_name)
-        dependencies.append(dep)
+    def _version(dep: dict) -> str:
+        if dep["kind"] == "pypi":
+            version = dep["version"]
+        elif dep["kind"] == "vcs":
+            # Version is "git+" followed by the URL used to to fetch from git
+            version = f"git+{dep['url']}@{dep['ref']}"
+        else:
+            # Version is the original URL with #cachito_hash added if it was not present
+            version = dep["url_with_hash"]
+        return version
+
+    dependencies = [
+        {
+            "name": dep["package"],
+            "version": _version(dep),
+            "type": "pip",
+            "dev": dep.get("dev", False),
+        }
+        for dep in (requires + buildrequires)
+    ]
 
     return {
         "package": {"name": pkg_name, "version": pkg_version, "type": "pip"},
@@ -2089,16 +1800,13 @@ def _get_absolute_pkg_file_paths(path, relative_paths):
     return [str(path / r) for r in relative_paths]
 
 
-def get_raw_component_name(requirement):
+def get_external_requirement_filename(requirement):
     """
-    Get the raw_component_name for a URL or VCS requirement.
+    Get the filename for a URL or VCS requirement.
 
     :param PipRequirement requirement: URL or VCS requirement from a requirements.txt file
-    :return: Nexus raw component name for the requirement or None if requirement is not of URL or
-        VCS type
-    :rtype: str or None
+    :rtype: str
     """
-    raw_component_name = None
     if requirement.kind == "url":
         package = requirement.package
         hashes = requirement.hashes
@@ -2107,15 +1815,15 @@ def get_raw_component_name(requirement):
         orig_url = urllib.parse.urlparse(requirement.url)
         file_ext = next(ext for ext in SDIST_FILE_EXTENSIONS if orig_url.path.endswith(ext))
         filename = f"{package}-external-{algorithm}-{digest}{file_ext}"
-        raw_component_name = f"{package}/{filename}"
     elif requirement.kind == "vcs":
         git_info = extract_git_info(requirement.url)
         repo_name = git_info["repo"]
         ref = git_info["ref"]
         filename = f"{repo_name}-external-gitcommit-{ref}.tar.gz"
-        raw_component_name = f"{repo_name}/{filename}"
+    else:
+        raise ValueError(f"{requirement.kind=} is neither 'url' nor 'vcs'")
 
-    return raw_component_name
+    return filename
 
 
 def _iter_zip_file(file_path: Path):
