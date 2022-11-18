@@ -17,13 +17,7 @@ import pkg_resources
 import requests
 from packaging.utils import canonicalize_name, canonicalize_version
 
-from cachi2._compat.errors import (
-    FileAccessError,
-    InvalidChecksum,
-    InvalidRequestData,
-    NetworkError,
-    ValidationError,
-)
+from cachi2.core.errors import FetchError, PackageRejected, UnsupportedFeature
 from cachi2.core.package_managers.general import (
     ChecksumInfo,
     download_binary_file,
@@ -51,6 +45,19 @@ SDIST_EXT_PATTERN = r"|".join(map(re.escape, SDIST_FILE_EXTENSIONS))
 
 PYPI_URL = "https://pypi.org"
 
+PIP_METADATA_DOC = (
+    "https://github.com/containerbuildsystem/cachi2/blob/main/docs/pip.md#setuppy-setupcfg"
+)
+PIP_DEP_NAMES_DOC = (
+    "https://github.com/containerbuildsystem/cachi2/blob/main/docs/pip.md#explicit-package-names"
+)
+PIP_PINNING_DOC = (
+    "https://github.com/containerbuildsystem/cachi2/blob/main/docs/pip.md#pinning-versions"
+)
+PIP_HASHES_DOC = (
+    "https://github.com/containerbuildsystem/cachi2/blob/main/docs/pip.md#hash-checking"
+)
+
 
 def _get_pip_metadata(package_dir):
     """
@@ -65,7 +72,7 @@ def _get_pip_metadata(package_dir):
 
     :param str package_dir: Path to the root directory of a Pip package
     :return: Tuple of strings (name, version)
-    :raises InvalidRequestData: If either name or version could not be resolved
+    :raises PackageRejected: If either name or version could not be resolved
     """
     name = None
     version = None
@@ -102,7 +109,13 @@ def _get_pip_metadata(package_dir):
         missing.append("version")
 
     if missing:
-        raise InvalidRequestData(f"Could not resolve package metadata: {', '.join(missing)}")
+        raise PackageRejected(
+            f"Could not resolve package metadata: {', '.join(missing)}",
+            solution=(
+                "Please specify package metadata in a way that Cachi2 understands (see the docs).\n"
+            ),
+            docs=PIP_METADATA_DOC,
+        )
 
     return name, version
 
@@ -306,7 +319,9 @@ class SetupCFG(SetupFile):
         try:
             full_path.relative_to(self._top_dir)
         except ValueError:
-            raise ValidationError(f"{str(path)!r} is not a subpath of {str(self._top_dir)!r}")
+            raise PackageRejected(
+                f"{str(path)!r} is not a subpath of {str(self._top_dir)!r}", solution=None
+            )
         return full_path
 
     def _read_version_from_attr(self, attr_spec):
@@ -394,7 +409,10 @@ class SetupCFG(SetupFile):
             # Relative import (supported only to the extent that one leading '.' is ignored)
             parts.pop(0)
         if not all(self._name_re.fullmatch(part) for part in parts):
-            raise ValidationError(f"{module_name!r} is not an accepted module name")
+            raise PackageRejected(
+                f"{module_name!r} is not an accepted module name",
+                solution=None,
+            )
         return Path(*parts)
 
     def _get_package_dirs(self):
@@ -788,7 +806,6 @@ class PipRequirementsFile:
 
         :param str file_path: the file path to write the new file. If not provided, the file
             path used when initiating the class is used.
-        :raises ValidationError: if a file path cannot be determined
         """
         file_path = file_path or self.file_path
         if not file_path:
@@ -893,7 +910,10 @@ class PipRequirementsFile:
                     option = part
 
                 if option not in self.OPTIONS:
-                    raise ValidationError(f"Unknown requirements file option {part!r}")
+                    raise PackageRejected(
+                        f"Unknown requirements file option {part!r}",
+                        solution=None,
+                    )
 
                 _require_value = self.OPTIONS[option]
 
@@ -903,7 +923,10 @@ class PipRequirementsFile:
                     _context_options = global_options
 
                 if value and not _require_value:
-                    raise ValidationError(f"Unexpected value for requirements file option {part!r}")
+                    raise PackageRejected(
+                        f"Unexpected value for requirements file option {part!r}",
+                        solution=None,
+                    )
 
                 _context_options.append(option)
                 if value:
@@ -913,14 +936,16 @@ class PipRequirementsFile:
                 requirement.append(part)
 
         if _require_value:
-            raise ValidationError(
-                f"Requirements file option {_context_options[-1]!r} requires a value"
+            raise PackageRejected(
+                f"Requirements file option {_context_options[-1]!r} requires a value",
+                solution=None,
             )
 
         if requirement_options and not requirement:
-            raise ValidationError(
+            raise PackageRejected(
                 f"Requirements file option(s) {requirement_options!r} can only be applied to a "
-                "requirement"
+                "requirement",
+                solution=None,
             )
 
         return global_options, requirement_options, " ".join(requirement)
@@ -1067,7 +1092,7 @@ class PipRequirement:
                 requirement.kind = direct_access_kind
                 to_be_parsed, qualifiers = cls._adjust_direct_access_requirement(to_be_parsed)
             else:
-                raise ValidationError(
+                raise UnsupportedFeature(
                     f"Direct references with {direct_access_kind!r} scheme are not supported, "
                     f"{to_be_parsed!r}"
                 )
@@ -1081,7 +1106,10 @@ class PipRequirement:
             pkg_resources.extern.packaging.requirements.InvalidRequirement,
         ) as exc:
             # see https://github.com/pypa/setuptools/pull/2137
-            raise ValidationError(f"Unable to parse the requirement {to_be_parsed!r}: {exc}")
+            raise PackageRejected(
+                f"Unable to parse the requirement {to_be_parsed!r}: {exc}",
+                solution=None,
+            )
 
         if not parsed:
             return None
@@ -1091,7 +1119,7 @@ class PipRequirement:
         # never be reached, but is left here to aid diagnosis in case this assumption is
         # not correct.
         if len(parsed) > 1:
-            raise ValidationError(f"Multiple requirements per line are not supported, {line!r}")
+            raise RuntimeError(f"Didn't expect to find multiple requirements in: {line!r}")
         parsed = parsed[0]
 
         hashes, options = cls._split_hashes_from_options(options)
@@ -1125,8 +1153,9 @@ class PipRequirement:
         # e.g. name @ https://...
         scheme_parts = line.split(":", 1)[0].split("@")
         if len(scheme_parts) > 2:
-            raise ValidationError(
-                f"Unable to extract scheme from direct access requirement {line!r}"
+            raise PackageRejected(
+                f"Unable to extract scheme from direct access requirement {line!r}",
+                solution=None,
             )
         scheme = scheme_parts[-1].lower().strip()
 
@@ -1173,7 +1202,18 @@ class PipRequirement:
                         package_name = value
 
         if not package_name:
-            raise ValidationError(f"Egg name could not be determined from the requirement {line!r}")
+            raise UnsupportedFeature(
+                reason=(
+                    f"Egg name could not be determined from the requirement {line!r} "
+                    "(Cachi2 needs the name to be explicitly declared)"
+                ),
+                solution=(
+                    "Please specify the name in a way that Cachi2 understands:\n"
+                    "- <name> @ <url>\n"
+                    "- <url>#egg=<name>"
+                ),
+                docs=PIP_DEP_NAMES_DOC,
+            )
 
         requirement_parts = [package_name.strip(), "@", url.strip()]
         if environment_marker:
@@ -1305,7 +1345,7 @@ def _process_options(options):
 
     :param list[str] options: Global options from a requirements file
     :return: Dict with all the relevant options and their values
-    :raise ValidationError: If any option was rejected
+    :raise UnsupportedFeature: If any option was rejected
     """
     reject = {
         "-i",
@@ -1346,7 +1386,7 @@ def _process_options(options):
 
     if rejected:
         msg = f"Cachito does not support the following options: {', '.join(rejected)}"
-        raise ValidationError(msg)
+        raise UnsupportedFeature(msg)
 
     return {
         "require_hashes": require_hashes,
@@ -1359,7 +1399,8 @@ def _validate_requirements(requirements):
     Validate that all requirements meet Cachito expectations.
 
     :param list[PipRequirement] requirements: All requirements from a file
-    :raise ValidationError: If any requirement does not meet expectations
+    :raise PackageRejected: If any requirement does not meet expectations
+    :raise UnsupportedFeature: If any requirement uses unsupported features
     """
     for req in requirements:
         # Fail if PyPI requirement is not pinned to an exact version
@@ -1367,18 +1408,31 @@ def _validate_requirements(requirements):
             vspec = req.version_specs
             if len(vspec) != 1 or vspec[0][0] not in ("==", "==="):
                 msg = f"Requirement must be pinned to an exact version: {req.download_line}"
-                raise ValidationError(msg)
+                raise PackageRejected(
+                    msg,
+                    solution=(
+                        "Please pin all packages as <name>==<version>\n"
+                        "You may wish to use a tool such as pip-compile to pin automatically."
+                    ),
+                    docs=PIP_PINNING_DOC,
+                )
 
         # Fail if VCS requirement uses any VCS other than git or does not have a valid ref
         elif req.kind == "vcs":
             url = urllib.parse.urlparse(req.url)
 
             if not url.scheme.startswith("git"):
-                raise ValidationError(f"Unsupported VCS for {req.download_line}: {url.scheme}")
+                raise UnsupportedFeature(
+                    f"Unsupported VCS for {req.download_line}: {url.scheme} (only git is supported)"
+                )
 
             if not GIT_REF_IN_PATH.search(url.path):
                 msg = f"No git ref in {req.download_line} (expected 40 hexadecimal characters)"
-                raise ValidationError(msg)
+                raise PackageRejected(
+                    msg,
+                    solution="Please specify the full commit hash for all git URLs.",
+                    docs=PIP_PINNING_DOC,
+                )
 
         # Fail if URL requirement does not specify exactly one hash (--hash or #cachito_hash)
         # or does not have a recognized file extension
@@ -1387,10 +1441,16 @@ def _validate_requirements(requirements):
             if n_hashes != 1:
                 msg = (
                     f"URL requirement must specify exactly one hash, but specifies {n_hashes}: "
-                    f"{req.download_line}. Use the --hash option or the #cachito_hash URL "
-                    "fragment, but not both (or more than one --hash)."
+                    f"{req.download_line}."
                 )
-                raise ValidationError(msg)
+                raise PackageRejected(
+                    msg,
+                    solution=(
+                        "Please specify the expected hashes for all plain URLs.\n"
+                        "Use the --hash option or the #cachito_hash URL fragment (but not both)."
+                    ),
+                    docs=PIP_PINNING_DOC,
+                )
 
             url = urllib.parse.urlparse(req.url)
             if not any(url.path.endswith(ext) for ext in SDIST_FILE_EXTENSIONS):
@@ -1398,7 +1458,7 @@ def _validate_requirements(requirements):
                     "URL for requirement does not contain any recognized file extension: "
                     f"{req.download_line} (expected one of {', '.join(SDIST_FILE_EXTENSIONS)})"
                 )
-                raise ValidationError(msg)
+                raise PackageRejected(msg, solution=None)
 
 
 def _validate_provided_hashes(requirements, require_hashes):
@@ -1407,7 +1467,7 @@ def _validate_provided_hashes(requirements, require_hashes):
 
     :param list[PipRequirement] requirements: All requirements from a file
     :param bool require_hashes: True if hashes are required for all requirements
-    :raise ValidationError: If hashes are missing or have invalid format
+    :raise PackageRejected: If hashes are missing or have invalid format
     """
     for req in requirements:
         if req.kind == "url":
@@ -1419,13 +1479,17 @@ def _validate_provided_hashes(requirements, require_hashes):
             # This can only happen for non-URL requirements
             # For URL requirements, having a hash is required to pass basic validation
             msg = f"Hash is required, dependency does not specify any: {req.download_line}"
-            raise ValidationError(msg)
+            raise PackageRejected(
+                msg,
+                solution="Please specify the expected hashes for all dependencies",
+                docs=PIP_HASHES_DOC,
+            )
 
         for hash_spec in hashes:
             algorithm, _, digest = hash_spec.partition(":")
             if not digest:
                 msg = f"Not a valid hash specifier: {hash_spec!r} (expected algorithm:digest)"
-                raise ValidationError(msg)
+                raise PackageRejected(msg, solution=None)
 
 
 def _download_pypi_package(requirement, pip_deps_dir, pypi_url, pypi_auth=None):
@@ -1446,8 +1510,8 @@ def _download_pypi_package(requirement, pip_deps_dir, pypi_url, pypi_auth=None):
     :param (requests.auth.AuthBase | None) pypi_auth: Authorization for the PyPI server
 
     :return: Dict with package name, version and download path
-    :raises NetworkError: if PyPI query failed
-    :raises InvalidRequestData: if sdists for the package is not found or yanked
+    :raises FetchError: if PyPI query failed
+    :raises PackageRejected: if sdists for the package is not found or yanked
     """
     package = requirement.package
     version = requirement.version_specs[0][1]
@@ -1458,7 +1522,7 @@ def _download_pypi_package(requirement, pip_deps_dir, pypi_url, pypi_auth=None):
         pypi_resp = pkg_requests_session.get(package_url, auth=pypi_auth)
         pypi_resp.raise_for_status()
     except requests.RequestException as e:
-        raise NetworkError(f"PyPI query failed: {e}")
+        raise FetchError(f"PyPI query failed: {e}")
 
     html = bs4.BeautifulSoup(pypi_resp.text, "html.parser")
     # Find all anchors anywhere in the doc, the PEP does not specify where they should be
@@ -1466,12 +1530,29 @@ def _download_pypi_package(requirement, pip_deps_dir, pypi_url, pypi_auth=None):
 
     sdists = _process_package_links(links, package, version)
     if not sdists:
-        raise InvalidRequestData(f"No sdists found for package {package}=={version}")
+        raise PackageRejected(
+            f"No sdists found for package {package}=={version}",
+            solution=(
+                "It seems that this version does not exist or isn't published as a sdist "
+                "(a zip or a tarball).\n"
+                "You may be able to specify the dependency directly via a URL instead, "
+                "for example the tarball for a GitHub release."
+            ),
+            docs=None,  # TODO: docs needed
+        )
 
     # Choose best candidate based on sorting key
     sdist = max(sdists, key=_sdist_preference)
     if sdist.get("yanked", False):
-        raise InvalidRequestData(f"All sdists for package {package}=={version} are yanked")
+        raise PackageRejected(
+            f"All sdists for package {package}=={version} are yanked",
+            solution=(
+                f"Please update the {package} version in your requirements file.\n"
+                "Usually, when a version gets yanked from PyPI, there will already "
+                "be a fixed version available.\n"
+                "Otherwise, you may need to pin to the previous version."
+            ),
+        )
 
     package_dir = pip_deps_dir / sdist["name"]
     package_dir.mkdir(exist_ok=True)
@@ -1660,7 +1741,7 @@ def _verify_hash(download_path, hashes):
 
     :param Path download_path: Path to downloaded file
     :param list[str] hashes: All provided hashes for requirement
-    :raise InvalidChecksum: If computed hash does not match any of the provided hashes
+    :raise PackageRejected: If computed hash does not match any of the provided hashes
     """
     log.info(f"Verifying checksum of {download_path.name}")
 
@@ -1671,11 +1752,18 @@ def _verify_hash(download_path, hashes):
             verify_checksum(str(download_path), checksum_info)
             log.info(f"Checksum of {download_path.name} matches: {algorithm}:{digest}")
             return
-        except InvalidChecksum as e:
+        except PackageRejected as e:
             log.warning("%s", e)
 
     msg = f"Failed to verify checksum of {download_path.name} against any of the provided hashes"
-    raise InvalidChecksum(msg)
+    raise PackageRejected(
+        msg,
+        solution=(
+            "Please verify that the hashes specified in your requirements files are correct.\n"
+            "Caution is advised; if the hashes were previously correct, it means the content of "
+            "this dependency has changed!"
+        ),
+    )
 
 
 def _download_from_requirement_files(output_dir: Path, files):
@@ -1687,12 +1775,15 @@ def _download_from_requirement_files(output_dir: Path, files):
     :return: Info about downloaded packages; see download_dependencies return docs for further
         reference
     :rtype: list[dict]
-    :raises FileAccessError: If requirement file does not exist
+    :raises PackageRejected: If requirement file does not exist
     """
     requirements = []
     for req_file in files:
         if not os.path.exists(req_file):
-            raise FileAccessError(f"Following requirement file has an invalid path: {req_file}")
+            raise PackageRejected(
+                f"The requirements file does not exist: {req_file}",
+                solution="Please check that you have specified correct requirements file paths",
+            )
         requirements.extend(_download_dependencies(output_dir, PipRequirementsFile(req_file)))
     return requirements
 
@@ -1729,14 +1820,9 @@ def resolve_pip(
         ``requirements`` which is a list of str with the absolute paths for the requirement files
             belonging to the package
     :rtype: dict
-    :raises InvalidRequestData: if the package is not cachito-pip compatible
+    :raises PackageRejected | UnsupportedFeature: if the package is not cachito-pip compatible
     """
-    log.debug("Checking if the application source uses pip")
-    try:
-        pkg_name, pkg_version = _get_pip_metadata(app_path)
-    except InvalidRequestData:
-        log.exception("The requested package is not pip compatible")
-        raise
+    pkg_name, pkg_version = _get_pip_metadata(app_path)
 
     # This could be an empty list
     if requirement_files is None:
@@ -1852,7 +1938,7 @@ def _check_metadata_in_sdist(sdist_path: Path):
 
     :param sdist_path: the path of a sdist package file.
     :type sdist_path: pathlib.Path
-    :raise ValidationError: if the sdist cannot be validated.
+    :raise PackageRejected: if the sdist is invalid.
     """
     if sdist_path.name.endswith(ZIP_FILE_EXT):
         files_iter = _iter_zip_file(sdist_path)
@@ -1862,20 +1948,28 @@ def _check_metadata_in_sdist(sdist_path: Path):
     elif any(map(sdist_path.name.endswith, SDIST_FILE_EXTENSIONS)):
         files_iter = _iter_tar_file(sdist_path)
     else:
-        raise ValidationError(
+        # Invalid usage of the method (Cachi2 doesn't download files without a known extension)
+        raise ValueError(
             f"Cannot check metadata from {sdist_path}, "
             f"which does not have a known supported extension.",
         )
 
     try:
         if not any(map(_is_pkg_info_dir, files_iter)):
-            raise ValidationError(
+            raise PackageRejected(
                 f"{sdist_path.name} does not include metadata (there is no PKG-INFO file). "
-                f"It is not a valid sdist and cannot be downloaded from PyPI. "
-                f"Consider editing your requirements file to download the package from git "
-                f"or a direct download URL instead."
+                "It is not a valid sdist and cannot be downloaded from PyPI.",
+                solution=(
+                    "Consider editing your requirements file to download the package from git "
+                    "or a direct download URL instead."
+                ),
+                docs=None,  # TODO: docs needed (similar to the "No sdists found" case)
             )
     except tarfile.ReadError as e:
-        raise ValidationError(f"Cannot open {sdist_path} as a Tar file. Error: {str(e)}")
+        raise PackageRejected(
+            f"Cannot open {sdist_path} as a Tar file. Error: {str(e)}", solution=None
+        )
     except zipfile.BadZipFile as e:
-        raise ValidationError(f"Cannot open {sdist_path} as a Zip file. Error: {str(e)}")
+        raise PackageRejected(
+            f"Cannot open {sdist_path} as a Zip file. Error: {str(e)}", solution=None
+        )

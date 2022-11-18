@@ -1,13 +1,14 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 import collections
+import hashlib
 import os
 import urllib
 
 import requests
 
-from cachi2._compat.errors import InvalidChecksum, NetworkError, UnknownHashAlgorithm
+from cachi2.core.errors import FetchError, PackageRejected
 from cachi2.core.http_requests import SAFE_REQUEST_METHODS, get_requests_session
-from cachi2.core.utils import hash_file
+from cachi2.core.utils import UnknownHashAlgorithm, hash_file
 
 __all__ = [
     "verify_checksum",
@@ -26,15 +27,22 @@ def verify_checksum(file_path: str, checksum_info: ChecksumInfo, chunk_size: int
     :param str file_path: the path to the file to be verified
     :param ChecksumInfo checksum_info: the expected checksum information
     :param int chunk_size: the amount of bytes to read at a time
-    :raise InvalidChecksum: if the checksum is not as expected
+    :raise PackageRejected: if the checksum is not as expected or cannot be computed
     """
     filename = os.path.basename(file_path)
 
     try:
         hasher = hash_file(file_path, chunk_size, checksum_info.algorithm)
-    except UnknownHashAlgorithm as exc:
-        msg = f"Cannot perform checksum on the file {filename}, {exc}"
-        raise InvalidChecksum(msg)
+    except UnknownHashAlgorithm:
+        known_algorithms = sorted(hashlib.algorithms_guaranteed)
+        msg = (
+            f"Cannot perform checksum on the file {filename}, "
+            f"unknown algorithm: {checksum_info.algorithm}. Known: {', '.join(known_algorithms)}"
+        )
+        raise PackageRejected(
+            msg,
+            solution="Please use one of the known hash algorithms.",
+        )
 
     computed_hexdigest = hasher.hexdigest()
 
@@ -43,7 +51,14 @@ def verify_checksum(file_path: str, checksum_info: ChecksumInfo, chunk_size: int
             f"The file {filename} has an unexpected checksum value, "
             f"expected {checksum_info.hexdigest} but computed {computed_hexdigest}"
         )
-        raise InvalidChecksum(msg)
+        raise PackageRejected(
+            msg,
+            solution=(
+                "Please verify that the specified hash is correct.\n"
+                "Caution is advised; if the hash was previously correct, it means the content "
+                "has changed!"
+            ),
+        )
 
 
 def download_binary_file(url, download_path, auth=None, insecure=False, chunk_size=8192):
@@ -55,13 +70,13 @@ def download_binary_file(url, download_path, auth=None, insecure=False, chunk_si
     :param requests.auth.AuthBase auth: Authentication for the URL
     :param bool insecure: Do not verify SSL for the URL
     :param int chunk_size: Chunk size param for Response.iter_content()
-    :raise NetworkError: If download failed
+    :raise FetchError: If download failed
     """
     try:
         resp = pkg_requests_session.get(url, stream=True, verify=not insecure, auth=auth)
         resp.raise_for_status()
     except requests.RequestException as e:
-        raise NetworkError(f"Could not download {url}: {e}")
+        raise FetchError(f"Could not download {url}: {e}")
 
     with open(download_path, "wb") as f:
         for chunk in resp.iter_content(chunk_size=chunk_size):

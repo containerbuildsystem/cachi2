@@ -6,7 +6,7 @@ from pathlib import Path
 
 import git
 
-from cachi2._compat.errors import InvalidRequestData, RepositoryAccessError
+from cachi2.core.errors import FetchError
 
 log = logging.getLogger(__name__)
 
@@ -38,7 +38,7 @@ def clone_as_tarball(url: str, ref: str, to_path: Path) -> None:
                 ref,
                 type(ex).__name__,
             )
-            raise RepositoryAccessError("Failed cloning the Git repository")
+            raise FetchError("Failed cloning the Git repository")
 
         _reset_git_head(repo, ref)
 
@@ -52,14 +52,15 @@ def _reset_git_head(repo: git.repo.Repo, ref: str) -> None:
     try:
         repo.head.reference = repo.commit(ref)  # type: ignore # 'reference' is a weird property
         repo.head.reset(index=True, working_tree=True)
-
     except Exception as ex:
         log.exception(
             "Failed on checking out the Git ref %s, exception: %s",
             ref,
             type(ex).__name__,
         )
-        raise InvalidRequestData(
+        # Not necessarily a FetchError, but the checkout *does* also fetch stuff
+        #   (because we clone with --filter=blob:none)
+        raise FetchError(
             "Failed on checking out the Git repository. Please verify the supplied reference "
             f'of "{ref}" is valid.'
         )
