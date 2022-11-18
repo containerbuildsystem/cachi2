@@ -16,10 +16,8 @@ from cachito.errors import (
     InvalidChecksum,
     InvalidRequestData,
     NetworkError,
-    NexusError,
     ValidationError,
 )
-from cachito.workers.errors import NexusScriptError, UploadError
 from tests.helper_utils import write_file_tree
 
 THIS_MODULE_DIR = Path(__file__).resolve().parent
@@ -2260,61 +2258,6 @@ class TestPipRequirementsFile:
                 ), f"unexpected value for {attr!r}"
 
 
-class TestNexus:
-    """Nexus related tests."""
-
-    @mock.patch("cachito.workers.pkg_managers.pip.nexus.execute_script")
-    def test_prepare_nexus_for_pip_request(self, mock_exec_script):
-        """Check whether groovy srcript is called with proper args."""
-        pip.prepare_nexus_for_pip_request("cachito-pip-hosted-1", "cachito-pip-raw-1")
-
-        mock_exec_script.assert_called_once_with(
-            "pip_before_content_staged",
-            {
-                "pip_repository_name": "cachito-pip-hosted-1",
-                "raw_repository_name": "cachito-pip-raw-1",
-            },
-        )
-
-    @mock.patch("cachito.workers.pkg_managers.pip.nexus.execute_script")
-    def test_prepare_nexus_for_pip_request_failed(self, mock_exec_script):
-        """Check whether proper error is raised on groovy srcript failures."""
-        mock_exec_script.side_effect = NexusScriptError()
-
-        expected = "Failed to prepare Nexus for Cachito to stage Python content"
-        with pytest.raises(NexusError, match=expected):
-            pip.prepare_nexus_for_pip_request(1, 1)
-
-    @mock.patch("secrets.token_hex")
-    @mock.patch("cachito.workers.pkg_managers.pip.nexus.execute_script")
-    def test_finalize_nexus_for_pip_request(self, mock_exec_script, mock_secret):
-        """Check whether groovy srcript is called with proper args."""
-        mock_secret.return_value = "password"
-        password = pip.finalize_nexus_for_pip_request(
-            "cachito-pip-hosted-1", "cachito-pip-raw-1", "user-1"
-        )
-
-        mock_exec_script.assert_called_once_with(
-            "pip_after_content_staged",
-            {
-                "pip_repository_name": "cachito-pip-hosted-1",
-                "raw_repository_name": "cachito-pip-raw-1",
-                "username": "user-1",
-                "password": "password",
-            },
-        )
-
-        assert password == "password"
-
-    @mock.patch("cachito.workers.pkg_managers.pip.nexus.execute_script")
-    def test_finalize_nexus_for_pip_request_failed(self, mock_exec_script):
-        """Check whether proper error is raised on groovy srcript failures."""
-        mock_exec_script.side_effect = NexusScriptError()
-        expected = "Failed to configure Nexus Python repositories for final consumption"
-        with pytest.raises(NexusError, match=expected):
-            pip.finalize_nexus_for_pip_request(1, 1, 1)
-
-
 class MockBundleDir(type(Path())):
     """Mocked RequestBundleDir."""
 
@@ -2442,11 +2385,9 @@ class TestDownload:
                 "path": tmp_path / "aiowsgi" / "aiowsgi-0.7.tar.gz",
             }
 
-            proxied_file_url = (
-                "https://pypi-proxy.org/simple/aiowsgi/../../packages/aiowsgi-0.7.tar.gz"
-            )
+            absolute_file_url = "https://pypi-proxy.org/packages/aiowsgi-0.7.tar.gz"
             mock_download_file.assert_called_once_with(
-                proxied_file_url, download_info["path"], auth=("user", "password")
+                absolute_file_url, download_info["path"], auth=("user", "password")
             )
         else:
             with pytest.raises((InvalidRequestData, NetworkError)) as exc_info:
@@ -2614,24 +2555,16 @@ class TestDownload:
         sdists.sort(key=pip._sdist_preference)
         assert [s["id"] for s in sdists] == expect_order
 
-    @pytest.mark.parametrize("have_raw_component", [True, False])
-    @mock.patch("cachito.workers.pkg_managers.pip.nexus.get_raw_component_asset_url")
-    @mock.patch("cachito.workers.pkg_managers.general.download_binary_file")
     @mock.patch("cachito.workers.pkg_managers.pip.Git")
     @mock.patch("shutil.copy")
     def test_download_vcs_package(
         self,
         mock_shutil_copy,
         mock_git,
-        mock_download_file,
-        mock_get_component_url,
-        have_raw_component,
         tmp_path,
-        caplog,
     ):
         """Test downloading of a single VCS package."""
         vcs_url = f"git+https://github.com/spam/eggs@{GIT_REF}"
-        raw_url = "https://nexus:8081/repository/cachito-pip-raw/eggs.tar.gz"
 
         mock_requirement = self.mock_requirement(
             "eggs", "vcs", url=vcs_url, download_line=f"eggs @ {vcs_url}"
@@ -2639,15 +2572,10 @@ class TestDownload:
 
         git_archive_path = tmp_path / "eggs.tar.gz"
 
-        mock_get_component_url.return_value = raw_url if have_raw_component else None
         mock_git.return_value = mock.Mock()
         mock_git.return_value.sources_dir.archive_path = git_archive_path
 
-        download_info = pip._download_vcs_package(
-            mock_requirement, tmp_path, "cachito-pip-raw", ("username", "password")
-        )
-
-        raw_component = f"eggs/eggs-external-gitcommit-{GIT_REF}.tar.gz"
+        download_info = pip._download_vcs_package(mock_requirement, tmp_path)
 
         assert download_info == {
             "package": "eggs",
@@ -2659,29 +2587,14 @@ class TestDownload:
             "namespace": "spam",
             "repo": "eggs",
             "host": "github.com",
-            "raw_component_name": raw_component,
-            "have_raw_component": have_raw_component,
         }
 
         download_path = download_info["path"]
 
-        assert f"Looking for raw component '{raw_component}' in 'cachito-pip-raw'" in caplog.text
+        mock_git.assert_called_once_with("https://github.com/spam/eggs", GIT_REF)
+        mock_git.return_value.fetch_source.assert_called_once_with(gitsubmodule=False)
+        mock_shutil_copy.assert_called_once_with(git_archive_path, download_path)
 
-        if have_raw_component:
-            assert f"Found raw component, will download from '{raw_url}'" in caplog.text
-            mock_download_file.assert_called_once_with(
-                raw_url, download_path, auth=("username", "password")
-            )
-            mock_git.assert_not_called()
-            mock_shutil_copy.assert_not_called()
-        else:
-            assert "Raw component not found, will fetch from git" in caplog.text
-            mock_download_file.assert_not_called()
-            mock_git.assert_called_once_with("https://github.com/spam/eggs", GIT_REF)
-            mock_git.return_value.fetch_source.assert_called_once_with(gitsubmodule=False)
-            mock_shutil_copy.assert_called_once_with(git_archive_path, download_path)
-
-    @pytest.mark.parametrize("have_raw_component", [True, False])
     @pytest.mark.parametrize("hash_as_qualifier", [True, False])
     @pytest.mark.parametrize(
         "host_in_url, trusted_hosts, host_is_trusted",
@@ -2695,19 +2608,15 @@ class TestDownload:
             ("example.org:443", ["example.org"], True),
         ],
     )
-    @mock.patch("cachito.workers.pkg_managers.pip.nexus.get_raw_component_asset_url")
     @mock.patch("cachito.workers.pkg_managers.general.download_binary_file")
     def test_download_url_package(
         self,
         mock_download_file,
-        mock_get_component_url,
-        have_raw_component,
         hash_as_qualifier,
         host_in_url,
         trusted_hosts,
         host_is_trusted,
         tmp_path,
-        caplog,
     ):
         """Test downloading of a single URL package."""
         # Add the #cachito_package fragment to make sure the .tar.gz extension
@@ -2716,8 +2625,6 @@ class TestDownload:
         url_with_hash = f"{original_url}&cachito_hash=sha256:abcdef"
         if hash_as_qualifier:
             original_url = url_with_hash
-
-        raw_url = "https://nexus:8081/repository/cachito-pip-raw/foo.tar.gz"
 
         mock_requirement = self.mock_requirement(
             "foo",
@@ -2728,41 +2635,23 @@ class TestDownload:
             qualifiers={"cachito_hash": "sha256:abcdef"} if hash_as_qualifier else {},
         )
 
-        mock_get_component_url.return_value = raw_url if have_raw_component else None
-
         download_info = pip._download_url_package(
             mock_requirement,
             tmp_path,
-            "cachito-pip-raw",
-            ("username", "password"),
             set(trusted_hosts),
         )
-
-        raw_component = "foo/foo-external-sha256-abcdef.tar.gz"
 
         assert download_info == {
             "package": "foo",
             "path": tmp_path / "external-foo" / "foo-external-sha256-abcdef.tar.gz",
             "original_url": original_url,
             "url_with_hash": url_with_hash,
-            "raw_component_name": raw_component,
-            "have_raw_component": have_raw_component,
         }
 
         download_path = download_info["path"]
-
-        assert f"Looking for raw component '{raw_component}' in 'cachito-pip-raw'" in caplog.text
-
-        if have_raw_component:
-            assert f"Found raw component, will download from '{raw_url}'" in caplog.text
-            mock_download_file.assert_called_once_with(
-                raw_url, download_path, auth=("username", "password")
-            )
-        else:
-            assert f"Raw component not found, will download from '{original_url}'" in caplog.text
-            mock_download_file.assert_called_once_with(
-                original_url, download_path, insecure=host_is_trusted
-            )
+        mock_download_file.assert_called_once_with(
+            original_url, download_path, insecure=host_is_trusted
+        )
 
     @pytest.mark.parametrize(
         "original_url, url_with_hash",
@@ -2977,32 +2866,22 @@ class TestDownload:
         assert str(exc_info.value) == msg
 
     @pytest.mark.parametrize("use_hashes", [True, False])
-    @pytest.mark.parametrize("have_vcs_raw_component", [True, False])
-    @pytest.mark.parametrize("have_url_raw_component", [True, False])
     @pytest.mark.parametrize("trusted_hosts", [[], ["example.org"]])
     @mock.patch("cachito.workers.pkg_managers.pip.RequestBundleDir")
-    @mock.patch("cachito.workers.pkg_managers.pip.get_worker_config")
-    @mock.patch("cachito.workers.pkg_managers.pip.nexus.get_nexus_hoster_credentials")
     @mock.patch("cachito.workers.pkg_managers.pip._download_pypi_package")
     @mock.patch("cachito.workers.pkg_managers.pip._download_vcs_package")
     @mock.patch("cachito.workers.pkg_managers.pip._download_url_package")
     @mock.patch("cachito.workers.pkg_managers.pip.verify_checksum")
-    @mock.patch("cachito.workers.pkg_managers.pip.upload_raw_package")
     @mock.patch("cachito.workers.pkg_managers.pip.check_metadata_in_sdist")
     def test_download_dependencies(
         self,
         check_metadata_in_sdist,
-        mock_upload_raw_package,
         mock_verify_checksum,
         mock_url_download,
         mock_vcs_download,
         mock_pypi_download,
-        mock_get_nexus_creds,
-        mock_get_config,
         mock_request_bundle_dir,
         use_hashes,
-        have_vcs_raw_component,
-        have_url_raw_component,
         trusted_hosts,
         tmp_path,
         caplog,
@@ -3044,12 +2923,6 @@ class TestDownload:
             options=options,
         )
 
-        proxy_url = "https://pypi-proxy.example.org"
-        nexus_auth = requests.auth.HTTPBasicAuth("username", "password")
-        proxy_auth = nexus_auth
-
-        raw_repo = "cachito-pip-raw"
-
         mock_bundle_dir = MockBundleDir(tmp_path)
         pip_deps = mock_bundle_dir.pip_deps_dir
 
@@ -3067,8 +2940,6 @@ class TestDownload:
             "package": "eggs",
             "path": vcs_download,
             "repo": "eggs",
-            "raw_component_name": f"eggs/eggs-external-gitcommit-{GIT_REF}.tar.gz",
-            "have_raw_component": have_vcs_raw_component,
             # etc., not important for this test
         }
         url_info = {
@@ -3076,15 +2947,9 @@ class TestDownload:
             "original_url": plain_url,
             "url_with_hash": plain_url,
             "path": url_download,
-            "raw_component_name": "bar/bar-external-sha256-654321.tar.gz",
-            "have_raw_component": have_url_raw_component,
         }
 
         mock_request_bundle_dir.return_value = mock_bundle_dir
-        mock_get_config.return_value = mock.Mock(
-            cachito_nexus_pypi_proxy_url=proxy_url, cachito_nexus_pip_raw_repo_name=raw_repo
-        )
-        mock_get_nexus_creds.return_value = ("username", "password")
         mock_pypi_download.return_value = pypi_info
         mock_vcs_download.return_value = vcs_info
         mock_url_download.return_value = url_info
@@ -3103,12 +2968,9 @@ class TestDownload:
         # <check calls that must always be made>
         check_metadata_in_sdist.assert_called_once_with(pypi_info["path"])
         mock_request_bundle_dir.assert_called_once_with(1)
-        mock_get_config.assert_called_once()
-        mock_pypi_download.assert_called_once_with(pypi_req, pip_deps, proxy_url, proxy_auth)
-        mock_vcs_download.assert_called_once_with(vcs_req, pip_deps, raw_repo, nexus_auth)
-        mock_url_download.assert_called_once_with(
-            url_req, pip_deps, raw_repo, nexus_auth, set(trusted_hosts)
-        )
+        mock_pypi_download.assert_called_once_with(pypi_req, pip_deps, pip.PYPI_URL)
+        mock_vcs_download.assert_called_once_with(vcs_req, pip_deps)
+        mock_url_download.assert_called_once_with(url_req, pip_deps, set(trusted_hosts))
         # </check calls that must always be made>
 
         # <check calls to checksum verification method>
@@ -3146,36 +3008,6 @@ class TestDownload:
         assert f"Verifying checksum of {url_download.name}" in caplog.text
         assert f"Checksum of {url_download.name} matches: sha256:654321" in caplog.text
         # </check calls to checksum verification method>
-
-        # <check calls to raw package upload method>
-        if not have_vcs_raw_component:
-            assert (
-                f"Uploading '{vcs_download.name}' to '{raw_repo}' "
-                f"as '{vcs_info['raw_component_name']}'"
-            ) in caplog.text
-            mock_upload_raw_package.assert_any_call(
-                raw_repo,
-                vcs_download,
-                vcs_info["repo"],
-                vcs_download.name,
-                is_request_repository=False,
-            )
-        if not have_url_raw_component:
-            assert (
-                f"Uploading '{url_download.name}' to '{raw_repo}' "
-                f"as '{url_info['raw_component_name']}'"
-            ) in caplog.text
-            mock_upload_raw_package.assert_any_call(
-                raw_repo,
-                url_download,
-                url_info["package"],
-                url_download.name,
-                is_request_repository=False,
-            )
-        assert mock_upload_raw_package.call_count == (
-            (0 if have_vcs_raw_component else 1) + (0 if have_url_raw_component else 1)
-        )
-        # </check calls to raw package upload method>
 
         # <check basic logging output>
         assert f"Downloading {pypi_req.download_line}" in caplog.text
@@ -3241,26 +3073,13 @@ class TestDownload:
         assert caplog.text.count("Something went wrong") == num_fails
         assert "Verifying checksum of bar.tar.gz" in caplog.text
 
-    @mock.patch("cachito.workers.pkg_managers.pip.nexus.upload_asset_only_component")
-    def test_upload_package(self, mock_upload, caplog):
-        """Check Nexus upload calls."""
-        name = "name"
-        path = "fakepath"
-
-        pip.upload_pypi_package(name, path)
-        log_msg = f"Uploading {path!r} as a PyPI package to the {name!r} Nexus repository"
-        assert log_msg in caplog.text
-        mock_upload.assert_called_once_with(name, "pypi", path, to_nexus_hoster=False)
-
     @mock.patch("cachito.workers.pkg_managers.pip.RequestBundleDir")
-    @mock.patch("cachito.workers.pkg_managers.pip.nexus.get_nexus_hoster_credentials")
     @mock.patch("cachito.workers.pkg_managers.pip._download_pypi_package")
     @mock.patch("cachito.workers.pkg_managers.pip.check_metadata_in_sdist")
     def test_download_from_requirement_files(
         self,
         check_metadata_in_sdist,
         mock_pypi_download,
-        mock_get_nexus_creds,
         mock_request_bundle_dir,
         tmp_path,
     ):
@@ -3280,51 +3099,12 @@ class TestDownload:
         pypi_info2 = {"package": "bar", "version": "0.0.1", "path": pypi_download2}
 
         mock_request_bundle_dir.return_value = mock_bundle_dir
-        mock_get_nexus_creds.return_value = ("username", "password")
         mock_pypi_download.side_effect = [pypi_info1, pypi_info2]
 
         downloads = pip._download_from_requirement_files(1, [req_file1, req_file2])
         assert downloads == [{**pypi_info1, "kind": "pypi"}, {**pypi_info2, "kind": "pypi"}]
         check_metadata_in_sdist.assert_has_calls(
             [mock.call(pypi_info1["path"]), mock.call(pypi_info2["path"])], any_order=True
-        )
-
-
-def test_get_pypi_hosted_repo_name():
-    assert pip.get_pypi_hosted_repo_name(42) == "cachito-pip-hosted-42"
-
-
-def test_get_raw_hosted_repo_name():
-    assert pip.get_raw_hosted_repo_name(42) == "cachito-pip-raw-42"
-
-
-def test_get_pypi_hosted_repo_url():
-    assert pip.get_pypi_hosted_repo_url(42).endswith("/repository/cachito-pip-hosted-42/")
-
-
-def test_get_raw_hosted_repo_url():
-    assert pip.get_raw_hosted_repo_url(42).endswith("/repository/cachito-pip-raw-42/")
-
-
-def test_get_hosted_repositories_username():
-    assert pip.get_hosted_repositories_username(42) == "cachito-pip-42"
-
-
-def test_get_index_url():
-    index_url = pip.get_index_url("https://repository/cachito-pip-hosted-5/", "admin", "admin123")
-
-    expected = "https://admin:admin123@repository/cachito-pip-hosted-5/simple"
-
-    assert index_url == expected
-
-
-def test_get_index_url_invalid_url():
-    expected = "Nexus PyPI hosted repo URL: repository/cachito-pip-hosted-5/ is not a valid URL"
-    with pytest.raises(ValidationError, match=expected):
-        pip.get_index_url(
-            "repository/cachito-pip-hosted-5/",
-            "admin",
-            "admin123",
         )
 
 
@@ -3342,140 +3122,6 @@ def test_default_requirement_file_list(tmp_path, exists, devel):
     req_files = pip._default_requirement_file_list(tmp_path, devel)
     expected = [str(req_file)] if req_file else []
     assert req_files == expected
-
-
-@pytest.mark.parametrize("dev", [True, False])
-@mock.patch("cachito.workers.pkg_managers.pip.upload_pypi_package")
-def test_push_downloaded_requirement_from_pypi(mock_upload, dev):
-    pip_repo_name = "test-pip-hosted"
-    raw_repo_name = "test-pip-raw"
-    name = "foo"
-    version = "1"
-    path = "some/path"
-    req = {"package": name, "version": version, "path": path, "kind": "pypi", "dev": dev}
-    expected_dependency = {"name": name, "version": version, "type": "pip", "dev": dev}
-    dependency = pip._push_downloaded_requirement(req, pip_repo_name, raw_repo_name)
-    mock_upload.assert_called_once_with(pip_repo_name, path)
-    assert dependency == expected_dependency
-
-
-@pytest.mark.parametrize("uploaded", [True, False])
-@mock.patch("cachito.workers.pkg_managers.pip.upload_pypi_package")
-@mock.patch("cachito.workers.pkg_managers.pip.nexus.get_component_info_from_nexus")
-def test_push_downloaded_requirement_from_pypi_duplicated(mock_get_info, mock_upload, uploaded):
-    mock_upload.side_effect = UploadError("stub")
-    mock_get_info.return_value = uploaded
-    pip_repo_name = "test-pip-hosted"
-    raw_repo_name = "test-pip-raw"
-    name = "foo"
-    version = "1"
-    path = "some/path"
-    req = {"package": name, "version": version, "path": path, "kind": "pypi", "dev": False}
-    expected_dependency = {"name": name, "version": version, "type": "pip", "dev": False}
-    if uploaded:
-        dependency = pip._push_downloaded_requirement(req, pip_repo_name, raw_repo_name)
-        mock_upload.assert_called_once_with(pip_repo_name, path)
-        assert dependency == expected_dependency
-    else:
-        with pytest.raises(UploadError, match="stub"):
-            pip._push_downloaded_requirement(req, pip_repo_name, raw_repo_name)
-
-
-@pytest.mark.parametrize("dev", [True, False])
-@pytest.mark.parametrize("kind", ["url", "vcs"])
-@mock.patch("cachito.workers.pkg_managers.pip.upload_raw_package")
-def test_push_downloaded_requirement_non_pypi(mock_upload, dev, kind):
-    pip_repo_name = "test-pip-hosted"
-    raw_repo_name = "test-pip-raw"
-    name = "eggs"
-    path = "some/path"
-    if kind == "vcs":
-        version = f"git+https://github.com/spam/eggs@{GIT_REF}"
-        raw_component = f"eggs/eggs-external-gitcommit-{GIT_REF}.tar.gz"
-    elif kind == "url":
-        url = "https://example.org/eggs.tar.gz"
-        url_with_hash = f"{url}#cachito_hash=sha256:abcdef"
-        version = url_with_hash
-        raw_component = "eggs/eggs.tar.gz"
-
-    dest_dir, filename = raw_component.rsplit("/", 1)
-    req = {
-        "package": name,
-        "raw_component_name": raw_component,
-        "path": path,
-        "kind": kind,
-        "dev": dev,
-    }
-    if kind == "vcs":
-        additional_keys = {
-            "url": "https://github.com/spam/eggs",
-            "host": "github.com",
-            "namespace": "spam",
-            "repo": "eggs",
-            "ref": GIT_REF,
-        }
-    elif kind == "url":
-        additional_keys = {"original_url": url, "url_with_hash": url_with_hash}
-
-    req.update(additional_keys)
-
-    expected_dependency = {"name": name, "version": version, "type": "pip", "dev": dev}
-    dependency = pip._push_downloaded_requirement(req, pip_repo_name, raw_repo_name)
-    mock_upload.assert_called_once_with(raw_repo_name, path, dest_dir, filename, True)
-    assert dependency == expected_dependency
-
-
-@pytest.mark.parametrize("kind", ["url", "vcs"])
-@pytest.mark.parametrize("uploaded", [True, False])
-@mock.patch("cachito.workers.pkg_managers.pip.upload_raw_package")
-@mock.patch("cachito.workers.pkg_managers.pip.nexus.get_component_info_from_nexus")
-def test_push_downloaded_requirement_non_pypi_duplicated(
-    mock_get_info, mock_upload, kind, uploaded
-):
-    mock_upload.side_effect = UploadError("stub")
-    mock_get_info.return_value = uploaded
-    pip_repo_name = "test-pip-hosted"
-    raw_repo_name = "test-pip-raw"
-    name = "eggs"
-    path = "some/path"
-    if kind == "vcs":
-        version = f"git+https://github.com/spam/eggs@{GIT_REF}"
-        raw_component = f"eggs/eggs-external-gitcommit-{GIT_REF}.tar.gz"
-    elif kind == "url":
-        url = "https://example.org/eggs.tar.gz"
-        url_with_hash = f"{url}#cachito_hash=sha256:abcdef"
-        version = url_with_hash
-        raw_component = "eggs/eggs.tar.gz"
-
-    dest_dir, filename = raw_component.rsplit("/", 1)
-    req = {
-        "package": name,
-        "raw_component_name": raw_component,
-        "path": path,
-        "kind": kind,
-        "dev": False,
-    }
-    if kind == "vcs":
-        additional_keys = {
-            "url": "https://github.com/spam/eggs",
-            "host": "github.com",
-            "namespace": "spam",
-            "repo": "eggs",
-            "ref": GIT_REF,
-        }
-    elif kind == "url":
-        additional_keys = {"original_url": url, "url_with_hash": url_with_hash}
-
-    req.update(additional_keys)
-
-    expected_dependency = {"name": name, "version": version, "type": "pip", "dev": False}
-    if uploaded:
-        dependency = pip._push_downloaded_requirement(req, pip_repo_name, raw_repo_name)
-        mock_upload.assert_called_once_with(raw_repo_name, path, dest_dir, filename, True)
-        assert dependency == expected_dependency
-    else:
-        with pytest.raises(UploadError, match="stub"):
-            pip._push_downloaded_requirement(req, pip_repo_name, raw_repo_name)
 
 
 @mock.patch("cachito.workers.pkg_managers.pip.get_pip_metadata")
@@ -3523,10 +3169,9 @@ def test_resolve_pip_invalid_bld_req_file_path(mock_metadata, tmp_path):
 
 
 @pytest.mark.parametrize("custom_requirements", [True, False])
-@mock.patch("cachito.workers.pkg_managers.pip.upload_pypi_package")
 @mock.patch("cachito.workers.pkg_managers.pip.get_pip_metadata")
 @mock.patch("cachito.workers.pkg_managers.pip.download_dependencies")
-def test_resolve_pip(mock_download, mock_metadata, mock_upload, tmp_path, custom_requirements):
+def test_resolve_pip(mock_download, mock_metadata, tmp_path, custom_requirements):
     relative_req_file_path = "req.txt"
     relative_build_req_file_path = "breq.txt"
     req_file = tmp_path / pip.DEFAULT_REQUIREMENTS_FILE
@@ -3553,13 +3198,6 @@ def test_resolve_pip(mock_download, mock_metadata, mock_upload, tmp_path, custom
     else:
         pkg_info = pip.resolve_pip(tmp_path, request)
 
-    mock_upload.assert_has_calls(
-        [
-            mock.call("cachito-pip-hosted-1", "some/path"),
-            mock.call("cachito-pip-hosted-1", "another/path"),
-        ]
-    )
-    assert mock_upload.call_count == 2
     expected = {
         "package": {"name": "foo", "version": "1.0", "type": "pip"},
         "dependencies": [
@@ -3583,20 +3221,19 @@ def test_get_absolute_pkg_file_paths(tmp_path):
     (
         ["vcs", f"git+https://www.github.com/cachito/mypkg.git@{'f'*40}?egg=mypkg"],
         ["url", "https://files.cachito.rocks/mypkg.tar.gz"],
-        ["invalid", "https://files.cachito.rocks/package.tar.gz"],
     ),
 )
-def test_get_raw_component_name(component_kind, url):
+def test_get_external_requirement_filename(component_kind, url):
     requirement = mock.Mock(
         kind=component_kind, url=url, package="package", hashes=["sha256:noRealHash"]
     )
-    raw_component = pip.get_raw_component_name(requirement)
+    raw_component = pip.get_external_requirement_filename(requirement)
     if component_kind == "url":
-        assert raw_component == "package/package-external-sha256-noRealHash.tar.gz"
+        assert raw_component == "package-external-sha256-noRealHash.tar.gz"
     elif component_kind == "vcs":
-        assert raw_component == f"mypkg/mypkg-external-gitcommit-{'f'*40}.tar.gz"
+        assert raw_component == f"mypkg-external-gitcommit-{'f'*40}.tar.gz"
     else:
-        assert not raw_component
+        assert False
 
 
 @pytest.mark.parametrize(
