@@ -10,15 +10,16 @@ import bs4
 import pytest
 import requests
 
-from cachi2.core.package_managers import general, pip
-from cachito.errors import (
+from cachi2._compat import general
+from cachi2._compat.errors import (
     FileAccessError,
     InvalidChecksum,
     InvalidRequestData,
     NetworkError,
     ValidationError,
 )
-from tests.helper_utils import write_file_tree
+from cachi2.core.package_managers import pip
+from tests.unit.package_managers.helper_utils import write_file_tree
 
 THIS_MODULE_DIR = Path(__file__).resolve().parent
 GIT_REF = "9a557920b2a6d4110f838506120904a6fda421a2"
@@ -39,8 +40,8 @@ def setup_module():
 @pytest.mark.parametrize("cfg_exists", [True, False])
 @pytest.mark.parametrize("cfg_name", ["name_in_setup_cfg", None])
 @pytest.mark.parametrize("cfg_version", ["version_in_setup_cfg", None])
-@mock.patch("cachito.workers.pkg_managers.pip.SetupCFG")
-@mock.patch("cachito.workers.pkg_managers.pip.SetupPY")
+@mock.patch("cachi2.core.package_managers.pip.SetupCFG")
+@mock.patch("cachi2.core.package_managers.pip.SetupPY")
 def test_get_pip_metadata(
     mock_setup_py,
     mock_setup_cfg,
@@ -2343,7 +2344,7 @@ class TestDownload:
     # Package name should be normalized before querying PyPI
     @pytest.mark.parametrize("package_name", ["AioWSGI", "aiowsgi"])
     @mock.patch.object(general.pkg_requests_session, "get")
-    @mock.patch("cachito.workers.pkg_managers.general.download_binary_file")
+    @mock.patch("cachi2.core.package_managers.pip.download_binary_file")
     def test_download_pypi_package(
         self,
         mock_download_file,
@@ -2553,7 +2554,7 @@ class TestDownload:
         sdists.sort(key=pip._sdist_preference)
         assert [s["id"] for s in sdists] == expect_order
 
-    @mock.patch("cachito.workers.pkg_managers.pip.Git")
+    @mock.patch("cachi2.core.package_managers.pip.Git")
     @mock.patch("shutil.copy")
     def test_download_vcs_package(
         self,
@@ -2606,7 +2607,7 @@ class TestDownload:
             ("example.org:443", ["example.org"], True),
         ],
     )
-    @mock.patch("cachito.workers.pkg_managers.general.download_binary_file")
+    @mock.patch("cachi2.core.package_managers.pip.download_binary_file")
     def test_download_url_package(
         self,
         mock_download_file,
@@ -2865,11 +2866,11 @@ class TestDownload:
 
     @pytest.mark.parametrize("use_hashes", [True, False])
     @pytest.mark.parametrize("trusted_hosts", [[], ["example.org"]])
-    @mock.patch("cachito.workers.pkg_managers.pip._download_pypi_package")
-    @mock.patch("cachito.workers.pkg_managers.pip._download_vcs_package")
-    @mock.patch("cachito.workers.pkg_managers.pip._download_url_package")
-    @mock.patch("cachito.workers.pkg_managers.pip.verify_checksum")
-    @mock.patch("cachito.workers.pkg_managers.pip.check_metadata_in_sdist")
+    @mock.patch("cachi2.core.package_managers.pip._download_pypi_package")
+    @mock.patch("cachi2.core.package_managers.pip._download_vcs_package")
+    @mock.patch("cachi2.core.package_managers.pip._download_url_package")
+    @mock.patch("cachi2.core.package_managers.pip.verify_checksum")
+    @mock.patch("cachi2.core.package_managers.pip.check_metadata_in_sdist")
     def test_download_dependencies(
         self,
         check_metadata_in_sdist,
@@ -3030,7 +3031,7 @@ class TestDownload:
             (["sha256:bad"], False),
         ],
     )
-    @mock.patch("cachito.workers.pkg_managers.pip.verify_checksum")
+    @mock.patch("cachi2.core.package_managers.pip.verify_checksum")
     def test_checksum_verification(self, mock_verify_checksum, hashes, success, caplog):
         """Test helper function for checksum verification."""
         path = Path("/foo/bar.tar.gz")
@@ -3066,8 +3067,8 @@ class TestDownload:
         assert caplog.text.count("Something went wrong") == num_fails
         assert "Verifying checksum of bar.tar.gz" in caplog.text
 
-    @mock.patch("cachito.workers.pkg_managers.pip._download_pypi_package")
-    @mock.patch("cachito.workers.pkg_managers.pip.check_metadata_in_sdist")
+    @mock.patch("cachi2.core.package_managers.pip._download_pypi_package")
+    @mock.patch("cachi2.core.package_managers.pip.check_metadata_in_sdist")
     def test_download_from_requirement_files(
         self,
         check_metadata_in_sdist,
@@ -3113,7 +3114,7 @@ def test_default_requirement_file_list(tmp_path, exists, devel):
     assert req_files == expected
 
 
-@mock.patch("cachito.workers.pkg_managers.pip.get_pip_metadata")
+@mock.patch("cachi2.core.package_managers.pip.get_pip_metadata")
 def test_resolve_pip_no_deps(mock_metadata, tmp_path):
     mock_metadata.return_value = ("foo", "1.0")
     pkg_info = pip.resolve_pip(tmp_path, tmp_path / "output")
@@ -3125,7 +3126,7 @@ def test_resolve_pip_no_deps(mock_metadata, tmp_path):
     assert pkg_info == expected
 
 
-@mock.patch("cachito.workers.pkg_managers.pip.get_pip_metadata")
+@mock.patch("cachi2.core.package_managers.pip.get_pip_metadata")
 def test_resolve_pip_incompatible(mock_metadata, tmp_path):
     expected_error = "Could not resolve package metadata: name"
     mock_metadata.side_effect = InvalidRequestData(expected_error)
@@ -3133,7 +3134,7 @@ def test_resolve_pip_incompatible(mock_metadata, tmp_path):
         pip.resolve_pip(tmp_path, tmp_path / "output")
 
 
-@mock.patch("cachito.workers.pkg_managers.pip.get_pip_metadata")
+@mock.patch("cachi2.core.package_managers.pip.get_pip_metadata")
 def test_resolve_pip_invalid_req_file_path(mock_metadata, tmp_path):
     mock_metadata.return_value = ("foo", "1.0")
     invalid_path = "/foo/bar.txt"
@@ -3143,7 +3144,7 @@ def test_resolve_pip_invalid_req_file_path(mock_metadata, tmp_path):
         pip.resolve_pip(tmp_path, tmp_path / "output", requirement_files, None)
 
 
-@mock.patch("cachito.workers.pkg_managers.pip.get_pip_metadata")
+@mock.patch("cachi2.core.package_managers.pip.get_pip_metadata")
 def test_resolve_pip_invalid_bld_req_file_path(mock_metadata, tmp_path):
     mock_metadata.return_value = ("foo", "1.0")
     invalid_path = "/foo/bar.txt"
@@ -3154,8 +3155,8 @@ def test_resolve_pip_invalid_bld_req_file_path(mock_metadata, tmp_path):
 
 
 @pytest.mark.parametrize("custom_requirements", [True, False])
-@mock.patch("cachito.workers.pkg_managers.pip.get_pip_metadata")
-@mock.patch("cachito.workers.pkg_managers.pip.download_dependencies")
+@mock.patch("cachi2.core.package_managers.pip.get_pip_metadata")
+@mock.patch("cachi2.core.package_managers.pip.download_dependencies")
 def test_resolve_pip(mock_download, mock_metadata, tmp_path, custom_requirements):
     relative_req_file_path = "req.txt"
     relative_build_req_file_path = "breq.txt"

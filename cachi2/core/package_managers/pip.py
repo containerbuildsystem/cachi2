@@ -18,21 +18,21 @@ import pkg_resources
 import requests
 from packaging.utils import canonicalize_name, canonicalize_version
 
-from cachito.errors import (
+from cachi2._compat.errors import (
     FileAccessError,
     InvalidChecksum,
     InvalidRequestData,
     NetworkError,
     ValidationError,
 )
-from cachito.workers.pkg_managers import general
-from cachito.workers.pkg_managers.general import (
+from cachi2._compat.general import (
     ChecksumInfo,
+    download_binary_file,
     extract_git_info,
     pkg_requests_session,
     verify_checksum,
 )
-from cachito.workers.scm import Git
+from cachi2._compat.scm import Git
 
 log = logging.getLogger(__name__)
 
@@ -1480,7 +1480,7 @@ def _download_pypi_package(requirement, pip_deps_dir, pypi_url, pypi_auth=None):
 
     # URLs may be absolute or relative, see https://peps.python.org/pep-0503/
     sdist_url = urllib.parse.urljoin(package_url, sdist["url"])
-    general.download_binary_file(sdist_url, download_path, auth=pypi_auth)
+    download_binary_file(sdist_url, download_path, auth=pypi_auth)
 
     return {
         "package": sdist["name"],
@@ -1628,7 +1628,7 @@ def _download_url_package(requirement, pip_deps_dir, trusted_hosts):
     else:
         insecure = False
 
-    general.download_binary_file(requirement.url, download_path, insecure=insecure)
+    download_binary_file(requirement.url, download_path, insecure=insecure)
 
     if "cachito_hash" in requirement.qualifiers:
         url_with_hash = requirement.url
