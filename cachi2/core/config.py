@@ -19,6 +19,9 @@ class Config:
     cachito_gomod_strict_vendor = False
     cachito_subprocess_timeout = 3600
 
+    # TODO: purely temporary
+    cachito_sources_dir = "/tmp"
+
 
 # This function is kept to avoid changing the old code too much
 # It should be removed with the refactoring of the config object
