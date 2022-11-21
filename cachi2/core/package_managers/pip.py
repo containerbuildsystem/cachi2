@@ -25,7 +25,6 @@ from cachito.errors import (
     NetworkError,
     ValidationError,
 )
-from cachito.workers.paths import RequestBundleDir
 from cachito.workers.pkg_managers import general
 from cachito.workers.pkg_managers.general import (
     ChecksumInfo,
@@ -1210,11 +1209,11 @@ class PipRequirement:
         return hashes, reduced_options
 
 
-def download_dependencies(request_id, requirements_file):
+def download_dependencies(output_dir: Path, requirements_file):
     """
     Download sdists (source distributions) of all dependencies in a requirements.txt file.
 
-    :param int request_id: ID of the request these dependencies are being downloaded for
+    :param Path output_dir: the root output directory for this request
     :param PipRequirementsFile requirements_file: A requirements.txt file
     :return: Info about downloaded packages; all items will contain "kind" and "path" keys
         (and more based on kind, see _download_*_package functions for more details)
@@ -1239,8 +1238,8 @@ def download_dependencies(request_id, requirements_file):
     _validate_requirements(requirements_file.requirements)
     _validate_provided_hashes(requirements_file.requirements, require_hashes)
 
-    bundle_dir = RequestBundleDir(request_id)
-    bundle_dir.pip_deps_dir.mkdir(parents=True, exist_ok=True)
+    pip_deps_dir = output_dir / "deps" / "pip"
+    pip_deps_dir.mkdir(parents=True, exist_ok=True)
 
     downloads = []
 
@@ -1248,12 +1247,12 @@ def download_dependencies(request_id, requirements_file):
         log.info("Downloading %s", req.download_line)
 
         if req.kind == "pypi":
-            download_info = _download_pypi_package(req, bundle_dir.pip_deps_dir, PYPI_URL)
+            download_info = _download_pypi_package(req, pip_deps_dir, PYPI_URL)
             check_metadata_in_sdist(download_info["path"])
         elif req.kind == "vcs":
-            download_info = _download_vcs_package(req, bundle_dir.pip_deps_dir)
+            download_info = _download_vcs_package(req, pip_deps_dir)
         elif req.kind == "url":
-            download_info = _download_url_package(req, bundle_dir.pip_deps_dir, trusted_hosts)
+            download_info = _download_url_package(req, pip_deps_dir, trusted_hosts)
         else:
             # Should not happen
             raise RuntimeError(f"Unexpected requirement kind: {req.kind!r}")
@@ -1261,7 +1260,7 @@ def download_dependencies(request_id, requirements_file):
         log.info(
             "Successfully downloaded %s to %s",
             req.download_line,
-            download_info["path"].relative_to(bundle_dir),
+            download_info["path"].relative_to(output_dir),
         )
 
         if require_hashes or req.kind == "url":
@@ -1683,11 +1682,11 @@ def _verify_hash(download_path, hashes):
     raise InvalidChecksum(msg)
 
 
-def _download_from_requirement_files(request_id, files):
+def _download_from_requirement_files(output_dir: Path, files):
     """
     Download dependencies listed in the requirement files.
 
-    :param int request_id: ID of the request these dependencies are being downloaded for
+    :param Path output_dir: the root output directory for this request
     :param list files: list of str, each representing the absolute path of a pip requirement file
     :return: Info about downloaded packages; see download_dependencies return docs for further
         reference
@@ -1698,7 +1697,7 @@ def _download_from_requirement_files(request_id, files):
     for req_file in files:
         if not os.path.exists(req_file):
             raise FileAccessError(f"Following requirement file has an invalid path: {req_file}")
-        requirements.extend(download_dependencies(request_id, PipRequirementsFile(req_file)))
+        requirements.extend(download_dependencies(output_dir, PipRequirementsFile(req_file)))
     return requirements
 
 
@@ -1716,12 +1715,14 @@ def _default_requirement_file_list(path, devel=False):
     return [str(req)] if req.is_file() else []
 
 
-def resolve_pip(path, request, requirement_files=None, build_requirement_files=None):
+def resolve_pip(
+    app_path: Path, output_dir: Path, requirement_files=None, build_requirement_files=None
+):
     """
-    Resolve and fetch pip dependencies for the given app source archive.
+    Resolve and fetch pip dependencies for the given pip application.
 
-    :param Path path: the full path to the application source code
-    :param dict request: the Cachito request to resolve pip dependencies for
+    :param Path app_path: the full path to the application source code
+    :param Path output_dir: the root output directory for this request
     :param list requirement_files: a list of str representing paths to the Python requirement files
         to be used to compile a list of dependencies to be fetched
     :param list build_requirement_files: a list of str representing paths to the Python build
@@ -1736,25 +1737,25 @@ def resolve_pip(path, request, requirement_files=None, build_requirement_files=N
     """
     log.debug("Checking if the application source uses pip")
     try:
-        pkg_name, pkg_version = get_pip_metadata(path)
+        pkg_name, pkg_version = get_pip_metadata(app_path)
     except InvalidRequestData:
         log.exception("The requested package is not pip compatible")
         raise
 
     # This could be an empty list
     if requirement_files is None:
-        requirement_files = _default_requirement_file_list(path)
+        requirement_files = _default_requirement_file_list(app_path)
     else:
-        requirement_files = _get_absolute_pkg_file_paths(path, requirement_files)
+        requirement_files = _get_absolute_pkg_file_paths(app_path, requirement_files)
 
     # This could be an empty list
     if build_requirement_files is None:
-        build_requirement_files = _default_requirement_file_list(path, devel=True)
+        build_requirement_files = _default_requirement_file_list(app_path, devel=True)
     else:
-        build_requirement_files = _get_absolute_pkg_file_paths(path, build_requirement_files)
+        build_requirement_files = _get_absolute_pkg_file_paths(app_path, build_requirement_files)
 
-    requires = _download_from_requirement_files(request["id"], requirement_files)
-    buildrequires = _download_from_requirement_files(request["id"], build_requirement_files)
+    requires = _download_from_requirement_files(output_dir, requirement_files)
+    buildrequires = _download_from_requirement_files(output_dir, build_requirement_files)
 
     # Mark all build dependencies as Cachito dev dependencies
     for dependency in buildrequires:
