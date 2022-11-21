@@ -5,8 +5,8 @@ from pathlib import Path
 from textwrap import dedent
 from unittest import mock
 from urllib.parse import urlparse
-from xml.etree import ElementTree
 
+import bs4
 import pytest
 import requests
 
@@ -2285,6 +2285,18 @@ class TestDownload:
 
         return html
 
+    def mock_html_links(self, *anchors: str):
+        """Convert <a href=.../> strings into BeautifulSoup <a href=.../> elements."""
+        anchors_str = "\n".join(anchors)
+        html = dedent(
+            f"""
+            <html>
+            {anchors_str}
+            </html>
+            """
+        )
+        return bs4.BeautifulSoup(html, "html.parser").find_all("a")
+
     def mock_requirements_file(self, requirements=None, options=None):
         """Mock a requirements.txt file."""
         return mock.Mock(requirements=requirements or [], options=options or [])
@@ -2392,10 +2404,10 @@ class TestDownload:
 
     def test_process_package_links(self):
         """Test processing of package links."""
-        links = [
-            ElementTree.fromstring('<a href="../foo-1.0.tar.gz">foo-1.0.tar.gz</a>'),
-            ElementTree.fromstring('<a href="../foo-1.0.zip" data-yanked="">foo-1.0.zip</a>'),
-        ]
+        links = self.mock_html_links(
+            '<a href="../foo-1.0.tar.gz">foo-1.0.tar.gz</a>',
+            '<a href="../foo-1.0.zip" data-yanked="">foo-1.0.zip</a>',
+        )
         assert pip._process_package_links(links, "foo", "1.0") == [
             {
                 "name": "foo",
@@ -2442,11 +2454,9 @@ class TestDownload:
         else:
             actual_name = noncanonical_name
 
-        links = [
-            ElementTree.fromstring(
-                f'<a href="../{actual_name}-1.0.tar.gz">{actual_name}-1.0.tar.gz</a>'
-            ),
-        ]
+        links = self.mock_html_links(
+            f'<a href="../{actual_name}-1.0.tar.gz">{actual_name}-1.0.tar.gz</a>',
+        )
 
         assert pip._process_package_links(links, requested_name, "1.0") == [
             {
@@ -2490,11 +2500,9 @@ class TestDownload:
         else:
             actual_version = noncanonical_version
 
-        links = [
-            ElementTree.fromstring(
-                f'<a href="../foo-{actual_version}.tar.gz">foo-{actual_version}.tar.gz</a>'
-            ),
-        ]
+        links = self.mock_html_links(
+            f'<a href="../foo-{actual_version}.tar.gz">foo-{actual_version}.tar.gz</a>',
+        )
 
         assert pip._process_package_links(links, "foo", requested_version) == [
             {
@@ -2508,18 +2516,18 @@ class TestDownload:
 
     def test_process_package_links_not_sdist(self):
         """Test that links for files that are not sdists are ignored."""
-        links = [
-            ElementTree.fromstring('<a href="../foo-1.0.whl">foo-1.0.whl</a>'),
-            ElementTree.fromstring('<a href="../foo-1.0.egg">foo-1.0.egg</a>'),
-        ]
+        links = self.mock_html_links(
+            '<a href="../foo-1.0.whl">foo-1.0.whl</a>',
+            '<a href="../foo-1.0.egg">foo-1.0.egg</a>',
+        )
         assert pip._process_package_links(links, "foo", "1.0") == []
 
     @pytest.mark.parametrize("requested_version", ["2.0", "1.0.a1", "1.0.post1", "1.0.dev1"])
     def test_process_package_links_wrong_version(self, requested_version):
         """Test that links for files with different version are ignored."""
-        links = [
-            ElementTree.fromstring('<a href="../foo-1.0.tar.gz">foo-1.0.tar.gz</a>'),
-        ]
+        links = self.mock_html_links(
+            '<a href="../foo-1.0.tar.gz">foo-1.0.tar.gz</a>',
+        )
         assert pip._process_package_links(links, "foo", requested_version) == []
 
     def test_sdist_sorting(self):

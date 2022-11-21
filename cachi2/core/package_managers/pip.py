@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
-import defusedxml.ElementTree
+import bs4
 import pkg_resources
 import requests
 from packaging.utils import canonicalize_name, canonicalize_version
@@ -1461,9 +1461,9 @@ def _download_pypi_package(requirement, pip_deps_dir, pypi_url, pypi_auth=None):
     except requests.RequestException as e:
         raise NetworkError(f"PyPI query failed: {e}")
 
-    html = defusedxml.ElementTree.fromstring(pypi_resp.text)
+    html = bs4.BeautifulSoup(pypi_resp.text, "html.parser")
     # Find all anchors anywhere in the doc, the PEP does not specify where they should be
-    links = html.iter("a")
+    links = html.find_all("a")
 
     sdists = _process_package_links(links, package, version)
     if not sdists:
