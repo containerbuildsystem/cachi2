@@ -2258,16 +2258,6 @@ class TestPipRequirementsFile:
                 ), f"unexpected value for {attr!r}"
 
 
-class MockBundleDir(type(Path())):
-    """Mocked RequestBundleDir."""
-
-    def __new__(cls, *args, **kwargs):
-        """Make a new MockBundleDir."""
-        self = super().__new__(cls, *args, **kwargs)
-        self.pip_deps_dir = self / "deps" / "pip"
-        return self
-
-
 class TestDownload:
     """Tests for dependency downloading."""
 
@@ -2689,7 +2679,7 @@ class TestDownload:
         options = all_rejected + ["-c", "constraints.txt", "--use-feature", "some_feature", "--foo"]
         req_file = self.mock_requirements_file(options=options)
         with pytest.raises(ValidationError) as exc_info:
-            pip.download_dependencies(1, req_file)
+            pip.download_dependencies(Path(), req_file)
 
         err_msg = (
             "Cachito does not support the following options: -i, --index-url, --extra-index-url, "
@@ -2714,7 +2704,7 @@ class TestDownload:
         req = self.mock_requirement("foo", "pypi", version_specs=version_specs)
         req_file = self.mock_requirements_file(requirements=[req])
         with pytest.raises(ValidationError) as exc_info:
-            pip.download_dependencies(1, req_file)
+            pip.download_dependencies(Path(), req_file)
         msg = f"Requirement must be pinned to an exact version: {req.download_line}"
         assert str(exc_info.value) == msg
 
@@ -2737,7 +2727,7 @@ class TestDownload:
         req_file = self.mock_requirements_file(requirements=[req])
 
         with pytest.raises(ValidationError) as exc_info:
-            pip.download_dependencies(1, req_file)
+            pip.download_dependencies(Path(), req_file)
 
         msg = f"No git ref in {req.download_line} (expected 40 hexadecimal characters)"
         assert str(exc_info.value) == msg
@@ -2750,7 +2740,7 @@ class TestDownload:
         req_file = self.mock_requirements_file(requirements=[req])
 
         with pytest.raises(ValidationError) as exc_info:
-            pip.download_dependencies(1, req_file)
+            pip.download_dependencies(Path(), req_file)
 
         msg = f"Unsupported VCS for {req.download_line}: {scheme}"
         assert str(exc_info.value) == msg
@@ -2777,7 +2767,7 @@ class TestDownload:
         req_file = self.mock_requirements_file(requirements=[req])
 
         with pytest.raises(ValidationError) as exc_info:
-            pip.download_dependencies(1, req_file)
+            pip.download_dependencies(Path(), req_file)
 
         assert str(exc_info.value) == (
             f"URL requirement must specify exactly one hash, but specifies {total}: foo @ {url}. "
@@ -2801,7 +2791,7 @@ class TestDownload:
         req_file = self.mock_requirements_file(requirements=[req])
 
         with pytest.raises(ValidationError) as exc_info:
-            pip.download_dependencies(1, req_file)
+            pip.download_dependencies(Path(), req_file)
 
         assert str(exc_info.value) == (
             f"URL for requirement does not contain any recognized file extension: "
@@ -2830,7 +2820,7 @@ class TestDownload:
         req_file = self.mock_requirements_file(requirements=[req_1, req_2], options=options)
 
         with pytest.raises(ValidationError) as exc_info:
-            pip.download_dependencies(1, req_file)
+            pip.download_dependencies(Path(), req_file)
 
         if global_require_hash:
             assert "Global --require-hashes option used, will require hashes" in caplog.text
@@ -2860,14 +2850,13 @@ class TestDownload:
         req_file = self.mock_requirements_file(requirements=[req])
 
         with pytest.raises(ValidationError) as exc_info:
-            pip.download_dependencies(1, req_file)
+            pip.download_dependencies(Path(), req_file)
 
         msg = "Not a valid hash specifier: 'malformed' (expected algorithm:digest)"
         assert str(exc_info.value) == msg
 
     @pytest.mark.parametrize("use_hashes", [True, False])
     @pytest.mark.parametrize("trusted_hosts", [[], ["example.org"]])
-    @mock.patch("cachito.workers.pkg_managers.pip.RequestBundleDir")
     @mock.patch("cachito.workers.pkg_managers.pip._download_pypi_package")
     @mock.patch("cachito.workers.pkg_managers.pip._download_vcs_package")
     @mock.patch("cachito.workers.pkg_managers.pip._download_url_package")
@@ -2880,7 +2869,6 @@ class TestDownload:
         mock_url_download,
         mock_vcs_download,
         mock_pypi_download,
-        mock_request_bundle_dir,
         use_hashes,
         trusted_hosts,
         tmp_path,
@@ -2923,8 +2911,7 @@ class TestDownload:
             options=options,
         )
 
-        mock_bundle_dir = MockBundleDir(tmp_path)
-        pip_deps = mock_bundle_dir.pip_deps_dir
+        pip_deps = tmp_path / "deps" / "pip"
 
         pypi_download = pip_deps / "foo" / "foo-1.0.tar.gz"
         vcs_download = pip_deps.joinpath(
@@ -2949,14 +2936,13 @@ class TestDownload:
             "path": url_download,
         }
 
-        mock_request_bundle_dir.return_value = mock_bundle_dir
         mock_pypi_download.return_value = pypi_info
         mock_vcs_download.return_value = vcs_info
         mock_url_download.return_value = url_info
         # </setup>
 
         # <call>
-        downloads = pip.download_dependencies(1, req_file)
+        downloads = pip.download_dependencies(tmp_path, req_file)
         assert downloads == [
             {**pypi_info, "kind": "pypi"},
             {**vcs_info, "kind": "vcs"},
@@ -2967,7 +2953,6 @@ class TestDownload:
 
         # <check calls that must always be made>
         check_metadata_in_sdist.assert_called_once_with(pypi_info["path"])
-        mock_request_bundle_dir.assert_called_once_with(1)
         mock_pypi_download.assert_called_once_with(pypi_req, pip_deps, pip.PYPI_URL)
         mock_vcs_download.assert_called_once_with(vcs_req, pip_deps)
         mock_url_download.assert_called_once_with(url_req, pip_deps, set(trusted_hosts))
@@ -3073,14 +3058,12 @@ class TestDownload:
         assert caplog.text.count("Something went wrong") == num_fails
         assert "Verifying checksum of bar.tar.gz" in caplog.text
 
-    @mock.patch("cachito.workers.pkg_managers.pip.RequestBundleDir")
     @mock.patch("cachito.workers.pkg_managers.pip._download_pypi_package")
     @mock.patch("cachito.workers.pkg_managers.pip.check_metadata_in_sdist")
     def test_download_from_requirement_files(
         self,
         check_metadata_in_sdist,
         mock_pypi_download,
-        mock_request_bundle_dir,
         tmp_path,
     ):
         """Test downloading dependencies from a requirement file list."""
@@ -3089,8 +3072,7 @@ class TestDownload:
         req_file2 = tmp_path / "requirements-alt.txt"
         req_file2.write_text("bar==0.0.1")
 
-        mock_bundle_dir = MockBundleDir(tmp_path)
-        pip_deps = mock_bundle_dir.pip_deps_dir
+        pip_deps = tmp_path / "deps" / "pip"
 
         pypi_download1 = pip_deps / "foo" / "foo-1.0.0.tar.gz"
         pypi_download2 = pip_deps / "bar" / "bar-0.0.1.tar.gz"
@@ -3098,10 +3080,9 @@ class TestDownload:
         pypi_info1 = {"package": "foo", "version": "1.0.0", "path": pypi_download1}
         pypi_info2 = {"package": "bar", "version": "0.0.1", "path": pypi_download2}
 
-        mock_request_bundle_dir.return_value = mock_bundle_dir
         mock_pypi_download.side_effect = [pypi_info1, pypi_info2]
 
-        downloads = pip._download_from_requirement_files(1, [req_file1, req_file2])
+        downloads = pip._download_from_requirement_files(tmp_path, [req_file1, req_file2])
         assert downloads == [{**pypi_info1, "kind": "pypi"}, {**pypi_info2, "kind": "pypi"}]
         check_metadata_in_sdist.assert_has_calls(
             [mock.call(pypi_info1["path"]), mock.call(pypi_info2["path"])], any_order=True
@@ -3127,8 +3108,7 @@ def test_default_requirement_file_list(tmp_path, exists, devel):
 @mock.patch("cachito.workers.pkg_managers.pip.get_pip_metadata")
 def test_resolve_pip_no_deps(mock_metadata, tmp_path):
     mock_metadata.return_value = ("foo", "1.0")
-    request = {"id": 1}
-    pkg_info = pip.resolve_pip(tmp_path, request)
+    pkg_info = pip.resolve_pip(tmp_path, tmp_path / "output")
     expected = {
         "package": {"name": "foo", "version": "1.0", "type": "pip"},
         "dependencies": [],
@@ -3141,31 +3121,28 @@ def test_resolve_pip_no_deps(mock_metadata, tmp_path):
 def test_resolve_pip_incompatible(mock_metadata, tmp_path):
     expected_error = "Could not resolve package metadata: name"
     mock_metadata.side_effect = InvalidRequestData(expected_error)
-    request = {"id": 1}
     with pytest.raises(InvalidRequestData, match=expected_error):
-        pip.resolve_pip(tmp_path, request)
+        pip.resolve_pip(tmp_path, tmp_path / "output")
 
 
 @mock.patch("cachito.workers.pkg_managers.pip.get_pip_metadata")
 def test_resolve_pip_invalid_req_file_path(mock_metadata, tmp_path):
     mock_metadata.return_value = ("foo", "1.0")
-    request = {"id": 1}
     invalid_path = "/foo/bar.txt"
     expected_error = f"Following requirement file has an invalid path: {invalid_path}"
     requirement_files = [invalid_path]
     with pytest.raises(FileAccessError, match=expected_error):
-        pip.resolve_pip(tmp_path, request, requirement_files, None)
+        pip.resolve_pip(tmp_path, tmp_path / "output", requirement_files, None)
 
 
 @mock.patch("cachito.workers.pkg_managers.pip.get_pip_metadata")
 def test_resolve_pip_invalid_bld_req_file_path(mock_metadata, tmp_path):
     mock_metadata.return_value = ("foo", "1.0")
-    request = {"id": 1}
     invalid_path = "/foo/bar.txt"
     expected_error = f"Following requirement file has an invalid path: {invalid_path}"
     build_requirement_files = [invalid_path]
     with pytest.raises(FileAccessError, match=expected_error):
-        pip.resolve_pip(tmp_path, request, None, build_requirement_files)
+        pip.resolve_pip(tmp_path, tmp_path / "output", None, build_requirement_files)
 
 
 @pytest.mark.parametrize("custom_requirements", [True, False])
@@ -3187,16 +3164,15 @@ def test_resolve_pip(mock_download, mock_metadata, tmp_path, custom_requirements
         [{"kind": "pypi", "path": "some/path", "package": "bar", "version": "2.1"}],
         [{"kind": "pypi", "path": "another/path", "package": "baz", "version": "0.0.5"}],
     ]
-    request = {"id": 1}
     if custom_requirements:
         pkg_info = pip.resolve_pip(
             tmp_path,
-            request,
+            tmp_path / "output",
             requirement_files=[relative_req_file_path],
             build_requirement_files=[relative_build_req_file_path],
         )
     else:
-        pkg_info = pip.resolve_pip(tmp_path, request)
+        pkg_info = pip.resolve_pip(tmp_path, tmp_path / "output")
 
     expected = {
         "package": {"name": "foo", "version": "1.0", "type": "pip"},
