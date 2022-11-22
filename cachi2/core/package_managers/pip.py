@@ -25,14 +25,14 @@ from cachi2._compat.errors import (
     NetworkError,
     ValidationError,
 )
-from cachi2._compat.general import (
+from cachi2._compat.scm import Git
+from cachi2.core.package_managers.general import (
     ChecksumInfo,
     download_binary_file,
     extract_git_info,
     pkg_requests_session,
     verify_checksum,
 )
-from cachi2._compat.scm import Git
 
 log = logging.getLogger(__name__)
 

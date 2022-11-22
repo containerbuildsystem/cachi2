@@ -2,7 +2,7 @@
 import logging
 
 import requests
-from requests.packages.urllib3.util.retry import Retry
+from urllib3.util.retry import Retry
 
 log = logging.getLogger(__name__)
 
@@ -22,24 +22,15 @@ DEFAULT_RETRY_OPTIONS = {
 }
 
 
-def get_requests_session(auth=False, retry_options={}):
+def get_requests_session(retry_options={}):
     """
-    Create a requests session with authentication (when enabled).
+    Create a requests session with retries.
 
-    :param bool auth: configure authentication on the session
     :param dict retry_options: overwrite options for initialization of Retry instance
     :return: the configured requests session
     :rtype: requests.Session
     """
     session = requests.Session()
-    # if auth:
-    #     if config.cachito_auth_type == "kerberos":
-    #         session.auth = requests_kerberos.HTTPKerberosAuth(
-    #             mutual_authentication=requests_kerberos.OPTIONAL
-    #         )
-    #     elif config.cachito_auth_type == "cert":
-    #         session.cert = config.cachito_auth_cert
-
     retry_options = {**DEFAULT_RETRY_OPTIONS, **retry_options}
     adapter = requests.adapters.HTTPAdapter(max_retries=Retry(**retry_options))
     session.mount("http://", adapter)
