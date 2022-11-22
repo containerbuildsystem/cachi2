@@ -141,6 +141,17 @@ Run all the checks that your pull request will be subjected to:
 make test
 ```
 
+### Error message guidelines
+
+We try to keep error messages friendly and actionable.
+
+* If there is a known solution, the error message should politely suggest the solution.
+  * Include a link to the documentation when suitable.
+* If there is no known solution, suggest where to look for help.
+* If retrying is a possible solution, suggest retrying and where to look for help if the issue persists.
+
+The error classes aim to encourage these guidelines. See the [errors.py](cachi2/core/errors.py) module.
+
 ### Running unit tests
 
 Run all unit tests (but no other checks):
