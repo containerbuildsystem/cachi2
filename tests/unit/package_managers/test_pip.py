@@ -10,7 +10,6 @@ import bs4
 import pytest
 import requests
 
-from cachi2._compat import general
 from cachi2._compat.errors import (
     FileAccessError,
     InvalidChecksum,
@@ -18,7 +17,7 @@ from cachi2._compat.errors import (
     NetworkError,
     ValidationError,
 )
-from cachi2.core.package_managers import pip
+from cachi2.core.package_managers import general, pip
 from tests.unit.package_managers.helper_utils import write_file_tree
 
 THIS_MODULE_DIR = Path(__file__).resolve().parent

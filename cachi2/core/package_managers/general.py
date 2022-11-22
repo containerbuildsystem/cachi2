@@ -6,9 +6,9 @@ import urllib
 
 import requests
 
-from cachi2._compat.checksum import hash_file
 from cachi2._compat.errors import InvalidChecksum, NetworkError, UnknownHashAlgorithm
-from cachi2._compat.requests import SAFE_REQUEST_METHODS, get_requests_session
+from cachi2.core.http_requests import SAFE_REQUEST_METHODS, get_requests_session
+from cachi2.core.utils import hash_file
 
 __all__ = [
     "verify_checksum",
