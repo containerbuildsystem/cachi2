@@ -2553,12 +2553,10 @@ class TestDownload:
         sdists.sort(key=pip._sdist_preference)
         assert [s["id"] for s in sdists] == expect_order
 
-    @mock.patch("cachi2.core.package_managers.pip.Git")
-    @mock.patch("shutil.copy")
+    @mock.patch("cachi2.core.package_managers.pip.clone_as_tarball")
     def test_download_vcs_package(
         self,
-        mock_shutil_copy,
-        mock_git,
+        mock_clone_as_tarball,
         tmp_path,
     ):
         """Test downloading of a single VCS package."""
@@ -2567,11 +2565,6 @@ class TestDownload:
         mock_requirement = self.mock_requirement(
             "eggs", "vcs", url=vcs_url, download_line=f"eggs @ {vcs_url}"
         )
-
-        git_archive_path = tmp_path / "eggs.tar.gz"
-
-        mock_git.return_value = mock.Mock()
-        mock_git.return_value.sources_dir.archive_path = git_archive_path
 
         download_info = pip._download_vcs_package(mock_requirement, tmp_path)
 
@@ -2589,9 +2582,9 @@ class TestDownload:
 
         download_path = download_info["path"]
 
-        mock_git.assert_called_once_with("https://github.com/spam/eggs", GIT_REF)
-        mock_git.return_value.fetch_source.assert_called_once_with(gitsubmodule=False)
-        mock_shutil_copy.assert_called_once_with(git_archive_path, download_path)
+        mock_clone_as_tarball.assert_called_once_with(
+            "https://github.com/spam/eggs", GIT_REF, to_path=download_path
+        )
 
     @pytest.mark.parametrize("hash_as_qualifier", [True, False])
     @pytest.mark.parametrize(

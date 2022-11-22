@@ -4,7 +4,6 @@ import configparser
 import logging
 import os.path
 import re
-import shutil
 import tarfile
 import urllib
 import zipfile
@@ -25,7 +24,6 @@ from cachi2._compat.errors import (
     NetworkError,
     ValidationError,
 )
-from cachi2._compat.scm import Git
 from cachi2.core.package_managers.general import (
     ChecksumInfo,
     download_binary_file,
@@ -33,6 +31,7 @@ from cachi2.core.package_managers.general import (
     pkg_requests_session,
     verify_checksum,
 )
+from cachi2.core.scm import clone_as_tarball
 
 log = logging.getLogger(__name__)
 
@@ -1584,10 +1583,7 @@ def _download_vcs_package(requirement, pip_deps_dir):
     filename = get_external_requirement_filename(requirement)
     download_path = package_dir / filename
 
-    repo = Git(git_info["url"], ref)
-    repo.fetch_source(gitsubmodule=False)
-    # Copy downloaded archive to expected download path
-    shutil.copy(repo.sources_dir.archive_path, download_path)
+    clone_as_tarball(git_info["url"], ref, to_path=download_path)
 
     return {
         "package": requirement.package,
