@@ -1513,3 +1513,52 @@ def test_missing_gomod_file(file_tree, tmp_path):
 
     with pytest.raises(PackageRejected, match=path_error_string):
         fetch_gomod_source(request)
+
+
+@pytest.mark.parametrize(
+    "dep_replacements, pkg_config, raises_error",
+    (
+        (
+            [],
+            [{"path": "."}],
+            False
+        ),
+        (
+            [{"name": "github.com/pkg/errors", "type": "gomod", "version": "v0.8.1"}],
+            [{"path": "."}],
+            False
+        ),
+        (
+            [],
+            [{"path": "bar"}, {"path": "foo"}],
+            False
+        ),
+        (
+            [{"name": "github.com/pkg/errors", "type": "gomod", "version": "v0.8.1"}],
+            [{"path": "."}, {"path": "foo"}],
+            True
+        ),
+    ),
+)
+@mock.patch("cachi2.core.package_managers.gomod._find_missing_gomod_files")
+@mock.patch("cachi2.core.package_managers.gomod._resolve_gomod")
+@mock.patch("cachi2.core.package_managers.gomod.RequestOutput")
+@mock.patch("cachi2.core.models.input.Request")
+def test_dep_replacements(mock_request, mock_request_output, mock_resolve_gomod, mock_find_missing_gomod_files, dep_replacements, pkg_config, raises_error):
+    packages = [PackageInput(path=pkg["path"], type="gomod") for pkg in pkg_config]
+
+    request = mock_request()
+    request.packages = packages
+    request.dep_replacements = dep_replacements
+    request.source_dir = Path(".")
+
+    mock_find_missing_gomod_files.return_value = []
+
+    if raises_error:
+        msg = "Dependency replacements are only supported for a single go module path."
+        with pytest.raises(UnsupportedFeature, match=msg):
+            fetch_gomod_source(request)
+    else:
+        fetch_gomod_source(request)
+        expected_calls = [mock.call(request.source_dir / pkg.path, request) for pkg in packages]
+        mock_resolve_gomod.assert_has_calls(expected_calls, any_order=True)
