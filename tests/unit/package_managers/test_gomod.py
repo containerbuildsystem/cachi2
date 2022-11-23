@@ -12,10 +12,11 @@ from typing import Optional, Union
 from unittest import mock
 
 import git
+from cachi2.core.models.output import Dependency, EnvironmentVariable, Package, RequestOutput
 import pytest
 
 from cachi2.core.errors import GoModError, PackageRejected, UnsupportedFeature
-from cachi2.core.models.input import Request
+from cachi2.core.models.input import PackageInput, Request
 from cachi2.core.package_managers import gomod
 from cachi2.core.package_managers.gomod import (
     _contains_package,
@@ -1562,3 +1563,82 @@ def test_dep_replacements(mock_request, mock_request_output, mock_resolve_gomod,
         fetch_gomod_source(request)
         expected_calls = [mock.call(request.source_dir / pkg.path, request) for pkg in packages]
         mock_resolve_gomod.assert_has_calls(expected_calls, any_order=True)
+
+
+sample_dep = {
+    "name": "golang.org/x/net",
+    "replaces": None,
+    "type": "gomod",
+    "version": "v0.0.0-20190311183353-d8887717615a",
+}
+sample_pkg = {
+    "type": "gomod",
+    "path": ".",
+    "name": "github.com/my-org/my-repo",
+    "version": "1.0.0",
+    "dependencies": [sample_dep],
+}
+sample_pkg_2 = {
+    "type": "gomod",
+    "path": "path",
+    "name": "github.com/my-org/my-repo/path",
+    "version": "1.0.0",
+    "dependencies": []
+}
+env_variables = [
+    {"name": "GOCACHE", "value": 'deps/gomod', "kind": 'path'},
+    {"name": "GOMODCACHE", "value": 'deps/gomod/pkg/mod', "kind":'path'},
+    {"name": "GOPATH", "value": 'deps/gomod', "kind":'path'},
+    {"name": "GOSUMDB", "value": 'off', "kind": 'literal'},
+]
+
+@pytest.mark.parametrize(
+    "pkg_config, pkg_results",
+    (
+        (
+            [sample_pkg],
+            RequestOutput(
+                packages=[sample_pkg, {**sample_pkg, "type": "go-package"}],
+                environment_variables=env_variables
+            )
+        ),
+        (
+            [sample_pkg, sample_pkg_2],
+            RequestOutput(
+                packages=[sample_pkg, {**sample_pkg, "type": "go-package"}, sample_pkg_2, {**sample_pkg_2, "type": "go-package"}],
+                environment_variables=env_variables
+            )
+        ),
+    ),
+)
+@mock.patch("cachi2.core.package_managers.gomod._find_missing_gomod_files")
+@mock.patch("cachi2.core.package_managers.gomod._resolve_gomod")
+@mock.patch("cachi2.core.models.input.Request")
+def test_fetch_gomod_source(mock_request, mock_resolve_gomod, mock_find_missing_gomod_files, pkg_config, pkg_results):
+    packages = [PackageInput(path=pkg["path"], type="gomod") for pkg in pkg_config]
+
+    request = mock_request()
+    request.packages = packages
+    request.source_dir = Path(".")
+    request.dep_replacements = []
+
+    def resolve_gomod_mocked(path, request):
+        package = list(filter(lambda p: p["path"] == str(path), pkg_config))[0]
+
+        return {
+            "module": {"type": "gomod", "name": package["name"], "version": package["version"]},
+            "module_deps": [*package["dependencies"]],
+            "packages": [
+                {
+                    "pkg": {"type": "go-package", "name": package["name"], "version": package["version"]},
+                    "pkg_deps": [*package["dependencies"]]
+                }
+            ],
+        }
+
+    mock_resolve_gomod.side_effect = resolve_gomod_mocked
+    mock_find_missing_gomod_files.return_value = []
+
+    output = fetch_gomod_source(request)
+
+    assert output == pkg_results
