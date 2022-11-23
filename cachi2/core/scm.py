@@ -43,12 +43,14 @@ def clone_as_tarball(url: str, ref: str, to_path: Path) -> None:
         _reset_git_head(repo, ref)
 
         with tarfile.open(to_path, mode="w:gz") as archive:
+            # GitPython wrongly annotates working_dir as Optional, it cannot be None
+            assert repo.working_dir is not None  # nosec assert_used
             archive.add(repo.working_dir, "app")
 
 
 def _reset_git_head(repo: git.repo.Repo, ref: str) -> None:
     try:
-        repo.head.reference = repo.commit(ref)
+        repo.head.reference = repo.commit(ref)  # type: ignore # 'reference' is a weird property
         repo.head.reset(index=True, working_tree=True)
 
     except Exception as ex:
