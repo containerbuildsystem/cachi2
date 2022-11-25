@@ -14,7 +14,7 @@ import requests
 from cachi2.core.checksum import ChecksumInfo
 from cachi2.core.errors import FetchError, PackageRejected, UnexpectedFormat, UnsupportedFeature
 from cachi2.core.package_managers import general, pip
-from tests.unit.package_managers.helper_utils import write_file_tree
+from tests.common_utils import write_file_tree
 
 THIS_MODULE_DIR = Path(__file__).resolve().parent
 GIT_REF = "9a557920b2a6d4110f838506120904a6fda421a2"
