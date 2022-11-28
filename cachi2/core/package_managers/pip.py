@@ -17,7 +17,7 @@ import pkg_resources
 import requests
 from packaging.utils import canonicalize_name, canonicalize_version
 
-from cachi2.core.errors import FetchError, PackageRejected, UnsupportedFeature
+from cachi2.core.errors import FetchError, PackageRejected, UnexpectedFormat, UnsupportedFeature
 from cachi2.core.package_managers.general import (
     ChecksumInfo,
     download_binary_file,
@@ -910,10 +910,7 @@ class PipRequirementsFile:
                     option = part
 
                 if option not in self.OPTIONS:
-                    raise PackageRejected(
-                        f"Unknown requirements file option {part!r}",
-                        solution=None,
-                    )
+                    raise UnexpectedFormat(f"Unknown requirements file option {part!r}")
 
                 _require_value = self.OPTIONS[option]
 
@@ -923,9 +920,8 @@ class PipRequirementsFile:
                     _context_options = global_options
 
                 if value and not _require_value:
-                    raise PackageRejected(
-                        f"Unexpected value for requirements file option {part!r}",
-                        solution=None,
+                    raise UnexpectedFormat(
+                        f"Unexpected value for requirements file option {part!r}"
                     )
 
                 _context_options.append(option)
@@ -936,16 +932,14 @@ class PipRequirementsFile:
                 requirement.append(part)
 
         if _require_value:
-            raise PackageRejected(
-                f"Requirements file option {_context_options[-1]!r} requires a value",
-                solution=None,
+            raise UnexpectedFormat(
+                f"Requirements file option {_context_options[-1]!r} requires a value"
             )
 
         if requirement_options and not requirement:
-            raise PackageRejected(
+            raise UnexpectedFormat(
                 f"Requirements file option(s) {requirement_options!r} can only be applied to a "
                 "requirement",
-                solution=None,
             )
 
         return global_options, requirement_options, " ".join(requirement)
@@ -1106,10 +1100,7 @@ class PipRequirement:
             pkg_resources.extern.packaging.requirements.InvalidRequirement,
         ) as exc:
             # see https://github.com/pypa/setuptools/pull/2137
-            raise PackageRejected(
-                f"Unable to parse the requirement {to_be_parsed!r}: {exc}",
-                solution=None,
-            )
+            raise UnexpectedFormat(f"Unable to parse the requirement {to_be_parsed!r}: {exc}")
 
         if not parsed:
             return None
@@ -1153,9 +1144,8 @@ class PipRequirement:
         # e.g. name @ https://...
         scheme_parts = line.split(":", 1)[0].split("@")
         if len(scheme_parts) > 2:
-            raise PackageRejected(
-                f"Unable to extract scheme from direct access requirement {line!r}",
-                solution=None,
+            raise UnexpectedFormat(
+                f"Unable to extract scheme from direct access requirement {line!r}"
             )
         scheme = scheme_parts[-1].lower().strip()
 
