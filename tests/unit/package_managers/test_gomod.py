@@ -2,7 +2,6 @@
 import os
 import re
 import subprocess
-import tarfile
 import textwrap
 from contextlib import nullcontext
 from pathlib import Path
@@ -735,15 +734,9 @@ def test_go_list_cmd_failure(
         ("/v2", "4a481f0bae82adef3ea6eae3d167af6e74499cb2", "v2.6.0", "submodule"),
     ),
 )
-def test_get_golang_version(tmpdir, module_suffix, ref, expected, subpath):
-    # Extract the Git repository of a Go module to verify the correct versions are computed
-    repo_archive_path = os.path.join(os.path.dirname(__file__), "golang_git_repo.tar.gz")
-    with tarfile.open(repo_archive_path, "r:*") as archive:
-        archive.extractall(tmpdir)
-    repo_path = os.path.join(tmpdir, "golang_git_repo")
-
+def test_get_golang_version(golang_repo_path: Path, module_suffix, ref, expected, subpath):
     module_name = f"github.com/mprahl/test-golang-pseudo-versions{module_suffix}"
-    version = _get_golang_version(module_name, repo_path, ref, subpath=subpath)
+    version = _get_golang_version(module_name, golang_repo_path, ref, subpath=subpath)
     assert version == expected
 
 
