@@ -3216,40 +3216,43 @@ def test_get_external_requirement_filename(component_kind, url):
 
 
 @pytest.mark.parametrize(
-    "sdist_path",
+    "sdist_filename",
     [
-        THIS_MODULE_DIR / "data" / "myapp-0.1.tar",
-        THIS_MODULE_DIR / "data" / "myapp-0.1.tar.bz2",
-        THIS_MODULE_DIR / "data" / "myapp-0.1.tar.gz",
-        THIS_MODULE_DIR / "data" / "myapp-0.1.tar.xz",
-        THIS_MODULE_DIR / "data" / "myapp-0.1.zip",
+        "myapp-0.1.tar",
+        "myapp-0.1.tar.bz2",
+        "myapp-0.1.tar.gz",
+        "myapp-0.1.tar.xz",
+        "myapp-0.1.zip",
     ],
 )
-def test_check_metadata_from_sdist(sdist_path):
+def test_check_metadata_from_sdist(sdist_filename: str, data_dir: Path):
+    sdist_path = data_dir / sdist_filename
     pip._check_metadata_in_sdist(sdist_path)
 
 
 @pytest.mark.parametrize(
-    "sdist_path",
+    "sdist_filename",
     [
-        THIS_MODULE_DIR / "data" / "myapp-0.1.tar.Z",
-        THIS_MODULE_DIR / "data" / "myapp-without-pkg-info.tar.Z",
+        "myapp-0.1.tar.Z",
+        "myapp-without-pkg-info.tar.Z",
     ],
 )
-def test_skip_check_on_tar_z(sdist_path: Path, caplog):
+def test_skip_check_on_tar_z(sdist_filename: str, data_dir: Path, caplog):
+    sdist_path = data_dir / sdist_filename
     pip._check_metadata_in_sdist(sdist_path)
     assert f"Skip checking metadata from compressed sdist {sdist_path.name}" in caplog.text
 
 
 @pytest.mark.parametrize(
-    "sdist_path,expected_error",
+    "sdist_filename,expected_error",
     [
-        [THIS_MODULE_DIR / "data" / "myapp-0.1.tar.fake.zip", "a Zip file. Error:"],
-        [THIS_MODULE_DIR / "data" / "myapp-0.1.zip.fake.tar", "a Tar file. Error:"],
-        [THIS_MODULE_DIR / "data" / "myapp-without-pkg-info.tar.gz", "not include metadata"],
-        [THIS_MODULE_DIR / "data" / "myapp-0.2.tar.ZZZ", "Cannot check metadata from"],
+        ["myapp-0.1.tar.fake.zip", "a Zip file. Error:"],
+        ["myapp-0.1.zip.fake.tar", "a Tar file. Error:"],
+        ["myapp-without-pkg-info.tar.gz", "not include metadata"],
+        ["myapp-0.2.tar.ZZZ", "Cannot check metadata from"],
     ],
 )
-def test_metadata_check_fails_from_sdist(sdist_path: Path, expected_error: str):
+def test_metadata_check_fails_from_sdist(sdist_filename: str, expected_error: str, data_dir: Path):
+    sdist_path = data_dir / sdist_filename
     with pytest.raises(ValidationError, match=expected_error):
         pip._check_metadata_in_sdist(sdist_path)
