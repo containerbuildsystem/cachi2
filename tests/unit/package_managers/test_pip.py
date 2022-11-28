@@ -11,7 +11,7 @@ import bs4
 import pytest
 import requests
 
-from cachi2.core.errors import FetchError, PackageRejected, UnsupportedFeature
+from cachi2.core.errors import FetchError, PackageRejected, UnexpectedFormat, UnsupportedFeature
 from cachi2.core.package_managers import general, pip
 from tests.unit.package_managers.helper_utils import write_file_tree
 
@@ -1822,7 +1822,7 @@ class TestPipRequirementsFile:
         pip_requirements = pip.PipRequirementsFile(requirements_file.strpath)
 
         expected_err_type = (
-            type(expected_error) if isinstance(expected_error, Exception) else PackageRejected
+            type(expected_error) if isinstance(expected_error, Exception) else UnexpectedFormat
         )
 
         with pytest.raises(expected_err_type, match=str(expected_error)):

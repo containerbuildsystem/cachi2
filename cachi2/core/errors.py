@@ -43,6 +43,26 @@ class PackageRejected(Cachi2Error):
         return _friendly_error_msg(str(self), self.solution, self.docs)
 
 
+class UnexpectedFormat(PackageRejected):
+    """Cachi2 failed to parse a file in the user's package (e.g. requirements.txt)."""
+
+    default_solution = (
+        "Please check if the format of your file is correct.\n"
+        "If yes, please let the maintainers know that Cachi2 doesn't handle it properly."
+    )
+
+    def __init__(
+        self, reason: str, *, solution: Optional[str] = default_solution, docs: Optional[str] = None
+    ) -> None:
+        """Initialize an Unexpected Format error.
+
+        :param reason: explain why the file seems to be invalid
+        :param solution: politely suggest a potential solution to the user
+        :param docs: include a link to relevant documentation (if there is any)
+        """
+        super().__init__(reason, solution=solution, docs=docs)
+
+
 class UnsupportedFeature(Cachi2Error):
     """Cachi2 doesn't support a feature the user requested.
 

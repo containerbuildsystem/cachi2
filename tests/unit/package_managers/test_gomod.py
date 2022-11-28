@@ -13,7 +13,7 @@ from unittest import mock
 import git
 import pytest
 
-from cachi2.core.errors import GoModError, PackageRejected, UnsupportedFeature
+from cachi2.core.errors import GoModError, PackageRejected, UnexpectedFormat, UnsupportedFeature
 from cachi2.core.models.input import Request
 from cachi2.core.models.output import RequestOutput
 from cachi2.core.package_managers import gomod
@@ -1357,7 +1357,7 @@ def test_module_lines_from_modules_txt_invalid_format(file_content, expect_error
     vendor.mkdir()
     vendor.joinpath("modules.txt").write_text(file_content)
 
-    with pytest.raises(PackageRejected, match=expect_error_msg):
+    with pytest.raises(UnexpectedFormat, match=expect_error_msg):
         _module_lines_from_modules_txt(tmp_path)
 
 

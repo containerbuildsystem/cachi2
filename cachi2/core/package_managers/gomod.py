@@ -15,7 +15,13 @@ import git
 import semver
 
 from cachi2.core.config import get_worker_config
-from cachi2.core.errors import FetchError, GoModError, PackageRejected, UnsupportedFeature
+from cachi2.core.errors import (
+    FetchError,
+    GoModError,
+    PackageRejected,
+    UnexpectedFormat,
+    UnsupportedFeature,
+)
 from cachi2.core.models.input import Request
 from cachi2.core.models.output import RequestOutput
 from cachi2.core.utils import load_json_stream, run_cmd
@@ -914,7 +920,7 @@ def _module_lines_from_modules_txt(app_dir: Path) -> List[str]:
 
         if not line.startswith("#"):  # this is a package line
             if not module_lines:
-                raise PackageRejected(
+                raise UnexpectedFormat(
                     f"vendor/modules.txt: package has no parent module: {line}",
                     solution=unexpected_format_solution,
                 )
@@ -923,7 +929,7 @@ def _module_lines_from_modules_txt(app_dir: Path) -> List[str]:
             module_lines.append(line[2:])
         elif not line.startswith("##"):
             # at this point, the line must be a marker, otherwise we don't know what it is
-            raise PackageRejected(
+            raise UnexpectedFormat(
                 f"vendor/modules.txt: unexpected format: {line!r}",
                 solution=unexpected_format_solution,
             )
