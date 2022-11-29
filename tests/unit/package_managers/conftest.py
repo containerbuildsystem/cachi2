@@ -198,3 +198,13 @@ def fake_repo():
         r.index.add(["main.py"])
         r.index.commit("add main source")
         yield repo_dir, repo_dir.lstrip("/")
+
+
+@pytest.fixture()
+def env_variables():
+    return [
+        {"name": "GOCACHE", "value": "deps/gomod", "kind": "path"},
+        {"name": "GOMODCACHE", "value": "deps/gomod/pkg/mod", "kind": "path"},
+        {"name": "GOPATH", "value": "deps/gomod", "kind": "path"},
+        {"name": "GOSUMDB", "value": "off", "kind": "literal"},
+    ]
