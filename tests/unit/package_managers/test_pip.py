@@ -29,8 +29,6 @@ def setup_module():
     """Re-enable logging that was disabled at some point in previous tests."""
     pip.log.disabled = False
     pip.log.setLevel(logging.DEBUG)
-    general.log.disabled = False
-    general.log.setLevel(logging.DEBUG)
 
 
 @pytest.mark.parametrize("py_exists", [True, False])

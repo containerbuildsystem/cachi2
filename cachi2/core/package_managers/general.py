@@ -1,6 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 import collections
-import logging
 import os
 import urllib
 
@@ -14,8 +13,6 @@ __all__ = [
     "verify_checksum",
     "ChecksumInfo",
 ]
-
-log = logging.getLogger(__name__)
 
 ChecksumInfo = collections.namedtuple("ChecksumInfo", "algorithm hexdigest")
 
