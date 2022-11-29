@@ -428,7 +428,7 @@ class SetupCFG(SetupFile):
 
 
 @dataclass(frozen=True)
-class ASTpathelem:
+class ASTPathElement:
     """An element of AST path."""
 
     node: ast.AST
@@ -470,7 +470,7 @@ class SetupBranch:
     """Setup call node, path to setup call from root node."""
 
     call_node: ast.AST
-    node_path: list  # of ASTpathelems
+    node_path: list  # of ASTPathElements
 
 
 class SetupPY(SetupFile):
@@ -629,14 +629,14 @@ class SetupPY(SetupFile):
             if isinstance(field, ast.AST):
                 setup_call, setup_path = self._find_setup_call(field)
                 if setup_call is not None:
-                    setup_path.append(ASTpathelem(root_node, name))
+                    setup_path.append(ASTPathElement(root_node, name))
                     return setup_call, setup_path
             # Field is a list of nodes (use any(), nodes will never be mixed with non-nodes)
             elif isinstance(field, list) and any(isinstance(x, ast.AST) for x in field):
                 for i, node in enumerate(field):
                     setup_call, setup_path = self._find_setup_call(node)
                     if setup_call is not None:
-                        setup_path.append(ASTpathelem(root_node, name, i))
+                        setup_path.append(ASTPathElement(root_node, name, i))
                         return setup_call, setup_path
 
         return None, []  # No setup call under root_node
@@ -712,7 +712,7 @@ class SetupPY(SetupFile):
 
         log.debug("Backtracking up the AST from line %s to find variable %r", lineno, var_name)
 
-        for elem in filter(ASTpathelem.field_is_body, reversed(node_path)):
+        for elem in filter(ASTPathElement.field_is_body, reversed(node_path)):
             try:
                 value = _get_top_level_attr(elem.field, var_name, lineno)
                 log.debug("Found variable %r: %r", var_name, value)
