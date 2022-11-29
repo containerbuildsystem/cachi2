@@ -78,13 +78,13 @@ def test_get_pip_metadata(
     expect_version = py_version or cfg_version
 
     if expect_name and expect_version:
-        name, version = pip.get_pip_metadata(PKG_DIR)
+        name, version = pip._get_pip_metadata(PKG_DIR)
 
         assert name == expect_name
         assert version == expect_version
     else:
         with pytest.raises(InvalidRequestData) as exc_info:
-            pip.get_pip_metadata(PKG_DIR)
+            pip._get_pip_metadata(PKG_DIR)
 
         if expect_name:
             missing = "version"
@@ -2680,7 +2680,7 @@ class TestDownload:
         options = all_rejected + ["-c", "constraints.txt", "--use-feature", "some_feature", "--foo"]
         req_file = self.mock_requirements_file(options=options)
         with pytest.raises(ValidationError) as exc_info:
-            pip.download_dependencies(Path(), req_file)
+            pip._download_dependencies(Path(), req_file)
 
         err_msg = (
             "Cachito does not support the following options: -i, --index-url, --extra-index-url, "
@@ -2705,7 +2705,7 @@ class TestDownload:
         req = self.mock_requirement("foo", "pypi", version_specs=version_specs)
         req_file = self.mock_requirements_file(requirements=[req])
         with pytest.raises(ValidationError) as exc_info:
-            pip.download_dependencies(Path(), req_file)
+            pip._download_dependencies(Path(), req_file)
         msg = f"Requirement must be pinned to an exact version: {req.download_line}"
         assert str(exc_info.value) == msg
 
@@ -2728,7 +2728,7 @@ class TestDownload:
         req_file = self.mock_requirements_file(requirements=[req])
 
         with pytest.raises(ValidationError) as exc_info:
-            pip.download_dependencies(Path(), req_file)
+            pip._download_dependencies(Path(), req_file)
 
         msg = f"No git ref in {req.download_line} (expected 40 hexadecimal characters)"
         assert str(exc_info.value) == msg
@@ -2741,7 +2741,7 @@ class TestDownload:
         req_file = self.mock_requirements_file(requirements=[req])
 
         with pytest.raises(ValidationError) as exc_info:
-            pip.download_dependencies(Path(), req_file)
+            pip._download_dependencies(Path(), req_file)
 
         msg = f"Unsupported VCS for {req.download_line}: {scheme}"
         assert str(exc_info.value) == msg
@@ -2768,7 +2768,7 @@ class TestDownload:
         req_file = self.mock_requirements_file(requirements=[req])
 
         with pytest.raises(ValidationError) as exc_info:
-            pip.download_dependencies(Path(), req_file)
+            pip._download_dependencies(Path(), req_file)
 
         assert str(exc_info.value) == (
             f"URL requirement must specify exactly one hash, but specifies {total}: foo @ {url}. "
@@ -2792,7 +2792,7 @@ class TestDownload:
         req_file = self.mock_requirements_file(requirements=[req])
 
         with pytest.raises(ValidationError) as exc_info:
-            pip.download_dependencies(Path(), req_file)
+            pip._download_dependencies(Path(), req_file)
 
         assert str(exc_info.value) == (
             f"URL for requirement does not contain any recognized file extension: "
@@ -2821,7 +2821,7 @@ class TestDownload:
         req_file = self.mock_requirements_file(requirements=[req_1, req_2], options=options)
 
         with pytest.raises(ValidationError) as exc_info:
-            pip.download_dependencies(Path(), req_file)
+            pip._download_dependencies(Path(), req_file)
 
         if global_require_hash:
             assert "Global --require-hashes option used, will require hashes" in caplog.text
@@ -2851,7 +2851,7 @@ class TestDownload:
         req_file = self.mock_requirements_file(requirements=[req])
 
         with pytest.raises(ValidationError) as exc_info:
-            pip.download_dependencies(Path(), req_file)
+            pip._download_dependencies(Path(), req_file)
 
         msg = "Not a valid hash specifier: 'malformed' (expected algorithm:digest)"
         assert str(exc_info.value) == msg
@@ -2862,7 +2862,7 @@ class TestDownload:
     @mock.patch("cachi2.core.package_managers.pip._download_vcs_package")
     @mock.patch("cachi2.core.package_managers.pip._download_url_package")
     @mock.patch("cachi2.core.package_managers.pip.verify_checksum")
-    @mock.patch("cachi2.core.package_managers.pip.check_metadata_in_sdist")
+    @mock.patch("cachi2.core.package_managers.pip._check_metadata_in_sdist")
     def test_download_dependencies(
         self,
         check_metadata_in_sdist,
@@ -2943,7 +2943,7 @@ class TestDownload:
         # </setup>
 
         # <call>
-        downloads = pip.download_dependencies(tmp_path, req_file)
+        downloads = pip._download_dependencies(tmp_path, req_file)
         assert downloads == [
             {**pypi_info, "kind": "pypi"},
             {**vcs_info, "kind": "vcs"},
@@ -3060,7 +3060,7 @@ class TestDownload:
         assert "Verifying checksum of bar.tar.gz" in caplog.text
 
     @mock.patch("cachi2.core.package_managers.pip._download_pypi_package")
-    @mock.patch("cachi2.core.package_managers.pip.check_metadata_in_sdist")
+    @mock.patch("cachi2.core.package_managers.pip._check_metadata_in_sdist")
     def test_download_from_requirement_files(
         self,
         check_metadata_in_sdist,
@@ -3106,7 +3106,7 @@ def test_default_requirement_file_list(tmp_path, exists, devel):
     assert req_files == expected
 
 
-@mock.patch("cachi2.core.package_managers.pip.get_pip_metadata")
+@mock.patch("cachi2.core.package_managers.pip._get_pip_metadata")
 def test_resolve_pip_no_deps(mock_metadata, tmp_path):
     mock_metadata.return_value = ("foo", "1.0")
     pkg_info = pip.resolve_pip(tmp_path, tmp_path / "output")
@@ -3118,7 +3118,7 @@ def test_resolve_pip_no_deps(mock_metadata, tmp_path):
     assert pkg_info == expected
 
 
-@mock.patch("cachi2.core.package_managers.pip.get_pip_metadata")
+@mock.patch("cachi2.core.package_managers.pip._get_pip_metadata")
 def test_resolve_pip_incompatible(mock_metadata, tmp_path):
     expected_error = "Could not resolve package metadata: name"
     mock_metadata.side_effect = InvalidRequestData(expected_error)
@@ -3126,7 +3126,7 @@ def test_resolve_pip_incompatible(mock_metadata, tmp_path):
         pip.resolve_pip(tmp_path, tmp_path / "output")
 
 
-@mock.patch("cachi2.core.package_managers.pip.get_pip_metadata")
+@mock.patch("cachi2.core.package_managers.pip._get_pip_metadata")
 def test_resolve_pip_invalid_req_file_path(mock_metadata, tmp_path):
     mock_metadata.return_value = ("foo", "1.0")
     invalid_path = "/foo/bar.txt"
@@ -3136,7 +3136,7 @@ def test_resolve_pip_invalid_req_file_path(mock_metadata, tmp_path):
         pip.resolve_pip(tmp_path, tmp_path / "output", requirement_files, None)
 
 
-@mock.patch("cachi2.core.package_managers.pip.get_pip_metadata")
+@mock.patch("cachi2.core.package_managers.pip._get_pip_metadata")
 def test_resolve_pip_invalid_bld_req_file_path(mock_metadata, tmp_path):
     mock_metadata.return_value = ("foo", "1.0")
     invalid_path = "/foo/bar.txt"
@@ -3147,8 +3147,8 @@ def test_resolve_pip_invalid_bld_req_file_path(mock_metadata, tmp_path):
 
 
 @pytest.mark.parametrize("custom_requirements", [True, False])
-@mock.patch("cachi2.core.package_managers.pip.get_pip_metadata")
-@mock.patch("cachi2.core.package_managers.pip.download_dependencies")
+@mock.patch("cachi2.core.package_managers.pip._get_pip_metadata")
+@mock.patch("cachi2.core.package_managers.pip._download_dependencies")
 def test_resolve_pip(mock_download, mock_metadata, tmp_path, custom_requirements):
     relative_req_file_path = "req.txt"
     relative_build_req_file_path = "breq.txt"
@@ -3204,7 +3204,7 @@ def test_get_external_requirement_filename(component_kind, url):
     requirement = mock.Mock(
         kind=component_kind, url=url, package="package", hashes=["sha256:noRealHash"]
     )
-    raw_component = pip.get_external_requirement_filename(requirement)
+    raw_component = pip._get_external_requirement_filename(requirement)
     if component_kind == "url":
         assert raw_component == "package-external-sha256-noRealHash.tar.gz"
     elif component_kind == "vcs":
@@ -3224,7 +3224,7 @@ def test_get_external_requirement_filename(component_kind, url):
     ],
 )
 def test_check_metadata_from_sdist(sdist_path):
-    pip.check_metadata_in_sdist(sdist_path)
+    pip._check_metadata_in_sdist(sdist_path)
 
 
 @pytest.mark.parametrize(
@@ -3235,7 +3235,7 @@ def test_check_metadata_from_sdist(sdist_path):
     ],
 )
 def test_skip_check_on_tar_z(sdist_path: Path, caplog):
-    pip.check_metadata_in_sdist(sdist_path)
+    pip._check_metadata_in_sdist(sdist_path)
     assert f"Skip checking metadata from compressed sdist {sdist_path.name}" in caplog.text
 
 
@@ -3250,4 +3250,4 @@ def test_skip_check_on_tar_z(sdist_path: Path, caplog):
 )
 def test_metadata_check_fails_from_sdist(sdist_path: Path, expected_error: str):
     with pytest.raises(ValidationError, match=expected_error):
-        pip.check_metadata_in_sdist(sdist_path)
+        pip._check_metadata_in_sdist(sdist_path)
