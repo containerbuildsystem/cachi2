@@ -1913,7 +1913,9 @@ class TestPipRequirementsFile:
         pip.PipRequirementsFile.from_requirements_and_options(
             new_requirements, pip_requirements.options
         ).write(new_file_path.strpath)
-        assert open(new_file_path.strpath).read() == expected_new_file
+
+        with open(new_file_path.strpath) as f:
+            assert f.read() == expected_new_file
 
         # Parse the newly generated requirements file to ensure it's parsed correctly.
         new_pip_requirements = pip.PipRequirementsFile(new_file_path.strpath)
@@ -1954,7 +1956,8 @@ class TestPipRequirementsFile:
         assert not original_file_path.exists()
         pip_requirements.write()
         assert original_file_path.exists()
-        assert open(original_file_path.strpath).read() == content
+        with open(original_file_path.strpath) as f:
+            assert f.read() == content
 
         # Verify file can be written to an alternative location
         original_file_path.remove()
@@ -1962,7 +1965,8 @@ class TestPipRequirementsFile:
         pip_requirements.write(new_file_path.strpath)
         assert not original_file_path.exists()
         assert new_file_path.exists()
-        assert open(new_file_path.strpath).read() == content
+        with open(new_file_path.strpath) as f:
+            assert f.read() == content
 
     def test_write_requirements_file_unspecified_path(self):
         """Test PipRequirementsFile.write method validation error."""
