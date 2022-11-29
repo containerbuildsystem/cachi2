@@ -52,7 +52,7 @@ SDIST_EXT_PATTERN = r"|".join(map(re.escape, SDIST_FILE_EXTENSIONS))
 PYPI_URL = "https://pypi.org"
 
 
-def get_pip_metadata(package_dir):
+def _get_pip_metadata(package_dir):
     """
     Attempt to get the name and version of a Pip package.
 
@@ -107,7 +107,7 @@ def get_pip_metadata(package_dir):
     return name, version
 
 
-def any_to_version(obj):
+def _any_to_version(obj):
     """
     Convert any python object to a version string.
 
@@ -127,7 +127,7 @@ def any_to_version(obj):
     return pkg_resources.safe_version(version)
 
 
-def get_top_level_attr(body, attr_name, before_line=None):
+def _get_top_level_attr(body, attr_name, before_line=None):
     """
     Get attribute from module if it is defined at top level and assigned to a literal expression.
 
@@ -245,7 +245,7 @@ class SetupCFG(SetupFile):
             log.info("Failed to resolve metadata.version in setup.cfg")
             return None
 
-        version = any_to_version(version)
+        version = _any_to_version(version)
         log.info("Found metadata.version in setup.cfg: %r", version)
         return version
 
@@ -343,7 +343,7 @@ class SetupCFG(SetupFile):
             return None
 
         try:
-            version = get_top_level_attr(module_ast.body, attr_name)
+            version = _get_top_level_attr(module_ast.body, attr_name)
             log.debug("Found attribute %r in %r: %r", attr_name, module_name, version)
             return version
         except (AttributeError, ValueError) as e:
@@ -564,7 +564,7 @@ class SetupPY(SetupFile):
             )
             return None
 
-        version = any_to_version(version)
+        version = _any_to_version(version)
         log.info("Found version in setup.py: %r", version)
         return version
 
@@ -714,7 +714,7 @@ class SetupPY(SetupFile):
 
         for elem in filter(ASTpathelem.field_is_body, reversed(node_path)):
             try:
-                value = get_top_level_attr(elem.field, var_name, lineno)
+                value = _get_top_level_attr(elem.field, var_name, lineno)
                 log.debug("Found variable %r: %r", var_name, value)
                 return value
             except ValueError as e:
@@ -1208,7 +1208,7 @@ class PipRequirement:
         return hashes, reduced_options
 
 
-def download_dependencies(output_dir: Path, requirements_file):
+def _download_dependencies(output_dir: Path, requirements_file):
     """
     Download sdists (source distributions) of all dependencies in a requirements.txt file.
 
@@ -1247,7 +1247,7 @@ def download_dependencies(output_dir: Path, requirements_file):
 
         if req.kind == "pypi":
             download_info = _download_pypi_package(req, pip_deps_dir, PYPI_URL)
-            check_metadata_in_sdist(download_info["path"])
+            _check_metadata_in_sdist(download_info["path"])
         elif req.kind == "vcs":
             download_info = _download_vcs_package(req, pip_deps_dir)
         elif req.kind == "url":
@@ -1580,7 +1580,7 @@ def _download_vcs_package(requirement, pip_deps_dir):
     package_dir = pip_deps_dir.joinpath(git_info["host"], *namespace_parts, repo_name)
     package_dir.mkdir(parents=True, exist_ok=True)
 
-    filename = get_external_requirement_filename(requirement)
+    filename = _get_external_requirement_filename(requirement)
     download_path = package_dir / filename
 
     clone_as_tarball(git_info["url"], ref, to_path=download_path)
@@ -1609,7 +1609,7 @@ def _download_url_package(requirement, pip_deps_dir, trusted_hosts):
 
     url = urllib.parse.urlparse(requirement.url)
 
-    filename = get_external_requirement_filename(requirement)
+    filename = _get_external_requirement_filename(requirement)
 
     package_dir = pip_deps_dir / f"external-{package}"
     package_dir.mkdir(exist_ok=True)
@@ -1693,7 +1693,7 @@ def _download_from_requirement_files(output_dir: Path, files):
     for req_file in files:
         if not os.path.exists(req_file):
             raise FileAccessError(f"Following requirement file has an invalid path: {req_file}")
-        requirements.extend(download_dependencies(output_dir, PipRequirementsFile(req_file)))
+        requirements.extend(_download_dependencies(output_dir, PipRequirementsFile(req_file)))
     return requirements
 
 
@@ -1733,7 +1733,7 @@ def resolve_pip(
     """
     log.debug("Checking if the application source uses pip")
     try:
-        pkg_name, pkg_version = get_pip_metadata(app_path)
+        pkg_name, pkg_version = _get_pip_metadata(app_path)
     except InvalidRequestData:
         log.exception("The requested package is not pip compatible")
         raise
@@ -1797,7 +1797,7 @@ def _get_absolute_pkg_file_paths(path, relative_paths):
     return [str(path / r) for r in relative_paths]
 
 
-def get_external_requirement_filename(requirement):
+def _get_external_requirement_filename(requirement):
     """
     Get the filename for a URL or VCS requirement.
 
@@ -1834,7 +1834,7 @@ def _iter_tar_file(file_path: Path):
             yield member.name
 
 
-def is_pkg_info_dir(path: str) -> bool:
+def _is_pkg_info_dir(path: str) -> bool:
     """Simply check whether a path represents the PKG_INFO directory.
 
     Generally, it is in the format for example: pkg-1.0/PKG_INFO
@@ -1847,7 +1847,7 @@ def is_pkg_info_dir(path: str) -> bool:
     return len(parts) == 2 and parts[1] == "PKG-INFO"
 
 
-def check_metadata_in_sdist(sdist_path: Path):
+def _check_metadata_in_sdist(sdist_path: Path):
     """Check if a downloaded sdist package has metadata.
 
     :param sdist_path: the path of a sdist package file.
@@ -1868,7 +1868,7 @@ def check_metadata_in_sdist(sdist_path: Path):
         )
 
     try:
-        if not any(map(is_pkg_info_dir, files_iter)):
+        if not any(map(_is_pkg_info_dir, files_iter)):
             raise ValidationError(
                 f"{sdist_path.name} does not include metadata (there is no PKG-INFO file). "
                 f"It is not a valid sdist and cannot be downloaded from PyPI. "
