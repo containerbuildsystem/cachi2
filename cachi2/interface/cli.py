@@ -14,7 +14,7 @@ from cachi2.core.errors import Cachi2Error
 from cachi2.core.extras.envfile import EnvFormat, generate_envfile
 from cachi2.core.models.input import Request, parse_user_input
 from cachi2.core.models.output import RequestOutput
-from cachi2.core.resolver import resolve_packages
+from cachi2.core.resolver import resolve_packages, supported_package_managers
 from cachi2.interface.logging import LogLevel, setup_logging
 
 app = typer.Typer()
@@ -52,9 +52,12 @@ def handle_errors(cmd: Callable[..., None]) -> Callable[..., None]:
 
 def version_callback(value: bool) -> None:
     """If --version was used, print the cachi2 version and exit."""
-    if value:
-        print("cachi2", importlib.metadata.version("cachi2"))
-        raise typer.Exit()
+    if not value:
+        return
+
+    print("cachi2", importlib.metadata.version("cachi2"))
+    print("Supported package managers:", ", ".join(supported_package_managers))
+    raise typer.Exit()
 
 
 @app.callback()

@@ -14,6 +14,9 @@ _package_managers: dict[PackageManagerType, Handler] = {
 }
 
 
+supported_package_managers = list(_package_managers)
+
+
 def resolve_packages(request: Request) -> RequestOutput:
     """Run all requested package managers, return their combined output."""
     requested_types = set(pkg.type for pkg in request.packages)

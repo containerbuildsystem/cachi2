@@ -72,7 +72,9 @@ class TestTopLevelOpts:
     def test_version_option(self):
         expect_version = importlib.metadata.version("cachi2")
         result = invoke_expecting_sucess(app, ["--version"])
-        assert result.output == f"cachi2 {expect_version}\n"
+        lines = result.output.splitlines()
+        assert lines[0] == f"cachi2 {expect_version}"
+        assert lines[1].startswith("Supported package managers: gomod")
 
 
 class TestLogLevelOpt:
