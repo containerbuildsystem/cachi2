@@ -8,7 +8,6 @@ import requests
 
 from cachi2.core.errors import FetchError, PackageRejected
 from cachi2.core.http_requests import SAFE_REQUEST_METHODS, get_requests_session
-from cachi2.core.utils import UnknownHashAlgorithm, hash_file
 
 __all__ = [
     "verify_checksum",
@@ -32,17 +31,18 @@ def verify_checksum(file_path: str, checksum_info: ChecksumInfo, chunk_size: int
     filename = os.path.basename(file_path)
 
     try:
-        hasher = hash_file(file_path, chunk_size, checksum_info.algorithm)
-    except UnknownHashAlgorithm:
+        hasher = hashlib.new(checksum_info.algorithm)
+    except ValueError:
         known_algorithms = sorted(hashlib.algorithms_guaranteed)
         msg = (
             f"Cannot perform checksum on the file {filename}, "
             f"unknown algorithm: {checksum_info.algorithm}. Known: {', '.join(known_algorithms)}"
         )
-        raise PackageRejected(
-            msg,
-            solution="Please use one of the known hash algorithms.",
-        )
+        raise PackageRejected(msg, solution="Please use one of the known hash algorithms.")
+
+    with open(file_path, "rb") as f:
+        while chunk := f.read(chunk_size):
+            hasher.update(chunk)
 
     computed_hexdigest = hasher.hexdigest()
 
