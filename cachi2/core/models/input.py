@@ -104,19 +104,19 @@ class Request(pydantic.BaseModel):
     dep_replacements: tuple[dict, ...] = ()  # TODO: do we want dep replacements at all?
 
     @pydantic.validator("source_dir", "output_dir")
-    def resolve_path(cls, path: Path) -> Path:
+    def _resolve_path(cls, path: Path) -> Path:
         """Check that path is absolute and fully resolve it."""
         if not path.is_absolute():
             raise ValueError(f"path must be absolute: {path}")
         return path.resolve()
 
     @pydantic.validator("packages")
-    def unique_packages(cls, packages: list[PackageInput]) -> list[PackageInput]:
+    def _unique_packages(cls, packages: list[PackageInput]) -> list[PackageInput]:
         """De-duplicate the packages to be processed."""
         return unique(packages, by=lambda pkg: (pkg.type, pkg.path))
 
     @pydantic.validator("packages", each_item=True)
-    def check_package_paths(cls, package: PackageInput, values: dict) -> PackageInput:
+    def _check_package_paths(cls, package: PackageInput, values: dict) -> PackageInput:
         """Check that package paths are existing subdirectories."""
         source_dir = values.get("source_dir")
         # Don't run validation if source_dir failed to validate
