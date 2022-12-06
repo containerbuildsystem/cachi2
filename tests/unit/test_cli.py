@@ -2,6 +2,7 @@ import importlib.metadata
 import logging
 import os
 import re
+import yaml
 from contextlib import contextmanager
 from pathlib import Path
 from textwrap import dedent
@@ -383,6 +384,55 @@ class TestFetchDeps:
         written_output = RequestOutput.parse_file(output_json)
 
         assert written_output == request_output
+
+    @pytest.mark.parametrize(
+        "args_file, is_valid",
+        [
+            (
+                {"packages": [{"path": ".", "type": "gomod"}]},
+                True,
+            ),
+            (
+                {
+                    "packages": [
+                        {"path": ".", "type": "gomod"},
+                        {"path": ".", "type": "gomod"},
+                    ],
+                    "flags": ["cgo-disable", "gomod-vendor"],
+                },
+                True,
+            ),
+            (
+                {},
+                False,
+            ),
+            (
+                {"packages": {"type": ["gomod", "pip"]}},
+                False,
+            ),
+            (
+                {"completely-random-key": "yet-more-random-content"},
+                False,
+            ),
+        ],
+    )
+    def test_args_file(self, args_file: dict, is_valid: bool, tmp_cwd: Path):
+        with open((tmp_cwd / "cachi2.args"), "w") as file:
+            yaml.safe_dump(args_file, file)
+
+        with mock_fetch_deps(output=RequestOutput.empty()):
+            if is_valid:
+                invoke_expecting_sucess(app, ["fetch-deps"])
+            else:
+                invoke_expecting_invalid_usage(app, ["fetch-deps"])
+
+    def test_merge_inputs():
+        # to be implemented
+        pass
+
+    def test_no_package_input():
+        # to be implemented
+        pass
 
 
 def env_file_as_json(for_output_dir: Path) -> str:

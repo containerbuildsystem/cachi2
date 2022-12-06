@@ -3,12 +3,14 @@ import importlib.metadata
 import json
 import logging
 import sys
+import yaml
 from itertools import chain
 from pathlib import Path
 from typing import Callable, Optional
 
 import typer
 from typer import Argument, Option
+from pydantic import BaseModel
 
 from cachi2.core.errors import Cachi2Error
 from cachi2.core.extras.envfile import EnvFormat, generate_envfile
@@ -22,6 +24,7 @@ log = logging.getLogger(__name__)
 
 DEFAULT_SOURCE = "."
 DEFAULT_OUTPUT = "./cachi2-output"
+ARGS_FILENAME = "cachi2.args"
 
 
 def handle_errors(cmd: Callable[..., None]) -> Callable[..., None]:
@@ -95,11 +98,22 @@ def _looks_like_json(value: str) -> bool:
     return value.lstrip().startswith(("{", "["))
 
 
+class ArgsFile(BaseModel, extra="forbid"):
+    packages: list[dict[str, str]] = []
+    flags: list[str] = []
+
+    @classmethod
+    def from_file(self, file_path: Path):
+        with open(file_path, "r") as file:
+            yaml_data = yaml.safe_load(file)
+            return ArgsFile.parse_obj(yaml_data)
+
+
 @app.command()
 @handle_errors
 def fetch_deps(
     package: list[str] = Option(
-        ...,  # Ellipsis makes this option required
+        None,
         help="Specify package (within the source repo) to process. See usage examples.",
         metavar="PKG",
         callback=lambda args: [_if_json_then_validate(arg) for arg in args],
@@ -200,14 +214,24 @@ def fetch_deps(
             flags.extend(flag.strip() for flag in more_flags.split(","))
         return flags
 
+    def parse_args_file() -> ArgsFile:
+        args_filepath = source / ARGS_FILENAME
+
+        if args_filepath.exists():
+            return parse_user_input(ArgsFile.from_file, args_filepath)
+
+        return ArgsFile()
+
     parsed_packages = tuple(chain.from_iterable(map(parse_packages, package)))
+    args_file = parse_args_file()
+
     request = parse_user_input(
         Request.parse_obj,
         {
             "source_dir": source,
             "output_dir": output,
-            "packages": parsed_packages,
-            "flags": combine_flags(),
+            "packages": parsed_packages + tuple(args_file.packages),
+            "flags": combine_flags() + args_file.flags,
         },
     )
 
