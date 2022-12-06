@@ -17,7 +17,7 @@ class Dependency(pydantic.BaseModel):
     version: Optional[str]  # go-package stdlib dependencies are allowed not to have versions
 
     @pydantic.validator("version")
-    def check_version_vs_type(cls, version: Optional[str], values: dict) -> Optional[str]:
+    def _check_version_vs_type(cls, version: Optional[str], values: dict) -> Optional[str]:
         """Check that the dependency has a version or is 'go-package'."""
         ptype = values.get("type")
         if ptype is not None and (version is None and ptype != "go-package"):
@@ -39,7 +39,7 @@ class Package(pydantic.BaseModel):
         return check_sane_relpath(path)
 
     @pydantic.validator("dependencies")
-    def unique_deps(cls, dependencies: list[Dependency]) -> list[Dependency]:
+    def _unique_deps(cls, dependencies: list[Dependency]) -> list[Dependency]:
         """Sort and de-duplicate dependencies."""
         return unique_sorted(dependencies, by=lambda dep: (dep.type, dep.name, dep.version))
 
@@ -71,7 +71,7 @@ class RequestOutput(pydantic.BaseModel):
     environment_variables: list[EnvironmentVariable]
 
     @pydantic.validator("packages")
-    def unique_packages(cls, packages: list[Package]) -> list[Package]:
+    def _unique_packages(cls, packages: list[Package]) -> list[Package]:
         """Sort packages and check that there are no duplicates."""
         return unique_sorted(
             packages,
@@ -80,7 +80,7 @@ class RequestOutput(pydantic.BaseModel):
         )
 
     @pydantic.validator("environment_variables")
-    def unique_env_vars(cls, env_vars: list[EnvironmentVariable]) -> list[EnvironmentVariable]:
+    def _unique_env_vars(cls, env_vars: list[EnvironmentVariable]) -> list[EnvironmentVariable]:
         """Sort and de-duplicate environment variables by name."""
         return unique_sorted(env_vars, by=lambda env_var: env_var.name)
 
