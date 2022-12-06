@@ -105,6 +105,12 @@ class Request(pydantic.BaseModel):
                 )
         return package
 
+    @pydantic.validator("packages")
+    def non_empty_packages(cls, packages: list[PackageInput]):
+        if len(packages) == 0:
+            raise ValueError("Packages cannot be empty")
+        return packages
+
     # This is kept here temporarily, should be refactored
     go_mod_cache_download_part: ClassVar[Path] = Path("pkg", "mod", "cache", "download")
 
