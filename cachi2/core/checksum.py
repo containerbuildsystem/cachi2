@@ -1,10 +1,15 @@
-import collections
 import hashlib
 import os
+from typing import NamedTuple
 
 from cachi2.core.errors import PackageRejected
 
-ChecksumInfo = collections.namedtuple("ChecksumInfo", "algorithm hexdigest")
+
+class ChecksumInfo(NamedTuple):
+    """A cryptographic algorithm and a hex-encoded checksum calculated by that algorithm."""
+
+    algorithm: str
+    hexdigest: str
 
 
 def verify_checksum(file_path: str, checksum_info: ChecksumInfo, chunk_size: int = 10240):
