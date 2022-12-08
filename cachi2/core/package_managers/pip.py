@@ -17,13 +17,12 @@ import pkg_resources
 import requests
 from packaging.utils import canonicalize_name, canonicalize_version
 
+from cachi2.core.checksum import ChecksumInfo, verify_checksum
 from cachi2.core.errors import FetchError, PackageRejected, UnexpectedFormat, UnsupportedFeature
 from cachi2.core.package_managers.general import (
-    ChecksumInfo,
     download_binary_file,
     extract_git_info,
     pkg_requests_session,
-    verify_checksum,
 )
 from cachi2.core.scm import clone_as_tarball
 

@@ -11,6 +11,7 @@ import bs4
 import pytest
 import requests
 
+from cachi2.core.checksum import ChecksumInfo
 from cachi2.core.errors import FetchError, PackageRejected, UnexpectedFormat, UnsupportedFeature
 from cachi2.core.package_managers import general, pip
 from tests.unit.package_managers.helper_utils import write_file_tree
@@ -2958,16 +2959,14 @@ class TestDownload:
         # </check calls that must always be made>
 
         # <check calls to checksum verification method>
-        verify_url_checksum_call = mock.call(
-            str(url_download), general.ChecksumInfo("sha256", "654321")
-        )
+        verify_url_checksum_call = mock.call(str(url_download), ChecksumInfo("sha256", "654321"))
         if use_hashes:
             msg = "At least one dependency uses the --hash option, will require hashes"
             assert msg in caplog.text
 
             verify_checksum_calls = [
-                mock.call(str(pypi_download), general.ChecksumInfo("sha256", "abcdef")),
-                mock.call(str(vcs_download), general.ChecksumInfo("sha256", "123456")),
+                mock.call(str(pypi_download), ChecksumInfo("sha256", "abcdef")),
+                mock.call(str(vcs_download), ChecksumInfo("sha256", "123456")),
                 verify_url_checksum_call,
             ]
         else:
@@ -3050,7 +3049,7 @@ class TestDownload:
             num_calls = num_fails = len(hashes)
 
         calls = [
-            mock.call(str(path), general.ChecksumInfo(*hash_spec.split(":", 1)))
+            mock.call(str(path), ChecksumInfo(*hash_spec.split(":", 1)))
             for hash_spec in hashes[:num_calls]
         ]
         mock_verify_checksum.assert_has_calls(calls)
