@@ -144,20 +144,3 @@ jobs:
           CACHI2_IMAGE: localhost/cachi2:${{ github.sha }}
         run: |
            tox -e integration
-
-     # Authenticate to container image registry to push the image
-      - name: Podman Login
-        uses: redhat-actions/podman-login@v1
-        if: github.ref == 'refs/heads/main'
-        with:
-          registry: quay.io
-          username: ${{ secrets.QUAY_USER }}
-          password: ${{ secrets.QUAY_PWD }}
-
-      - name: Push image to Quay.io registry
-        if: github.ref == 'refs/heads/main'
-        run: |
-          podman push cachi2:${{ github.sha }} \
-            quay.io/containerbuildsystem/cachi2:${{ github.sha }}
-          podman push cachi2:${{ github.sha }} \
-            quay.io/containerbuildsystem/cachi2:latest
