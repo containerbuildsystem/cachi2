@@ -1,2 +1,4 @@
+GitPython
 pytest
 pytest-cov
+pytest-env
