@@ -2385,7 +2385,7 @@ class TestDownload:
             assert download_info == {
                 "package": "aiowsgi",
                 "version": "0.7",
-                "path": tmp_path / "aiowsgi" / "aiowsgi-0.7.tar.gz",
+                "path": tmp_path / "aiowsgi-0.7.tar.gz",
             }
 
             absolute_file_url = "https://pypi-proxy.org/packages/aiowsgi-0.7.tar.gz"
@@ -2913,7 +2913,7 @@ class TestDownload:
 
         pip_deps = tmp_path / "deps" / "pip"
 
-        pypi_download = pip_deps / "foo" / "foo-1.0.tar.gz"
+        pypi_download = pip_deps / "foo-1.0.tar.gz"
         vcs_download = pip_deps.joinpath(
             "github.com",
             "spam",
@@ -2995,7 +2995,7 @@ class TestDownload:
         # <check basic logging output>
         assert f"Downloading {pypi_req.download_line}" in caplog.text
         assert (
-            f"Successfully downloaded {pypi_req.download_line} to deps/pip/foo/foo-1.0.tar.gz"
+            f"Successfully downloaded {pypi_req.download_line} to deps/pip/foo-1.0.tar.gz"
         ) in caplog.text
 
         assert f"Downloading {vcs_req.download_line}" in caplog.text

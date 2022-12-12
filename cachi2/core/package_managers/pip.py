@@ -1543,9 +1543,7 @@ def _download_pypi_package(requirement, pip_deps_dir, pypi_url, pypi_auth=None):
             ),
         )
 
-    package_dir = pip_deps_dir / sdist["name"]
-    package_dir.mkdir(exist_ok=True)
-    download_path = package_dir / sdist["filename"]
+    download_path = pip_deps_dir / sdist["filename"]
 
     # URLs may be absolute or relative, see https://peps.python.org/pep-0503/
     sdist_url = urllib.parse.urljoin(package_url, sdist["url"])
