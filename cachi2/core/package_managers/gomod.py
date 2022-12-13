@@ -173,9 +173,8 @@ def _resolve_gomod(path: Path, request: Request, git_dir_path=None):
             "GOMODCACHE": "{}/pkg/mod".format(temp_dir),
         }
 
-        if worker_config.cachito_athens_url:
-            athens_url = worker_config.cachito_athens_url
-            env["GOPROXY"] = f"{athens_url}|{athens_url}"
+        if worker_config.cachito_goproxy_url:
+            env["GOPROXY"] = worker_config.cachito_goproxy_url
 
         if "cgo-disable" in request.flags:
             env["CGO_ENABLED"] = "0"
