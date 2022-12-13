@@ -10,7 +10,7 @@ class Config:
     All values currently need to be changed in this file.
     """
 
-    cachito_athens_url = None
+    cachito_goproxy_url = "https://proxy.golang.org,direct"
     cachito_default_environment_variables = {
         "gomod": {"GOSUMDB": {"value": "off", "kind": "literal"}},
     }
