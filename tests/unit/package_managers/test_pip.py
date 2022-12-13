@@ -3,7 +3,7 @@ import logging
 import re
 from pathlib import Path
 from textwrap import dedent
-from typing import Union
+from typing import Any, Union
 from unittest import mock
 from urllib.parse import urlparse
 
@@ -1207,7 +1207,7 @@ class TestSetupPY:
 class TestPipRequirementsFile:
     """PipRequirementsFile tests."""
 
-    PIP_REQUIREMENT_ATTRS = {
+    PIP_REQUIREMENT_ATTRS: dict[str, Any] = {
         "download_line": None,
         "environment_marker": None,
         "extras": [],

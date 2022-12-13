@@ -58,7 +58,8 @@ class TestPackageInput:
         ],
     )
     def test_valid_packages(self, input_data: dict[str, Any], expect_data: dict[str, Any]):
-        package = pydantic.parse_obj_as(PackageInput, input_data)
+        # doesn't pass type check: https://github.com/pydantic/pydantic/issues/1847
+        package = pydantic.parse_obj_as(PackageInput, input_data)  # type: ignore
         assert package.dict() == expect_data
 
     @pytest.mark.parametrize(
@@ -104,7 +105,8 @@ class TestPackageInput:
     )
     def test_invalid_packages(self, input_data: dict[str, Any], expect_error: str):
         with pytest.raises(pydantic.ValidationError, match=expect_error):
-            pydantic.parse_obj_as(PackageInput, input_data)
+            # doesn't pass type check: https://github.com/pydantic/pydantic/issues/1847
+            pydantic.parse_obj_as(PackageInput, input_data)  # type: ignore
 
 
 class TestRequest:
