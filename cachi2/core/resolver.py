@@ -1,5 +1,4 @@
 from collections.abc import Iterable
-from itertools import chain
 from typing import Callable
 
 from cachi2.core.errors import UnsupportedFeature
@@ -33,6 +32,9 @@ def resolve_packages(request: Request) -> RequestOutput:
 
 def _merge_outputs(outputs: Iterable[RequestOutput]) -> RequestOutput:
     """Merge RequestOutput instances."""
-    packages = list(chain.from_iterable(o.packages for o in outputs))
-    env_vars = list(chain.from_iterable(o.environment_variables for o in outputs))
+    packages = []
+    env_vars = []
+    for output in outputs:
+        packages.extend(output.packages)
+        env_vars.extend(output.environment_variables)
     return RequestOutput(packages=packages, environment_variables=env_vars)
