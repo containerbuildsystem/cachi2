@@ -110,6 +110,11 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Install required packages
+        run: |
+          python -m pip install --upgrade pip
+          pip install tox tox-gh-actions
+
       - name: Build Cachi2 image
         uses: redhat-actions/buildah-build@v2
         with:
@@ -133,6 +138,12 @@ jobs:
             --source /tmp/source \
             --output ./cachi2-output \
             --package '{"path": ".", "type": "gomod"}'
+
+      - name: Run integration tests on built image
+        env:
+          CACHI2_IMAGE: localhost/cachi2:${{ github.sha }}
+        run: |
+           tox -e integration
 
      # Authenticate to container image registry to push the image
       - name: Podman Login
