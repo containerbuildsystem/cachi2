@@ -15,6 +15,10 @@ venv:
 	venv/bin/pip install tox
 	venv/bin/pip install -e .
 
+test-integration:
+	podman build -t cachi2-${USER} .
+	CACHI2_IMAGE=localhost/cachi2-${USER}:latest tox -e integration
+
 test:
 	PATH="${PWD}/venv/bin:${PATH}" tox
 
