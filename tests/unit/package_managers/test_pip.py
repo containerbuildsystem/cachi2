@@ -3195,19 +3195,21 @@ def test_get_absolute_pkg_file_paths(tmp_path):
 @pytest.mark.parametrize(
     "component_kind, url",
     (
-        ["vcs", f"git+https://www.github.com/cachito/mypkg.git@{'f'*40}?egg=mypkg"],
+        ["vcs", f"git+https://github.com/cachito/mypkg.git@{'f'*40}?egg=mypkg"],
         ["url", "https://files.cachito.rocks/mypkg.tar.gz"],
     ),
 )
-def test_get_external_requirement_filename(component_kind, url):
+def test_get_external_requirement_filepath(component_kind, url):
     requirement = mock.Mock(
         kind=component_kind, url=url, package="package", hashes=["sha256:noRealHash"]
     )
-    raw_component = pip._get_external_requirement_filename(requirement)
+    filepath = pip._get_external_requirement_filepath(requirement)
     if component_kind == "url":
-        assert raw_component == "package-external-sha256-noRealHash.tar.gz"
+        assert filepath == Path("external-package", "package-external-sha256-noRealHash.tar.gz")
     elif component_kind == "vcs":
-        assert raw_component == f"mypkg-external-gitcommit-{'f'*40}.tar.gz"
+        assert filepath == Path(
+            "github.com", "cachito", "mypkg", f"mypkg-external-gitcommit-{'f'*40}.tar.gz"
+        )
     else:
         assert False
 
