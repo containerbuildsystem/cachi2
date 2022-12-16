@@ -1,0 +1,40 @@
+{
+  "packages": [
+    {
+      "type": "go-package",
+      "path": ".",
+      "name": "github.com/cachito-testing/cachito-gomod-without-deps",
+      "version": "v0.0.0-20200925115855-a888f7261b9a",
+      "dependencies": []
+    },
+    {
+      "type": "gomod",
+      "path": ".",
+      "name": "github.com/cachito-testing/cachito-gomod-without-deps",
+      "version": "v0.0.0-20200925115855-a888f7261b9a",
+      "dependencies": []
+    }
+  ],
+  "environment_variables": [
+    {
+      "name": "GOCACHE",
+      "value": "deps/gomod",
+      "kind": "path"
+    },
+    {
+      "name": "GOMODCACHE",
+      "value": "deps/gomod/pkg/mod",
+      "kind": "path"
+    },
+    {
+      "name": "GOPATH",
+      "value": "deps/gomod",
+      "kind": "path"
+    },
+    {
+      "name": "GOSUMDB",
+      "value": "off",
+      "kind": "literal"
+    }
+  ]
+}
