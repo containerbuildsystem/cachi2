@@ -1640,18 +1640,10 @@ def _download_vcs_package(requirement, pip_deps_dir):
     """
     git_info = extract_git_info(requirement.url)
 
-    namespace_parts = git_info["namespace"].split("/")
-    repo_name = git_info["repo"]
-    ref = git_info["ref"]
+    download_path = pip_deps_dir / _get_external_requirement_filepath(requirement)
+    download_path.parent.mkdir(exist_ok=True, parents=True)
 
-    # Download to e.g. deps/pip/github.com/namespace/repo
-    package_dir = pip_deps_dir.joinpath(git_info["host"], *namespace_parts, repo_name)
-    package_dir.mkdir(parents=True, exist_ok=True)
-
-    filename = _get_external_requirement_filename(requirement)
-    download_path = package_dir / filename
-
-    clone_as_tarball(git_info["url"], ref, to_path=download_path)
+    clone_as_tarball(git_info["url"], git_info["ref"], to_path=download_path)
 
     return {
         "package": requirement.package,
@@ -1670,18 +1662,10 @@ def _download_url_package(requirement, pip_deps_dir, trusted_hosts):
 
     :return: Dict with package name, download path, original URL and URL with hash
     """
-    package = requirement.package
-
-    hashes = requirement.hashes
-    hash_spec = hashes[0] if hashes else requirement.qualifiers["cachito_hash"]
-
     url = urllib.parse.urlparse(requirement.url)
 
-    filename = _get_external_requirement_filename(requirement)
-
-    package_dir = pip_deps_dir / f"external-{package}"
-    package_dir.mkdir(exist_ok=True)
-    download_path = package_dir / filename
+    download_path = pip_deps_dir / _get_external_requirement_filepath(requirement)
+    download_path.parent.mkdir(exist_ok=True, parents=True)
 
     if url.hostname in trusted_hosts:
         log.debug("Disabling SSL verification, %s is a --trusted-host", url.hostname)
@@ -1697,10 +1681,12 @@ def _download_url_package(requirement, pip_deps_dir, trusted_hosts):
     if "cachito_hash" in requirement.qualifiers:
         url_with_hash = requirement.url
     else:
+        hashes = requirement.hashes
+        hash_spec = hashes[0] if hashes else requirement.qualifiers["cachito_hash"]
         url_with_hash = _add_cachito_hash_to_url(url, hash_spec)
 
     return {
-        "package": package,
+        "package": requirement.package,
         "path": download_path,
         "original_url": requirement.url,
         "url_with_hash": url_with_hash,
@@ -1870,13 +1856,8 @@ def _get_absolute_pkg_file_paths(path, relative_paths):
     return [str(path / r) for r in relative_paths]
 
 
-def _get_external_requirement_filename(requirement):
-    """
-    Get the filename for a URL or VCS requirement.
-
-    :param PipRequirement requirement: URL or VCS requirement from a requirements.txt file
-    :rtype: str
-    """
+def _get_external_requirement_filepath(requirement: PipRequirement) -> Path:
+    """Get the relative path under deps/pip/ where a URL or VCS requirement should be placed."""
     if requirement.kind == "url":
         package = requirement.package
         hashes = requirement.hashes
@@ -1884,16 +1865,23 @@ def _get_external_requirement_filename(requirement):
         algorithm, _, digest = hash_spec.partition(":")
         orig_url = urllib.parse.urlparse(requirement.url)
         file_ext = next(ext for ext in SDIST_FILE_EXTENSIONS if orig_url.path.endswith(ext))
-        filename = f"{package}-external-{algorithm}-{digest}{file_ext}"
+        # e.g. external-pyarn/pyarn-external-sha256-deadbeef.tar.gz
+        filepath = Path(f"external-{package}", f"{package}-external-{algorithm}-{digest}{file_ext}")
     elif requirement.kind == "vcs":
         git_info = extract_git_info(requirement.url)
-        repo_name = git_info["repo"]
+        repo = git_info["repo"]
         ref = git_info["ref"]
-        filename = f"{repo_name}-external-gitcommit-{ref}.tar.gz"
+        # e.g. github.com/containerbuildsystem/pyarn/pyarn-external-gitcommit-badbeef.tar.gz
+        filepath = Path(
+            git_info["host"],
+            git_info["namespace"],  # namespaces can contain '/' but pathlib can handle that
+            repo,
+            f"{repo}-external-gitcommit-{ref}.tar.gz",
+        )
     else:
         raise ValueError(f"{requirement.kind=} is neither 'url' nor 'vcs'")
 
-    return filename
+    return filepath
 
 
 def _iter_zip_file(file_path: Path):
