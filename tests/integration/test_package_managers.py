@@ -27,6 +27,18 @@ log = logging.getLogger(__name__)
             ),
             id="gomod_with_deps",
         ),
+        pytest.param(
+            utils.TestParameters(
+                repo="https://github.com/cachito-testing/cachito-gomod-without-deps.git",
+                ref="a888f7261b9a9683972fbd77da2d12fe86faef5e",
+                packages=({"path": ".", "type": "gomod"},),
+                check_output_json=True,
+                check_deps_checksums=True,
+                expected_rc=0,
+                expected_output="All dependencies fetched successfully",
+            ),
+            id="gomod_without_deps",
+        ),
     ],
 )
 def test_packages(
