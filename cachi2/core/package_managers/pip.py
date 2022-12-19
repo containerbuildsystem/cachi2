@@ -20,7 +20,8 @@ from packaging.utils import canonicalize_name, canonicalize_version
 
 from cachi2.core.checksum import ChecksumInfo, verify_checksum
 from cachi2.core.errors import FetchError, PackageRejected, UnexpectedFormat, UnsupportedFeature
-from cachi2.core.models.output import ProjectFile
+from cachi2.core.models.input import Request
+from cachi2.core.models.output import EnvironmentVariable, Package, ProjectFile, RequestOutput
 from cachi2.core.package_managers.general import (
     download_binary_file,
     extract_git_info,
@@ -58,6 +59,38 @@ PIP_PINNING_DOC = (
 PIP_HASHES_DOC = (
     "https://github.com/containerbuildsystem/cachi2/blob/main/docs/pip.md#hash-checking"
 )
+
+
+def fetch_pip_source(request: Request) -> RequestOutput:
+    """Resolve and fetch pip dependencies for the given request."""
+    packages: list[Package] = []
+    project_files: list[ProjectFile] = []
+    environment_variables: list[EnvironmentVariable] = []
+
+    if request.pip_packages:
+        environment_variables = [
+            EnvironmentVariable(name="PIP_FIND_LINKS", value="deps/pip", kind="path"),
+            EnvironmentVariable(name="PIP_NO_INDEX", value="true", kind="literal"),
+        ]
+
+    for package in request.pip_packages:
+        info = _resolve_pip(
+            request.source_dir / package.path,
+            request.output_dir,
+            package.requirements_files,
+            package.requirements_build_files,
+        )
+        packages.append(
+            Package(**info["package"], path=package.path, dependencies=info["dependencies"])
+        )
+        replaced_requirements_files = map(_replace_external_requirements, info["requirements"])
+        project_files.extend(filter(None, replaced_requirements_files))
+
+    return RequestOutput(
+        packages=packages,
+        environment_variables=environment_variables,
+        project_files=project_files,
+    )
 
 
 def _get_pip_metadata(package_dir):
@@ -1774,7 +1807,7 @@ def _default_requirement_file_list(path, devel=False):
     return [str(req)] if req.is_file() else []
 
 
-def resolve_pip(
+def _resolve_pip(
     app_path: Path, output_dir: Path, requirement_files=None, build_requirement_files=None
 ):
     """
