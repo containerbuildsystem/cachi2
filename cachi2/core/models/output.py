@@ -1,3 +1,4 @@
+import string
 from pathlib import Path
 from typing import Literal, Optional
 
@@ -64,11 +65,46 @@ class EnvironmentVariable(pydantic.BaseModel):
         return value
 
 
+class ProjectFile(pydantic.BaseModel):
+    """A file to be written into the user's project directory.
+
+    Typically should be used to inject configuration files (e.g. .npmrc) or to modify lockfiles
+    (e.g. requirements.txt).
+
+    The content of the file is interpreted as a string.Template. The following placeholders will
+    be replaced:
+        * ${output_dir} - the absolute path to the output directory
+    """
+
+    abspath: Path
+    template: str
+
+    def resolve_content(self, output_dir: Path) -> str:
+        """Return the resolved content of this file.
+
+        Uses Template.safe_substitute, so if the template contains invalid placeholders,
+        they will simply stay unresolved rather than causing errors.
+
+        Example:
+            foo @ file://${output_dir}/deps/pip/...
+            bar==1.0.0  # comment with $placeholder
+            baz==1.0.0  # comment with $ invalid placeholder
+
+            =>
+            foo @ file:///cachi2/output/deps/pip/...
+            bar==1.0.0  # comment with $placeholder
+            baz==1.0.0  # comment with $ invalid placeholder
+        """
+        template = string.Template(self.template)
+        return template.safe_substitute(output_dir=output_dir)
+
+
 class RequestOutput(pydantic.BaseModel):
     """Results of processing one or more package managers."""
 
     packages: list[Package]
     environment_variables: list[EnvironmentVariable]
+    project_files: list[ProjectFile]
 
     @pydantic.validator("packages")
     def _unique_packages(cls, packages: list[Package]) -> list[Package]:
@@ -84,7 +120,12 @@ class RequestOutput(pydantic.BaseModel):
         """Sort and de-duplicate environment variables by name."""
         return unique_sorted(env_vars, by=lambda env_var: env_var.name)
 
+    @pydantic.validator("project_files")
+    def _unique_project_files(cls, project_files: list[ProjectFile]) -> list[ProjectFile]:
+        """Sort and de-duplicate project files by path."""
+        return unique_sorted(project_files, by=lambda f: f.abspath)
+
     @classmethod
     def empty(cls):
         """Return an empty RequestOutput."""
-        return cls(packages=[], environment_variables=[])
+        return cls(packages=[], environment_variables=[], project_files=[])

@@ -378,6 +378,7 @@ class TestFetchDeps:
                 environment_variables=[
                     {"name": "GOMOD_SOMETHING", "value": "yes", "kind": "literal"},
                 ],
+                project_files=[],
             ),
         ],
     )
@@ -415,7 +416,9 @@ class TestGenerateEnv:
     @pytest.fixture
     def tmp_cwd_as_output_dir(self, tmp_cwd: Path) -> Path:
         """Change working directory to a tmpdir and write output.json into it."""
-        request_output = RequestOutput(packages=[], environment_variables=self.ENV_VARS)
+        request_output = RequestOutput(
+            packages=[], environment_variables=self.ENV_VARS, project_files=[]
+        )
         tmp_cwd.joinpath("output.json").write_text(request_output.json())
         return tmp_cwd
 

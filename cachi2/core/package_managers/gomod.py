@@ -118,6 +118,7 @@ def fetch_gomod_source(request: Request) -> RequestOutput:
     return RequestOutput(
         packages=packages,
         environment_variables=[{"name": name, **obj} for name, obj in env_vars.items()],
+        project_files=[],
     )
 
 
