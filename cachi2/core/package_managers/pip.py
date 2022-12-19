@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 import ast
 import configparser
+import io
 import logging
 import os.path
 import re
@@ -10,7 +11,7 @@ import zipfile
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
+from typing import IO, Optional, Union
 
 import bs4
 import pkg_resources
@@ -19,6 +20,7 @@ from packaging.utils import canonicalize_name, canonicalize_version
 
 from cachi2.core.checksum import ChecksumInfo, verify_checksum
 from cachi2.core.errors import FetchError, PackageRejected, UnexpectedFormat, UnsupportedFeature
+from cachi2.core.models.output import ProjectFile
 from cachi2.core.package_managers.general import (
     download_binary_file,
     extract_git_info,
@@ -800,23 +802,20 @@ class PipRequirementsFile:
         new_instance.__parsed = {"requirements": list(requirements), "options": list(options)}
         return new_instance
 
-    def write(self, file_path=None):
-        """Write the options and requirements to a file.
+    def write(self, file_obj: IO[str]) -> None:
+        """Write the options and requirements to a file."""
+        if self.options:
+            file_obj.write(" ".join(self.options))
+            file_obj.write("\n")
+        for requirement in self.requirements:
+            file_obj.write(str(requirement))
+            file_obj.write("\n")
 
-        :param str file_path: the file path to write the new file. If not provided, the file
-            path used when initiating the class is used.
-        """
-        file_path = file_path or self.file_path
-        if not file_path:
-            raise RuntimeError("Unspecified 'file_path' for the requirements file")
-
-        with open(file_path, "w") as f:
-            if self.options:
-                f.write(" ".join(self.options))
-                f.write("\n")
-            for requirement in self.requirements:
-                f.write(str(requirement))
-                f.write("\n")
+    def generate_file_content(self) -> str:
+        """Generate the file content from the parsed options and requirements."""
+        fileobj = io.StringIO()
+        self.write(fileobj)
+        return fileobj.getvalue()
 
     @property
     def requirements(self):
@@ -1948,3 +1947,38 @@ def _check_metadata_in_sdist(sdist_path: Path):
         raise PackageRejected(
             f"Cannot open {sdist_path} as a Zip file. Error: {str(e)}", solution=None
         )
+
+
+def _replace_external_requirements(
+    requirements_file_path: Union[str, Path]
+) -> Optional[ProjectFile]:
+    """Generate an updated requirements file.
+
+    Replace the urls of external dependencies with file paths (templated).
+    If no updates are needed, return None.
+    """
+    requirements_file = PipRequirementsFile(requirements_file_path)
+
+    def maybe_replace(requirement: PipRequirement) -> Optional[PipRequirement]:
+        if requirement.kind in ("url", "vcs"):
+            path = _get_external_requirement_filepath(requirement)
+            templated_abspath = Path("${output_dir}", "deps", "pip", path)
+            return requirement.copy(url=f"file://{templated_abspath}")
+        return None
+
+    replaced = [maybe_replace(requirement) for requirement in requirements_file.requirements]
+    if not any(replaced):
+        # No need for a custom requirements file
+        return None
+
+    requirements = [
+        replaced or original for replaced, original in zip(replaced, requirements_file.requirements)
+    ]
+    replaced_requirements_file = PipRequirementsFile.from_requirements_and_options(
+        requirements, requirements_file.options
+    )
+
+    return ProjectFile(
+        abspath=Path(requirements_file_path).resolve(),
+        template=replaced_requirements_file.generate_file_content(),
+    )
