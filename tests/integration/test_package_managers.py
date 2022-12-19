@@ -39,6 +39,17 @@ log = logging.getLogger(__name__)
             ),
             id="gomod_without_deps",
         ),
+        pytest.param(
+            utils.TestParameters(
+                repo="https://github.com/cachito-testing/gomod-vendored.git",
+                ref="ff1960095dd158d3d2a4f31d15b244c24930248b",
+                packages=({"path": ".", "type": "gomod"},),
+                expected_rc=2,
+                expected_output='The "gomod-vendor" or "gomod-vendor-check" flag'
+                " must be set when your repository has vendored dependencies",
+            ),
+            id="gomod_vendored_without_flag",
+        ),
     ],
 )
 def test_packages(
