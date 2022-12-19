@@ -497,3 +497,58 @@ class TestGenerateEnv:
         # Error message should also be logged, but the extra info should not
         assert msg in caplog.text
         assert "  Please use one of the supported suffixes: " not in caplog.text
+
+
+class TestInjectFiles:
+    @pytest.fixture
+    def tmp_cwd_as_output_dir(self, tmp_cwd: Path) -> Path:
+        """Change working directory to a tmpdir and write output.json into it.
+
+        Also create one of the project files in the output to test overwriting vs. creating.
+        """
+        tmp_cwd.joinpath("requirements.txt").touch()
+        project_files = [
+            {
+                "abspath": tmp_cwd / "requirements.txt",
+                "template": "foo @ file://${output_dir}/deps/pip/foo.tar.gz",
+            },
+            {
+                "abspath": tmp_cwd / "some-dir" / "requirements-extra.txt",
+                "template": "bar @ file://${output_dir}/deps/pip/bar.tar.gz",
+            },
+        ]
+        request_output = RequestOutput(
+            packages=[], environment_variables=[], project_files=project_files
+        )
+        tmp_cwd.joinpath("output.json").write_text(request_output.json())
+        return tmp_cwd
+
+    @pytest.mark.parametrize("for_output_dir", [None, "/cachi2/output"])
+    def test_inject_files(
+        self,
+        for_output_dir: Optional[str],
+        tmp_cwd_as_output_dir: Path,
+        caplog: pytest.LogCaptureFixture,
+    ):
+        tmp_path = tmp_cwd_as_output_dir
+
+        if not for_output_dir:
+            invoke_expecting_sucess(app, ["inject-files", str(tmp_path)])
+        else:
+            invoke_expecting_sucess(
+                app, ["inject-files", str(tmp_path), "--for-output-dir", for_output_dir]
+            )
+
+        expect_output_dir = for_output_dir or tmp_path
+
+        assert (
+            tmp_path.joinpath("requirements.txt").read_text()
+            == f"foo @ file://{expect_output_dir}/deps/pip/foo.tar.gz"
+        )
+        assert (
+            tmp_path.joinpath("some-dir/requirements-extra.txt").read_text()
+            == f"bar @ file://{expect_output_dir}/deps/pip/bar.tar.gz"
+        )
+
+        assert f"Overwriting {tmp_path / 'requirements.txt'}" in caplog.text
+        assert f"Creating {tmp_path / 'some-dir' / 'requirements-extra.txt'}" in caplog.text
