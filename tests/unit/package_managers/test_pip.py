@@ -3,7 +3,7 @@ import logging
 import re
 from pathlib import Path
 from textwrap import dedent
-from typing import Any, Union
+from typing import Any, Optional, Union
 from unittest import mock
 from urllib.parse import urlparse
 
@@ -1907,12 +1907,14 @@ class TestPipRequirementsFile:
             new_requirements.append(pip_requirement.copy(url=url, hashes=hashes))
 
         # Verify a new PipRequirementsFile can be loaded in memory and written correctly to disk.
-        pip.PipRequirementsFile.from_requirements_and_options(
+        new_file = pip.PipRequirementsFile.from_requirements_and_options(
             new_requirements, pip_requirements.options
-        ).write(new_file_path.strpath)
+        )
 
-        with open(new_file_path.strpath) as f:
-            assert f.read() == expected_new_file
+        assert new_file.generate_file_content() == expected_new_file
+
+        with open(new_file_path.strpath, "w") as f:
+            new_file.write(f)
 
         # Parse the newly generated requirements file to ensure it's parsed correctly.
         new_pip_requirements = pip.PipRequirementsFile(new_file_path.strpath)
@@ -1948,27 +1950,11 @@ class TestPipRequirementsFile:
         assert pip_requirements.requirements
         assert pip_requirements.options
 
-        # Verify file can be written to self.file_path
-        original_file_path.remove()
-        assert not original_file_path.exists()
-        pip_requirements.write()
-        assert original_file_path.exists()
-        with open(original_file_path.strpath) as f:
-            assert f.read() == content
+        with open(new_file_path.strpath, "w") as f:
+            pip_requirements.write(f)
 
-        # Verify file can be written to an alternative location
-        original_file_path.remove()
-        assert not original_file_path.exists()
-        pip_requirements.write(new_file_path.strpath)
-        assert not original_file_path.exists()
-        assert new_file_path.exists()
         with open(new_file_path.strpath) as f:
             assert f.read() == content
-
-    def test_write_requirements_file_unspecified_path(self):
-        """Test PipRequirementsFile.write method validation error."""
-        with pytest.raises(RuntimeError, match="Unspecified 'file_path' for the requirements file"):
-            pip.PipRequirementsFile(None).write()
 
     @pytest.mark.parametrize(
         "requirement_line, requirement_options, expected_str_line",
@@ -3259,3 +3245,76 @@ def test_metadata_check_fails_from_sdist(sdist_filename: Path, expected_error: s
 def test_metadata_check_invalid_argument():
     with pytest.raises(ValueError, match="Cannot check metadata"):
         pip._check_metadata_in_sdist(Path("myapp-0.2.tar.ZZZ"))
+
+
+@pytest.mark.parametrize(
+    "original_content, expect_replaced",
+    [
+        (
+            dedent(
+                """\
+                foo==1.0.0
+                bar==2.0.0
+                """
+            ),
+            None,
+        ),
+        (
+            dedent(
+                f"""\
+                foo==1.0.0
+                bar @ git+https://github.com/org/bar@{GIT_REF}
+                """
+            ),
+            dedent(
+                f"""\
+                foo==1.0.0
+                bar @ file://${{output_dir}}/deps/pip/github.com/org/bar/bar-external-gitcommit-{GIT_REF}.tar.gz
+                """  # noqa: line-too-long
+            ),
+        ),
+        (
+            dedent(
+                """\
+                foo==1.0.0
+                bar @ https://github.com/org/bar/archive/refs/tags/bar-2.0.0.zip#cachito_hash=sha256:fedcba
+                """  # noqa: line-too-long
+            ),
+            dedent(
+                """\
+                foo==1.0.0
+                bar @ file://${output_dir}/deps/pip/external-bar/bar-external-sha256-fedcba.zip#cachito_hash=sha256:fedcba
+                """  # noqa: line-too-long
+            ),
+        ),
+        (
+            dedent(
+                """\
+                --require-hashes
+                foo==1.0.0 --hash=sha256:abcdef
+                bar @ https://github.com/org/bar/archive/refs/tags/bar-2.0.0.zip --hash=sha256:fedcba
+                """  # noqa: line-too-long
+            ),
+            dedent(
+                """\
+                --require-hashes
+                foo==1.0.0 --hash=sha256:abcdef
+                bar @ file://${output_dir}/deps/pip/external-bar/bar-external-sha256-fedcba.zip --hash=sha256:fedcba
+                """  # noqa: line-too-long
+            ),
+        ),
+    ],
+)
+def test_replace_external_requirements(
+    original_content: str, expect_replaced: Optional[str], tmp_path: Path
+):
+    requirements_path = tmp_path / "requirements.txt"
+    requirements_path.write_text(original_content)
+
+    replaced_file = pip._replace_external_requirements(requirements_path)
+    if expect_replaced is None:
+        assert replaced_file is None
+    else:
+        assert replaced_file is not None
+        assert replaced_file.template == expect_replaced
+        assert replaced_file.abspath == requirements_path
