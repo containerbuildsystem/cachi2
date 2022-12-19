@@ -13,6 +13,8 @@ import requests
 
 from cachi2.core.checksum import ChecksumInfo
 from cachi2.core.errors import FetchError, PackageRejected, UnexpectedFormat, UnsupportedFeature
+from cachi2.core.models.input import Request
+from cachi2.core.models.output import ProjectFile
 from cachi2.core.package_managers import general, pip
 from tests.common_utils import write_file_tree
 
@@ -3094,7 +3096,7 @@ def test_default_requirement_file_list(tmp_path, exists, devel):
 @mock.patch("cachi2.core.package_managers.pip._get_pip_metadata")
 def test_resolve_pip_no_deps(mock_metadata, tmp_path):
     mock_metadata.return_value = ("foo", "1.0")
-    pkg_info = pip.resolve_pip(tmp_path, tmp_path / "output")
+    pkg_info = pip._resolve_pip(tmp_path, tmp_path / "output")
     expected = {
         "package": {"name": "foo", "version": "1.0", "type": "pip"},
         "dependencies": [],
@@ -3108,7 +3110,7 @@ def test_resolve_pip_incompatible(mock_metadata, tmp_path):
     expected_error = "Could not resolve package metadata: name"
     mock_metadata.side_effect = PackageRejected(expected_error, solution=None)
     with pytest.raises(PackageRejected, match=expected_error):
-        pip.resolve_pip(tmp_path, tmp_path / "output")
+        pip._resolve_pip(tmp_path, tmp_path / "output")
 
 
 @mock.patch("cachi2.core.package_managers.pip._get_pip_metadata")
@@ -3118,7 +3120,7 @@ def test_resolve_pip_invalid_req_file_path(mock_metadata, tmp_path):
     expected_error = f"The requirements file does not exist: {invalid_path}"
     requirement_files = [invalid_path]
     with pytest.raises(PackageRejected, match=expected_error):
-        pip.resolve_pip(tmp_path, tmp_path / "output", requirement_files, None)
+        pip._resolve_pip(tmp_path, tmp_path / "output", requirement_files, None)
 
 
 @mock.patch("cachi2.core.package_managers.pip._get_pip_metadata")
@@ -3128,7 +3130,7 @@ def test_resolve_pip_invalid_bld_req_file_path(mock_metadata, tmp_path):
     expected_error = f"The requirements file does not exist: {invalid_path}"
     build_requirement_files = [invalid_path]
     with pytest.raises(PackageRejected, match=expected_error):
-        pip.resolve_pip(tmp_path, tmp_path / "output", None, build_requirement_files)
+        pip._resolve_pip(tmp_path, tmp_path / "output", None, build_requirement_files)
 
 
 @pytest.mark.parametrize("custom_requirements", [True, False])
@@ -3151,14 +3153,14 @@ def test_resolve_pip(mock_download, mock_metadata, tmp_path, custom_requirements
         [{"kind": "pypi", "path": "another/path", "package": "baz", "version": "0.0.5"}],
     ]
     if custom_requirements:
-        pkg_info = pip.resolve_pip(
+        pkg_info = pip._resolve_pip(
             tmp_path,
             tmp_path / "output",
             requirement_files=[relative_req_file_path],
             build_requirement_files=[relative_build_req_file_path],
         )
     else:
-        pkg_info = pip.resolve_pip(tmp_path, tmp_path / "output")
+        pkg_info = pip._resolve_pip(tmp_path, tmp_path / "output")
 
     expected = {
         "package": {"name": "foo", "version": "1.0", "type": "pip"},
@@ -3318,3 +3320,112 @@ def test_replace_external_requirements(
         assert replaced_file is not None
         assert replaced_file.template == expect_replaced
         assert replaced_file.abspath == requirements_path
+
+
+@pytest.mark.parametrize(
+    "packages, n_pip_packages",
+    [
+        ([], 0),
+        ([{"type": "gomod"}], 0),
+        ([{"type": "pip", "requirements_files": ["requirements.txt"]}], 1),
+        (
+            [
+                {"type": "pip", "requirements_files": ["requirements.txt"]},
+                {"type": "pip", "path": "foo", "requirements_build_files": []},
+            ],
+            2,
+        ),
+    ],
+)
+@mock.patch("cachi2.core.package_managers.pip._replace_external_requirements")
+@mock.patch("cachi2.core.package_managers.pip._resolve_pip")
+def test_fetch_pip_source(
+    mock_resolve_pip: mock.Mock,
+    mock_replace_requirements: mock.Mock,
+    packages: list[dict[str, Any]],
+    n_pip_packages: int,
+    tmp_path: Path,
+):
+    source_dir = tmp_path / "source"
+    output_dir = tmp_path / "output"
+    source_dir.mkdir()
+    source_dir.joinpath("foo").mkdir()
+
+    request = Request(source_dir=source_dir, output_dir=output_dir, packages=packages)
+
+    resolved_a = {
+        "package": {"name": "foo", "version": "1.0", "type": "pip"},
+        "dependencies": [
+            {"name": "bar", "version": "https://x.org/bar.zip", "type": "pip", "dev": False},
+            {"name": "baz", "version": "0.0.5", "type": "pip", "dev": True},
+        ],
+        "requirements": ["/package_a/requirements.txt", "/package_a/requirements-build.txt"],
+    }
+    resolved_b = {
+        "package": {"name": "spam", "version": "2.1", "type": "pip"},
+        "dependencies": [
+            {"name": "ham", "version": "3.2", "type": "pip", "dev": False},
+            {"name": "eggs", "version": "https://x.org/eggs.zip", "type": "pip", "dev": False},
+        ],
+        "requirements": ["/package_b/requirements.txt"],
+    }
+
+    replaced_file_a = ProjectFile(
+        abspath="/package_a/requirements.txt",
+        template="bar @ file://${output_dir}/deps/pip/...",
+    )
+    replaced_file_b = ProjectFile(
+        abspath="/package_b/requirements.txt",
+        template="eggs @ file://${output_dir}/deps/pip/...",
+    )
+
+    mock_resolve_pip.side_effect = [resolved_a, resolved_b]
+    mock_replace_requirements.side_effect = [replaced_file_a, None, replaced_file_b]
+
+    output = pip.fetch_pip_source(request)
+
+    expect_package_a = {
+        "name": "foo",
+        "version": "1.0",
+        "type": "pip",
+        "path": Path("."),
+        "dependencies": [
+            # TODO: add 'dev' attribute for non-gomod dependencies
+            {"name": "bar", "version": "https://x.org/bar.zip", "type": "pip"},  # "dev": False},
+            {"name": "baz", "version": "0.0.5", "type": "pip"},  # "dev": True},
+        ],
+    }
+    expect_package_b = {
+        "name": "spam",
+        "version": "2.1",
+        "type": "pip",
+        "path": Path("foo"),
+        "dependencies": [
+            {"name": "eggs", "version": "https://x.org/eggs.zip", "type": "pip"},  # "dev": False},
+            {"name": "ham", "version": "3.2", "type": "pip"},  # "dev": False},
+        ],
+    }
+
+    if n_pip_packages == 0:
+        expect_packages = []
+        expect_files = []
+    elif n_pip_packages == 1:
+        expect_packages = [expect_package_a]
+        expect_files = [replaced_file_a]
+    elif n_pip_packages == 2:
+        expect_packages = [expect_package_a, expect_package_b]
+        expect_files = [replaced_file_a, replaced_file_b]
+    else:
+        assert False
+
+    assert output.packages == expect_packages
+    assert output.project_files == expect_files
+    assert len(output.environment_variables) == (2 if n_pip_packages > 0 else 0)
+
+    if n_pip_packages >= 1:
+        mock_resolve_pip.assert_any_call(source_dir, output_dir, [Path("requirements.txt")], None)
+        mock_replace_requirements.assert_any_call("/package_a/requirements.txt")
+        mock_replace_requirements.assert_any_call("/package_a/requirements-build.txt")
+    if n_pip_packages >= 2:
+        mock_resolve_pip.assert_any_call(source_dir / "foo", output_dir, None, [])
+        mock_replace_requirements.assert_any_call("/package_b/requirements.txt")
