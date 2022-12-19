@@ -10,7 +10,7 @@ from typing import Callable, Optional
 import typer
 from typer import Argument, Option
 
-from cachi2.core.errors import Cachi2Error
+from cachi2.core.errors import Cachi2Error, InvalidInput
 from cachi2.core.extras.envfile import EnvFormat, generate_envfile
 from cachi2.core.models.input import Request, parse_user_input
 from cachi2.core.models.output import RequestOutput
@@ -222,18 +222,22 @@ def fetch_deps(
     log.info(r"All dependencies fetched successfully \o/")
 
 
+FROM_OUTPUT_DIR_ARG = Argument(
+    ...,
+    exists=True,
+    file_okay=False,
+    help="The output directory populated by a previous fetch-deps command.",
+)
+FOR_OUTPUT_DIR_OPTION = Option(
+    None, help="Generate output as if the output directory was at this path instead."
+)
+
+
 @app.command()
 @handle_errors
 def generate_env(
-    from_output_dir: Path = Argument(
-        ...,
-        exists=True,
-        file_okay=False,
-        help="The output directory populated by a previous fetch-deps command.",
-    ),
-    for_output_dir: Optional[Path] = Option(
-        None, help="Generate output as if the output directory was at this path instead."
-    ),
+    from_output_dir: Path = FROM_OUTPUT_DIR_ARG,
+    for_output_dir: Optional[Path] = FOR_OUTPUT_DIR_OPTION,
     output: Optional[Path] = Option(
         None,
         "-o",
@@ -251,9 +255,7 @@ def generate_env(
     """Generate the environment variables needed to use the fetched dependencies."""
     fmt = fmt or (EnvFormat.based_on_suffix(output) if output else EnvFormat.json)
     for_output_dir = (for_output_dir or from_output_dir).resolve()
-
-    output_json = from_output_dir / "output.json"
-    fetch_deps_output = RequestOutput.parse_raw(output_json.read_text())
+    fetch_deps_output = _get_request_output(from_output_dir)
 
     env_file_content = generate_envfile(fetch_deps_output, fmt, for_output_dir)
 
@@ -262,3 +264,35 @@ def generate_env(
             print(env_file_content, file=f)
     else:
         print(env_file_content)
+
+
+@app.command()
+@handle_errors
+def inject_files(
+    from_output_dir: Path = FROM_OUTPUT_DIR_ARG,
+    for_output_dir: Optional[Path] = FOR_OUTPUT_DIR_OPTION,
+    log_level: LogLevel = LOG_LEVEL_OPTION,
+) -> None:
+    """Inject the project files needed to use the fetched dependencies."""
+    for_output_dir = (for_output_dir or from_output_dir).resolve()
+    fetch_deps_output = _get_request_output(from_output_dir)
+
+    for project_file in fetch_deps_output.project_files:
+        if project_file.abspath.exists():
+            log.info("Overwriting %s", project_file.abspath)
+        else:
+            log.info("Creating %s", project_file.abspath)
+            project_file.abspath.parent.mkdir(exist_ok=True, parents=True)
+
+        content = project_file.resolve_content(output_dir=for_output_dir)
+        project_file.abspath.write_text(content)
+
+
+def _get_request_output(output_dir: Path) -> RequestOutput:
+    output_json = output_dir / "output.json"
+    if not output_json.exists():
+        raise InvalidInput(
+            f"No output.json found in {output_dir}. "
+            "Please use a directory populated by a previous fetch-deps command."
+        )
+    return RequestOutput.parse_raw(output_json.read_text())
