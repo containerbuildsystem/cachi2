@@ -19,6 +19,7 @@ GOMOD_OUTPUT = RequestOutput(
     environment_variables=[
         {"name": "GOMODCACHE", "value": "deps/gomod/pkg/mod", "kind": "path"},
     ],
+    project_files=[{"abspath": "/your/project/go.mod", "template": "Hello gomod my old friend."}],
 )
 PIP_OUTPUT = RequestOutput(
     packages=[
@@ -33,11 +34,18 @@ PIP_OUTPUT = RequestOutput(
     environment_variables=[
         {"name": "PIP_INDEX_URL", "value": "file:///some/path", "kind": "literal"},
     ],
+    project_files=[
+        {
+            "abspath": "/your/project/requirements.txt",
+            "template": "I've come to talk with you again.",
+        }
+    ],
 )
 
 COMBINED_OUTPUT = RequestOutput(
     packages=(GOMOD_OUTPUT.packages + PIP_OUTPUT.packages),
     environment_variables=(GOMOD_OUTPUT.environment_variables + PIP_OUTPUT.environment_variables),
+    project_files=(GOMOD_OUTPUT.project_files + PIP_OUTPUT.project_files),
 )
 
 

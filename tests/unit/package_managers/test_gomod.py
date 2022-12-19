@@ -1660,6 +1660,8 @@ def test_fetch_gomod_source(
             pkg_results.append(package)
             pkg_results.append({**package, "type": "go-package"})
 
-        expected_output = RequestOutput(packages=pkg_results, environment_variables=env_variables)
+        expected_output = RequestOutput(
+            packages=pkg_results, environment_variables=env_variables, project_files=[]
+        )
 
     assert output == expected_output

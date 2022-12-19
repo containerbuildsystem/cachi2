@@ -48,7 +48,7 @@ def test_generate_env_as_json():
         {"name": "GOCACHE", "value": "deps/gomod", "kind": "path"},
         {"name": "GOSUMDB", "value": "off", "kind": "literal"},
     ]
-    request_output = RequestOutput(packages=[], environment_variables=env_vars)
+    request_output = RequestOutput(packages=[], environment_variables=env_vars, project_files=[])
 
     gocache = '{"name": "GOCACHE", "value": "/output/dir/deps/gomod"}'
     gosumdb = '{"name": "GOSUMDB", "value": "off"}'
@@ -64,7 +64,7 @@ def test_generate_env_as_env():
         {"name": "GOSUMDB", "value": "off", "kind": "literal"},
         {"name": "SNEAKY", "value": "foo; echo hello there", "kind": "literal"},
     ]
-    request_output = RequestOutput(packages=[], environment_variables=env_vars)
+    request_output = RequestOutput(packages=[], environment_variables=env_vars, project_files=[])
 
     expect_content = dedent(
         """

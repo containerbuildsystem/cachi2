@@ -1,10 +1,18 @@
 import re
+from pathlib import Path
+from textwrap import dedent
 from typing import Any
 
 import pydantic
 import pytest
 
-from cachi2.core.models.output import Dependency, EnvironmentVariable, Package, RequestOutput
+from cachi2.core.models.output import (
+    Dependency,
+    EnvironmentVariable,
+    Package,
+    ProjectFile,
+    RequestOutput,
+)
 
 
 class TestDependency:
@@ -65,6 +73,30 @@ class TestPackage:
         ]
 
 
+class TestProjectFile:
+    def test_resolve_content(self):
+        template = dedent(
+            """
+            no placeholders
+            $unknown_placeholder
+            invalid placeholder: $5
+            ${output_dir}/deps/gomod
+            file://$output_dir/deps/pip
+            """
+        )
+        expect_content = dedent(
+            """
+            no placeholders
+            $unknown_placeholder
+            invalid placeholder: $5
+            /some/output/deps/gomod
+            file:///some/output/deps/pip
+            """
+        )
+        project_file = ProjectFile(abspath="/some/path", template=template)
+        assert project_file.resolve_content(Path("/some/output")) == expect_content
+
+
 class TestRequestOutput:
     def test_duplicate_packages(self):
         package = {
@@ -81,6 +113,7 @@ class TestRequestOutput:
             RequestOutput(
                 packages=[package, package2],
                 environment_variables=[],
+                project_files=[],
             )
 
     def test_conflicting_env_vars(self):
@@ -96,6 +129,7 @@ class TestRequestOutput:
                     {"name": "GOSUMDB", "value": "on", "kind": "literal"},
                     {"name": "GOSUMDB", "value": "off", "kind": "literal"},
                 ],
+                project_files=[],
             )
 
     def test_sort_and_dedupe_env_vars(self):
@@ -106,10 +140,38 @@ class TestRequestOutput:
                 {"name": "A", "value": "x", "kind": "literal"},
                 {"name": "B", "value": "y", "kind": "literal"},
             ],
+            project_files=[],
         )
         assert output.environment_variables == [
             EnvironmentVariable(name="A", value="x", kind="literal"),
             EnvironmentVariable(name="B", value="y", kind="literal"),
+        ]
+
+    def test_conflicting_project_files(self):
+        expect_error = "conflict by /some/path:"
+        with pytest.raises(pydantic.ValidationError, match=expect_error):
+            RequestOutput(
+                packages=[],
+                environment_variables=[],
+                project_files=[
+                    {"abspath": "/some/path", "template": "foo"},
+                    {"abspath": "/some/path", "template": "bar"},
+                ],
+            )
+
+    def test_sort_and_dedupe_project_files(self):
+        output = RequestOutput(
+            packages=[],
+            environment_variables=[],
+            project_files=[
+                {"abspath": "/second/path", "template": "bar"},
+                {"abspath": "/first/path", "template": "foo"},
+                {"abspath": "/second/path", "template": "bar"},
+            ],
+        )
+        assert output.project_files == [
+            ProjectFile(abspath="/first/path", template="foo"),
+            ProjectFile(abspath="/second/path", template="bar"),
         ]
 
 
@@ -122,4 +184,5 @@ def mock_output(pkg_names: list[str], env_names: list[str]) -> RequestOutput:
         environment_variables=[
             EnvironmentVariable(name=name, value="foo", kind="literal") for name in env_names
         ],
+        project_files=[],
     )

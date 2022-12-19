@@ -34,7 +34,13 @@ def _merge_outputs(outputs: Iterable[RequestOutput]) -> RequestOutput:
     """Merge RequestOutput instances."""
     packages = []
     env_vars = []
+    project_files = []
+
     for output in outputs:
         packages.extend(output.packages)
         env_vars.extend(output.environment_variables)
-    return RequestOutput(packages=packages, environment_variables=env_vars)
+        project_files.extend(output.project_files)
+
+    return RequestOutput(
+        packages=packages, environment_variables=env_vars, project_files=project_files
+    )
