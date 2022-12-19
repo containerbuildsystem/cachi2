@@ -50,6 +50,22 @@ log = logging.getLogger(__name__)
             ),
             id="gomod_vendored_without_flag",
         ),
+        # Test case checks if vendor folder with dependencies will remain unchanged in cloned
+        # source repo, deps folder in output folder should be empty.
+        pytest.param(
+            utils.TestParameters(
+                repo="https://github.com/cachito-testing/gomod-vendored.git",
+                ref="ff1960095dd158d3d2a4f31d15b244c24930248b",
+                packages=({"path": ".", "type": "gomod"},),
+                check_output_json=True,
+                check_deps_checksums=True,
+                check_vendor_checksums=True,
+                flags=["--gomod-vendor"],
+                expected_rc=0,
+                expected_output="All dependencies fetched successfully",
+            ),
+            id="gomod_vendored_with_flag",
+        ),
     ],
 )
 def test_packages(
@@ -79,6 +95,9 @@ def test_packages(
         "--output",
         output_folder,
     ]
+    if test_params.flags:
+        cmd += test_params.flags
+
     for package in test_params.packages:
         cmd += ["--package", json.dumps(package).encode("utf-8")]
 
@@ -107,4 +126,14 @@ def test_packages(
             os.path.join(test_data_dir, test_case, "fetch_deps_sha256sums.json")
         )
         log.info("Compare checksums of fetched deps files")
+        assert files_checksums == expected_files_checksums
+
+    if test_params.check_vendor_checksums:
+        files_checksums = utils.calculate_files_sha256sum_in_dir(
+            os.path.join(source_folder, "vendor")
+        )
+        expected_files_checksums = utils.load_json(
+            os.path.join(test_data_dir, test_case, "vendor_sha256sums.json")
+        )
+        log.info("Compare checksums of files in source vendor folder")
         assert files_checksums == expected_files_checksums

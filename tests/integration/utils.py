@@ -3,7 +3,7 @@ import hashlib
 import json
 import logging
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from subprocess import PIPE, Popen
 from typing import Dict, List, Tuple
@@ -20,8 +20,10 @@ class TestParameters:
     packages: Tuple[Dict]
     check_output_json: bool = False
     check_deps_checksums: bool = False
+    check_vendor_checksums: bool = False
     expected_rc: int = 0
     expected_output: str = ""
+    flags: List[str] = field(default_factory=list)
 
 
 class ContainerImage:
