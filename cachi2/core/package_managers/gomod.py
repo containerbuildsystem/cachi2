@@ -287,7 +287,7 @@ def _resolve_gomod(path: Path, request: Request, git_dir_path=None):
         )
         module = {"name": module_name, "type": "gomod", "version": module_version}
 
-        if "gomod-vendor" in flags:
+        if should_vendor:
             # Create an empty gomod cache in the bundle directory so that any Cachi2
             # user does not have to guard against this directory not existing
             request.gomod_download_dir.mkdir(exist_ok=True, parents=True)
