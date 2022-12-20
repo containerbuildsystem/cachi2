@@ -17,6 +17,7 @@ dependencies = [
     "backoff",
     "beautifulsoup4",
     "gitpython",
+    "packaging",
     "pydantic",
     "requests",
     "semver",
