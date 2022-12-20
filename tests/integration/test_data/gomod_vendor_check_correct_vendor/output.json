@@ -1,0 +1,282 @@
+{
+  "packages": [
+    {
+      "type": "go-package",
+      "path": ".",
+      "name": "github.com/cachito-testing/gomod-vendor-check-pass",
+      "version": "v0.0.0-20210802173203-0543a5034b68",
+      "dependencies": [
+        {
+          "type": "go-package",
+          "name": "bytes",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "errors",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "fmt",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "golang.org/x/text/internal/tag",
+          "version": "v0.0.0-20170915032832-14c0d48ead0c"
+        },
+        {
+          "type": "go-package",
+          "name": "golang.org/x/text/language",
+          "version": "v0.0.0-20170915032832-14c0d48ead0c"
+        },
+        {
+          "type": "go-package",
+          "name": "internal/abi",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "internal/bytealg",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "internal/cpu",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "internal/fmtsort",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "internal/goarch",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "internal/goexperiment",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "internal/goos",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "internal/itoa",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "internal/oserror",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "internal/poll",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "internal/race",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "internal/reflectlite",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "internal/syscall/execenv",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "internal/syscall/unix",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "internal/testlog",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "internal/unsafeheader",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "io",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "io/fs",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "math",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "math/bits",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "os",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "path",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "reflect",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "rsc.io/quote",
+          "version": "v1.5.2"
+        },
+        {
+          "type": "go-package",
+          "name": "rsc.io/sampler",
+          "version": "v1.3.0"
+        },
+        {
+          "type": "go-package",
+          "name": "runtime",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "runtime/internal/atomic",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "runtime/internal/math",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "runtime/internal/sys",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "runtime/internal/syscall",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "sort",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "strconv",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "strings",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "sync",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "sync/atomic",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "syscall",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "time",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "unicode",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "unicode/utf8",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "unsafe",
+          "version": null
+        }
+      ]
+    },
+    {
+      "type": "gomod",
+      "path": ".",
+      "name": "github.com/cachito-testing/gomod-vendor-check-pass",
+      "version": "v0.0.0-20210802173203-0543a5034b68",
+      "dependencies": [
+        {
+          "type": "gomod",
+          "name": "golang.org/x/text",
+          "version": "v0.0.0-20170915032832-14c0d48ead0c"
+        },
+        {
+          "type": "gomod",
+          "name": "rsc.io/quote",
+          "version": "v1.5.2"
+        },
+        {
+          "type": "gomod",
+          "name": "rsc.io/sampler",
+          "version": "v1.3.0"
+        }
+      ]
+    }
+  ],
+  "environment_variables": [
+    {
+      "name": "GOCACHE",
+      "value": "deps/gomod",
+      "kind": "path"
+    },
+    {
+      "name": "GOMODCACHE",
+      "value": "deps/gomod/pkg/mod",
+      "kind": "path"
+    },
+    {
+      "name": "GOPATH",
+      "value": "deps/gomod",
+      "kind": "path"
+    },
+    {
+      "name": "GOSUMDB",
+      "value": "off",
+      "kind": "literal"
+    }
+  ]
+}

@@ -66,6 +66,38 @@ log = logging.getLogger(__name__)
             ),
             id="gomod_vendored_with_flag",
         ),
+        # Test case checks if vendor folder will be created with dependencies in cloned
+        # source repo, deps folder in output folder should be empty.
+        pytest.param(
+            utils.TestParameters(
+                repo="https://github.com/cachito-testing/gomod-vendor-check-no-vendor.git",
+                ref="7ba383d5592910edbf7f287d4b5a00c5ababf751",
+                packages=({"path": ".", "type": "gomod"},),
+                check_output_json=True,
+                check_deps_checksums=True,
+                check_vendor_checksums=True,
+                flags=["--gomod-vendor-check"],
+                expected_rc=0,
+                expected_output="All dependencies fetched successfully",
+            ),
+            id="gomod_vendor_check_no_vendor",
+        ),
+        # Test case checks if vendor folder with dependencies will remain unchanged in cloned
+        # source repo, deps folder in output folder should be empty.
+        pytest.param(
+            utils.TestParameters(
+                repo="https://github.com/cachito-testing/gomod-vendor-check-pass.git",
+                ref="0543a5034b687df174c6b12b7b6b9c04770a856f",
+                packages=({"path": ".", "type": "gomod"},),
+                check_output_json=True,
+                check_deps_checksums=True,
+                check_vendor_checksums=True,
+                flags=["--gomod-vendor-check"],
+                expected_rc=0,
+                expected_output="All dependencies fetched successfully",
+            ),
+            id="gomod_vendor_check_correct_vendor",
+        ),
     ],
 )
 def test_packages(
