@@ -16,7 +16,7 @@ class Config:
     }
     cachito_gomod_download_max_tries = 5
     cachito_gomod_file_deps_allowlist: Dict[str, Dict[str, str]] = {}
-    cachito_gomod_strict_vendor = False
+    cachito_gomod_strict_vendor = True
     cachito_subprocess_timeout = 3600
 
 
