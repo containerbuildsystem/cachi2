@@ -1,8 +1,15 @@
 import hashlib
-import os
-from typing import NamedTuple
+import logging
+from collections import defaultdict
+from pathlib import Path
+from typing import Iterable, NamedTuple, Optional
 
 from cachi2.core.errors import PackageRejected
+
+log = logging.getLogger(__name__)
+
+
+SUPPORTED_ALGORITHMS = hashlib.algorithms_guaranteed
 
 
 class ChecksumInfo(NamedTuple):
@@ -12,43 +19,76 @@ class ChecksumInfo(NamedTuple):
     hexdigest: str
 
 
-def verify_checksum(file_path: str, checksum_info: ChecksumInfo, chunk_size: int = 10240):
+class _MismatchInfo(NamedTuple):
+    algorithm: str
+    maybe_digest: Optional[str]  # None == algorithm is not supported
+
+
+def must_match_any_checksum(
+    file_path: Path, expected_checksums: Iterable[ChecksumInfo], chunk_size: int = 10240
+) -> None:
+    """Verify that the file matches at least one of the expected checksums.
+
+    Note: any checksum algorithms not supported by python's hashlib will be skipped.
+
+    If none of the checksums match, log all the mismatches and skipped algorithms at WARNING level,
+    then raise an exception.
+
+    :param file_path: path to the file to verify
+    :param expected_checksums: all the possible checksums for this file
+    :param chunk_size: when computing checksums, read the file in chunks of this size
+    :raises PackageRejected: if none of the expected checksums matched the actual checksum
+                             (for any of the supported algorithms)
     """
-    Verify the checksum of the file at the given path matches the expected checksum info.
+    filename = file_path.name
+    mismatches: list[_MismatchInfo] = []
 
-    :param str file_path: the path to the file to be verified
-    :param ChecksumInfo checksum_info: the expected checksum information
-    :param int chunk_size: the amount of bytes to read at a time
-    :raise PackageRejected: if the checksum is not as expected or cannot be computed
-    """
-    filename = os.path.basename(file_path)
+    for algorithm, expected_digests in _group_by_algorithm(expected_checksums).items():
+        if algorithm in SUPPORTED_ALGORITHMS:
+            digest = _get_hexdigest(file_path, algorithm, chunk_size)
+        else:
+            digest = None
 
-    try:
-        hasher = hashlib.new(checksum_info.algorithm)
-    except ValueError:
-        known_algorithms = sorted(hashlib.algorithms_guaranteed)
-        msg = (
-            f"Cannot perform checksum on the file {filename}, "
-            f"unknown algorithm: {checksum_info.algorithm}. Known: {', '.join(known_algorithms)}"
-        )
-        raise PackageRejected(msg, solution="Please use one of the known hash algorithms.")
+        if digest not in expected_digests:
+            mismatches.append(_MismatchInfo(algorithm, digest))
+        else:
+            log.debug("%s: %s checksum matches: %s", filename, algorithm, digest)
+            return
 
-    with open(file_path, "rb") as f:
+    _log_mismatches(filename, mismatches)
+    raise PackageRejected(
+        f"Failed to verify {filename} against any of the provided checksums.",
+        solution=(
+            "Please check if the expected checksums are correct.\n"
+            "Caution is advised; if the checksum previously did match, "
+            "someone may have tampered with the file!"
+        ),
+    )
+
+
+def _group_by_algorithm(checksums: Iterable[ChecksumInfo]) -> dict[str, set[str]]:
+    digests_by_algorithm = defaultdict(set)
+    for algorithm, digest in checksums:
+        digests_by_algorithm[algorithm].add(digest)
+    return digests_by_algorithm
+
+
+def _get_hexdigest(file_path: Path, algorithm: str, chunk_size: int) -> str:
+    with file_path.open("rb") as f:
+        hasher = hashlib.new(algorithm)
         while chunk := f.read(chunk_size):
             hasher.update(chunk)
+        return hasher.hexdigest()
 
-    computed_hexdigest = hasher.hexdigest()
 
-    if computed_hexdigest != checksum_info.hexdigest:
-        msg = (
-            f"The file {filename} has an unexpected checksum value, "
-            f"expected {checksum_info.hexdigest} but computed {computed_hexdigest}"
-        )
-        raise PackageRejected(
-            msg,
-            solution=(
-                "Please verify that the specified hash is correct.\n"
-                "Caution is advised; if the hash was previously correct, it means the content "
-                "has changed!"
-            ),
-        )
+def _log_mismatches(filename: str, mismatches: list[_MismatchInfo]) -> None:
+    for algorithm, digest in mismatches:
+        if digest is not None:
+            log.warning("%s: %s checksum does not match (got: %s)", filename, algorithm, digest)
+        else:
+            log.warning(
+                "%s: %s checksum not supported (supported: %s)",
+                filename,
+                algorithm,
+                ", ".join(sorted(SUPPORTED_ALGORITHMS)),
+            )
