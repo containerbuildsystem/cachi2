@@ -18,7 +18,7 @@ import pkg_resources
 import requests
 from packaging.utils import canonicalize_name, canonicalize_version
 
-from cachi2.core.checksum import ChecksumInfo, verify_checksum
+from cachi2.core.checksum import ChecksumInfo, must_match_any_checksum
 from cachi2.core.errors import FetchError, PackageRejected, UnexpectedFormat, UnsupportedFeature
 from cachi2.core.models.input import Request
 from cachi2.core.models.output import EnvironmentVariable, Package, ProjectFile, RequestOutput
@@ -1740,35 +1740,22 @@ def _add_cachito_hash_to_url(parsed_url, hash_spec):
     return parsed_url._replace(fragment=new_fragment).geturl()
 
 
-def _verify_hash(download_path, hashes):
+def _verify_hash(download_path: Path, hashes: list[str]) -> None:
     """
-    Check that downloaded archive verifies against at least one of the provided hashes.
+    Check that the downloaded archive verifies against at least one of the provided hashes.
 
-    :param Path download_path: Path to downloaded file
-    :param list[str] hashes: All provided hashes for requirement
+    :param download_path: Path to downloaded file
+    :param hashes: All provided hashes for requirement
     :raise PackageRejected: If computed hash does not match any of the provided hashes
     """
+
+    def to_checksum_info(hash_: str) -> ChecksumInfo:
+        algorithm, _, digest = hash_.partition(":")
+        return ChecksumInfo(algorithm, digest)
+
     log.info(f"Verifying checksum of {download_path.name}")
-
-    for hash_spec in hashes:
-        algorithm, _, digest = hash_spec.partition(":")
-        checksum_info = ChecksumInfo(algorithm, digest)
-        try:
-            verify_checksum(str(download_path), checksum_info)
-            log.info(f"Checksum of {download_path.name} matches: {algorithm}:{digest}")
-            return
-        except PackageRejected as e:
-            log.warning("%s", e)
-
-    msg = f"Failed to verify checksum of {download_path.name} against any of the provided hashes"
-    raise PackageRejected(
-        msg,
-        solution=(
-            "Please verify that the hashes specified in your requirements files are correct.\n"
-            "Caution is advised; if the hashes were previously correct, it means the content of "
-            "this dependency has changed!"
-        ),
-    )
+    checksums = list(map(to_checksum_info, hashes))
+    must_match_any_checksum(download_path, checksums)
 
 
 def _download_from_requirement_files(output_dir: Path, files):

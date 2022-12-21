@@ -2848,12 +2848,12 @@ class TestDownload:
     @mock.patch("cachi2.core.package_managers.pip._download_pypi_package")
     @mock.patch("cachi2.core.package_managers.pip._download_vcs_package")
     @mock.patch("cachi2.core.package_managers.pip._download_url_package")
-    @mock.patch("cachi2.core.package_managers.pip.verify_checksum")
+    @mock.patch("cachi2.core.package_managers.pip.must_match_any_checksum")
     @mock.patch("cachi2.core.package_managers.pip._check_metadata_in_sdist")
     def test_download_dependencies(
         self,
         check_metadata_in_sdist,
-        mock_verify_checksum,
+        mock_match_checksum,
         mock_url_download,
         mock_vcs_download,
         mock_pypi_download,
@@ -2947,14 +2947,14 @@ class TestDownload:
         # </check calls that must always be made>
 
         # <check calls to checksum verification method>
-        verify_url_checksum_call = mock.call(str(url_download), ChecksumInfo("sha256", "654321"))
+        verify_url_checksum_call = mock.call(url_download, [ChecksumInfo("sha256", "654321")])
         if use_hashes:
             msg = "At least one dependency uses the --hash option, will require hashes"
             assert msg in caplog.text
 
             verify_checksum_calls = [
-                mock.call(str(pypi_download), ChecksumInfo("sha256", "abcdef")),
-                mock.call(str(vcs_download), ChecksumInfo("sha256", "123456")),
+                mock.call(pypi_download, [ChecksumInfo("sha256", "abcdef")]),
+                mock.call(vcs_download, [ChecksumInfo("sha256", "123456")]),
                 verify_url_checksum_call,
             ]
         else:
@@ -2966,18 +2966,14 @@ class TestDownload:
             # Hashes for URL dependencies should be verified no matter what
             verify_checksum_calls = [verify_url_checksum_call]
 
-        mock_verify_checksum.assert_has_calls(verify_checksum_calls)
-        assert mock_verify_checksum.call_count == len(verify_checksum_calls)
+        mock_match_checksum.assert_has_calls(verify_checksum_calls)
+        assert mock_match_checksum.call_count == len(verify_checksum_calls)
 
         if use_hashes:
             assert f"Verifying checksum of {pypi_download.name}" in caplog.text
-            assert f"Checksum of {pypi_download.name} matches: sha256:abcdef" in caplog.text
-
             assert f"Verifying checksum of {vcs_download.name}" in caplog.text
-            assert f"Checksum of {vcs_download.name} matches: sha256:123456" in caplog.text
 
         assert f"Verifying checksum of {url_download.name}" in caplog.text
-        assert f"Checksum of {url_download.name} matches: sha256:654321" in caplog.text
         # </check calls to checksum verification method>
 
         # <check basic logging output>
@@ -2999,52 +2995,26 @@ class TestDownload:
         ) in caplog.text
         # </check basic logging output>
 
-    @pytest.mark.parametrize(
-        "hashes, success",
-        [
-            (["sha256:good"], True),
-            (["sha256:good", "sha256:bad"], True),
-            (["sha256:bad", "sha256:good"], True),
-            (["sha256:bad"], False),
-        ],
-    )
-    @mock.patch("cachi2.core.package_managers.pip.verify_checksum")
-    def test_checksum_verification(self, mock_verify_checksum, hashes, success, caplog):
+    @mock.patch("cachi2.core.package_managers.pip.must_match_any_checksum")
+    def test_checksum_verification(self, mock_match_checksum):
         """Test helper function for checksum verification."""
         path = Path("/foo/bar.tar.gz")
-
-        mock_verify_checksum.side_effect = [
-            None
-            if hash_spec == "sha256:good"
-            else PackageRejected("Invalid checksum", solution=None)
-            for hash_spec in hashes
+        hashes = [
+            "sha256:abcdef",
+            "sha256:123456",
+            "sha512:fedcba",
+            "sha512:654321",
         ]
-
-        if success:
-            pip._verify_hash(path, hashes)
-            assert "Checksum of bar.tar.gz matches: sha256:good" in caplog.text
-
-            # Should return on first success
-            num_calls = hashes.index("sha256:good") + 1
-            num_fails = num_calls - 1
-        else:
-            with pytest.raises(PackageRejected) as exc_info:
-                pip._verify_hash(path, hashes)
-
-            msg = "Failed to verify checksum of bar.tar.gz against any of the provided hashes"
-            assert str(exc_info.value) == msg
-
-            num_calls = num_fails = len(hashes)
-
-        calls = [
-            mock.call(str(path), ChecksumInfo(*hash_spec.split(":", 1)))
-            for hash_spec in hashes[:num_calls]
-        ]
-        mock_verify_checksum.assert_has_calls(calls)
-        assert mock_verify_checksum.call_count == num_calls
-
-        assert caplog.text.count("Invalid checksum") == num_fails
-        assert "Verifying checksum of bar.tar.gz" in caplog.text
+        pip._verify_hash(path, hashes)
+        mock_match_checksum.assert_called_once_with(
+            path,
+            [
+                ChecksumInfo("sha256", "abcdef"),
+                ChecksumInfo("sha256", "123456"),
+                ChecksumInfo("sha512", "fedcba"),
+                ChecksumInfo("sha512", "654321"),
+            ],
+        )
 
     @mock.patch("cachi2.core.package_managers.pip._download_pypi_package")
     @mock.patch("cachi2.core.package_managers.pip._check_metadata_in_sdist")
