@@ -1,6 +1,6 @@
 import string
 from pathlib import Path
-from typing import Literal, Optional
+from typing import Annotated, Literal, Optional, Union
 
 import pydantic
 
@@ -10,20 +10,47 @@ from cachi2.core.models.validators import check_sane_relpath, unique_sorted
 PackageType = Literal["gomod", "go-package", "pip"]
 
 
-class Dependency(pydantic.BaseModel):
-    """Metadata about a resolved dependency."""
+class _DependencyBase(pydantic.BaseModel):
+    """Common attributes for all dependency types."""
 
     type: PackageType
     name: str
-    version: Optional[str]  # go-package stdlib dependencies are allowed not to have versions
 
-    @pydantic.validator("version")
-    def _check_version_vs_type(cls, version: Optional[str], values: dict) -> Optional[str]:
-        """Check that the dependency has a version or is 'go-package'."""
-        ptype = values.get("type")
-        if ptype is not None and (version is None and ptype != "go-package"):
-            raise TypeError(f"{values['type']} dependencies must have a version")
-        return version
+
+class GomodDependency(_DependencyBase):
+    """Metadata about a gomod dependency."""
+
+    type: Literal["gomod"]
+    version: str
+
+
+class GoPackageDependency(_DependencyBase):
+    """Metadata about a go-package dependency.
+
+    Unlike other dependency types, go-package dependencies may come from the standard library,
+    in which case their version is null.
+    """
+
+    type: Literal["go-package"]
+    version: Optional[str]
+
+
+class PipDependency(_DependencyBase):
+    """Metadata about a pip dependency.
+
+    Pip dependencies have a 'dev' value to indicate whether the dependency is used at runtime
+    or at build time (requirements.txt X requirements-build.txt).
+    """
+
+    type: Literal["pip"]
+    version: str
+    dev: bool
+
+
+Dependency = Annotated[
+    Union[GomodDependency, GoPackageDependency, PipDependency],
+    pydantic.Field(discriminator="type"),
+]
 
 
 class Package(pydantic.BaseModel):

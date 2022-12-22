@@ -9,6 +9,8 @@ import pytest
 from cachi2.core.models.output import (
     Dependency,
     EnvironmentVariable,
+    GomodDependency,
+    GoPackageDependency,
     Package,
     ProjectFile,
     RequestOutput,
@@ -21,10 +23,12 @@ class TestDependency:
         [
             {"type": "gomod", "name": "github.com/org/cool-dep", "version": "v1.0.0"},
             {"type": "go-package", "name": "fmt", "version": None},
+            {"type": "pip", "name": "requests", "version": "2.27.1", "dev": False},
         ],
     )
     def test_valid_deps(self, input_data: dict[str, Any]):
-        dep = Dependency.parse_obj(input_data)
+        # doesn't pass type check: https://github.com/pydantic/pydantic/issues/1847
+        dep = pydantic.parse_obj_as(Dependency, input_data)  # type: ignore
         assert dep.dict() == input_data
 
     @pytest.mark.parametrize(
@@ -32,17 +36,18 @@ class TestDependency:
         [
             (
                 {"type": "made-up-type", "name": "foo", "version": "1.0"},
-                "type\n  unexpected value; permitted: .* given=made-up-type;",
+                "No match for discriminator 'type' and value 'made-up-type'",
             ),
             (
                 {"type": "gomod", "name": "github.com/org/cool-dep", "version": None},
-                "version\n  gomod dependencies must have a version",
+                "version\n  none is not an allowed value",
             ),
         ],
     )
     def test_invalid_deps(self, input_data: dict[str, Any], expect_error: str):
         with pytest.raises(pydantic.ValidationError, match=expect_error):
-            Dependency.parse_obj(input_data)
+            # doesn't pass type check: https://github.com/pydantic/pydantic/issues/1847
+            pydantic.parse_obj_as(Dependency, input_data)  # type: ignore
 
 
 class TestPackage:
@@ -64,12 +69,12 @@ class TestPackage:
             ],
         )
         assert package.dependencies == [
-            Dependency(type="go-package", name="bytes", version=None),
-            Dependency(type="go-package", name="fmt", version=None),
-            Dependency(type="go-package", name="github.com/org/B", version="v1.0.0"),
-            Dependency(type="gomod", name="github.com/org/A", version="v1.0.0"),
-            Dependency(type="gomod", name="github.com/org/A", version="v1.1.0"),
-            Dependency(type="gomod", name="github.com/org/B", version="v1.0.0"),
+            GoPackageDependency(type="go-package", name="bytes", version=None),
+            GoPackageDependency(type="go-package", name="fmt", version=None),
+            GoPackageDependency(type="go-package", name="github.com/org/B", version="v1.0.0"),
+            GomodDependency(type="gomod", name="github.com/org/A", version="v1.0.0"),
+            GomodDependency(type="gomod", name="github.com/org/A", version="v1.1.0"),
+            GomodDependency(type="gomod", name="github.com/org/B", version="v1.0.0"),
         ]
 
 
