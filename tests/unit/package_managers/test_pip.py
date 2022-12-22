@@ -3360,9 +3360,8 @@ def test_fetch_pip_source(
         "type": "pip",
         "path": Path("."),
         "dependencies": [
-            # TODO: add 'dev' attribute for non-gomod dependencies
-            {"name": "bar", "version": "https://x.org/bar.zip", "type": "pip"},  # "dev": False},
-            {"name": "baz", "version": "0.0.5", "type": "pip"},  # "dev": True},
+            {"name": "bar", "version": "https://x.org/bar.zip", "type": "pip", "dev": False},
+            {"name": "baz", "version": "0.0.5", "type": "pip", "dev": True},
         ],
     }
     expect_package_b = {
@@ -3371,8 +3370,8 @@ def test_fetch_pip_source(
         "type": "pip",
         "path": Path("foo"),
         "dependencies": [
-            {"name": "eggs", "version": "https://x.org/eggs.zip", "type": "pip"},  # "dev": False},
-            {"name": "ham", "version": "3.2", "type": "pip"},  # "dev": False},
+            {"name": "eggs", "version": "https://x.org/eggs.zip", "type": "pip", "dev": False},
+            {"name": "ham", "version": "3.2", "type": "pip", "dev": False},
         ],
     }
 
