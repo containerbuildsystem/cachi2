@@ -18,9 +18,9 @@ class TestParameters:
     repo: str
     ref: str
     packages: Tuple[Dict]
-    check_output_json: bool = False
-    check_deps_checksums: bool = False
-    check_vendor_checksums: bool = False
+    check_output_json: bool = True
+    check_deps_checksums: bool = True
+    check_vendor_checksums: bool = True
     expected_rc: int = 0
     expected_output: str = ""
     flags: List[str] = field(default_factory=list)
