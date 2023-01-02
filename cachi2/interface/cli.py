@@ -8,7 +8,6 @@ from pathlib import Path
 from typing import Callable, Optional
 
 import typer
-from typer import Argument, Option
 
 from cachi2.core.errors import Cachi2Error, InvalidInput
 from cachi2.core.extras.envfile import EnvFormat, generate_envfile
@@ -62,7 +61,7 @@ def version_callback(value: bool) -> None:
 
 @app.callback()
 def cachi2(  # noqa: D103; docstring becomes part of --help message
-    version: bool = Option(
+    version: bool = typer.Option(
         False,
         "--version",
         callback=version_callback,
@@ -77,7 +76,7 @@ def cachi2(  # noqa: D103; docstring becomes part of --help message
 
 # Allow the user to change the log level for a subcommand
 # Also changes the default level for that subcommand to INFO
-LOG_LEVEL_OPTION = Option(
+LOG_LEVEL_OPTION = typer.Option(
     LogLevel.INFO.value,
     case_sensitive=False,
     callback=lambda level: setup_logging(level),
@@ -101,34 +100,34 @@ def _looks_like_json(value: str) -> bool:
 @app.command()
 @handle_errors
 def fetch_deps(
-    package: list[str] = Option(
+    package: list[str] = typer.Option(
         ...,  # Ellipsis makes this option required
         help="Specify package (within the source repo) to process. See usage examples.",
         metavar="PKG",
         callback=lambda args: [_if_json_then_validate(arg) for arg in args],
     ),
-    source: Path = Option(
+    source: Path = typer.Option(
         DEFAULT_SOURCE,
         exists=True,
         file_okay=False,
         resolve_path=True,
         help="Process the git repository at this path.",
     ),
-    output: Path = Option(
+    output: Path = typer.Option(
         DEFAULT_OUTPUT,
         file_okay=False,
         resolve_path=True,
         help="Write output files to this directory.",
     ),
-    cgo_disable: bool = Option(
+    cgo_disable: bool = typer.Option(
         False, "--cgo-disable", help="Set CGO_ENABLED=0 while processing gomod packages."
     ),
-    force_gomod_tidy: bool = Option(
+    force_gomod_tidy: bool = typer.Option(
         False,
         "--force-gomod-tidy",
         help="Run 'go mod tidy' after downloading go dependencies.",
     ),
-    gomod_vendor: bool = Option(
+    gomod_vendor: bool = typer.Option(
         False,
         "--gomod-vendor",
         help=(
@@ -136,7 +135,7 @@ def fetch_deps(
             "have a vendor/ dir, one of --gomod-vendor/--gomod-vendor-check is required."
         ),
     ),
-    gomod_vendor_check: bool = Option(
+    gomod_vendor_check: bool = typer.Option(
         False,
         "--gomod-vendor-check",
         help=(
@@ -144,7 +143,7 @@ def fetch_deps(
             "already have a vendor/ directory (will fail if changes would be made)."
         ),
     ),
-    more_flags: str = Option(
+    more_flags: str = typer.Option(
         "",
         "--flags",
         help="Pass additional flags as a comma-separated list.",
@@ -222,13 +221,13 @@ def fetch_deps(
     log.info(r"All dependencies fetched successfully \o/")
 
 
-FROM_OUTPUT_DIR_ARG = Argument(
+FROM_OUTPUT_DIR_ARG = typer.Argument(
     ...,
     exists=True,
     file_okay=False,
     help="The output directory populated by a previous fetch-deps command.",
 )
-FOR_OUTPUT_DIR_OPTION = Option(
+FOR_OUTPUT_DIR_OPTION = typer.Option(
     None, help="Generate output as if the output directory was at this path instead."
 )
 
@@ -238,14 +237,14 @@ FOR_OUTPUT_DIR_OPTION = Option(
 def generate_env(
     from_output_dir: Path = FROM_OUTPUT_DIR_ARG,
     for_output_dir: Optional[Path] = FOR_OUTPUT_DIR_OPTION,
-    output: Optional[Path] = Option(
+    output: Optional[Path] = typer.Option(
         None,
         "-o",
         "--output",
         dir_okay=False,
         help="Write to this file instead of standard output.",
     ),
-    fmt: Optional[EnvFormat] = Option(
+    fmt: Optional[EnvFormat] = typer.Option(
         None,
         "-f",
         "--format",
