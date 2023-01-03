@@ -122,8 +122,7 @@ def test_packages(
     if test_params.flags:
         cmd += test_params.flags
 
-    for package in test_params.packages:
-        cmd += ["--package", json.dumps(package).encode("utf-8")]
+    cmd.append(json.dumps(test_params.packages).encode("utf-8"))
 
     (output, rc) = cachi2_image.run_cmd_on_image(cmd, tmpdir)
     assert rc == test_params.expected_rc, (
