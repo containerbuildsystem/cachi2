@@ -1,0 +1,868 @@
+{
+  "packages": [
+    {
+      "type": "go-package",
+      "path": ".",
+      "name": "github.com/release-engineering/retrodep/v2",
+      "version": "v2.1.2-0.20230109085255-c3496edd5d45",
+      "dependencies": [
+        {
+          "type": "go-package",
+          "name": "bufio",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "bytes",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "compress/flate",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "compress/gzip",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "container/list",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "context",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "crypto",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "crypto/aes",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "crypto/cipher",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "crypto/des",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "crypto/dsa",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "crypto/ecdsa",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "crypto/ed25519",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "crypto/ed25519/internal/edwards25519",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "crypto/ed25519/internal/edwards25519/field",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "crypto/elliptic",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "crypto/elliptic/internal/fiat",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "crypto/elliptic/internal/nistec",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "crypto/hmac",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "crypto/internal/randutil",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "crypto/internal/subtle",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "crypto/md5",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "crypto/rand",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "crypto/rc4",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "crypto/rsa",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "crypto/sha1",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "crypto/sha256",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "crypto/sha512",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "crypto/subtle",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "crypto/tls",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "crypto/x509",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "crypto/x509/pkix",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "embed",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "encoding",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "encoding/asn1",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "encoding/base64",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "encoding/binary",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "encoding/hex",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "encoding/json",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "encoding/pem",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "encoding/xml",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "errors",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "flag",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "fmt",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "github.com/Masterminds/semver",
+          "version": "v1.4.2"
+        },
+        {
+          "type": "go-package",
+          "name": "github.com/op/go-logging",
+          "version": "v0.0.0-20160315200505-970db520ece7"
+        },
+        {
+          "type": "go-package",
+          "name": "github.com/pkg/errors",
+          "version": "v0.8.1"
+        },
+        {
+          "type": "go-package",
+          "name": "github.com/release-engineering/retrodep/v2/retrodep",
+          "version": "v2.1.2-0.20230109085255-c3496edd5d45"
+        },
+        {
+          "type": "go-package",
+          "name": "github.com/release-engineering/retrodep/v2/retrodep/glide",
+          "version": "v2.1.2-0.20230109085255-c3496edd5d45"
+        },
+        {
+          "type": "go-package",
+          "name": "go/ast",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "go/build",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "go/build/constraint",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "go/doc",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "go/internal/typeparams",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "go/parser",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "go/scanner",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "go/token",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "golang.org/x/tools/go/vcs",
+          "version": "v0.0.0-20190325161752-5a8dccf5b48a"
+        },
+        {
+          "type": "go-package",
+          "name": "gopkg.in/yaml.v2",
+          "version": "v2.2.2"
+        },
+        {
+          "type": "go-package",
+          "name": "hash",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "hash/crc32",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "internal/abi",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "internal/buildcfg",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "internal/bytealg",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "internal/cpu",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "internal/execabs",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "internal/fmtsort",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "internal/goarch",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "internal/godebug",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "internal/goexperiment",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "internal/goos",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "internal/goroot",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "internal/goversion",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "internal/intern",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "internal/itoa",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "internal/lazyregexp",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "internal/nettrace",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "internal/oserror",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "internal/poll",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "internal/race",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "internal/reflectlite",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "internal/safefilepath",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "internal/singleflight",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "internal/syscall/execenv",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "internal/syscall/unix",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "internal/testlog",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "internal/unsafeheader",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "io",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "io/fs",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "io/ioutil",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "log",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "log/syslog",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "math",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "math/big",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "math/bits",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "math/rand",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "mime",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "mime/multipart",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "mime/quotedprintable",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "net",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "net/http",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "net/http/httptrace",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "net/http/internal",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "net/http/internal/ascii",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "net/netip",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "net/textproto",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "net/url",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "os",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "os/exec",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "path",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "path/filepath",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "reflect",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "regexp",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "regexp/syntax",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "runtime",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "runtime/cgo",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "runtime/internal/atomic",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "runtime/internal/math",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "runtime/internal/sys",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "runtime/internal/syscall",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "sort",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "strconv",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "strings",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "sync",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "sync/atomic",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "syscall",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "text/template",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "text/template/parse",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "time",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "unicode",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "unicode/utf16",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "unicode/utf8",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "unsafe",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "vendor/golang.org/x/crypto/chacha20",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "vendor/golang.org/x/crypto/chacha20poly1305",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "vendor/golang.org/x/crypto/cryptobyte",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "vendor/golang.org/x/crypto/cryptobyte/asn1",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "vendor/golang.org/x/crypto/curve25519",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "vendor/golang.org/x/crypto/curve25519/internal/field",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "vendor/golang.org/x/crypto/hkdf",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "vendor/golang.org/x/crypto/internal/poly1305",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "vendor/golang.org/x/crypto/internal/subtle",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "vendor/golang.org/x/net/dns/dnsmessage",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "vendor/golang.org/x/net/http/httpguts",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "vendor/golang.org/x/net/http/httpproxy",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "vendor/golang.org/x/net/http2/hpack",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "vendor/golang.org/x/net/idna",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "vendor/golang.org/x/sys/cpu",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "vendor/golang.org/x/text/secure/bidirule",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "vendor/golang.org/x/text/transform",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "vendor/golang.org/x/text/unicode/bidi",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "vendor/golang.org/x/text/unicode/norm",
+          "version": null
+        }
+      ]
+    },
+    {
+      "type": "gomod",
+      "path": ".",
+      "name": "github.com/release-engineering/retrodep/v2",
+      "version": "v2.1.2-0.20230109085255-c3496edd5d45",
+      "dependencies": [
+        {
+          "type": "gomod",
+          "name": "github.com/Masterminds/semver",
+          "version": "v1.4.2"
+        },
+        {
+          "type": "gomod",
+          "name": "github.com/kr/pretty",
+          "version": "v0.1.0"
+        },
+        {
+          "type": "gomod",
+          "name": "github.com/kr/pty",
+          "version": "v1.1.1"
+        },
+        {
+          "type": "gomod",
+          "name": "github.com/kr/text",
+          "version": "v0.1.0"
+        },
+        {
+          "type": "gomod",
+          "name": "github.com/op/go-logging",
+          "version": "v0.0.0-20160315200505-970db520ece7"
+        },
+        {
+          "type": "gomod",
+          "name": "github.com/pkg/errors",
+          "version": "v0.8.1"
+        },
+        {
+          "type": "gomod",
+          "name": "golang.org/x/crypto",
+          "version": "v0.0.0-20190308221718-c2843e01d9a2"
+        },
+        {
+          "type": "gomod",
+          "name": "golang.org/x/net",
+          "version": "v0.0.0-20190311183353-d8887717615a"
+        },
+        {
+          "type": "gomod",
+          "name": "golang.org/x/sys",
+          "version": "v0.0.0-20190215142949-d0b11bdaac8a"
+        },
+        {
+          "type": "gomod",
+          "name": "golang.org/x/text",
+          "version": "v0.3.0"
+        },
+        {
+          "type": "gomod",
+          "name": "golang.org/x/tools",
+          "version": "v0.0.0-20190325161752-5a8dccf5b48a"
+        },
+        {
+          "type": "gomod",
+          "name": "gopkg.in/check.v1",
+          "version": "v1.0.0-20180628173108-788fd7840127"
+        },
+        {
+          "type": "gomod",
+          "name": "gopkg.in/yaml.v2",
+          "version": "v2.2.2"
+        }
+      ]
+    }
+  ],
+  "environment_variables": [
+    {
+      "name": "GOCACHE",
+      "value": "deps/gomod",
+      "kind": "path"
+    },
+    {
+      "name": "GOMODCACHE",
+      "value": "deps/gomod/pkg/mod",
+      "kind": "path"
+    },
+    {
+      "name": "GOPATH",
+      "value": "deps/gomod",
+      "kind": "path"
+    },
+    {
+      "name": "GOSUMDB",
+      "value": "off",
+      "kind": "literal"
+    }
+  ],
+  "project_files": []
+}
