@@ -21,6 +21,7 @@ class TestParameters:
     check_output_json: bool = True
     check_deps_checksums: bool = True
     check_vendor_checksums: bool = True
+    install_app: str = ""
     expected_rc: int = 0
     expected_output: str = ""
     flags: List[str] = field(default_factory=list)
@@ -30,6 +31,9 @@ class ContainerImage:
     def __init__(self, repository: str):
         """Initialize ContainerImage object with associated repository."""
         self.repository = repository
+
+    def __enter__(self):
+        return self
 
     def pull_image(self):
         cmd = ["podman", "pull", self.repository]
@@ -41,6 +45,37 @@ class ContainerImage:
     def run_cmd_on_image(self, cmd: List, tmpdir: Path) -> Tuple[str, int]:
         image_cmd = ["podman", "run", "--rm", "-v", f"{tmpdir}:{tmpdir}:z", self.repository] + cmd
         return run_cmd(image_cmd)
+
+    def delete_image(self):
+        image_cmd = ["podman", "rmi", "--force", self.repository]
+        (output, rc) = run_cmd(image_cmd)
+        if rc != 0:
+            raise RuntimeError(f"Image deletion failed. Output:{output}")
+
+    def __exit__(self, exc_type, exc_value, exc_traceback):
+        image_cmd = ["podman", "rmi", "--force", self.repository]
+        (output, rc) = run_cmd(image_cmd)
+        if rc != 0:
+            raise RuntimeError(f"Image deletion failed. Output:{output}")
+
+
+def build_image(tmpdir: Path, container_folder: str, test_case: str) -> ContainerImage:
+    image_cmd = [
+        "podman",
+        "build",
+        container_folder,
+        "-v",
+        f"{tmpdir}:/tmp:z",
+        "--no-cache",
+        "--network",
+        "none",
+        "--tag",
+        test_case,
+    ]
+    (output, rc) = run_cmd(image_cmd)
+    if rc != 0:
+        raise RuntimeError(f"Building image failed. Output:{output}")
+    return ContainerImage(f"localhost/{test_case}")
 
 
 def clone_repository(repo_url: str, ref: str, folder_name: str, tmpdir: Path) -> Path:
