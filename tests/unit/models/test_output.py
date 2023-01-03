@@ -21,11 +21,18 @@ class TestDependency:
         [
             {"type": "gomod", "name": "github.com/org/cool-dep", "version": "v1.0.0"},
             {"type": "go-package", "name": "fmt", "version": None},
+            {"type": "pip", "name": "poetry", "version": "1.3.1", "dev": True},
+            {"type": "pip", "name": "requests", "version": "2.27.1", "dev": False},
         ],
     )
     def test_valid_deps(self, input_data: dict[str, Any]):
         dep = Dependency.parse_obj(input_data)
-        assert dep.dict() == input_data
+
+        for attr, value in input_data.items():
+            assert getattr(dep, attr) == value
+
+        if "dev" not in input_data:
+            assert dep.dev is None
 
     @pytest.mark.parametrize(
         "input_data, expect_error",

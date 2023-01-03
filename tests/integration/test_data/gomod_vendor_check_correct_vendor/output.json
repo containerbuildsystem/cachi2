@@ -9,227 +9,272 @@
         {
           "type": "go-package",
           "name": "bytes",
-          "version": null
+          "version": null,
+          "dev": null
         },
         {
           "type": "go-package",
           "name": "errors",
-          "version": null
+          "version": null,
+          "dev": null
         },
         {
           "type": "go-package",
           "name": "fmt",
-          "version": null
+          "version": null,
+          "dev": null
         },
         {
           "type": "go-package",
           "name": "golang.org/x/text/internal/tag",
-          "version": "v0.0.0-20170915032832-14c0d48ead0c"
+          "version": "v0.0.0-20170915032832-14c0d48ead0c",
+          "dev": null
         },
         {
           "type": "go-package",
           "name": "golang.org/x/text/language",
-          "version": "v0.0.0-20170915032832-14c0d48ead0c"
+          "version": "v0.0.0-20170915032832-14c0d48ead0c",
+          "dev": null
         },
         {
           "type": "go-package",
           "name": "internal/abi",
-          "version": null
+          "version": null,
+          "dev": null
         },
         {
           "type": "go-package",
           "name": "internal/bytealg",
-          "version": null
+          "version": null,
+          "dev": null
         },
         {
           "type": "go-package",
           "name": "internal/cpu",
-          "version": null
+          "version": null,
+          "dev": null
         },
         {
           "type": "go-package",
           "name": "internal/fmtsort",
-          "version": null
+          "version": null,
+          "dev": null
         },
         {
           "type": "go-package",
           "name": "internal/goarch",
-          "version": null
+          "version": null,
+          "dev": null
         },
         {
           "type": "go-package",
           "name": "internal/goexperiment",
-          "version": null
+          "version": null,
+          "dev": null
         },
         {
           "type": "go-package",
           "name": "internal/goos",
-          "version": null
+          "version": null,
+          "dev": null
         },
         {
           "type": "go-package",
           "name": "internal/itoa",
-          "version": null
+          "version": null,
+          "dev": null
         },
         {
           "type": "go-package",
           "name": "internal/oserror",
-          "version": null
+          "version": null,
+          "dev": null
         },
         {
           "type": "go-package",
           "name": "internal/poll",
-          "version": null
+          "version": null,
+          "dev": null
         },
         {
           "type": "go-package",
           "name": "internal/race",
-          "version": null
+          "version": null,
+          "dev": null
         },
         {
           "type": "go-package",
           "name": "internal/reflectlite",
-          "version": null
+          "version": null,
+          "dev": null
         },
         {
           "type": "go-package",
           "name": "internal/syscall/execenv",
-          "version": null
+          "version": null,
+          "dev": null
         },
         {
           "type": "go-package",
           "name": "internal/syscall/unix",
-          "version": null
+          "version": null,
+          "dev": null
         },
         {
           "type": "go-package",
           "name": "internal/testlog",
-          "version": null
+          "version": null,
+          "dev": null
         },
         {
           "type": "go-package",
           "name": "internal/unsafeheader",
-          "version": null
+          "version": null,
+          "dev": null
         },
         {
           "type": "go-package",
           "name": "io",
-          "version": null
+          "version": null,
+          "dev": null
         },
         {
           "type": "go-package",
           "name": "io/fs",
-          "version": null
+          "version": null,
+          "dev": null
         },
         {
           "type": "go-package",
           "name": "math",
-          "version": null
+          "version": null,
+          "dev": null
         },
         {
           "type": "go-package",
           "name": "math/bits",
-          "version": null
+          "version": null,
+          "dev": null
         },
         {
           "type": "go-package",
           "name": "os",
-          "version": null
+          "version": null,
+          "dev": null
         },
         {
           "type": "go-package",
           "name": "path",
-          "version": null
+          "version": null,
+          "dev": null
         },
         {
           "type": "go-package",
           "name": "reflect",
-          "version": null
+          "version": null,
+          "dev": null
         },
         {
           "type": "go-package",
           "name": "rsc.io/quote",
-          "version": "v1.5.2"
+          "version": "v1.5.2",
+          "dev": null
         },
         {
           "type": "go-package",
           "name": "rsc.io/sampler",
-          "version": "v1.3.0"
+          "version": "v1.3.0",
+          "dev": null
         },
         {
           "type": "go-package",
           "name": "runtime",
-          "version": null
+          "version": null,
+          "dev": null
         },
         {
           "type": "go-package",
           "name": "runtime/internal/atomic",
-          "version": null
+          "version": null,
+          "dev": null
         },
         {
           "type": "go-package",
           "name": "runtime/internal/math",
-          "version": null
+          "version": null,
+          "dev": null
         },
         {
           "type": "go-package",
           "name": "runtime/internal/sys",
-          "version": null
+          "version": null,
+          "dev": null
         },
         {
           "type": "go-package",
           "name": "runtime/internal/syscall",
-          "version": null
+          "version": null,
+          "dev": null
         },
         {
           "type": "go-package",
           "name": "sort",
-          "version": null
+          "version": null,
+          "dev": null
         },
         {
           "type": "go-package",
           "name": "strconv",
-          "version": null
+          "version": null,
+          "dev": null
         },
         {
           "type": "go-package",
           "name": "strings",
-          "version": null
+          "version": null,
+          "dev": null
         },
         {
           "type": "go-package",
           "name": "sync",
-          "version": null
+          "version": null,
+          "dev": null
         },
         {
           "type": "go-package",
           "name": "sync/atomic",
-          "version": null
+          "version": null,
+          "dev": null
         },
         {
           "type": "go-package",
           "name": "syscall",
-          "version": null
+          "version": null,
+          "dev": null
         },
         {
           "type": "go-package",
           "name": "time",
-          "version": null
+          "version": null,
+          "dev": null
         },
         {
           "type": "go-package",
           "name": "unicode",
-          "version": null
+          "version": null,
+          "dev": null
         },
         {
           "type": "go-package",
           "name": "unicode/utf8",
-          "version": null
+          "version": null,
+          "dev": null
         },
         {
           "type": "go-package",
           "name": "unsafe",
-          "version": null
+          "version": null,
+          "dev": null
         }
       ]
     },
@@ -242,17 +287,20 @@
         {
           "type": "gomod",
           "name": "golang.org/x/text",
-          "version": "v0.0.0-20170915032832-14c0d48ead0c"
+          "version": "v0.0.0-20170915032832-14c0d48ead0c",
+          "dev": null
         },
         {
           "type": "gomod",
           "name": "rsc.io/quote",
-          "version": "v1.5.2"
+          "version": "v1.5.2",
+          "dev": null
         },
         {
           "type": "gomod",
           "name": "rsc.io/sampler",
-          "version": "v1.3.0"
+          "version": "v1.3.0",
+          "dev": null
         }
       ]
     }

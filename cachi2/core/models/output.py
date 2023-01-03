@@ -16,6 +16,7 @@ class Dependency(pydantic.BaseModel):
     type: PackageType
     name: str
     version: Optional[str]  # go-package stdlib dependencies are allowed not to have versions
+    dev: Optional[bool] = None
 
     @pydantic.validator("version")
     def _check_version_vs_type(cls, version: Optional[str], values: dict) -> Optional[str]:
