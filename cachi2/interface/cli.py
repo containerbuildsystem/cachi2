@@ -3,15 +3,15 @@ import importlib.metadata
 import json
 import logging
 import sys
-from itertools import chain
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Any, Callable, Optional
 
+import pydantic
 import typer
 
 from cachi2.core.errors import Cachi2Error, InvalidInput
 from cachi2.core.extras.envfile import EnvFormat, generate_envfile
-from cachi2.core.models.input import Request, parse_user_input
+from cachi2.core.models.input import Flag, PackageInput, Request, parse_user_input
 from cachi2.core.models.output import RequestOutput
 from cachi2.core.resolver import resolve_packages, supported_package_managers
 from cachi2.interface.logging import LogLevel, setup_logging
@@ -97,14 +97,19 @@ def _looks_like_json(value: str) -> bool:
     return value.lstrip().startswith(("{", "["))
 
 
+class _Input(pydantic.BaseModel, extra="forbid"):
+    packages: list[PackageInput]
+    flags: list[Flag] = list()
+
+
 @app.command()
 @handle_errors
 def fetch_deps(
-    package: list[str] = typer.Option(
-        ...,  # Ellipsis makes this option required
+    raw_input: str = typer.Argument(
+        ...,
         help="Specify package (within the source repo) to process. See usage examples.",
         metavar="PKG",
-        callback=lambda args: [_if_json_then_validate(arg) for arg in args],
+        callback=_if_json_then_validate,
     ),
     source: Path = typer.Option(
         DEFAULT_SOURCE,
@@ -143,73 +148,85 @@ def fetch_deps(
             "already have a vendor/ directory (will fail if changes would be made)."
         ),
     ),
-    more_flags: str = typer.Option(
-        "",
-        "--flags",
-        help="Pass additional flags as a comma-separated list.",
-        metavar="FLAGS",
-    ),
     log_level: LogLevel = LOG_LEVEL_OPTION,
 ) -> None:
     """Fetch dependencies for supported package managers.
 
     \b
     # gomod package in the current directory
-    cachi2 fetch-deps --package gomod
+    cachi2 fetch-deps gomod
 
     \b
     # pip package (not supported yet) in the root of the source directory
-    cachi2 fetch-deps --source ./my-repo --package pip
+    cachi2 fetch-deps --source ./my-repo pip
 
     \b
     # gomod package in a subpath of the source directory (./my-repo/subpath)
-    cachi2 fetch-deps --source ./my-repo --package '{
+    cachi2 fetch-deps --source ./my-repo '{
         "type": "gomod",
         "path": "subpath"
     }'
 
     \b
-    # multiple packages
-    cachi2 fetch-deps \\
-        --package gomod \\
-        --package '{"type": "gomod", "path": "subpath"}' \\
-        --package '{"type": "pip", "path": "other-path"}'
-
-    \b
     # multiple packages as a JSON list
-    cachi2 fetch-deps --package '[
+    cachi2 fetch-deps '[
         {"type": "gomod"},
         {"type": "gomod", "path": "subpath"},
         {"type": "pip", "path": "other-path"}
     ]'
+
+    \b
+    # multiple packages and flags as a JSON list
+    cachi2 fetch-deps '{
+        "packages": [
+            {"type": "gomod"},
+            {"type": "gomod", "path": "subpath"},
+            {"type": "pip", "path": "other-path"}
+        ],
+        "flags": [
+            "gomod-vendor"
+        ]
+    }'
     """  # noqa: D301, D202; backslashes intentional, blank line required by black
 
-    def parse_packages(package_str: str) -> list[dict]:
-        """Parse a --package argument into a list of packages (--package may be a JSON list)."""
-        if not _looks_like_json(package_str):
-            packages = [{"type": package_str, "path": "."}]
-        elif isinstance(json_obj := json.loads(package_str), dict):
-            packages = [json_obj]
-        else:
-            packages = json_obj
-        return packages
+    def normalize_input() -> dict[str, list[Any]]:
+        """Format raw_input so it can be parsed by the _Input class."""
+        if _looks_like_json(raw_input):
+            parsed_input = json.loads(raw_input)
 
-    def combine_flags() -> list[str]:
+            if isinstance(parsed_input, dict):
+                if "packages" in parsed_input.keys():
+                    # is a dict with list of packages and possibly flags
+                    return parsed_input
+                else:
+                    # is a dict representing a package
+                    return {"packages": [parsed_input]}
+            else:
+                # is a list
+                return {"packages": parsed_input}
+        else:
+            # is a str
+            return {"packages": [{"type": raw_input}]}
+
+    def combine_option_and_json_flags(json_flags: list[Flag]) -> list[str]:
         flag_names = ["cgo-disable", "force-gomod-tidy", "gomod-vendor", "gomod-vendor-check"]
         flag_values = [cgo_disable, force_gomod_tidy, gomod_vendor, gomod_vendor_check]
         flags = [name for name, value in zip(flag_names, flag_values) if value]
-        if more_flags:
-            flags.extend(flag.strip() for flag in more_flags.split(","))
+
+        if json_flags:
+            flags.extend(flag.strip() for flag in json_flags)
+
         return flags
 
-    parsed_packages = tuple(chain.from_iterable(map(parse_packages, package)))
+    input = parse_user_input(_Input.parse_obj, normalize_input())
+
     request = parse_user_input(
         Request.parse_obj,
         {
             "source_dir": source,
             "output_dir": output,
-            "packages": parsed_packages,
-            "flags": combine_flags(),
+            "packages": input.packages,
+            "flags": combine_option_and_json_flags(input.flags),
         },
     )
 

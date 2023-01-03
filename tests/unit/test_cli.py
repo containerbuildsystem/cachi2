@@ -92,7 +92,7 @@ class TestLogLevelOpt:
         expected_level: str,
         tmp_cwd,
     ):
-        args = ["fetch-deps", "--package=gomod", *loglevel_args]
+        args = ["fetch-deps", "gomod", *loglevel_args]
 
         with mock_fetch_deps():
             invoke_expecting_sucess(app, args)
@@ -102,7 +102,7 @@ class TestLogLevelOpt:
         assert loglevel_name == expected_level
 
     def test_unknown_loglevel(self, tmp_cwd):
-        args = ["fetch-deps", "--package=gomod", "--log-level=unknown"]
+        args = ["fetch-deps", "gomod", "--log-level=unknown"]
         result = invoke_expecting_invalid_usage(app, args)
         assert "Error: Invalid value for '--log-level': 'unknown' is not one of" in result.output
 
@@ -144,7 +144,7 @@ class TestFetchDeps:
         path_args = [arg.format(cwd=tmp_cwd) for arg in path_args]
 
         with mock_fetch_deps(expect_request):
-            invoke_expecting_sucess(app, ["fetch-deps", *path_args, "--package=gomod"])
+            invoke_expecting_sucess(app, ["fetch-deps", *path_args, "gomod"])
 
     @pytest.mark.parametrize(
         "path_args, expect_error",
@@ -163,41 +163,55 @@ class TestFetchDeps:
 
     def test_no_packages(self):
         result = invoke_expecting_invalid_usage(app, ["fetch-deps"])
-        assert "Error: Missing option '--package'" in result.output
+        assert "Error: Missing argument 'PKG'" in result.output
 
     @pytest.mark.parametrize(
-        "package_args, expect_packages",
+        "package_arg, expect_packages",
         [
             # specify a single basic package
-            (["--package=gomod"], [{"type": "gomod"}]),
-            (['--package={"type": "gomod"}'], [{"type": "gomod"}]),
-            (['--package=[{"type": "gomod"}]'], [{"type": "gomod"}]),
+            ("gomod", [{"type": "gomod"}]),
+            ('{"type": "gomod"}', [{"type": "gomod"}]),
+            ('[{"type": "gomod"}]', [{"type": "gomod"}]),
             # specify multiple packages
             (
-                ['--package={"type": "gomod"}', '--package={"type": "gomod", "path": "pkg_a"}'],
+                '[{"type": "gomod"}, {"type": "gomod", "path": "pkg_a"}]',
                 [{"type": "gomod"}, {"type": "gomod", "path": "pkg_a"}],
             ),
             (
-                ['--package=[{"type": "gomod"}, {"type": "gomod", "path": "pkg_a"}]'],
-                [{"type": "gomod"}, {"type": "gomod", "path": "pkg_a"}],
-            ),
-            (
-                [
-                    "--package=gomod",
-                    '--package={"type": "gomod", "path": "pkg_a"}',
-                    '--package=[{"type": "gomod", "path": "pkg_b"}]',
-                ],
+                dedent(
+                    """
+                    [
+                        {"type": "gomod"},
+                        {"type": "gomod", "path": "pkg_a"},
+                        {"type": "gomod", "path": "pkg_b"}
+                    ]
+                    """
+                ),
                 [
                     {"type": "gomod"},
                     {"type": "gomod", "path": "pkg_a"},
                     {"type": "gomod", "path": "pkg_b"},
                 ],
             ),
+            # specify using a 'packages' key
+            (
+                '{"packages": [{"type": "gomod"}]}',
+                [{"type": "gomod"}],
+            ),
+            (
+                dedent(
+                    """
+                    {"packages": [
+                        {"type": "gomod", "path": "pkg_a"},
+                        {"type": "gomod", "path": "pkg_b"}
+                    ]}
+                    """
+                ),
+                [{"type": "gomod", "path": "pkg_a"}, {"type": "gomod", "path": "pkg_b"}],
+            ),
         ],
     )
-    def test_specify_packages(
-        self, package_args: list[str], expect_packages: list[dict], tmp_cwd: Path
-    ):
+    def test_specify_packages(self, package_arg: str, expect_packages: list[dict], tmp_cwd: Path):
         tmp_cwd.joinpath("pkg_a").mkdir(exist_ok=True)
         tmp_cwd.joinpath("pkg_b").mkdir(exist_ok=True)
 
@@ -207,25 +221,23 @@ class TestFetchDeps:
             packages=expect_packages,
         )
         with mock_fetch_deps(expect_request):
-            invoke_expecting_sucess(app, ["fetch-deps", *package_args])
+            invoke_expecting_sucess(app, ["fetch-deps", package_arg])
 
     @pytest.mark.parametrize(
-        "package_args, expect_error_lines",
+        "package_arg, expect_error_lines",
         [
+            # Invalid JSON
             (
-                ["--package={notjson}"],
-                ["'--package': Looks like JSON but is not valid JSON: '{notjson}'"],
+                "{notjson}",
+                ["'PKG': Looks like JSON but is not valid JSON: '{notjson}'"],
             ),
             (
-                ["--package=[notjson]"],
-                ["'--package': Looks like JSON but is not valid JSON: '[notjson]'"],
+                "[notjson]",
+                ["'PKG': Looks like JSON but is not valid JSON: '[notjson]'"],
             ),
+            # Invalid package type
             (
-                ["--package=gomod", "--package={notjson}"],
-                ["'--package': Looks like JSON but is not valid JSON: '{notjson}'"],
-            ),
-            (
-                ["--package=idk"],
+                "idk",
                 [
                     "1 validation error for user input",
                     "packages -> 0",
@@ -233,17 +245,24 @@ class TestFetchDeps:
                 ],
             ),
             (
-                ["--package=", '--package={"type": "idk"}'],
+                '[{"type": "idk"}]',
                 [
-                    "2 validation errors for user input",
+                    "1 validation error for user input",
                     "packages -> 0",
-                    "No match for discriminator 'type' and value 'idk' (allowed values:",
-                    "packages -> 1",
                     "No match for discriminator 'type' and value 'idk' (allowed values:",
                 ],
             ),
             (
-                ["--package={}"],
+                '{"packages": [{"type": "idk"}]}',
+                [
+                    "1 validation error for user input",
+                    "packages -> 0",
+                    "No match for discriminator 'type' and value 'idk' (allowed values:",
+                ],
+            ),
+            # Missing package type
+            (
+                "{}",
                 [
                     "1 validation error for user input",
                     "packages -> 0",
@@ -251,16 +270,24 @@ class TestFetchDeps:
                 ],
             ),
             (
-                ['--package=[{"type": "gomod"}, {}]', "--package={}"],
+                '[{"type": "gomod"}, {}]',
                 [
-                    "2 validation errors for user input",
+                    "1 validation error for user input",
                     "packages -> 1",
-                    "packages -> 2",
                     "Discriminator 'type' is missing",
                 ],
             ),
             (
-                ['--package={"type": "gomod", "path": "/absolute"}'],
+                '{"packages": [{}]}',
+                [
+                    "1 validation error for user input",
+                    "packages -> 0",
+                    "Discriminator 'type' is missing",
+                ],
+            ),
+            # Invalid path
+            (
+                '{"type": "gomod", "path": "/absolute"}',
                 [
                     "1 validation error for user input",
                     "packages -> 0 -> GomodPackageInput -> path",
@@ -268,7 +295,7 @@ class TestFetchDeps:
                 ],
             ),
             (
-                ['--package={"type": "gomod", "path": "weird/../subpath"}'],
+                '{"type": "gomod", "path": "weird/../subpath"}',
                 [
                     "1 validation error for user input",
                     "packages -> 0 -> GomodPackageInput -> path",
@@ -276,7 +303,7 @@ class TestFetchDeps:
                 ],
             ),
             (
-                ['--package={"type": "gomod", "path": "suspicious-symlink"}'],
+                '{"type": "gomod", "path": "suspicious-symlink"}',
                 [
                     "1 validation error for user input",
                     "packages -> 0",
@@ -284,42 +311,78 @@ class TestFetchDeps:
                 ],
             ),
             (
-                ['--package={"type": "gomod", "path": "no-such-dir"}'],
+                '{"type": "gomod", "path": "no-such-dir"}',
                 [
                     "1 validation error for user input",
                     "packages -> 0",
                     "package path does not exist (or is not a directory): no-such-dir",
                 ],
             ),
+            # Extra fields
             (
-                ['--package={"type": "gomod", "what": "dunno"}'],
+                '{"type": "gomod", "what": "dunno"}',
                 [
                     "1 validation error for user input",
                     "packages -> 0 -> GomodPackageInput -> what",
                     "extra fields not permitted",
                 ],
             ),
+            # Invalid format using 'packages' key
+            (
+                '{"packages": "gomod"}',
+                [
+                    "1 validation error for user input",
+                    "packages",
+                    "value is not a valid list",
+                ],
+            ),
+            (
+                '{"packages": {"type":"gomod"}}',
+                [
+                    "1 validation error for user input",
+                    "packages",
+                    "value is not a valid list",
+                ],
+            ),
+            (
+                '{"packages": ["gomod"]}',
+                [
+                    "1 validation error for user input",
+                    "packages -> 0",
+                    "Discriminator 'type' is missing",
+                ],
+            ),
+            (
+                '{"packages": [{"type": "gomod"}], "what": "dunno"}',
+                [
+                    "1 validation error for user input",
+                    "what",
+                    "extra fields not permitted",
+                ],
+            ),
         ],
     )
-    def test_invalid_packages(
-        self, package_args: list[str], expect_error_lines: list[str], tmp_cwd: Path
-    ):
+    def test_invalid_packages(self, package_arg: str, expect_error_lines: list[str], tmp_cwd: Path):
         tmp_cwd.joinpath("suspicious-symlink").symlink_to("..")
 
-        result = invoke_expecting_invalid_usage(app, ["fetch-deps", *package_args])
+        result = invoke_expecting_invalid_usage(app, ["fetch-deps", package_arg])
 
         for pattern in expect_error_lines:
             assert_pattern_in_output(pattern, result.output)
 
     @pytest.mark.parametrize(
-        "flag_args, expect_flags",
+        "cli_args, expect_flags",
         [
-            ([], {}),
-            (["--gomod-vendor"], {"gomod-vendor"}),
-            (["--flags=gomod-vendor"], {"gomod-vendor"}),
-            (["--gomod-vendor", "--flags=gomod-vendor"], {"gomod-vendor"}),
+            (["gomod"], {}),
+            (["gomod", "--gomod-vendor"], {"gomod-vendor"}),
+            (['{"packages": [{"type":"gomod"}], "flags": ["gomod-vendor"]}'], {"gomod-vendor"}),
+            (
+                ['{"packages": [{"type":"gomod"}], "flags": ["gomod-vendor"]}', "--gomod-vendor"],
+                {"gomod-vendor"},
+            ),
             (
                 [
+                    "gomod",
                     "--gomod-vendor",
                     "--gomod-vendor-check",
                     "--cgo-disable",
@@ -328,12 +391,16 @@ class TestFetchDeps:
                 {"gomod-vendor", "gomod-vendor-check", "cgo-disable", "force-gomod-tidy"},
             ),
             (
-                ["--flags=gomod-vendor,gomod-vendor-check, cgo-disable,\tforce-gomod-tidy"],
+                [
+                    '{"packages": [{"type":"gomod"}], "flags": ["gomod-vendor", "cgo-disable"]}',
+                    "--gomod-vendor-check",
+                    "--force-gomod-tidy",
+                ],
                 {"gomod-vendor", "gomod-vendor-check", "cgo-disable", "force-gomod-tidy"},
             ),
         ],
     )
-    def test_specify_flags(self, flag_args: list[str], expect_flags: set[str], tmp_cwd):
+    def test_specify_flags(self, cli_args: list[str], expect_flags: set[str], tmp_cwd):
         expect_request = Request(
             source_dir=tmp_cwd / DEFAULT_SOURCE,
             output_dir=tmp_cwd / DEFAULT_OUTPUT,
@@ -341,14 +408,30 @@ class TestFetchDeps:
             flags=frozenset(expect_flags),
         )
         with mock_fetch_deps(expect_request):
-            invoke_expecting_sucess(app, ["fetch-deps", "--package=gomod", *flag_args])
+            invoke_expecting_sucess(app, ["fetch-deps", *cli_args])
 
     @pytest.mark.parametrize(
-        "flag_args, expect_error",
+        "cli_args, expect_error",
         [
-            (["--no-such-flag"], "Error: No such option: --no-such-flag"),
+            (["gomod", "--no-such-flag"], "Error: No such option: --no-such-flag"),
             (
-                ["--flags=no-such-flag"],
+                ['{"packages": [{"type": "gomod"}], "flags": "not-a-list"}'],
+                re.compile(
+                    r"1 validation error for user input\n"
+                    r"flags\n"
+                    r"  value is not a valid list",
+                ),
+            ),
+            (
+                ['{"packages": [{"type": "gomod"}], "flags": {"dict": "no-such-flag"}}'],
+                re.compile(
+                    r"1 validation error for user input\n"
+                    r"flags\n"
+                    r"  value is not a valid list",
+                ),
+            ),
+            (
+                ['{"packages": [{"type": "gomod"}], "flags": ["no-such-flag"]}'],
                 re.compile(
                     r"1 validation error for user input\n"
                     r"flags -> 0\n"
@@ -357,8 +440,8 @@ class TestFetchDeps:
             ),
         ],
     )
-    def test_invalid_flags(self, flag_args: list[str], expect_error: str):
-        result = invoke_expecting_invalid_usage(app, ["fetch-deps", "--package=gomod", *flag_args])
+    def test_invalid_flags(self, cli_args: list[str], expect_error: str):
+        result = invoke_expecting_invalid_usage(app, ["fetch-deps", *cli_args])
         assert_pattern_in_output(expect_error, result.output)
 
     @pytest.mark.parametrize(
@@ -384,7 +467,7 @@ class TestFetchDeps:
     )
     def test_write_json_output(self, request_output: RequestOutput, tmp_cwd: Path):
         with mock_fetch_deps(output=request_output):
-            invoke_expecting_sucess(app, ["fetch-deps", "--package=gomod"])
+            invoke_expecting_sucess(app, ["fetch-deps", "gomod"])
 
         output_json = tmp_cwd / DEFAULT_OUTPUT / "output.json"
         written_output = RequestOutput.parse_file(output_json)

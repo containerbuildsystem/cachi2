@@ -137,7 +137,7 @@ jobs:
             fetch-deps \
             --source /tmp/source \
             --output ./cachi2-output \
-            --package '{"path": ".", "type": "gomod"}'
+            '{"path": ".", "type": "gomod"}'
 
       - name: Run integration tests on built image
         env:

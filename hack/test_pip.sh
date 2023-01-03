@@ -14,4 +14,4 @@ popd
 venv/bin/cachi2 fetch-deps \
     --source workdir/cachito-pip-with-deps \
     --output workdir/pip-output \
-    --package pip
+    pip
