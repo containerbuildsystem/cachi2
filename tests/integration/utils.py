@@ -53,17 +53,18 @@ class ContainerImage:
             raise RuntimeError(f"Image deletion failed. Output:{output}")
 
     def __exit__(self, exc_type, exc_value, exc_traceback):
-        image_cmd = ["podman", "rmi", "--force", self.repository]
+        image_cmd = ["buildah", "rmi", "--force", self.repository]
         (output, rc) = run_cmd(image_cmd)
         if rc != 0:
             raise RuntimeError(f"Image deletion failed. Output:{output}")
 
 
-def build_image(tmpdir: Path, container_folder: str, test_case: str) -> ContainerImage:
+def build_image(tmpdir: Path, containerfile: str, test_case: str) -> ContainerImage:
     image_cmd = [
-        "podman",
-        "build",
-        container_folder,
+        "buildah",
+        "bud",
+        "-f",
+        containerfile,
         "-v",
         f"{tmpdir}:/tmp:z",
         "--no-cache",
@@ -151,3 +152,63 @@ def load_json(file: str) -> Dict:
     """Load JSON file and return dict."""
     with open(file) as json_file:
         return json.load(json_file)
+
+
+def fetch_deps_and_check_output(
+    tmpdir: Path,
+    test_case: str,
+    test_params: TestParameters,
+    source_folder: Path,
+    test_data_dir: Path,
+    cachi2_image: ContainerImage,
+) -> str:
+    """
+    Fetch dependencies for source repo and check expected output.
+
+    :param tmpdir: Temp directory for pytest
+    :param test_case: Test case name retrieved from pytest id
+    :param test_params: Test case arguments
+    :param source_folder: Folder path to source repository content
+    :param test_data_dir: Relative path to expected output test data
+    :param cachi2_image: ContainerImage instance with Cachi2 image
+    :return: Path to output folder with fetched dependencies and output.json
+    """
+    output_folder = os.path.join(tmpdir, f"{test_case}-output")
+    cmd = [
+        "fetch-deps",
+        "--source",
+        source_folder,
+        "--output",
+        output_folder,
+    ]
+    if test_params.flags:
+        cmd += test_params.flags
+
+    cmd.append(json.dumps(test_params.packages).encode("utf-8"))
+
+    (output, rc) = cachi2_image.run_cmd_on_image(cmd, tmpdir)
+    assert rc == test_params.expected_rc, (
+        f"Fetching deps ended with unexpected exitcode: {rc} != {test_params.expected_rc}, "
+        f"output-cmd: {output}"
+    )
+    assert test_params.expected_output in str(
+        output
+    ), f"Expected msg {test_params.expected_output} was not found in cmd output: {output}"
+
+    if test_params.check_output_json:
+        output_json = load_json(os.path.join(output_folder, "output.json"))
+        expected_output_json = load_json(os.path.join(test_data_dir, test_case, "output.json"))
+        log.info("Compare output.json files")
+        assert output_json == expected_output_json, f"Expected output.json:/n{output_json}"
+
+    if test_params.check_deps_checksums:
+        files_checksums = calculate_files_sha256sum_in_dir(os.path.join(output_folder, "deps"))
+        expected_files_checksums = load_json(
+            os.path.join(test_data_dir, test_case, "fetch_deps_sha256sums.json")
+        )
+        log.info("Compare checksums of fetched deps files")
+        assert (
+            files_checksums == expected_files_checksums
+        ), f"Expected files checksusms:/n{files_checksums}"
+
+    return output_folder

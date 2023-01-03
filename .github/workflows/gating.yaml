@@ -129,15 +129,18 @@ jobs:
           buildah images | grep 'cachi2'
           podman run -t cachi2:${{ github.sha }} --version
 
-      - name: Run smoketest on built images
+      # This is a workaround step
+      # Buildah version < 1.28.0 has broken network isolation
+      # Till new buildah is provided to ubuntu github runner
+      # build and install package using go
+      - name: Build and install buildah v1.28.2
         run: |
-          git clone -b v2.1.1 https://github.com/release-engineering/retrodep.git /tmp/source
-          podman run -t -v /tmp/source:/tmp/source \
-            cachi2:${{ github.sha }} \
-            fetch-deps \
-            --source /tmp/source \
-            --output ./cachi2-output \
-            '{"path": ".", "type": "gomod"}'
+          sudo apt install make libseccomp-dev libgpgme-dev libdevmapper-dev golang git
+          git clone -b v1.28.2 https://github.com/containers/buildah ./src/github.com/containers/buildah
+          cd ./src/github.com/containers/buildah
+          PATH=/usr/lib/go/bin:$PATH make runc all SECURITYTAGS="apparmor seccomp"
+          sudo make install install.runc
+          buildah version
 
       - name: Run integration tests on built image
         env:
