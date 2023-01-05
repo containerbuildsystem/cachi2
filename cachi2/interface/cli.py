@@ -8,6 +8,7 @@ from typing import Any, Callable, Optional
 
 import pydantic
 import typer
+import yaml
 
 from cachi2.core.errors import Cachi2Error, InvalidInput
 from cachi2.core.extras.envfile import EnvFormat, generate_envfile
@@ -102,6 +103,15 @@ class _Input(pydantic.BaseModel, extra="forbid"):
     flags: list[Flag] = list()
 
 
+def _if_yaml_then_validate(file: str) -> str:
+    try:
+        with open(file, "r", ) as value:
+            yaml.safe_load(value)
+    except yaml.YAMLError:
+        raise typer.BadParameter(f"Not valid YAML: {file!r}")
+    return file
+
+
 @app.command()
 @handle_errors
 def fetch_deps(
@@ -147,6 +157,16 @@ def fetch_deps(
             "Same as gomod-vendor, but will not make unexpected changes if you "
             "already have a vendor/ directory (will fail if changes would be made)."
         ),
+    ),
+    config_file: Path = typer.Option(
+        "conf.yaml",    # required default value
+        "--config-file",
+        help="Process the config file at this path.",
+        exists=True,
+        file_okay=True,
+        resolve_path=True,
+        readable=True,
+        callback=_if_yaml_then_validate,
     ),
     log_level: LogLevel = LOG_LEVEL_OPTION,
 ) -> None:
