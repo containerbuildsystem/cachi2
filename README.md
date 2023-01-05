@@ -83,7 +83,7 @@ and nowhere else.
 cachi2 fetch-deps \
   --source ./my-repo \
   --output ./cachi2-output \
-  --package gomod
+  gomod
 ```
 
 The `fetch-deps` command fetches your project's dependencies and stores them on your disk. You can then use these

@@ -15,8 +15,7 @@
 cachi2 fetch-deps \
   --source ./my-repo \
   --output ./cachi2-output \
-  --package '<module-1 JSON>' \
-  --package '<module-2 JSON>'
+  '<modules JSON>'
 ```
 
 Module[^misnomer] JSON:
@@ -30,9 +29,9 @@ Module[^misnomer] JSON:
 }
 ```
 
-The `--package` argument accepts alternative forms of input, see [usage: pre-fetch-dependencies][usage-prefetch].
+The main argument accepts alternative forms of input, see [usage: pre-fetch-dependencies][usage-prefetch].
 
-[^misnomer]: You may have noticed a slight naming issue. You use the `--package` argument to specify a *module* to
+[^misnomer]: You may have noticed a slight naming issue. You use the main argument, also called PKG, to specify a *module* to
   process. Even worse, Go has packages as well (see [gomod vs go-package](#gomod-vs-go-package)). What gives?
   As far as we know, most languages/package managers use the opposite naming. For example, in [Python][py-modules],
   modules are `*.py` files, packages are collections of modules. In [npm][npm-modules], modules are directories/files
