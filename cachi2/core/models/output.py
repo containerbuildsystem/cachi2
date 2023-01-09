@@ -53,6 +53,11 @@ Dependency = Annotated[
 ]
 
 
+def _dependency_sorting_key(dep: Dependency) -> tuple[str, bool, str, str]:
+    # should return all the attributes a Dependency (the whole Union) can have
+    return dep.type, getattr(dep, "dev", False), dep.name, dep.version or ""
+
+
 class Package(pydantic.BaseModel):
     """Metadata about a resolved package and its dependencies."""
 
@@ -69,7 +74,7 @@ class Package(pydantic.BaseModel):
     @pydantic.validator("dependencies")
     def _unique_deps(cls, dependencies: list[Dependency]) -> list[Dependency]:
         """Sort and de-duplicate dependencies."""
-        return unique_sorted(dependencies, by=lambda dep: (dep.type, dep.name, dep.version))
+        return unique_sorted(dependencies, by=_dependency_sorting_key)
 
 
 class EnvironmentVariable(pydantic.BaseModel):

@@ -12,6 +12,7 @@ from cachi2.core.models.output import (
     GomodDependency,
     GoPackageDependency,
     Package,
+    PipDependency,
     ProjectFile,
     RequestOutput,
 )
@@ -75,6 +76,30 @@ class TestPackage:
             GomodDependency(type="gomod", name="github.com/org/A", version="v1.0.0"),
             GomodDependency(type="gomod", name="github.com/org/A", version="v1.1.0"),
             GomodDependency(type="gomod", name="github.com/org/B", version="v1.0.0"),
+        ]
+
+    def test_sort_and_dedupe_dev_deps(self):
+        package = Package(
+            type="pip",
+            name="cachi2",
+            version="1.0.0",
+            path=".",
+            dependencies=[
+                {"type": "pip", "name": "packaging", "version": "0.23", "dev": True},
+                {"type": "pip", "name": "packaging", "version": "0.22", "dev": True},
+                {"type": "pip", "name": "requests", "version": "2.28.1", "dev": False},
+                {"type": "pip", "name": "packaging", "version": "0.23", "dev": False},
+                # de-duplicate
+                {"type": "pip", "name": "requests", "version": "2.28.1", "dev": False},
+                {"type": "pip", "name": "packaging", "version": "0.23", "dev": True},
+            ],
+        )
+        assert package.dependencies == [
+            # dev -> name -> version
+            PipDependency(type="pip", name="packaging", version="0.23", dev=False),
+            PipDependency(type="pip", name="requests", version="2.28.1", dev=False),
+            PipDependency(type="pip", name="packaging", version="0.22", dev=True),
+            PipDependency(type="pip", name="packaging", version="0.23", dev=True),
         ]
 
 
