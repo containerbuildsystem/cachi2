@@ -93,6 +93,11 @@
         },
         {
           "type": "go-package",
+          "name": "internal/safefilepath",
+          "version": null
+        },
+        {
+          "type": "go-package",
           "name": "internal/syscall/execenv",
           "version": null
         },
