@@ -104,16 +104,21 @@ jobs:
   build-image:
     name: Build Cachi2 image and run smoketest on it
     runs-on: ubuntu-latest
+    container:
+      image: registry.fedoraproject.org/fedora:37
+      options: --privileged
+
     steps:
+      - name: Install required packages
+        run: |
+          dnf install -y python python-pip buildah git podman
+          python -m pip install --upgrade pip
+          pip install tox tox-gh-actions
+
       - name: add checkout action...
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
-
-      - name: Install required packages
-        run: |
-          python -m pip install --upgrade pip
-          pip install tox tox-gh-actions
 
       - name: Build Cachi2 image
         uses: redhat-actions/buildah-build@v2
@@ -133,14 +138,14 @@ jobs:
       # Buildah version < 1.28.0 has broken network isolation
       # Till new buildah is provided to ubuntu github runner
       # build and install package using go
-      - name: Build and install buildah v1.28.2
-        run: |
-          sudo apt install make libseccomp-dev libgpgme-dev libdevmapper-dev golang git
-          git clone -b v1.28.2 https://github.com/containers/buildah ./src/github.com/containers/buildah
-          cd ./src/github.com/containers/buildah
-          PATH=/usr/lib/go/bin:$PATH make runc all SECURITYTAGS="apparmor seccomp"
-          sudo make install install.runc
-          buildah version
+#      - name: Build and install buildah v1.28.2
+#        run: |
+#          sudo apt install make libseccomp-dev libgpgme-dev libdevmapper-dev golang git
+#          git clone -b v1.28.2 https://github.com/containers/buildah ./src/github.com/containers/buildah
+#          cd ./src/github.com/containers/buildah
+#          PATH=/usr/lib/go/bin:$PATH make runc all SECURITYTAGS="apparmor seccomp"
+#          sudo make install install.runc
+#          buildah version
 
       - name: Run integration tests on built image
         env:
