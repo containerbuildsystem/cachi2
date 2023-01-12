@@ -1,4 +1,3 @@
-import fnmatch
 import functools
 import logging
 import os
@@ -28,8 +27,6 @@ from cachi2.core.utils import load_json_stream, run_cmd
 
 log = logging.getLogger(__name__)
 
-
-_MODULE_VERSION_RE = re.compile(r"/v\d+$")
 
 GOMOD_DOC = "https://github.com/containerbuildsystem/cachi2/blob/main/docs/gomod.md"
 GOMOD_INPUT_DOC = f"{GOMOD_DOC}#specifying-modules-to-process"
@@ -349,12 +346,10 @@ def _resolve_gomod(path: Path, request: Request, git_dir_path=None):
             pkg = {"name": pkg_name, "type": "go-package", "version": module_version}
             packages.append({"pkg": pkg, "pkg_deps": pkg_level_deps})
 
-        allowlist = _get_allowed_local_deps(module_name)
-        log.debug("Allowed local dependencies for %s: %s", module_name, allowlist)
-        _vet_local_deps(module_level_deps, module_name, allowlist)
+        _vet_local_deps(module_level_deps)
         for pkg in packages:
             # Local dependencies are always relative to the main module, even for subpackages
-            _vet_local_deps(pkg["pkg_deps"], module_name, allowlist)
+            _vet_local_deps(pkg["pkg_deps"])
             _set_full_local_dep_relpaths(pkg["pkg_deps"], module_level_deps)
 
         # import time
@@ -733,45 +728,16 @@ def _load_list_deps(list_deps_output: str) -> Dict[str, dict]:
     return package_info
 
 
-def _get_allowed_local_deps(module_name: str) -> List[str]:
-    """
-    Get allowed local dependencies for module.
-
-    If module name contains a version and is not present in the allowlist, also try matching
-    without the version. E.g. if example.org/module/v2 is not present in the allowlist, return
-    allowed deps for example.org/module.
-    """
-    allowlist = get_worker_config().cachito_gomod_file_deps_allowlist
-    allowed_deps = allowlist.get(module_name)
-    if allowed_deps is None:
-        versionless_module_name = _MODULE_VERSION_RE.sub("", module_name)
-        allowed_deps = allowlist.get(versionless_module_name)
-    return allowed_deps or []
-
-
-def _vet_local_deps(dependencies: List[dict], module_name: str, allowed_patterns: List[str]):
-    """
-    Fail if any dependency is replaced by a local path unless the module is allowlisted.
-
-    Also fail if the module is allowlisted but the path is absolute or outside repository.
-    """
+def _vet_local_deps(dependencies: List[dict]):
+    """Fail if any local dependency path is absolute or outside repository."""
     for dep in dependencies:
-        name = dep["name"]
         version = dep["version"]
 
         if not version:
             continue  # go stdlib
 
-        if version.startswith("."):
-            log.debug(
-                "Module %s wants to replace %s with a local dependency: %s",
-                module_name,
-                name,
-                version,
-            )
-            if ".." in Path(version).parts:
-                raise UnsupportedFeature(f"Path to gomod dependency contains '..': {version}.")
-            _fail_unless_allowed(module_name, name, allowed_patterns)
+        if version.startswith(".") and ".." in Path(version).parts:
+            raise UnsupportedFeature(f"Path to gomod dependency contains '..': {version}.")
         elif version.startswith("/") or PureWindowsPath(version).root:
             # This will disallow paths starting with '/', '\' or '<drive letter>:\'
             raise UnsupportedFeature(
@@ -964,30 +930,6 @@ def _vendor_deps(run_params: dict, can_make_changes: bool, git_dir: str):
                 "Also consider whether you really want the -check variant of the flag."
             ),
             docs=VENDORING_DOC,
-        )
-
-
-def _fail_unless_allowed(module_name: str, package_name: str, allowed_patterns: List[str]):
-    """
-    Fail unless the module is allowed to replace the package with a local dependency.
-
-    When packages are allowed to be replaced:
-    * package_name is a submodule of module_name
-    * package_name replacement is allowed according to allowed_patterns
-    """
-    versionless_module_name = _MODULE_VERSION_RE.sub("", module_name)
-    is_submodule = _contains_package(versionless_module_name, package_name)
-    if not is_submodule and not any(fnmatch.fnmatch(package_name, pat) for pat in allowed_patterns):
-        raise UnsupportedFeature(
-            reason=(
-                f"The module {module_name} is not allowed to replace {package_name} with a local "
-                "dependency."
-            ),
-            solution=(
-                "Please allow the replacement in Cachi2's configuration.\n"
-                "If you're using Cachi2 in a managed environment, please contact the "
-                "administrators."
-            ),
         )
 
 
