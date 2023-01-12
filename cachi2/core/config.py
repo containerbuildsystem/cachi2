@@ -1,5 +1,3 @@
-from typing import Dict
-
 config = None
 
 
@@ -15,7 +13,6 @@ class Config:
         "gomod": {"GOSUMDB": {"value": "off", "kind": "literal"}},
     }
     cachito_gomod_download_max_tries = 5
-    cachito_gomod_file_deps_allowlist: Dict[str, Dict[str, str]] = {}
     cachito_gomod_strict_vendor = True
     cachito_subprocess_timeout = 3600
 
