@@ -104,16 +104,21 @@ jobs:
   build-image:
     name: Build Cachi2 image and run smoketest on it
     runs-on: ubuntu-latest
+    container:
+      image: registry.fedoraproject.org/fedora:37
+      options: --privileged
+
     steps:
+      - name: Install required packages
+        run: |
+          dnf install -y python python-pip buildah git podman
+          python -m pip install --upgrade pip
+          pip install tox tox-gh-actions
+
       - name: add checkout action...
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
-
-      - name: Install required packages
-        run: |
-          python -m pip install --upgrade pip
-          pip install tox tox-gh-actions
 
       - name: Build Cachi2 image
         uses: redhat-actions/buildah-build@v2
