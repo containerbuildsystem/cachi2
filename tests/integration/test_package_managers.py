@@ -90,6 +90,42 @@ log = logging.getLogger(__name__)
             ),
             id="gomod_vendor_check_correct_vendor",
         ),
+        # Test case checks if request will fail when source provided wrong vendor.
+        pytest.param(
+            utils.TestParameters(
+                repo="https://github.com/cachito-testing/gomod-vendor-check-fail.git",
+                ref="8553df6498705b2b36614320ca0c65bc24a1d9e6",
+                packages=({"path": ".", "type": "gomod"},),
+                flags=["--gomod-vendor-check"],
+                check_output_json=False,
+                check_deps_checksums=False,
+                check_vendor_checksums=False,
+                expected_rc=2,
+                expected_output=(
+                    "PackageRejected: The content of the vendor directory is not "
+                    "consistent with go.mod. Please check the logs for more details"
+                ),
+            ),
+            id="gomod_vendor_check_wrong_vendor",
+        ),
+        # Test case checks if request will fail when source provided empty vendor.
+        pytest.param(
+            utils.TestParameters(
+                repo="https://github.com/cachito-testing/gomod-vendor-check-empty-vendor.git",
+                ref="9989e210ac2993196e22d0a23fe18ce460012058",
+                packages=({"path": ".", "type": "gomod"},),
+                flags=["--gomod-vendor-check"],
+                check_output_json=False,
+                check_deps_checksums=False,
+                check_vendor_checksums=False,
+                expected_rc=2,
+                expected_output=(
+                    "PackageRejected: The content of the vendor directory is not "
+                    "consistent with go.mod. Please check the logs for more details"
+                ),
+            ),
+            id="gomod_vendor_check_empty_vendor",
+        ),
     ],
 )
 def test_packages(
