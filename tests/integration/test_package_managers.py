@@ -126,6 +126,18 @@ log = logging.getLogger(__name__)
             ),
             id="gomod_vendor_check_empty_vendor",
         ),
+        # Test case checks if package can be replaced with local dependency
+        pytest.param(
+            utils.TestParameters(
+                repo="https://github.com/cachito-testing/cachito-gomod-local-deps.git",
+                ref="b2e465b91a6a272540c77d4dde1e317773ed700b",
+                packages=({"path": ".", "type": "gomod"},),
+                check_vendor_checksums=False,
+                expected_rc=0,
+                expected_output="All dependencies fetched successfully",
+            ),
+            id="gomod_local_deps",
+        ),
     ],
 )
 def test_packages(
