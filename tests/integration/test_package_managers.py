@@ -1,6 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-import json
 import logging
 import os
 from pathlib import Path
@@ -111,45 +110,9 @@ def test_packages(
         test_params.repo, test_params.ref, f"{test_case}-source", tmpdir
     )
 
-    output_folder = os.path.join(tmpdir, f"{test_case}-output")
-    cmd = [
-        "fetch-deps",
-        "--source",
-        source_folder,
-        "--output",
-        output_folder,
-    ]
-    if test_params.flags:
-        cmd += test_params.flags
-
-    cmd.append(json.dumps(test_params.packages).encode("utf-8"))
-
-    (output, rc) = cachi2_image.run_cmd_on_image(cmd, tmpdir)
-    assert rc == test_params.expected_rc, (
-        f"Fetching deps ended with unexpected exitcode: {rc} != {test_params.expected_rc}, "
-        f"output-cmd: {output}"
+    _ = utils.fetch_deps_and_check_output(
+        tmpdir, test_case, test_params, source_folder, test_data_dir, cachi2_image
     )
-    assert test_params.expected_output in str(
-        output
-    ), f"Expected msg {test_params.expected_output} was not found in cmd output: {output}"
-
-    if test_params.check_output_json:
-        output_json = utils.load_json(os.path.join(output_folder, "output.json"))
-        expected_output_json = utils.load_json(
-            os.path.join(test_data_dir, test_case, "output.json")
-        )
-        log.info("Compare output.json files")
-        assert output_json == expected_output_json
-
-    if test_params.check_deps_checksums:
-        files_checksums = utils.calculate_files_sha256sum_in_dir(
-            os.path.join(output_folder, "deps")
-        )
-        expected_files_checksums = utils.load_json(
-            os.path.join(test_data_dir, test_case, "fetch_deps_sha256sums.json")
-        )
-        log.info("Compare checksums of fetched deps files")
-        assert files_checksums == expected_files_checksums
 
     if test_params.check_vendor_checksums:
         files_checksums = utils.calculate_files_sha256sum_in_dir(
@@ -160,3 +123,82 @@ def test_packages(
         )
         log.info("Compare checksums of files in source vendor folder")
         assert files_checksums == expected_files_checksums
+
+
+@pytest.mark.parametrize(
+    "test_params",
+    [
+        # Test case checks fetching retrodep dependencies, generating environment vars file,
+        # building image with all prepared prerequisites and printing help message for retrodep
+        # app in built image
+        pytest.param(
+            utils.TestParameters(
+                repo="https://github.com/cachito-testing/retrodep.git",
+                ref="c3496edd5d45523a1ed300de1575a212b86d00d3",
+                packages=({"path": ".", "type": "gomod"},),
+                check_vendor_checksums=False,
+                install_app="retrodep",
+                expected_rc=0,
+                expected_output="All dependencies fetched successfully",
+            ),
+            id="gomod_e2e_test",
+        ),
+    ],
+)
+def test_e2e(
+    test_params: utils.TestParameters,
+    cachi2_image: utils.ContainerImage,
+    tmpdir: Path,
+    test_data_dir: Path,
+    request,
+):
+    """
+    End to end test for package manages.
+
+    :param test_params: Test case arguments
+    :param tmpdir: Temp directory for pytest
+    """
+    test_case = request.node.callspec.id
+
+    source_folder = utils.clone_repository(
+        test_params.repo, test_params.ref, f"{test_case}-source", tmpdir
+    )
+
+    output_folder = utils.fetch_deps_and_check_output(
+        tmpdir, test_case, test_params, source_folder, test_data_dir, cachi2_image
+    )
+
+    log.info("Create cachi2.env file")
+    env_vars_file = os.path.join(tmpdir, "cachi2.env")
+    cmd = [
+        "generate-env",
+        output_folder,
+        "--output",
+        env_vars_file,
+        "--for-output-dir",
+        os.path.join("/tmp", f"{test_case}-output"),
+    ]
+    (output, rc) = cachi2_image.run_cmd_on_image(cmd, tmpdir)
+    assert rc == 0, f"Env var file creation failed. output-cmd: {output}"
+
+    log.info("Build container image with all prerequisites retrieved in previous steps")
+    container_folder = os.path.join(test_data_dir, test_case, "container")
+
+    # Network access should be disabled for testing Cachi2 functionality
+    # Try build with curl command
+    try:
+        utils.build_image(
+            tmpdir, os.path.join(container_folder, "Containerfile-fail"), f"{test_case}-fail"
+        )
+    except RuntimeError as e:
+        assert "Could not resolve host: www.google.com" in str(e)
+
+    with utils.build_image(
+        tmpdir, os.path.join(container_folder, "Containerfile"), test_case
+    ) as test_image:
+        log.info(
+            f"Run installed app {test_params.install_app} "
+            f"on built image {test_image.repository}"
+        )
+        (output, rc) = utils.run_cmd(["buildah", "images"])
+        assert f"localhost/{test_case}" in output
