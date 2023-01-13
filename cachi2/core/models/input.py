@@ -132,6 +132,13 @@ class Request(pydantic.BaseModel):
                 )
         return package
 
+    @pydantic.validator("packages")
+    def _packages_not_empty(cls, packages: list[PackageInput]) -> list[PackageInput]:
+        """Check that the packages list is not empty."""
+        if len(packages) == 0:
+            raise ValueError("at least one package must be defined, got an empty list")
+        return packages
+
     @property
     def gomod_packages(self) -> list[GomodPackageInput]:
         """Get the gomod packages specified for this request."""

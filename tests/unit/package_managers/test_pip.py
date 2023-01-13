@@ -3295,7 +3295,6 @@ def test_replace_external_requirements(
 @pytest.mark.parametrize(
     "packages, n_pip_packages",
     [
-        ([], 0),
         ([{"type": "gomod"}], 0),
         ([{"type": "pip", "requirements_files": ["requirements.txt"]}], 1),
         (
