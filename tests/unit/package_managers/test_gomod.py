@@ -1570,7 +1570,6 @@ def test_dep_replacements(
 @pytest.mark.parametrize(
     "gomod_input_packages, packages_output",
     (
-        ([], []),
         (
             [{"type": "gomod", "path": "."}],
             [

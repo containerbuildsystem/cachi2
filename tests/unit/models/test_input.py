@@ -200,3 +200,12 @@ class TestRequest:
                 packages=[],
                 flags=["no-such-flag"],
             )
+
+    def test_empty_packages(self):
+        expect_error = r"packages\n  at least one package must be defined, got an empty list"
+        with pytest.raises(pydantic.ValidationError, match=expect_error):
+            Request(
+                source_dir="/source",
+                output_dir="/output",
+                packages=[],
+            )
