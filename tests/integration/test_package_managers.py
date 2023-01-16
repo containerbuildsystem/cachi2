@@ -21,7 +21,7 @@ log = logging.getLogger(__name__)
                 ref="4c65d49cae6bfbada4d479b321d8c0109fa1aa97",
                 packages=({"path": ".", "type": "gomod"},),
                 check_vendor_checksums=False,
-                expected_rc=0,
+                expected_exit_code=0,
                 expected_output="All dependencies fetched successfully",
             ),
             id="gomod_with_deps",
@@ -32,7 +32,7 @@ log = logging.getLogger(__name__)
                 ref="a888f7261b9a9683972fbd77da2d12fe86faef5e",
                 packages=({"path": ".", "type": "gomod"},),
                 check_vendor_checksums=False,
-                expected_rc=0,
+                expected_exit_code=0,
                 expected_output="All dependencies fetched successfully",
             ),
             id="gomod_without_deps",
@@ -45,7 +45,7 @@ log = logging.getLogger(__name__)
                 check_output_json=False,
                 check_deps_checksums=False,
                 check_vendor_checksums=False,
-                expected_rc=2,
+                expected_exit_code=2,
                 expected_output='The "gomod-vendor" or "gomod-vendor-check" flag'
                 " must be set when your repository has vendored dependencies",
             ),
@@ -59,7 +59,7 @@ log = logging.getLogger(__name__)
                 ref="ff1960095dd158d3d2a4f31d15b244c24930248b",
                 packages=({"path": ".", "type": "gomod"},),
                 flags=["--gomod-vendor"],
-                expected_rc=0,
+                expected_exit_code=0,
                 expected_output="All dependencies fetched successfully",
             ),
             id="gomod_vendored_with_flag",
@@ -72,7 +72,7 @@ log = logging.getLogger(__name__)
                 ref="7ba383d5592910edbf7f287d4b5a00c5ababf751",
                 packages=({"path": ".", "type": "gomod"},),
                 flags=["--gomod-vendor-check"],
-                expected_rc=0,
+                expected_exit_code=0,
                 expected_output="All dependencies fetched successfully",
             ),
             id="gomod_vendor_check_no_vendor",
@@ -85,7 +85,7 @@ log = logging.getLogger(__name__)
                 ref="0543a5034b687df174c6b12b7b6b9c04770a856f",
                 packages=({"path": ".", "type": "gomod"},),
                 flags=["--gomod-vendor-check"],
-                expected_rc=0,
+                expected_exit_code=0,
                 expected_output="All dependencies fetched successfully",
             ),
             id="gomod_vendor_check_correct_vendor",
@@ -100,7 +100,7 @@ log = logging.getLogger(__name__)
                 check_output_json=False,
                 check_deps_checksums=False,
                 check_vendor_checksums=False,
-                expected_rc=2,
+                expected_exit_code=2,
                 expected_output=(
                     "PackageRejected: The content of the vendor directory is not "
                     "consistent with go.mod. Please check the logs for more details"
@@ -118,7 +118,7 @@ log = logging.getLogger(__name__)
                 check_output_json=False,
                 check_deps_checksums=False,
                 check_vendor_checksums=False,
-                expected_rc=2,
+                expected_exit_code=2,
                 expected_output=(
                     "PackageRejected: The content of the vendor directory is not "
                     "consistent with go.mod. Please check the logs for more details"
@@ -164,7 +164,7 @@ def test_packages(
                 ref="c3496edd5d45523a1ed300de1575a212b86d00d3",
                 packages=({"path": ".", "type": "gomod"},),
                 check_vendor_checksums=False,
-                expected_rc=0,
+                expected_exit_code=0,
                 expected_output="All dependencies fetched successfully",
             ),
             ["retrodep", "--help"],
@@ -206,8 +206,8 @@ def test_e2e(
         "--for-output-dir",
         os.path.join("/tmp", f"{test_case}-output"),
     ]
-    (output, rc) = cachi2_image.run_cmd_on_image(cmd, tmpdir)
-    assert rc == 0, f"Env var file creation failed. output-cmd: {output}"
+    (output, exit_code) = cachi2_image.run_cmd_on_image(cmd, tmpdir)
+    assert exit_code == 0, f"Env var file creation failed. output-cmd: {output}"
 
     log.info("Build container image with all prerequisites retrieved in previous steps")
     container_folder = os.path.join(test_data_dir, test_case, "container")
@@ -216,5 +216,5 @@ def test_e2e(
         tmpdir, os.path.join(container_folder, "Containerfile"), test_case
     ) as test_image:
         log.info(f"Run command {check_cmd} on built image {test_image.repository}")
-        (output, rc) = test_image.run_cmd_on_image(check_cmd, tmpdir)
-        assert rc == 0, f"{check_cmd} command failed, Output: {output}"
+        (output, exit_code) = test_image.run_cmd_on_image(check_cmd, tmpdir)
+        assert exit_code == 0, f"{check_cmd} command failed, Output: {output}"

@@ -21,7 +21,7 @@ class TestParameters:
     check_output_json: bool = True
     check_deps_checksums: bool = True
     check_vendor_checksums: bool = True
-    expected_rc: int = 0
+    expected_exit_code: int = 0
     expected_output: str = ""
     flags: List[str] = field(default_factory=list)
 
@@ -36,8 +36,8 @@ class ContainerImage:
 
     def pull_image(self):
         cmd = ["podman", "pull", self.repository]
-        output, rc = run_cmd(cmd)
-        if rc != 0:
+        output, exit_code = run_cmd(cmd)
+        if exit_code != 0:
             raise RuntimeError(f"Pulling {self.repository} failed. Output:{output}")
         log.info("Pulled image: %s.", self.repository)
 
@@ -47,8 +47,8 @@ class ContainerImage:
 
     def __exit__(self, exc_type, exc_value, exc_traceback):
         image_cmd = ["podman", "rmi", "--force", self.repository]
-        (output, rc) = run_cmd(image_cmd)
-        if rc != 0:
+        (output, exit_code) = run_cmd(image_cmd)
+        if exit_code != 0:
             raise RuntimeError(f"Image deletion failed. Output:{output}")
 
 
@@ -66,8 +66,8 @@ def build_image(tmpdir: Path, containerfile: str, test_case: str) -> ContainerIm
         "--tag",
         test_case,
     ]
-    (output, rc) = run_cmd(image_cmd)
-    if rc != 0:
+    (output, exit_code) = run_cmd(image_cmd)
+    if exit_code != 0:
         raise RuntimeError(f"Building image failed. Output:{output}")
     return ContainerImage(f"localhost/{test_case}")
 
@@ -179,10 +179,10 @@ def fetch_deps_and_check_output(
 
     cmd.append(json.dumps(test_params.packages).encode("utf-8"))
 
-    (output, rc) = cachi2_image.run_cmd_on_image(cmd, tmpdir)
-    assert rc == test_params.expected_rc, (
-        f"Fetching deps ended with unexpected exitcode: {rc} != {test_params.expected_rc}, "
-        f"output-cmd: {output}"
+    (output, exit_code) = cachi2_image.run_cmd_on_image(cmd, tmpdir)
+    assert exit_code == test_params.expected_exit_code, (
+        f"Fetching deps ended with unexpected exitcode: {exit_code} != "
+        f"{test_params.expected_exit_code}, output-cmd: {output}"
     )
     assert test_params.expected_output in str(
         output
