@@ -138,6 +138,21 @@ log = logging.getLogger(__name__)
             ),
             id="gomod_local_deps",
         ),
+        # Test case checks if fetching dependencies will not fail if non-existent package is
+        # imported. main.go imports foobar here as a dependency, but foobar was not generated
+        # on the source repository with `go generate`. Cachi2 should recognize here `main` as
+        # a package and `foobar` as its dependency.
+        pytest.param(
+            utils.TestParameters(
+                repo="https://github.com/cachito-testing/go-generate-imported.git",
+                ref="56659413f7db4f5feed9bbde4560cb55fbb85d67",
+                packages=({"path": ".", "type": "gomod"},),
+                check_vendor_checksums=False,
+                expected_exit_code=0,
+                expected_output="All dependencies fetched successfully",
+            ),
+            id="gomod_go_generate_imported",
+        ),
     ],
 )
 def test_packages(
