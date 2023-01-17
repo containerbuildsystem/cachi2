@@ -1,0 +1,355 @@
+{
+  "packages": [
+    {
+      "type": "go-package",
+      "path": ".",
+      "name": "github.com/cachito-testing/go-generate-imported",
+      "version": "v0.0.0-20211021010705-56659413f7db",
+      "dependencies": [
+        {
+          "type": "go-package",
+          "name": "github.com/cachito-testing/go-generate-imported/foobar",
+          "version": "v0.0.0-20211021010705-56659413f7db"
+        },
+        {
+          "type": "go-package",
+          "name": "internal/abi",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "internal/bytealg",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "internal/cpu",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "internal/goarch",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "internal/goexperiment",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "internal/goos",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "runtime",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "runtime/internal/atomic",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "runtime/internal/math",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "runtime/internal/sys",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "runtime/internal/syscall",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "unsafe",
+          "version": null
+        }
+      ]
+    },
+    {
+      "type": "go-package",
+      "path": "internal/generate",
+      "name": "github.com/cachito-testing/go-generate-imported/internal/generate",
+      "version": "v0.0.0-20211021010705-56659413f7db",
+      "dependencies": [
+        {
+          "type": "go-package",
+          "name": "bytes",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "encoding",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "encoding/base64",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "encoding/binary",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "encoding/json",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "errors",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "fmt",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "internal/abi",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "internal/bytealg",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "internal/cpu",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "internal/fmtsort",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "internal/goarch",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "internal/goexperiment",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "internal/goos",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "internal/itoa",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "internal/oserror",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "internal/poll",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "internal/race",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "internal/reflectlite",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "internal/safefilepath",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "internal/syscall/execenv",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "internal/syscall/unix",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "internal/testlog",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "internal/unsafeheader",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "io",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "io/fs",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "io/ioutil",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "math",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "math/bits",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "os",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "path",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "reflect",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "runtime",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "runtime/internal/atomic",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "runtime/internal/math",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "runtime/internal/sys",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "runtime/internal/syscall",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "sort",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "strconv",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "strings",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "sync",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "sync/atomic",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "syscall",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "time",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "unicode",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "unicode/utf16",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "unicode/utf8",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "unsafe",
+          "version": null
+        }
+      ]
+    },
+    {
+      "type": "gomod",
+      "path": ".",
+      "name": "github.com/cachito-testing/go-generate-imported",
+      "version": "v0.0.0-20211021010705-56659413f7db",
+      "dependencies": []
+    }
+  ],
+  "environment_variables": [
+    {
+      "name": "GOCACHE",
+      "value": "deps/gomod",
+      "kind": "path"
+    },
+    {
+      "name": "GOMODCACHE",
+      "value": "deps/gomod/pkg/mod",
+      "kind": "path"
+    },
+    {
+      "name": "GOPATH",
+      "value": "deps/gomod",
+      "kind": "path"
+    },
+    {
+      "name": "GOSUMDB",
+      "value": "off",
+      "kind": "literal"
+    }
+  ],
+  "project_files": []
+}
