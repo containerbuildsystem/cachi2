@@ -209,10 +209,10 @@ CACHI2_IMAGE=localhost/cachi2-${USER}:latest tox -e integration -- tests/integra
 Supported:
 
 * [gomod](#gomod)
+* [pip](#pip)
 
 Planned:
 
-* pip (coming soon)
 * npm
 * yarn
 * rubygems
@@ -246,6 +246,19 @@ See [docs/gomod.md](docs/gomod.md) for more details.
   there is a good chance it will be compatible regardless, as long as the dependency resolution did not change between
   the two versions. For example, dependency resolution did change in [go 1.18][go118-changelog] but not in
   [go 1.19][go119-changelog].
+
+### pip
+
+<https://pip.pypa.io/en/stable/>
+
+Cachi2 supports pip by parsing [requirements.txt](https://pip.pypa.io/en/stable/reference/requirements-file-format/)
+files present in the source repository and downloading the declared dependencies.
+
+The files must be lockfiles, i.e. declare all the transitive dependencies and pin them to specific versions. Generating
+such a lockfile is best done using tools like [pip-compile](https://pip-tools.readthedocs.io/en/stable/).
+
+Note that, per the Cachi2 [goals](#goals), we download only source distributions. This means pip will need to rebuild
+all the dependencies from source, which makes the build process more complex than you might expect.
 
 ## Project status
 
