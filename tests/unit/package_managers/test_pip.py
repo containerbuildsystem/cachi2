@@ -2672,12 +2672,12 @@ class TestDownload:
             pip._download_dependencies(Path(), req_file)
 
         err_msg = (
-            "Cachito does not support the following options: -i, --index-url, --extra-index-url, "
+            "Cachi2 does not support the following options: -i, --index-url, --extra-index-url, "
             "--no-index, -f, --find-links, --only-binary"
         )
         assert str(exc_info.value) == err_msg
 
-        log_msg = "Cachito will ignore the following options: -c, --use-feature, --foo"
+        log_msg = "Cachi2 will ignore the following options: -c, --use-feature, --foo"
         assert log_msg in caplog.text
 
     @pytest.mark.parametrize(
