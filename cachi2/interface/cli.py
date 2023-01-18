@@ -157,7 +157,7 @@ def fetch_deps(
     cachi2 fetch-deps gomod
 
     \b
-    # pip package (not supported yet) in the root of the source directory
+    # pip package in the root of the source directory
     cachi2 fetch-deps --source ./my-repo pip
 
     \b
