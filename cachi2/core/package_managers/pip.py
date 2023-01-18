@@ -146,7 +146,7 @@ def _get_pip_metadata(package_dir):
         raise PackageRejected(
             f"Could not resolve package metadata: {', '.join(missing)}",
             solution=(
-                "Please specify package metadata in a way that Cachi2 understands (see the docs).\n"
+                "Please specify package metadata in a way that Cachi2 understands (see the docs)."
             ),
             docs=PIP_METADATA_DOC,
         )
