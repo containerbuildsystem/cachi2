@@ -604,7 +604,7 @@ class SetupPY(SetupFile):
         https://github.com/pypa/setuptools/blob/5e60dc50e540a942aeb558aabe7d92ab7eb13d4b/setuptools/dist.py#L462
 
         Rather than trying to keep edge cases consistent with setuptools, treat them
-        consistently within Cachito.
+        consistently within Cachi2.
 
         :rtype: str or None
         """
@@ -1402,11 +1402,11 @@ def _process_options(options):
         i += 1
 
     if ignored:
-        msg = f"Cachito will ignore the following options: {', '.join(ignored)}"
+        msg = f"Cachi2 will ignore the following options: {', '.join(ignored)}"
         log.info(msg)
 
     if rejected:
-        msg = f"Cachito does not support the following options: {', '.join(rejected)}"
+        msg = f"Cachi2 does not support the following options: {', '.join(rejected)}"
         raise UnsupportedFeature(msg)
 
     return {
@@ -1417,7 +1417,7 @@ def _process_options(options):
 
 def _validate_requirements(requirements):
     """
-    Validate that all requirements meet Cachito expectations.
+    Validate that all requirements meet Cachi2 expectations.
 
     :param list[PipRequirement] requirements: All requirements from a file
     :raise PackageRejected: If any requirement does not meet expectations
@@ -1523,10 +1523,10 @@ def _download_pypi_package(requirement, pip_deps_dir, pypi_url, pypi_auth=None):
     as exact (after normalization).
 
     Does not download any dependencies (implied: ignores extras). Ignores environment
-    markers (target environment is not known to Cachito).
+    markers (target environment is not known to Cachi2).
 
     :param PipRequirement requirement: PyPI requirement from a requirement.txt file
-    :param Path pip_deps_dir: The deps/pip directory in a Cachito request bundle
+    :param Path pip_deps_dir: The deps/pip directory in a Cachi2 request bundle
     :param str pypi_url: URL of the PyPI server or a proxy
     :param (requests.auth.AuthBase | None) pypi_auth: Authorization for the PyPI server
 
@@ -1666,7 +1666,7 @@ def _download_vcs_package(requirement, pip_deps_dir):
     Fetch the source for a Python package from VCS (only git is supported).
 
     :param PipRequirement requirement: VCS requirement from a requirements.txt file
-    :param Path pip_deps_dir: The deps/pip directory in a Cachito request bundle
+    :param Path pip_deps_dir: The deps/pip directory in a Cachi2 request bundle
 
     :return: Dict with package name, download path and git info
     """
@@ -1689,7 +1689,7 @@ def _download_url_package(requirement, pip_deps_dir, trusted_hosts):
     Download a Python package from a URL.
 
     :param PipRequirement requirement: VCS requirement from a requirements.txt file
-    :param Path pip_deps_dir: The deps/pip directory in a Cachito request bundle
+    :param Path pip_deps_dir: The deps/pip directory in a Cachi2 request bundle
     :param set[str] trusted_hosts: If host (or host:port) is trusted, do not verify SSL
 
     :return: Dict with package name, download path, original URL and URL with hash
@@ -1812,7 +1812,7 @@ def _resolve_pip(
         ``requirements`` which is a list of str with the absolute paths for the requirement files
             belonging to the package
     :rtype: dict
-    :raises PackageRejected | UnsupportedFeature: if the package is not cachito-pip compatible
+    :raises PackageRejected | UnsupportedFeature: if the package is not cachi2-pip compatible
     """
     pkg_name, pkg_version = _get_pip_metadata(app_path)
 
@@ -1831,7 +1831,7 @@ def _resolve_pip(
     requires = _download_from_requirement_files(output_dir, requirement_files)
     buildrequires = _download_from_requirement_files(output_dir, build_requirement_files)
 
-    # Mark all build dependencies as Cachito dev dependencies
+    # Mark all build dependencies as Cachi2 dev dependencies
     for dependency in buildrequires:
         dependency["dev"] = True
 
