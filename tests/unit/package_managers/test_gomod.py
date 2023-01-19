@@ -464,7 +464,7 @@ def test_resolve_gomod_strict_mode_raise_error(
     # Mock the get_worker_config
     mock_config = mock.Mock()
     if strict_vendor != "default":
-        mock_config.cachito_gomod_strict_vendor = strict_vendor
+        mock_config.gomod_strict_vendor = strict_vendor
     mock_config.cachito_athens_url = "http://athens:3000"
     mock_gwc.return_value = mock_config
     # Mock the tempfile.TemporaryDirectory context manager
@@ -597,7 +597,7 @@ def test_go_list_cmd_failure(
 
     # Mock the tempfile.TemporaryDirectory context manager
     mock_temp_dir.return_value.__enter__.return_value = str(tmpdir)
-    mock_worker_config.return_value.cachito_gomod_download_max_tries = 1
+    mock_worker_config.return_value.gomod_download_max_tries = 1
 
     # Mock the "subprocess.run" calls
     mock_run.side_effect = [
@@ -1300,7 +1300,7 @@ def test_get_dep_version(dep_info, expect_version):
 @mock.patch("subprocess.run")
 @mock.patch("time.sleep")
 def test_run_download_cmd_success(mock_sleep, mock_run, mock_worker_config, tries_needed, caplog):
-    mock_worker_config.return_value.cachito_gomod_download_max_tries = 5
+    mock_worker_config.return_value.gomod_download_max_tries = 5
 
     failure = proc_mock(returncode=1, stdout="")
     success = proc_mock(returncode=0, stdout="")
@@ -1319,7 +1319,7 @@ def test_run_download_cmd_success(mock_sleep, mock_run, mock_worker_config, trie
 @mock.patch("subprocess.run")
 @mock.patch("time.sleep")
 def test_run_download_cmd_failure(mock_sleep, mock_run, mock_worker_config, caplog):
-    mock_worker_config.return_value.cachito_gomod_download_max_tries = 5
+    mock_worker_config.return_value.gomod_download_max_tries = 5
 
     failure = proc_mock(returncode=1, stdout="")
     mock_run.side_effect = [failure] * 5
