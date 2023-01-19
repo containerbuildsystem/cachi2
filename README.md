@@ -260,6 +260,8 @@ such a lockfile is best done using tools like [pip-compile](https://pip-tools.re
 Note that, per the Cachi2 [goals](#goals), we download only source distributions. This means pip will need to rebuild
 all the dependencies from source, which makes the build process more complex than you might expect.
 
+See [docs/pip.md](docs/pip.md) for more details.
+
 ## Project status
 
 Cachi2 was derived (but is not a direct fork) from [Cachito](https://github.com/containerbuildsystem/cachito) and is
