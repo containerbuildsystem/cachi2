@@ -24,7 +24,7 @@ def run_cmd(cmd, params):
     params.setdefault("encoding", "utf-8")
 
     conf = get_worker_config()
-    params.setdefault("timeout", conf.cachito_subprocess_timeout)
+    params.setdefault("timeout", conf.subprocess_timeout)
 
     response = subprocess.run(cmd, **params)  # nosec
 

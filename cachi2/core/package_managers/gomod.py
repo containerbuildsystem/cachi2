@@ -84,7 +84,7 @@ def fetch_gomod_source(request: Request) -> RequestOutput:
         "GOPATH": {"value": "deps/gomod", "kind": "path"},
         "GOMODCACHE": {"value": "deps/gomod/pkg/mod", "kind": "path"},
     }
-    env_vars.update(config.cachito_default_environment_variables.get("gomod", {}))
+    env_vars.update(config.default_environment_variables.get("gomod", {}))
 
     packages = []
 
@@ -171,8 +171,8 @@ def _resolve_gomod(path: Path, request: Request, git_dir_path=None):
             "GOMODCACHE": "{}/pkg/mod".format(temp_dir),
         }
 
-        if worker_config.cachito_goproxy_url:
-            env["GOPROXY"] = worker_config.cachito_goproxy_url
+        if worker_config.goproxy_url:
+            env["GOPROXY"] = worker_config.goproxy_url
 
         if "cgo-disable" in request.flags:
             env["CGO_ENABLED"] = "0"
@@ -195,7 +195,7 @@ def _resolve_gomod(path: Path, request: Request, git_dir_path=None):
         # Vendor dependencies if the gomod-vendor flag is set
         flags = request.flags
         should_vendor, can_make_changes = _should_vendor_deps(
-            flags, path, worker_config.cachito_gomod_strict_vendor
+            flags, path, worker_config.gomod_strict_vendor
         )
         if should_vendor:
             _vendor_deps(run_params, can_make_changes, git_dir_path)
@@ -390,7 +390,7 @@ def _run_download_cmd(cmd: Iterable[str], params: Dict[str, Any]) -> str:
     the same dependency twice. The backoff is exponential, Cachi2 will wait 1s -> 2s -> 4s -> ...
     before retrying.
     """
-    n_tries = get_worker_config().cachito_gomod_download_max_tries
+    n_tries = get_worker_config().gomod_download_max_tries
 
     @backoff.on_exception(
         backoff.expo,
