@@ -24,8 +24,9 @@ Module[^misnomer] JSON:
 {
   // "gomod" tells Cachi2 to process a go module
   "type": "gomod",
-  // relative path to the module from the --source directory
-  "path": "<path/to/module>"
+  // path to the module (relative to the --source directory)
+  // defaults to "."
+  "path": "."
 }
 ```
 
