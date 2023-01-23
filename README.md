@@ -220,7 +220,9 @@ Planned:
 *Based on the [supported package managers](https://github.com/containerbuildsystem/cachito#package-managers) in the
 original Cachito.*
 
-### [gomod](https://go.dev/ref/mod)
+### gomod
+
+<https://go.dev/ref/mod>
 
 Current version: 1.18 [^go-version] [^go-compat]
 
