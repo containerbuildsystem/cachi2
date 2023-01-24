@@ -56,6 +56,7 @@ PIP_REQUIREMENTS_TXT_DOC = (
 PIP_EXTERNAL_DEPS_DOC = (
     "https://github.com/containerbuildsystem/cachi2/blob/main/docs/pip.md#external-dependencies"
 )
+PIP_NO_SDIST_DOC = "https://github.com/containerbuildsystem/cachi2/blob/main/docs/pip.md#dependency-does-not-distribute-sources"
 
 
 def fetch_pip_source(request: Request) -> RequestOutput:
@@ -1553,7 +1554,7 @@ def _download_pypi_package(requirement, pip_deps_dir, pypi_url, pypi_auth=None):
                 "You may be able to specify the dependency directly via a URL instead, "
                 "for example the tarball for a GitHub release."
             ),
-            docs=None,  # TODO: docs needed
+            docs=PIP_NO_SDIST_DOC,
         )
 
     # Choose best candidate based on sorting key
@@ -1951,7 +1952,7 @@ def _check_metadata_in_sdist(sdist_path: Path):
                     "Consider editing your requirements file to download the package from git "
                     "or a direct download URL instead."
                 ),
-                docs=None,  # TODO: docs needed (similar to the "No sdists found" case)
+                docs=PIP_NO_SDIST_DOC,
             )
     except tarfile.ReadError as e:
         raise PackageRejected(
