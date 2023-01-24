@@ -3239,7 +3239,7 @@ def test_metadata_check_invalid_argument():
                 f"""\
                 foo==1.0.0
                 bar @ file://${{output_dir}}/deps/pip/github.com/org/bar/bar-external-gitcommit-{GIT_REF}.tar.gz
-                """  # noqa: line-too-long
+                """
             ),
         ),
         (
@@ -3247,13 +3247,13 @@ def test_metadata_check_invalid_argument():
                 """\
                 foo==1.0.0
                 bar @ https://github.com/org/bar/archive/refs/tags/bar-2.0.0.zip#cachito_hash=sha256:fedcba
-                """  # noqa: line-too-long
+                """
             ),
             dedent(
                 """\
                 foo==1.0.0
                 bar @ file://${output_dir}/deps/pip/external-bar/bar-external-sha256-fedcba.zip#cachito_hash=sha256:fedcba
-                """  # noqa: line-too-long
+                """
             ),
         ),
         (
@@ -3262,14 +3262,14 @@ def test_metadata_check_invalid_argument():
                 --require-hashes
                 foo==1.0.0 --hash=sha256:abcdef
                 bar @ https://github.com/org/bar/archive/refs/tags/bar-2.0.0.zip --hash=sha256:fedcba
-                """  # noqa: line-too-long
+                """
             ),
             dedent(
                 """\
                 --require-hashes
                 foo==1.0.0 --hash=sha256:abcdef
                 bar @ file://${output_dir}/deps/pip/external-bar/bar-external-sha256-fedcba.zip --hash=sha256:fedcba
-                """  # noqa: line-too-long
+                """
             ),
         ),
     ],
