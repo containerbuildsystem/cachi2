@@ -8,6 +8,7 @@
 * [Project metadata](#project-metadata)
 * [Building from source](#building-from-source)
 * [Using fetched dependencies](#using-fetched-dependencies)
+* [Troubleshooting](#troubleshooting)
 
 ## Specifying packages to process
 
@@ -495,6 +496,86 @@ cachi2-output/deps/pip
 ├── external-dockerfile-parse
 │   └── dockerfile-parse-external-sha256-36e4469abb0d96b0e3cd656284d5016e8a674cd57b8ebe5af64786fe63b8184d.tar.gz
 └── ...
+```
+
+## Troubleshooting
+
+Common issues you may face when fetching dependencies or when installing the fetched dependencies.
+
+First, please make sure that your project meets Cachi2's requirements (this document) and that you are using Cachi2
+as intended ([usage.md](usage.md)).
+
+### Miscellaneous errors while building from source
+
+*Have you read [Building from source](#building-from-source)?*
+
+Even if you have all the build dependencies available, installing from source can come with unforeseen complications.
+Pip's [--no-binary](https://pip.pypa.io/en/stable/cli/pip_install/#cmdoption-no-binary) flag can help debug faster.
+
+```shell
+# on your machine
+virtualenv venv && source venv/bin/activate
+# or in a container
+podman run --rm -ti -v "$PWD:$PWD:z" -w "$PWD" ubi8/python-39 bash
+
+pip install --no-binary :all: -r requirements.txt
+```
+
+Notably, older versions of pip and setuptools have a fair share of bugs related to PEP 517 handling. A good first course
+of action can be to upgrade pip and setuptools and try again.
+
+Other pip install options such as [--use-pep517](https://pip.pypa.io/en/stable/cli/pip_install/#cmdoption-use-pep517)
+may also be of interest.
+
+### Need to install newer pip
+
+Problem: you've found out that some build errors are caused by bugs in an older pip version. But the base image for
+your container build comes with `pip==<old>` and you cannot upgrade during the build because you're building with
+network isolation.
+
+Solution: make Cachi2 fetch a newer pip for you. Then you can upgrade pip from the prefetched archive.
+
+```requirements.txt
+# add to requirements-build.txt or use a separate file
+pip==22.3.1 --hash=...
+```
+
+```Dockerfile
+RUN source /tmp/cachi2.env && \
+    pip install -U pip && \
+    pip install .
+```
+
+*You can use a similar approach to upgrade setuptools or other build dependencies before installing your app. Build
+dependencies other than pip should be part or [requirements-build.txt](#requirements-buildtxt) already.*
+
+### Failing to compile a dependency
+
+Building dependencies written in C typically requires gcc, CPython headers and other development libraries. Cachi2
+does not fetch these, getting them into the build is up to you. The best case scenario, if you're building a container,
+is that the base image already contains everything you need. For example, the
+[ubi8/python-39](https://catalog.redhat.com/software/containers/ubi8/python-39/6065b24eb92fbda3a4c65d8f) image contains
+most of the typical development libraries.
+
+To find out what non-Python dependencies you need, try to `pip install --no-binary :all:` in a clean environment
+(e.g. a container) as shown [above](#miscellaneous-errors-while-building-from-source). The error messages you get should
+hopefully point you to the required dependencies.
+
+For dependencies compiled from other languages, such as Rust, we don't know of any good solutions for offline
+installation. If you do manage to make it work, please let us know.
+
+### Dependency does not distribute sources
+
+Some projects do not distribute sdists to PyPI. For example, [tensorflow](https://pypi.org/simple/tensorflow/) (as of
+version 2.11.0) distributes only wheels.
+
+Possible workaround: find the git repository for the project, get the source tarball for a release. In requirements.txt,
+specify the dependency [via an https url](#https-urls).
+
+```diff
+- tensorflow==2.11.0
++ tensorflow @ https://github.com/tensorflow/tensorflow/archive/refs/tags/v2.11.0.tar.gz \
++     --hash=sha256:99c732b92b1b37fc243a559e02f9aef5671771e272758aa4aec7f34dc92dac48
 ```
 
 [readme-pip]: ../README.md#pip
