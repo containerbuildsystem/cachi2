@@ -48,16 +48,13 @@ SDIST_EXT_PATTERN = r"|".join(map(re.escape, SDIST_FILE_EXTENSIONS))
 PYPI_URL = "https://pypi.org"
 
 PIP_METADATA_DOC = (
-    "https://github.com/containerbuildsystem/cachi2/blob/main/docs/pip.md#setuppy-setupcfg"
+    "https://github.com/containerbuildsystem/cachi2/blob/main/docs/pip.md#project-metadata"
 )
-PIP_DEP_NAMES_DOC = (
-    "https://github.com/containerbuildsystem/cachi2/blob/main/docs/pip.md#explicit-package-names"
+PIP_REQUIREMENTS_TXT_DOC = (
+    "https://github.com/containerbuildsystem/cachi2/blob/main/docs/pip.md#requirementstxt"
 )
-PIP_PINNING_DOC = (
-    "https://github.com/containerbuildsystem/cachi2/blob/main/docs/pip.md#pinning-versions"
-)
-PIP_HASHES_DOC = (
-    "https://github.com/containerbuildsystem/cachi2/blob/main/docs/pip.md#hash-checking"
+PIP_EXTERNAL_DEPS_DOC = (
+    "https://github.com/containerbuildsystem/cachi2/blob/main/docs/pip.md#external-dependencies"
 )
 
 
@@ -1225,15 +1222,11 @@ class PipRequirement:
         if not package_name:
             raise UnsupportedFeature(
                 reason=(
-                    f"Egg name could not be determined from the requirement {line!r} "
+                    f"Dependency name could not be determined from the requirement {line!r} "
                     "(Cachi2 needs the name to be explicitly declared)"
                 ),
-                solution=(
-                    "Please specify the name in a way that Cachi2 understands:\n"
-                    "- <name> @ <url>\n"
-                    "- <url>#egg=<name>"
-                ),
-                docs=PIP_DEP_NAMES_DOC,
+                solution="Please specify the name of the dependency: <name> @ <url>",
+                docs=PIP_EXTERNAL_DEPS_DOC,
             )
 
         requirement_parts = [package_name.strip(), "@", url.strip()]
@@ -1290,8 +1283,7 @@ def _download_dependencies(output_dir: Path, requirements_file):
         require_hashes = True
     else:
         log.info(
-            "No hash options used, will not require hashes for non-HTTP(S) dependencies. "
-            "HTTP(S) dependencies always require hashes (use the #cachito_hash URL qualifier)."
+            "No hash options used, will not require hashes unless HTTP(S) dependencies are present."
         )
         require_hashes = False
 
@@ -1435,7 +1427,7 @@ def _validate_requirements(requirements):
                         "Please pin all packages as <name>==<version>\n"
                         "You may wish to use a tool such as pip-compile to pin automatically."
                     ),
-                    docs=PIP_PINNING_DOC,
+                    docs=PIP_REQUIREMENTS_TXT_DOC,
                 )
 
         # Fail if VCS requirement uses any VCS other than git or does not have a valid ref
@@ -1451,8 +1443,10 @@ def _validate_requirements(requirements):
                 msg = f"No git ref in {req.download_line} (expected 40 hexadecimal characters)"
                 raise PackageRejected(
                     msg,
-                    solution="Please specify the full commit hash for all git URLs.",
-                    docs=PIP_PINNING_DOC,
+                    solution=(
+                        "Please specify the full commit hash for git URLs or switch to https URLs."
+                    ),
+                    docs=PIP_EXTERNAL_DEPS_DOC,
                 )
 
         # Fail if URL requirement does not specify exactly one hash (--hash or #cachito_hash)
@@ -1467,10 +1461,10 @@ def _validate_requirements(requirements):
                 raise PackageRejected(
                     msg,
                     solution=(
-                        "Please specify the expected hashes for all plain URLs.\n"
-                        "Use the --hash option or the #cachito_hash URL fragment (but not both)."
+                        "Please specify the expected hashes for all plain URLs using "
+                        "--hash options (one --hash for each)"
                     ),
-                    docs=PIP_PINNING_DOC,
+                    docs=PIP_EXTERNAL_DEPS_DOC,
                 )
 
             url = urllib.parse.urlparse(req.url)
@@ -1503,7 +1497,7 @@ def _validate_provided_hashes(requirements, require_hashes):
             raise PackageRejected(
                 msg,
                 solution="Please specify the expected hashes for all dependencies",
-                docs=PIP_HASHES_DOC,
+                docs=PIP_REQUIREMENTS_TXT_DOC,
             )
 
         for hash_spec in hashes:

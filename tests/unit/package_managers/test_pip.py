@@ -1803,15 +1803,15 @@ class TestPipRequirementsFile:
             ),
             (
                 "https://github.com/quay/appr/archive/58c88e49.tar.gz",
-                UnsupportedFeature("Egg name could not be determined from the requirement"),
+                UnsupportedFeature("Dependency name could not be determined from the requirement"),
             ),
             (
                 "https://github.com/quay/appr/archive/58c88e49.tar.gz#egg=",
-                UnsupportedFeature("Egg name could not be determined from the requirement"),
+                UnsupportedFeature("Dependency name could not be determined from the requirement"),
             ),
             (
                 "https://github.com/quay/appr/archive/58c88e49.tar.gz#egg",
-                UnsupportedFeature("Egg name could not be determined from the requirement"),
+                UnsupportedFeature("Dependency name could not be determined from the requirement"),
             ),
         ),
     )
@@ -2958,10 +2958,7 @@ class TestDownload:
                 verify_url_checksum_call,
             ]
         else:
-            msg = (
-                "No hash options used, will not require hashes for non-HTTP(S) dependencies. "
-                "HTTP(S) dependencies always require hashes (use the #cachito_hash URL qualifier)."
-            )
+            msg = "No hash options used, will not require hashes unless HTTP(S) dependencies are present."
             assert msg in caplog.text
             # Hashes for URL dependencies should be verified no matter what
             verify_checksum_calls = [verify_url_checksum_call]
