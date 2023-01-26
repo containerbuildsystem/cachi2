@@ -1,5 +1,10 @@
 # Usage
 
+1. [pre-fetch dependencies](#pre-fetch-dependencies)
+2. [generate environment variables](#generate-environment-variables)
+3. set the environment variables ([Containerfile example](#write-the-dockerfile-or-containerfile))
+4. run the build ([container build example](#build-the-container))
+
 ## Example
 
 Let's show Cachi2 usage by building the glorious [fzf](https://github.com/junegunn/fzf) CLI tool hermetically. To follow
