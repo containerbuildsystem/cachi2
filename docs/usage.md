@@ -22,7 +22,7 @@ cachi2 fetch-deps \
 
 * `--source` - the path to a *git repository* on the local disk
 * `--output` - the path to the directory where Cachi2 will write all output
-* `{JSON}`      - specifies a *package* (a directory) within the repository to process
+* `{JSON}`   - specifies a *package* (a directory) within the repository to process
 
 Note that Cachi2 does not auto-detect which package managers your project uses. You need to tell Cachi2 what to process
 when calling fetch-deps. In the example above, the package is a go module located at the root of the fzf repo,
@@ -33,7 +33,7 @@ The main parameter (PKG) can handle different types of definitions:
 * simple: `gomod`, same as `{"path": ".", "type": "gomod"}`
 * JSON object: `{"path": "subpath/to/other/module", "type": "gomod"}`
 * JSON array: `[{"path": ".", "type": "gomod"}, {"path": "subpath/to/other/module", "type": "gomod"}]`
-* JSON object with flags: 
+* JSON object with flags:
 `{"packages": [{"path": ".", "type": "gomod"}], "flags": ["gomod-vendor"]}`
 
 See also `cachi2 fetch-deps --help`.
