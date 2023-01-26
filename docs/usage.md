@@ -2,8 +2,9 @@
 
 1. [pre-fetch dependencies](#pre-fetch-dependencies)
 2. [generate environment variables](#generate-environment-variables)
-3. set the environment variables ([Containerfile example](#write-the-dockerfile-or-containerfile))
-4. run the build ([container build example](#build-the-container))
+3. [inject project files](#inject-project-files)
+4. set the environment variables ([Containerfile example](#write-the-dockerfile-or-containerfile))
+5. run the build ([container build example](#build-the-container))
 
 ## Example
 
@@ -65,9 +66,27 @@ uses the "env" format which generates a simple shell script that `export`s the r
 when necessary). You can `source` this file to set the variables.
 
 Don't worry about the `--for-output-dir` option yet - and about the fact that the directory does not exist - it has to
-do with the target path where we will mount the output directory during the build.
+do with the target path where we will mount the output directory [during the build](#build-the-container).
 
 See also `cachi2 generate-env --help`.
+
+### Inject project files
+
+```shell
+cachi2 inject-files ./cachi2-output --for-output-dir /tmp/cachi2-output
+```
+
+*⚠ Cachi2 may overwrite existing files. Please make sure you have no un-committed changes (that you are not prepared to
+lose) when calling inject-files.*
+
+For some package managers, to use the pre-fetched dependencies you may need to create a configuration file or edit
+a lockfile (or some other file in your project directory).
+
+Before starting your build, call `cachi2 inject-files` to automatically make the necessary changes in your repo (based
+on data in the fetch-deps output directory). Please do not change the absolute path to the repo between the calls to
+fetch-deps and inject-files; if it's not at the same path, the inject-files command won't find it.
+
+The `--for-output-dir` option has the same meaning as the one used when generating environment variables.
 
 ### Write the Dockerfile (or Containerfile)
 
@@ -121,11 +140,12 @@ sudo podman run --rm -ti fzf
 We use the `--volume` option to mount Cachi2 resources into the container build - the output directory at
 /tmp/cachi2-output/ and the environment file at /tmp/cachi2.env.
 
-The path where the output directory gets mounted is important. Some environment variables are absolute paths to content
-in the output directory; if the directory is not at the expected path, the paths will be wrong. Remember the
-`--for-output-dir` used when [generating the env file](#generate-environment-variables)? The absolute path to
-./cachi2-output on your machine is (probably) not /tmp/cachi2-output. That is why we had to tell the generate-env
-command what the path inside the container is eventually going to be.
+The path where the output directory gets mounted is important. Some environment variables or project files may use
+absolute paths to content in the output directory; if the directory is not at the expected path, the paths will be
+wrong. Remember the `--for-output-dir` option used when [generating the env file](#generate-environment-variables)
+and [injecting the project files](#inject-project-files)? The absolute path to ./cachi2-output on your machine is
+(probably) not /tmp/cachi2-output. That is why we had to tell the generate-env command what the path inside the
+container is eventually going to be.
 
 As for the network-isolation part, we solve it by using an internal podman network. An easier way to achieve this is
 `podman build --network=none` or `buildah bud --network=none` (no sudo needed), but your podman/buildah version needs to
