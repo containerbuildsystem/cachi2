@@ -155,7 +155,7 @@ log = logging.getLogger(__name__)
         ),
     ],
 )
-def test_packages(
+def test_gomod_packages(
     test_params: utils.TestParameters,
     cachi2_image: utils.ContainerImage,
     tmpdir: Path,
@@ -163,7 +163,7 @@ def test_packages(
     request: pytest.FixtureRequest,
 ):
     """
-    Test fetched dependencies for package managers.
+    Test fetched dependencies for gomod.
 
     :param test_params: Test case arguments
     :param tmpdir: Temp directory for pytest
@@ -208,7 +208,7 @@ def test_e2e(
     request: pytest.FixtureRequest,
 ):
     """
-    End to end test for package managers.
+    End to end test for gomod.
 
     :param test_params: Test case arguments
     :param tmpdir: Temp directory for pytest
