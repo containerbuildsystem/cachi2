@@ -1,5 +1,6 @@
 import logging
 from pathlib import Path
+from typing import List
 
 import pytest
 
@@ -88,4 +89,67 @@ def test_pip_packages(
 
     _ = utils.fetch_deps_and_check_output(
         tmpdir, test_case, test_params, source_folder, test_data_dir, cachi2_image
+    )
+
+
+@pytest.mark.parametrize(
+    "test_params,check_cmd,expected_cmd_output",
+    [
+        # Test case checks fetching pip dependencies, generating environment vars file,
+        # building image with all prepared prerequisites and testing if pip packages are present
+        # in built image
+        pytest.param(
+            utils.TestParameters(
+                repo="https://github.com/cachito-testing/pip-e2e-test.git",
+                ref="03939ea78542c7cbfe7a86c5a4133612813e9ec6",
+                packages=(
+                    {
+                        "type": "pip",
+                        "requirements_files": ["requirements.txt"],
+                        "requirements_build_files": ["requirements-build.txt"],
+                    },
+                ),
+                check_vendor_checksums=False,
+                expected_exit_code=0,
+                expected_output="All dependencies fetched successfully",
+            ),
+            ["python3", "/opt/test_package_cachi2"],
+            "registry.fedoraproject.org/fedora-minimal:36",
+            id="pip_e2e_test",
+        ),
+    ],
+)
+def test_e2e_pip(
+    test_params: utils.TestParameters,
+    check_cmd: List[str],
+    expected_cmd_output: str,
+    cachi2_image: utils.ContainerImage,
+    tmpdir: Path,
+    test_data_dir: Path,
+    request: pytest.FixtureRequest,
+):
+    """
+    End to end test for gomod.
+
+    :param test_params: Test case arguments
+    :param tmpdir: Temp directory for pytest
+    """
+    test_case = request.node.callspec.id
+
+    source_folder = utils.clone_repository(
+        test_params.repo, test_params.ref, f"{test_case}-source", tmpdir
+    )
+
+    output_folder = utils.fetch_deps_and_check_output(
+        tmpdir, test_case, test_params, source_folder, test_data_dir, cachi2_image
+    )
+
+    utils.build_image_and_check_cmd(
+        tmpdir,
+        output_folder,
+        test_data_dir,
+        test_case,
+        check_cmd,
+        expected_cmd_output,
+        cachi2_image,
     )
