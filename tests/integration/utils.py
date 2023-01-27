@@ -269,6 +269,62 @@ def fetch_deps_and_check_output(
     return output_folder
 
 
+def build_image_and_check_cmd(
+    tmpdir: Path,
+    output_folder: str,
+    test_data_dir: Path,
+    test_case: str,
+    check_cmd: List,
+    expected_cmd_output: str,
+    cachi2_image: ContainerImage,
+):
+    """
+    Build image and check that Cachi2 provided sources properly.
+
+    :param tmpdir: Temp directory for pytest
+    :param output_folder: Path to output folder with fetched dependencies and output.json
+    :param test_case: Test case name retrieved from pytest id
+    :param test_data_dir: Relative path to expected output test data
+    :param check_cmd: Command to be run on image to check provided sources
+    :param expected_cmd_output: Expected output of check_cmd
+    :param cachi2_image: ContainerImage instance with Cachi2 image
+    """
+    log.info("Create cachi2.env file")
+    env_vars_file = os.path.join(tmpdir, "cachi2.env")
+    cmd = [
+        "generate-env",
+        output_folder,
+        "--output",
+        env_vars_file,
+        "--for-output-dir",
+        os.path.join("/tmp", f"{test_case}-output"),
+    ]
+    (output, exit_code) = cachi2_image.run_cmd_on_image(cmd, tmpdir)
+    assert exit_code == 0, f"Env var file creation failed. output-cmd: {output}"
+
+    log.info("Inject project files")
+    cmd = [
+        "inject-files",
+        output_folder,
+        "--for-output-dir",
+        os.path.join("/tmp", f"{test_case}-output"),
+    ]
+    (output, exit_code) = cachi2_image.run_cmd_on_image(cmd, tmpdir)
+    assert exit_code == 0, f"Injecting project files failed. output-cmd: {output}"
+
+    log.info("Build container image with all prerequisites retrieved in previous steps")
+    container_folder = os.path.join(test_data_dir, test_case, "container")
+
+    with build_image(
+        tmpdir, os.path.join(container_folder, "Containerfile"), test_case
+    ) as test_image:
+        log.info(f"Run command {check_cmd} on built image {test_image.repository}")
+        (output, exit_code) = test_image.run_cmd_on_image(check_cmd, tmpdir)
+
+        assert exit_code == 0, f"{check_cmd} command failed, Output: {output}"
+        assert expected_cmd_output in output, f"{expected_cmd_output} is missing in {output}"
+
+
 def _set_tmpdir_path(project_files: list[dict[str, str]], path: Path) -> None:
     for item in project_files:
         template = string.Template(item.get("abspath", ""))

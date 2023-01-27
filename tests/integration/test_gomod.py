@@ -1,7 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 import logging
-import os
 from pathlib import Path
 from typing import List
 
@@ -180,7 +179,7 @@ def test_gomod_packages(
 
 
 @pytest.mark.parametrize(
-    "test_params,check_cmd",
+    "test_params,check_cmd,expected_cmd_output",
     [
         # Test case checks fetching retrodep dependencies, generating environment vars file,
         # building image with all prepared prerequisites and printing help message for retrodep
@@ -195,6 +194,7 @@ def test_gomod_packages(
                 expected_output="All dependencies fetched successfully",
             ),
             ["retrodep", "--help"],
+            "retrodep: help requested",
             id="gomod_e2e_test",
         ),
         # Check handling of multiple Go modules in one repository. See the README in the testing
@@ -213,13 +213,15 @@ def test_gomod_packages(
                 expected_output="All dependencies fetched successfully",
             ),
             [],  # check using CMD defined in Dockerfile
+            "",
             id="gomod_e2e_multiple_modules",
         ),
     ],
 )
-def test_e2e(
+def test_e2e_gomod(
     test_params: utils.TestParameters,
     check_cmd: List[str],
+    expected_cmd_output: str,
     cachi2_image: utils.ContainerImage,
     tmpdir: Path,
     test_data_dir: Path,
@@ -241,25 +243,12 @@ def test_e2e(
         tmpdir, test_case, test_params, source_folder, test_data_dir, cachi2_image
     )
 
-    log.info("Create cachi2.env file")
-    env_vars_file = os.path.join(tmpdir, "cachi2.env")
-    cmd = [
-        "generate-env",
+    utils.build_image_and_check_cmd(
+        tmpdir,
         output_folder,
-        "--output",
-        env_vars_file,
-        "--for-output-dir",
-        os.path.join("/tmp", f"{test_case}-output"),
-    ]
-    (output, exit_code) = cachi2_image.run_cmd_on_image(cmd, tmpdir)
-    assert exit_code == 0, f"Env var file creation failed. output-cmd: {output}"
-
-    log.info("Build container image with all prerequisites retrieved in previous steps")
-    container_folder = os.path.join(test_data_dir, test_case, "container")
-
-    with utils.build_image(
-        tmpdir, os.path.join(container_folder, "Containerfile"), test_case
-    ) as test_image:
-        log.info(f"Run command {check_cmd} on built image {test_image.repository}")
-        (output, exit_code) = test_image.run_cmd_on_image(check_cmd, tmpdir)
-        assert exit_code == 0, f"{check_cmd} command failed, Output: {output}"
+        test_data_dir,
+        test_case,
+        check_cmd,
+        expected_cmd_output,
+        cachi2_image,
+    )
