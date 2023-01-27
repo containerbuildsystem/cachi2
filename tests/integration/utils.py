@@ -3,10 +3,13 @@ import hashlib
 import json
 import logging
 import os
+import shutil
+import string
 from dataclasses import dataclass, field
 from pathlib import Path
 from subprocess import PIPE, Popen
-from typing import Dict, List, Tuple
+from tarfile import ExtractError, TarFile
+from typing import Any, Dict, List, Tuple
 
 from git import Repo
 
@@ -17,7 +20,7 @@ log = logging.getLogger(__name__)
 class TestParameters:
     repo: str
     ref: str
-    packages: Tuple[Dict]
+    packages: Tuple[Dict[str, Any], ...]
     check_output_json: bool = True
     check_deps_checksums: bool = True
     check_vendor_checksums: bool = True
@@ -106,7 +109,7 @@ def run_cmd(cmd: List[str]) -> Tuple[str, int]:
     return (out + err).decode("utf-8"), process.returncode
 
 
-def calculate_files_sha256sum_in_dir(root_dir: str) -> Dict:
+def calculate_files_checksums_in_dir(root_dir: str) -> Dict:
     """
     Calculate files sha256sum in provided directory.
 
@@ -121,8 +124,26 @@ def calculate_files_sha256sum_in_dir(root_dir: str) -> Dict:
         for file_name in files:
             rel_dir = os.path.relpath(dir_, root_dir)
             rel_file = os.path.join(rel_dir, file_name)
-            files_checksums[rel_file] = calculate_sha256sum(os.path.join(root_dir, rel_file))
+            if "-external-gitcommit-" in file_name:
+                files_checksums[rel_file] = _get_git_commit_from_tarball(
+                    os.path.join(root_dir, rel_file)
+                )
+            else:
+                files_checksums[rel_file] = calculate_sha256sum(os.path.join(root_dir, rel_file))
     return files_checksums
+
+
+def _get_git_commit_from_tarball(tarball: str) -> str:
+    with TarFile.open(tarball, "r:gz") as tarfile:
+        extract_path = tarball.replace(".tar.gz", "")
+        safe_extract(tarfile, extract_path)
+
+    repo = Repo(path=f"{extract_path}/app")
+    commit = f"gitcommit:{repo.commit().hexsha}"
+
+    shutil.rmtree(extract_path)
+
+    return commit
 
 
 def calculate_sha256sum(file: str) -> str:
@@ -145,6 +166,32 @@ def load_json(file: str) -> Dict:
     """Load JSON file and return dict."""
     with open(file) as json_file:
         return json.load(json_file)
+
+
+def safe_extract(tar: TarFile, path: str = ".", *, numeric_owner: bool = False):
+    """
+    CVE-2007-4559 replacement for extract() or extractall().
+
+    By using extract() or extractall() on a tarfile object without sanitizing input,
+    a maliciously crafted .tar file could perform a directory path traversal attack.
+    The patch essentially checks to see if all tarfile members will be
+    extracted safely and throws an exception otherwise.
+
+    :param tarfile tar: the tarfile to be extracted.
+    :param str path: specifies a different directory to extract to.
+    :param numeric_owner: if True, only the numbers for user/group names are used and not the names.
+    :raise ExtractError: if there is a Traversal Path Attempt in the Tar File.
+    """
+    abs_path = Path(path).resolve()
+    for member in tar.getmembers():
+
+        member_path = Path(path).joinpath(member.name)
+        abs_member_path = member_path.resolve()
+
+        if not abs_member_path.is_relative_to(abs_path):
+            raise ExtractError("Attempted Path Traversal in Tar File")
+
+    tar.extractall(path, numeric_owner=numeric_owner)
 
 
 def fetch_deps_and_check_output(
@@ -191,21 +238,23 @@ def fetch_deps_and_check_output(
     if test_params.check_output_json:
         output_json = load_json(os.path.join(output_folder, "output.json"))
         expected_output_json = load_json(os.path.join(test_data_dir, test_case, "output.json"))
+
+        if "project_files" in expected_output_json:
+            _set_tmpdir_path(expected_output_json["project_files"], tmpdir)
+
         log.info("Compare output.json files")
         assert output_json == expected_output_json, f"Expected output.json:/n{output_json}"
 
     if test_params.check_deps_checksums:
-        files_checksums = calculate_files_sha256sum_in_dir(os.path.join(output_folder, "deps"))
+        files_checksums = calculate_files_checksums_in_dir(os.path.join(output_folder, "deps"))
         expected_files_checksums = load_json(
             os.path.join(test_data_dir, test_case, "fetch_deps_sha256sums.json")
         )
         log.info("Compare checksums of fetched deps files")
-        assert (
-            files_checksums == expected_files_checksums
-        ), f"Expected files checksusms:/n{files_checksums}"
+        assert files_checksums == expected_files_checksums
 
     if test_params.check_vendor_checksums:
-        files_checksums = calculate_files_sha256sum_in_dir(os.path.join(source_folder, "vendor"))
+        files_checksums = calculate_files_checksums_in_dir(os.path.join(source_folder, "vendor"))
         expected_files_checksums = load_json(
             os.path.join(test_data_dir, test_case, "vendor_sha256sums.json")
         )
@@ -213,3 +262,9 @@ def fetch_deps_and_check_output(
         assert files_checksums == expected_files_checksums
 
     return output_folder
+
+
+def _set_tmpdir_path(project_files: list[dict[str, str]], path: Path) -> None:
+    for item in project_files:
+        template = string.Template(item.get("abspath", ""))
+        item["abspath"] = template.safe_substitute(test_case_tmpdir=str(path))
