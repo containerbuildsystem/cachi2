@@ -454,7 +454,6 @@ is to make Cachi2 fetch the build dependencies and provide them to pip for offli
 
 ## Using fetched dependencies
 
-<!-- TODO add pip example to usage.md? -->
 See also [usage.md](usage.md) for a complete example of Cachi2 usage.
 
 Cachi2 downloads the Python dependencies into the deps/pip/ subpath of the output directory. The directory is a flat
@@ -480,7 +479,7 @@ directory. Pip also accepts environment variables; Cachi2 generates `PIP_FIND_LI
 
 It gets a bit trickier with [external dependencies](#external-dependencies). Pip does not respect the --find-links
 option for dependencies specified via urls. Instead, Cachi2 rewrites your requirements.txt file(s) in place to replace
-the urls with file paths (after you call the `cachi2 inject-files` subcommand). <!-- TODO document in usage doc -->
+the urls with file paths (after you call the [cachi2 inject-files][usage-inject] subcommand).
 
 ```diff
 - dockerfile-parse @ https://github.com/.../2.0.0.tar.gz \
@@ -581,3 +580,4 @@ specify the dependency [via an https url](#https-urls).
 [readme-pip]: ../README.md#pip
 [usage-prefetch]: usage.md#pre-fetch-dependencies
 [usage-genenv]: usage.md#generate-environment-variables
+[usage-inject]: usage.md#inject-project-files
