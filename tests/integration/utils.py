@@ -243,7 +243,7 @@ def fetch_deps_and_check_output(
             _set_tmpdir_path(expected_output_json["project_files"], tmpdir)
 
         log.info("Compare output.json files")
-        assert output_json == expected_output_json, f"Expected output.json:/n{output_json}"
+        assert output_json == expected_output_json
 
     if test_params.check_deps_checksums:
         files_checksums = _calculate_files_checksums_in_dir(os.path.join(output_folder, "deps"))
