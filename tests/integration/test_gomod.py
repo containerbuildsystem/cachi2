@@ -197,6 +197,24 @@ def test_gomod_packages(
             ["retrodep", "--help"],
             id="gomod_e2e_test",
         ),
+        # Check handling of multiple Go modules in one repository. See the README in the testing
+        # repository for more details.
+        pytest.param(
+            utils.TestParameters(
+                repo="https://github.com/cachito-testing/gomod-multiple-modules.git",
+                ref="d909c337ffc82c7b92a8efa1281a7b6e8152b4a7",
+                packages=(
+                    {"path": ".", "type": "gomod"},
+                    {"path": "spam-module", "type": "gomod"},
+                    {"path": "eggs-module", "type": "gomod"},
+                ),
+                check_vendor_checksums=False,
+                expected_exit_code=0,
+                expected_output="All dependencies fetched successfully",
+            ),
+            [],  # check using CMD defined in Dockerfile
+            id="gomod_e2e_multiple_modules",
+        ),
     ],
 )
 def test_e2e(
