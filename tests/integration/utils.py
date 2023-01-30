@@ -192,7 +192,7 @@ def fetch_deps_and_check_output(
         output_json = load_json(os.path.join(output_folder, "output.json"))
         expected_output_json = load_json(os.path.join(test_data_dir, test_case, "output.json"))
         log.info("Compare output.json files")
-        assert output_json == expected_output_json, f"Expected output.json:/n{output_json}"
+        assert output_json == expected_output_json
 
     if test_params.check_deps_checksums:
         files_checksums = calculate_files_sha256sum_in_dir(os.path.join(output_folder, "deps"))
@@ -200,9 +200,7 @@ def fetch_deps_and_check_output(
             os.path.join(test_data_dir, test_case, "fetch_deps_sha256sums.json")
         )
         log.info("Compare checksums of fetched deps files")
-        assert (
-            files_checksums == expected_files_checksums
-        ), f"Expected files checksusms:/n{files_checksums}"
+        assert files_checksums == expected_files_checksums
 
     if test_params.check_vendor_checksums:
         files_checksums = calculate_files_sha256sum_in_dir(os.path.join(source_folder, "vendor"))
