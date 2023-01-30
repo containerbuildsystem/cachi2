@@ -109,7 +109,7 @@ def run_cmd(cmd: List[str]) -> Tuple[str, int]:
     return (out + err).decode("utf-8"), process.returncode
 
 
-def calculate_files_checksums_in_dir(root_dir: str) -> Dict:
+def _calculate_files_checksums_in_dir(root_dir: str) -> Dict:
     """
     Calculate files sha256sum in provided directory.
 
@@ -129,14 +129,14 @@ def calculate_files_checksums_in_dir(root_dir: str) -> Dict:
                     os.path.join(root_dir, rel_file)
                 )
             else:
-                files_checksums[rel_file] = calculate_sha256sum(os.path.join(root_dir, rel_file))
+                files_checksums[rel_file] = _calculate_sha256sum(os.path.join(root_dir, rel_file))
     return files_checksums
 
 
 def _get_git_commit_from_tarball(tarball: str) -> str:
     with TarFile.open(tarball, "r:gz") as tarfile:
         extract_path = tarball.replace(".tar.gz", "")
-        safe_extract(tarfile, extract_path)
+        _safe_extract(tarfile, extract_path)
 
     repo = Repo(path=f"{extract_path}/app")
     commit = f"gitcommit:{repo.commit().hexsha}"
@@ -146,7 +146,7 @@ def _get_git_commit_from_tarball(tarball: str) -> str:
     return commit
 
 
-def calculate_sha256sum(file: str) -> str:
+def _calculate_sha256sum(file: str) -> str:
     """
     Calculate sha256sum of file.
 
@@ -162,13 +162,13 @@ def calculate_sha256sum(file: str) -> str:
     return f"sha256:{sha256_hash.hexdigest()}"
 
 
-def load_json(file: str) -> Dict:
+def _load_json(file: str) -> Dict:
     """Load JSON file and return dict."""
     with open(file) as json_file:
         return json.load(json_file)
 
 
-def safe_extract(tar: TarFile, path: str = ".", *, numeric_owner: bool = False):
+def _safe_extract(tar: TarFile, path: str = ".", *, numeric_owner: bool = False):
     """
     CVE-2007-4559 replacement for extract() or extractall().
 
@@ -236,8 +236,8 @@ def fetch_deps_and_check_output(
     ), f"Expected msg {test_params.expected_output} was not found in cmd output: {output}"
 
     if test_params.check_output_json:
-        output_json = load_json(os.path.join(output_folder, "output.json"))
-        expected_output_json = load_json(os.path.join(test_data_dir, test_case, "output.json"))
+        output_json = _load_json(os.path.join(output_folder, "output.json"))
+        expected_output_json = _load_json(os.path.join(test_data_dir, test_case, "output.json"))
 
         if "project_files" in expected_output_json:
             _set_tmpdir_path(expected_output_json["project_files"], tmpdir)
@@ -246,16 +246,16 @@ def fetch_deps_and_check_output(
         assert output_json == expected_output_json, f"Expected output.json:/n{output_json}"
 
     if test_params.check_deps_checksums:
-        files_checksums = calculate_files_checksums_in_dir(os.path.join(output_folder, "deps"))
-        expected_files_checksums = load_json(
+        files_checksums = _calculate_files_checksums_in_dir(os.path.join(output_folder, "deps"))
+        expected_files_checksums = _load_json(
             os.path.join(test_data_dir, test_case, "fetch_deps_sha256sums.json")
         )
         log.info("Compare checksums of fetched deps files")
         assert files_checksums == expected_files_checksums
 
     if test_params.check_vendor_checksums:
-        files_checksums = calculate_files_checksums_in_dir(os.path.join(source_folder, "vendor"))
-        expected_files_checksums = load_json(
+        files_checksums = _calculate_files_checksums_in_dir(os.path.join(source_folder, "vendor"))
+        expected_files_checksums = _load_json(
             os.path.join(test_data_dir, test_case, "vendor_sha256sums.json")
         )
         log.info("Compare checksums of files in source vendor folder")
