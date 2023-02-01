@@ -3,3 +3,4 @@ GitPython
 pytest
 pytest-cov
 pytest-env
+pyyaml

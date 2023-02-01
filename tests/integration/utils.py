@@ -11,6 +11,7 @@ from subprocess import PIPE, Popen
 from tarfile import ExtractError, TarFile
 from typing import Any, Dict, List, Tuple
 
+import yaml
 from git import Repo
 
 log = logging.getLogger(__name__)
@@ -245,6 +246,10 @@ def fetch_deps_and_check_output(
         log.info("Compare output.json files")
         assert output_json == expected_output_json, f"Expected output.json:/n{output_json}"
 
+    deps_content_file = Path(test_data_dir, test_case, "fetch_deps_file_contents.yaml")
+    if deps_content_file.exists():
+        _validate_expected_dep_file_contents(deps_content_file, Path(output_folder))
+
     if test_params.check_deps_checksums:
         files_checksums = _calculate_files_checksums_in_dir(os.path.join(output_folder, "deps"))
         expected_files_checksums = _load_json(
@@ -268,3 +273,13 @@ def _set_tmpdir_path(project_files: list[dict[str, str]], path: Path) -> None:
     for item in project_files:
         template = string.Template(item.get("abspath", ""))
         item["abspath"] = template.safe_substitute(test_case_tmpdir=str(path))
+
+
+def _validate_expected_dep_file_contents(dep_contents_file: Path, output_dir: Path) -> None:
+    expected_deps_content = yaml.safe_load(dep_contents_file.read_text())
+
+    for path, expected_content in expected_deps_content.items():
+        log.info("Compare text content of deps/%s", path)
+        dep_file = output_dir / "deps" / path
+        assert dep_file.exists()
+        assert dep_file.read_text() == expected_content
