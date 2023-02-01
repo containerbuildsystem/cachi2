@@ -1,0 +1,3 @@
+# should also have v1.5.1, but we have a bug (but it doesn't really affect anything)
+gomod/pkg/mod/cache/download/rsc.io/quote/@v/list: |
+  v1.5.2
