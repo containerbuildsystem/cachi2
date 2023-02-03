@@ -13,7 +13,7 @@ import backoff
 import git
 import semver
 
-from cachi2.core.config import get_worker_config
+from cachi2.core.config import get_config
 from cachi2.core.errors import (
     FetchError,
     GoModError,
@@ -56,7 +56,7 @@ def fetch_gomod_source(request: Request) -> RequestOutput:
     version_output = run_cmd(["go", "version"], {})
     log.info(f"Go version: {version_output.strip()}")
 
-    config = get_worker_config()
+    config = get_config()
     subpaths = [str(package.path) for package in request.gomod_packages]
 
     if not subpaths:
@@ -160,7 +160,7 @@ def _resolve_gomod(path: Path, request: Request, git_dir_path=None):
     if git_dir_path is None:
         git_dir_path = request.source_dir
 
-    worker_config = get_worker_config()
+    config = get_config()
 
     with GoCacheTemporaryDirectory(prefix="cachito-") as temp_dir:
         env = {
@@ -171,8 +171,8 @@ def _resolve_gomod(path: Path, request: Request, git_dir_path=None):
             "GOMODCACHE": "{}/pkg/mod".format(temp_dir),
         }
 
-        if worker_config.goproxy_url:
-            env["GOPROXY"] = worker_config.goproxy_url
+        if config.goproxy_url:
+            env["GOPROXY"] = config.goproxy_url
 
         if "cgo-disable" in request.flags:
             env["CGO_ENABLED"] = "0"
@@ -195,7 +195,7 @@ def _resolve_gomod(path: Path, request: Request, git_dir_path=None):
         # Vendor dependencies if the gomod-vendor flag is set
         flags = request.flags
         should_vendor, can_make_changes = _should_vendor_deps(
-            flags, path, worker_config.gomod_strict_vendor
+            flags, path, config.gomod_strict_vendor
         )
         if should_vendor:
             _vendor_deps(run_params, can_make_changes, git_dir_path)
@@ -390,7 +390,7 @@ def _run_download_cmd(cmd: Iterable[str], params: Dict[str, Any]) -> str:
     the same dependency twice. The backoff is exponential, Cachi2 will wait 1s -> 2s -> 4s -> ...
     before retrying.
     """
-    n_tries = get_worker_config().gomod_download_max_tries
+    n_tries = get_config().gomod_download_max_tries
 
     @backoff.on_exception(
         backoff.expo,

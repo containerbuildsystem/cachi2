@@ -447,7 +447,7 @@ def test_resolve_gomod_vendor_dependencies(
 @mock.patch("cachi2.core.package_managers.gomod.GoCacheTemporaryDirectory")
 @mock.patch("subprocess.run")
 @mock.patch("cachi2.core.package_managers.gomod._get_golang_version")
-@mock.patch("cachi2.core.package_managers.gomod.get_worker_config")
+@mock.patch("cachi2.core.package_managers.gomod.get_config")
 @mock.patch("pathlib.Path.is_dir")
 @pytest.mark.parametrize("strict_vendor", [True, False])
 def test_resolve_gomod_strict_mode_raise_error(
@@ -461,7 +461,7 @@ def test_resolve_gomod_strict_mode_raise_error(
     gomod_request,
 ):
     mock_isdir.return_value = True
-    # Mock the get_worker_config
+    # Mock the get_config
     mock_config = mock.Mock()
     if strict_vendor != "default":
         mock_config.gomod_strict_vendor = strict_vendor
@@ -588,16 +588,16 @@ def test_resolve_gomod_unused_dep(mock_run, mock_temp_dir, tmpdir, gomod_request
 
 @pytest.mark.parametrize(("go_mod_rc", "go_list_rc"), ((0, 1), (1, 0)))
 @mock.patch("cachi2.core.package_managers.gomod.GoCacheTemporaryDirectory")
-@mock.patch("cachi2.core.package_managers.gomod.get_worker_config")
+@mock.patch("cachi2.core.package_managers.gomod.get_config")
 @mock.patch("subprocess.run")
 def test_go_list_cmd_failure(
-    mock_run, mock_worker_config, mock_temp_dir, tmpdir, go_mod_rc, go_list_rc, gomod_request
+    mock_run, mock_config, mock_temp_dir, tmpdir, go_mod_rc, go_list_rc, gomod_request
 ):
     archive_path = gomod_request.source_dir / "path/to/archive.tar.gz"
 
     # Mock the tempfile.TemporaryDirectory context manager
     mock_temp_dir.return_value.__enter__.return_value = str(tmpdir)
-    mock_worker_config.return_value.gomod_download_max_tries = 1
+    mock_config.return_value.gomod_download_max_tries = 1
 
     # Mock the "subprocess.run" calls
     mock_run.side_effect = [
@@ -1296,11 +1296,11 @@ def test_get_dep_version(dep_info, expect_version):
 
 
 @pytest.mark.parametrize("tries_needed", [1, 2, 3, 4, 5])
-@mock.patch("cachi2.core.package_managers.gomod.get_worker_config")
+@mock.patch("cachi2.core.package_managers.gomod.get_config")
 @mock.patch("subprocess.run")
 @mock.patch("time.sleep")
-def test_run_download_cmd_success(mock_sleep, mock_run, mock_worker_config, tries_needed, caplog):
-    mock_worker_config.return_value.gomod_download_max_tries = 5
+def test_run_download_cmd_success(mock_sleep, mock_run, mock_config, tries_needed, caplog):
+    mock_config.return_value.gomod_download_max_tries = 5
 
     failure = proc_mock(returncode=1, stdout="")
     success = proc_mock(returncode=0, stdout="")
@@ -1315,11 +1315,11 @@ def test_run_download_cmd_success(mock_sleep, mock_run, mock_worker_config, trie
         assert f"Backing off run_go(...) for {wait:.1f}s" in caplog.text
 
 
-@mock.patch("cachi2.core.package_managers.gomod.get_worker_config")
+@mock.patch("cachi2.core.package_managers.gomod.get_config")
 @mock.patch("subprocess.run")
 @mock.patch("time.sleep")
-def test_run_download_cmd_failure(mock_sleep, mock_run, mock_worker_config, caplog):
-    mock_worker_config.return_value.gomod_download_max_tries = 5
+def test_run_download_cmd_failure(mock_sleep, mock_run, mock_config, caplog):
+    mock_config.return_value.gomod_download_max_tries = 5
 
     failure = proc_mock(returncode=1, stdout="")
     mock_run.side_effect = [failure] * 5

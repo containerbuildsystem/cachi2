@@ -19,7 +19,7 @@ class Config:
 
 # This function is kept to avoid changing the old code too much
 # It should be removed with the refactoring of the config object
-def get_worker_config():
+def get_config():
     """Get the configuration singleton."""
     global config
 
