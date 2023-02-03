@@ -4,7 +4,7 @@ import re
 import subprocess  # nosec
 from typing import Iterator
 
-from cachi2.core.config import get_worker_config
+from cachi2.core.config import get_config
 
 log = logging.getLogger(__name__)
 
@@ -23,7 +23,7 @@ def run_cmd(cmd, params):
     params.setdefault("universal_newlines", True)
     params.setdefault("encoding", "utf-8")
 
-    conf = get_worker_config()
+    conf = get_config()
     params.setdefault("timeout", conf.subprocess_timeout)
 
     response = subprocess.run(cmd, **params)  # nosec
