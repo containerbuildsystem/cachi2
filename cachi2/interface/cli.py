@@ -9,6 +9,7 @@ from typing import Any, Callable, Optional
 import pydantic
 import typer
 
+import cachi2.core.config as config
 from cachi2.core.errors import Cachi2Error, InvalidInput
 from cachi2.core.extras.envfile import EnvFormat, generate_envfile
 from cachi2.core.models.input import Flag, PackageInput, Request, parse_user_input
@@ -60,6 +61,7 @@ def version_callback(value: bool) -> None:
 
 
 @app.callback()
+@handle_errors
 def cachi2(  # noqa: D103; docstring becomes part of --help message
     version: bool = typer.Option(
         False,
@@ -68,10 +70,22 @@ def cachi2(  # noqa: D103; docstring becomes part of --help message
         is_eager=True,
         help="Show version and exit.",
     ),
+    config_file: Path = typer.Option(
+        None,
+        "--config-file",
+        help="Read configuration from this file.",
+        dir_okay=False,
+        exists=True,
+        resolve_path=True,
+        readable=True,
+    ),
 ) -> None:
     # The default level for subcommands that don't have the --log-level option is ERROR
     # Such commands generally don't do any logging, but we do still want to log errors
     setup_logging(LogLevel.ERROR)
+
+    if config_file:
+        config.set_config(config_file)
 
 
 # Allow the user to change the log level for a subcommand

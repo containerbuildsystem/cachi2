@@ -10,7 +10,9 @@ from unittest import mock
 
 import pytest
 import typer.testing
+import yaml
 
+import cachi2.core.config as config_file
 from cachi2.core.models.input import Request
 from cachi2.core.models.output import RequestOutput
 from cachi2.interface.cli import DEFAULT_OUTPUT, DEFAULT_SOURCE, app
@@ -75,6 +77,88 @@ class TestTopLevelOpts:
         lines = result.output.splitlines()
         assert lines[0] == f"cachi2 {expect_version}"
         assert lines[1].startswith("Supported package managers: gomod")
+
+    @pytest.mark.parametrize(
+        "file, file_text",
+        [
+            ("config.yaml", "gomod_download_max_tries: 1000000"),
+            ("config.yaml", "gomod_download_max_tries: 1000000\ngomod_strict_vendor: True"),
+        ],
+    )
+    def test_config_file_option(
+        self,
+        file: str,
+        file_text: str,
+        tmp_cwd: Path,
+    ):
+        tmp_cwd.joinpath(file).touch()
+        tmp_cwd.joinpath(file).write_text(file_text)
+
+        args = ["--config-file", file, "fetch-deps", "gomod"]
+
+        output = RequestOutput(
+            packages=[
+                {
+                    "name": "cool-package",
+                    "version": "v1.0.0",
+                    "type": "gomod",
+                    "path": ".",
+                    "dependencies": [],
+                },
+            ],
+            environment_variables=[
+                {"name": "GOMOD_SOMETHING", "value": "yes", "kind": "literal"},
+            ],
+            project_files=[],
+        )
+
+        def side_effect(whatever):
+            config = config_file.get_config()
+
+            load_text = yaml.safe_load(file_text)
+            for config_parameter in load_text.keys():
+                assert getattr(config, config_parameter) == load_text[config_parameter]
+
+            return output
+
+        with mock.patch("cachi2.interface.cli.resolve_packages") as mock_resolve_packages:
+            mock_resolve_packages.side_effect = side_effect
+            invoke_expecting_sucess(app, args)
+
+    @pytest.mark.parametrize(
+        "file_create, file, file_text, error_expectation",
+        [
+            (
+                True,
+                "config.yaml",
+                "goproxy_url",
+                "Error: InvalidInput: 1 validation error for user input\nConfig expected dict not str\n",
+            ),
+            (
+                True,
+                "config.yaml",
+                "non_existing_option: True",
+                "Error: InvalidInput: 1 validation error for user input\nnon_existing_option\n  extra fields not permitted\n",
+            ),
+            (
+                False,
+                "config.yaml",
+                "",
+                "Usage: cachi2 [OPTIONS] COMMAND [ARGS]...\nTry 'cachi2 --help' for help.\n\nError: Invalid value for '--config-file': File 'config.yaml' does not exist.\n",
+            ),
+        ],
+    )
+    def test_config_file_option_invalid(
+        self, file_create: bool, file: str, file_text: str, error_expectation: str, tmp_cwd: Path
+    ):
+        if file_create:
+            tmp_cwd.joinpath(file).touch()
+            tmp_cwd.joinpath(file).write_text(file_text)
+
+        args = ["--config-file", file, "fetch-deps", "gomod"]
+        with mock_fetch_deps():
+            result = invoke_expecting_invalid_usage(app, args)
+            assert error_expectation in result.output
 
 
 class TestLogLevelOpt:

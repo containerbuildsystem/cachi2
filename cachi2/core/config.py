@@ -1,25 +1,26 @@
+from pathlib import Path
+
+import yaml
+from pydantic import BaseModel
+
+from cachi2.core.models.input import parse_user_input
+
 config = None
 
 
-class Config:
-    """
-    Singleton that provides default configuration for the Cachi2 process.
+class Config(BaseModel, extra="forbid"):
+    """Singleton that provides default configuration for the Cachi2 process."""
 
-    All values currently need to be changed in this file.
-    """
-
-    goproxy_url = "https://proxy.golang.org,direct"
-    default_environment_variables = {
+    goproxy_url: str = "https://proxy.golang.org,direct"
+    default_environment_variables: dict = {
         "gomod": {"GOSUMDB": {"value": "off", "kind": "literal"}},
     }
-    gomod_download_max_tries = 5
-    gomod_strict_vendor = True
-    subprocess_timeout = 3600
+    gomod_download_max_tries: int = 5
+    gomod_strict_vendor: bool = True
+    subprocess_timeout: int = 3600
 
 
-# This function is kept to avoid changing the old code too much
-# It should be removed with the refactoring of the config object
-def get_config():
+def get_config() -> Config:
     """Get the configuration singleton."""
     global config
 
@@ -27,3 +28,10 @@ def get_config():
         config = Config()
 
     return config
+
+
+def set_config(path: Path) -> None:
+    """Set global config variable using input from file."""
+    global config
+
+    config = parse_user_input(Config.parse_obj, yaml.safe_load(path.read_text()))

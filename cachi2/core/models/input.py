@@ -34,10 +34,15 @@ def _present_user_input_error(validation_error: pydantic.ValidationError) -> str
     def show_error(error: "ErrorDict") -> str:
         location = " -> ".join(map(str, error["loc"]))
         context = "; ".join(f"{k}={v}" for k, v in error.get("ctx", {}).items())
+        message = error["msg"]
+
         if context:
-            return f"{location}\n  {error['msg']} ({context})"
-        else:
-            return f"{location}\n  {error['msg']}"
+            message = f"{message} ({context})"
+
+        if location != "__root__":
+            message = f"{location}\n  {message}"
+
+        return message
 
     header = f"{n_errors} validation error{'' if n_errors == 1 else 's'} for user input"
     details = "\n".join(map(show_error, errors))
