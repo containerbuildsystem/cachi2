@@ -133,15 +133,14 @@ RUN source /tmp/cachi2.env && go build -o /bar cmd/bar
 ### Build the container
 
 ```shell
-sudo podman network create --internal isolated-network
-sudo podman build . \
+podman build . \
   --volume "$(realpath ./cachi2-output)":/tmp/cachi2-output:Z \
   --volume "$(realpath ./cachi2.env)":/tmp/cachi2.env:Z \
-  --network isolated-network \
+  --network none \
   --tag fzf
 
 # test that it worked
-sudo podman run --rm -ti fzf
+podman run --rm -ti fzf
 ```
 
 We use the `--volume` option to mount Cachi2 resources into the container build - the output directory at
@@ -154,9 +153,10 @@ and [injecting the project files](#inject-project-files)? The absolute path to .
 (probably) not /tmp/cachi2-output. That is why we had to tell the generate-env command what the path inside the
 container is eventually going to be.
 
-As for the network-isolation part, we solve it by using an internal podman network. An easier way to achieve this is
-`podman build --network=none` or `buildah bud --network=none` (no sudo needed), but your podman/buildah version needs to
-contain the fix for [buildah#4227](https://github.com/containers/buildah/issues/4227).
+As for the network-isolation part, we solve it by using the `--network=none` option. Note that this option only works
+if your podman/buildah version contains the fix for [buildah#4227](https://github.com/containers/buildah/issues/4227)
+(buildah >= 1.28). In older versions, a workaround could be to manually create an internal network (but you'll need root
+privileges): `sudo podman network create --internal isolated-network; sudo podman build --network isolated-network ...`.
 
 ## Example: pip
 
