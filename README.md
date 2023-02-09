@@ -89,6 +89,12 @@ cachi2 fetch-deps \
 The `fetch-deps` command fetches your project's dependencies and stores them on your disk. You can then use these
 outputs to, say, build a container image.
 
+Cachi2 uses default configuration that can be changed by using a configuration file:
+
+```shell
+ cachi2 --config-file config.yaml fetch-deps --source ./my-repo gomod
+```
+
 See [docs/usage.md](docs/usage.md) for a more detailed, practical (*cough*) example of Cachi2 usage.
 
 You might also like to check out `cachi2 --help` and the `--help` texts of the available subcommands.
