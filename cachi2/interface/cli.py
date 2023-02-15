@@ -79,23 +79,16 @@ def cachi2(  # noqa: D103; docstring becomes part of --help message
         resolve_path=True,
         readable=True,
     ),
+    log_level: LogLevel = typer.Option(
+        LogLevel.INFO.value,
+        "--log-level",
+        case_sensitive=False,
+        help="Set log level.",
+    ),
 ) -> None:
-    # The default level for subcommands that don't have the --log-level option is ERROR
-    # Such commands generally don't do any logging, but we do still want to log errors
-    setup_logging(LogLevel.ERROR)
-
+    setup_logging(log_level)
     if config_file:
         config.set_config(config_file)
-
-
-# Allow the user to change the log level for a subcommand
-# Also changes the default level for that subcommand to INFO
-LOG_LEVEL_OPTION = typer.Option(
-    LogLevel.INFO.value,
-    case_sensitive=False,
-    callback=lambda level: setup_logging(level),
-    help="Set log level.",
-)
 
 
 def _if_json_then_validate(value: str) -> str:
@@ -162,7 +155,6 @@ def fetch_deps(
             "already have a vendor/ directory (will fail if changes would be made)."
         ),
     ),
-    log_level: LogLevel = LOG_LEVEL_OPTION,
 ) -> None:
     """Fetch dependencies for supported package managers.
 
@@ -301,7 +293,6 @@ def generate_env(
 def inject_files(
     from_output_dir: Path = FROM_OUTPUT_DIR_ARG,
     for_output_dir: Optional[Path] = FOR_OUTPUT_DIR_OPTION,
-    log_level: LogLevel = LOG_LEVEL_OPTION,
 ) -> None:
     """Inject the project files needed to use the fetched dependencies."""
     for_output_dir = (for_output_dir or from_output_dir).resolve()
