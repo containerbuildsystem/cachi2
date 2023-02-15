@@ -56,14 +56,14 @@ class ContainerImage:
             raise RuntimeError(f"Image deletion failed. Output:{output}")
 
 
-def build_image(tmpdir: Path, containerfile: str, test_case: str) -> ContainerImage:
+def build_image(tmp_path: Path, containerfile: str, test_case: str) -> ContainerImage:
     image_cmd = [
         "podman",
         "build",
         "-f",
         containerfile,
         "-v",
-        f"{tmpdir}:/tmp:Z",
+        f"{tmp_path}:/tmp:Z",
         "--no-cache",
         "--network",
         "none",
@@ -110,7 +110,7 @@ def run_cmd(cmd: List[str]) -> Tuple[str, int]:
     return (out + err).decode("utf-8"), process.returncode
 
 
-def _calculate_files_checksums_in_dir(root_dir: str) -> Dict:
+def _calculate_files_checksums_in_dir(root_dir: Path) -> Dict:
     """
     Calculate files sha256sum in provided directory.
 
@@ -122,21 +122,21 @@ def _calculate_files_checksums_in_dir(root_dir: str) -> Dict:
     files_checksums = {}
 
     for dir_, _, files in os.walk(root_dir):
+        rel_dir = Path(dir_).relative_to(root_dir)
         for file_name in files:
-            rel_dir = os.path.relpath(dir_, root_dir)
-            rel_file = os.path.join(rel_dir, file_name)
+            rel_file = str(rel_dir.joinpath(file_name))
             if "-external-gitcommit-" in file_name:
                 files_checksums[rel_file] = _get_git_commit_from_tarball(
-                    os.path.join(root_dir, rel_file)
+                    root_dir.joinpath(rel_file)
                 )
             else:
-                files_checksums[rel_file] = _calculate_sha256sum(os.path.join(root_dir, rel_file))
+                files_checksums[rel_file] = _calculate_sha256sum(root_dir.joinpath(rel_file))
     return files_checksums
 
 
-def _get_git_commit_from_tarball(tarball: str) -> str:
+def _get_git_commit_from_tarball(tarball: Path) -> str:
     with TarFile.open(tarball, "r:gz") as tarfile:
-        extract_path = tarball.replace(".tar.gz", "")
+        extract_path = str(tarball).replace(".tar.gz", "")
         _safe_extract(tarfile, extract_path)
 
     repo = Repo(path=f"{extract_path}/app")
@@ -147,7 +147,7 @@ def _get_git_commit_from_tarball(tarball: str) -> str:
     return commit
 
 
-def _calculate_sha256sum(file: str) -> str:
+def _calculate_sha256sum(file: Path) -> str:
     """
     Calculate sha256sum of file.
 
@@ -163,7 +163,7 @@ def _calculate_sha256sum(file: str) -> str:
     return f"sha256:{sha256_hash.hexdigest()}"
 
 
-def _load_json(file: str) -> Dict:
+def _load_json(file: Path) -> Dict:
     """Load JSON file and return dict."""
     with open(file) as json_file:
         return json.load(json_file)
@@ -196,17 +196,17 @@ def _safe_extract(tar: TarFile, path: str = ".", *, numeric_owner: bool = False)
 
 
 def fetch_deps_and_check_output(
-    tmpdir: Path,
+    tmp_path: Path,
     test_case: str,
     test_params: TestParameters,
     source_folder: Path,
     test_data_dir: Path,
     cachi2_image: ContainerImage,
-) -> str:
+) -> Path:
     """
     Fetch dependencies for source repo and check expected output.
 
-    :param tmpdir: Temp directory for pytest
+    :param tmp_path: Temp directory for pytest
     :param test_case: Test case name retrieved from pytest id
     :param test_params: Test case arguments
     :param source_folder: Folder path to source repository content
@@ -214,7 +214,7 @@ def fetch_deps_and_check_output(
     :param cachi2_image: ContainerImage instance with Cachi2 image
     :return: Path to output folder with fetched dependencies and output.json
     """
-    output_folder = os.path.join(tmpdir, f"{test_case}-output")
+    output_folder = tmp_path.joinpath(f"{test_case}-output")
     cmd = [
         "fetch-deps",
         "--source",
@@ -227,7 +227,7 @@ def fetch_deps_and_check_output(
 
     cmd.append(json.dumps(test_params.packages).encode("utf-8"))
 
-    (output, exit_code) = cachi2_image.run_cmd_on_image(cmd, tmpdir)
+    (output, exit_code) = cachi2_image.run_cmd_on_image(cmd, tmp_path)
     assert exit_code == test_params.expected_exit_code, (
         f"Fetching deps ended with unexpected exitcode: {exit_code} != "
         f"{test_params.expected_exit_code}, output-cmd: {output}"
@@ -237,11 +237,11 @@ def fetch_deps_and_check_output(
     ), f"Expected msg {test_params.expected_output} was not found in cmd output: {output}"
 
     if test_params.check_output_json:
-        output_json = _load_json(os.path.join(output_folder, "output.json"))
-        expected_output_json = _load_json(os.path.join(test_data_dir, test_case, "output.json"))
+        output_json = _load_json(output_folder.joinpath("output.json"))
+        expected_output_json = _load_json(test_data_dir.joinpath(test_case, "output.json"))
 
         if "project_files" in expected_output_json:
-            _set_tmpdir_path(expected_output_json["project_files"], tmpdir)
+            _set_tmpdir_path(expected_output_json["project_files"], tmp_path)
 
         log.info("Compare output.json files")
         assert output_json == expected_output_json
@@ -251,17 +251,17 @@ def fetch_deps_and_check_output(
         _validate_expected_dep_file_contents(deps_content_file, Path(output_folder))
 
     if test_params.check_deps_checksums:
-        files_checksums = _calculate_files_checksums_in_dir(os.path.join(output_folder, "deps"))
+        files_checksums = _calculate_files_checksums_in_dir(output_folder.joinpath("deps"))
         expected_files_checksums = _load_json(
-            os.path.join(test_data_dir, test_case, "fetch_deps_sha256sums.json")
+            test_data_dir.joinpath(test_data_dir, test_case, "fetch_deps_sha256sums.json")
         )
         log.info("Compare checksums of fetched deps files")
         assert files_checksums == expected_files_checksums
 
     if test_params.check_vendor_checksums:
-        files_checksums = _calculate_files_checksums_in_dir(os.path.join(source_folder, "vendor"))
+        files_checksums = _calculate_files_checksums_in_dir(source_folder.joinpath("vendor"))
         expected_files_checksums = _load_json(
-            os.path.join(test_data_dir, test_case, "vendor_sha256sums.json")
+            test_data_dir.joinpath(test_case, "vendor_sha256sums.json")
         )
         log.info("Compare checksums of files in source vendor folder")
         assert files_checksums == expected_files_checksums
@@ -270,8 +270,8 @@ def fetch_deps_and_check_output(
 
 
 def build_image_and_check_cmd(
-    tmpdir: Path,
-    output_folder: str,
+    tmp_path: Path,
+    output_folder: Path,
     test_data_dir: Path,
     test_case: str,
     check_cmd: List,
@@ -281,7 +281,7 @@ def build_image_and_check_cmd(
     """
     Build image and check that Cachi2 provided sources properly.
 
-    :param tmpdir: Temp directory for pytest
+    :param tmp_path: Temp directory for pytest
     :param output_folder: Path to output folder with fetched dependencies and output.json
     :param test_case: Test case name retrieved from pytest id
     :param test_data_dir: Relative path to expected output test data
@@ -290,16 +290,16 @@ def build_image_and_check_cmd(
     :param cachi2_image: ContainerImage instance with Cachi2 image
     """
     log.info("Create cachi2.env file")
-    env_vars_file = os.path.join(tmpdir, "cachi2.env")
+    env_vars_file = tmp_path.joinpath("cachi2.env")
     cmd = [
         "generate-env",
         output_folder,
         "--output",
         env_vars_file,
         "--for-output-dir",
-        os.path.join("/tmp", f"{test_case}-output"),
+        Path("/tmp").joinpath(f"{test_case}-output"),
     ]
-    (output, exit_code) = cachi2_image.run_cmd_on_image(cmd, tmpdir)
+    (output, exit_code) = cachi2_image.run_cmd_on_image(cmd, tmp_path)
     assert exit_code == 0, f"Env var file creation failed. output-cmd: {output}"
 
     log.info("Inject project files")
@@ -307,19 +307,19 @@ def build_image_and_check_cmd(
         "inject-files",
         output_folder,
         "--for-output-dir",
-        os.path.join("/tmp", f"{test_case}-output"),
+        Path("/tmp").joinpath(f"{test_case}-output"),
     ]
-    (output, exit_code) = cachi2_image.run_cmd_on_image(cmd, tmpdir)
+    (output, exit_code) = cachi2_image.run_cmd_on_image(cmd, tmp_path)
     assert exit_code == 0, f"Injecting project files failed. output-cmd: {output}"
 
     log.info("Build container image with all prerequisites retrieved in previous steps")
-    container_folder = os.path.join(test_data_dir, test_case, "container")
+    container_folder = test_data_dir.joinpath(test_case, "container")
 
     with build_image(
-        tmpdir, os.path.join(container_folder, "Containerfile"), test_case
+        tmp_path, str(container_folder.joinpath("Containerfile")), test_case
     ) as test_image:
         log.info(f"Run command {check_cmd} on built image {test_image.repository}")
-        (output, exit_code) = test_image.run_cmd_on_image(check_cmd, tmpdir)
+        (output, exit_code) = test_image.run_cmd_on_image(check_cmd, tmp_path)
 
         assert exit_code == 0, f"{check_cmd} command failed, Output: {output}"
         assert expected_cmd_output in output, f"{expected_cmd_output} is missing in {output}"

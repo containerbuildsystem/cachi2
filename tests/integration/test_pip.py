@@ -71,7 +71,7 @@ log = logging.getLogger(__name__)
 def test_pip_packages(
     test_params: utils.TestParameters,
     cachi2_image: utils.ContainerImage,
-    tmpdir: Path,
+    tmp_path: Path,
     test_data_dir: Path,
     request: pytest.FixtureRequest,
 ):
@@ -79,16 +79,16 @@ def test_pip_packages(
     Test fetched dependencies for pip.
 
     :param test_params: Test case arguments
-    :param tmpdir: Temp directory for pytest
+    :param tmp_path: Temp directory for pytest
     """
     test_case = request.node.callspec.id
 
     source_folder = utils.clone_repository(
-        test_params.repo, test_params.ref, f"{test_case}-source", tmpdir
+        test_params.repo, test_params.ref, f"{test_case}-source", tmp_path
     )
 
     _ = utils.fetch_deps_and_check_output(
-        tmpdir, test_case, test_params, source_folder, test_data_dir, cachi2_image
+        tmp_path, test_case, test_params, source_folder, test_data_dir, cachi2_image
     )
 
 
@@ -124,7 +124,7 @@ def test_e2e_pip(
     check_cmd: List[str],
     expected_cmd_output: str,
     cachi2_image: utils.ContainerImage,
-    tmpdir: Path,
+    tmp_path: Path,
     test_data_dir: Path,
     request: pytest.FixtureRequest,
 ):
@@ -132,20 +132,20 @@ def test_e2e_pip(
     End to end test for gomod.
 
     :param test_params: Test case arguments
-    :param tmpdir: Temp directory for pytest
+    :param tmp_path: Temp directory for pytest
     """
     test_case = request.node.callspec.id
 
     source_folder = utils.clone_repository(
-        test_params.repo, test_params.ref, f"{test_case}-source", tmpdir
+        test_params.repo, test_params.ref, f"{test_case}-source", tmp_path
     )
 
     output_folder = utils.fetch_deps_and_check_output(
-        tmpdir, test_case, test_params, source_folder, test_data_dir, cachi2_image
+        tmp_path, test_case, test_params, source_folder, test_data_dir, cachi2_image
     )
 
     utils.build_image_and_check_cmd(
-        tmpdir,
+        tmp_path,
         output_folder,
         test_data_dir,
         test_case,
