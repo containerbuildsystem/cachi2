@@ -160,8 +160,6 @@ class TestTopLevelOpts:
             result = invoke_expecting_invalid_usage(app, args)
             assert error_expectation in result.output
 
-
-class TestLogLevelOpt:
     @pytest.mark.parametrize(
         "loglevel_args, expected_level",
         [
@@ -176,7 +174,7 @@ class TestLogLevelOpt:
         expected_level: str,
         tmp_cwd,
     ):
-        args = ["fetch-deps", "gomod", *loglevel_args]
+        args = [*loglevel_args, "fetch-deps", "gomod"]
 
         with mock_fetch_deps():
             invoke_expecting_sucess(app, args)
@@ -186,7 +184,7 @@ class TestLogLevelOpt:
         assert loglevel_name == expected_level
 
     def test_unknown_loglevel(self, tmp_cwd):
-        args = ["fetch-deps", "gomod", "--log-level=unknown"]
+        args = ["--log-level=unknown", "fetch-deps", "gomod"]
         result = invoke_expecting_invalid_usage(app, args)
         assert "Error: Invalid value for '--log-level': 'unknown' is not one of" in result.output
 
