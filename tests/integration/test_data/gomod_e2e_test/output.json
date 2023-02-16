@@ -73,32 +73,47 @@
         },
         {
           "type": "go-package",
-          "name": "crypto/ed25519/internal/edwards25519",
-          "version": null
-        },
-        {
-          "type": "go-package",
-          "name": "crypto/ed25519/internal/edwards25519/field",
-          "version": null
-        },
-        {
-          "type": "go-package",
           "name": "crypto/elliptic",
           "version": null
         },
         {
           "type": "go-package",
-          "name": "crypto/elliptic/internal/fiat",
-          "version": null
-        },
-        {
-          "type": "go-package",
-          "name": "crypto/elliptic/internal/nistec",
-          "version": null
-        },
-        {
-          "type": "go-package",
           "name": "crypto/hmac",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "crypto/internal/boring",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "crypto/internal/boring/bbig",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "crypto/internal/boring/sig",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "crypto/internal/edwards25519",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "crypto/internal/edwards25519/field",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "crypto/internal/nistec",
+          "version": null
+        },
+        {
+          "type": "go-package",
+          "name": "crypto/internal/nistec/fiat",
           "version": null
         },
         {
@@ -273,6 +288,11 @@
         },
         {
           "type": "go-package",
+          "name": "go/doc/comment",
+          "version": null
+        },
+        {
+          "type": "go-package",
           "name": "go/internal/typeparams",
           "version": null
         },
@@ -329,11 +349,6 @@
         {
           "type": "go-package",
           "name": "internal/cpu",
-          "version": null
-        },
-        {
-          "type": "go-package",
-          "name": "internal/execabs",
           "version": null
         },
         {
