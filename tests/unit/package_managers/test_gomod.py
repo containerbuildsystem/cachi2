@@ -298,11 +298,21 @@ def test_resolve_gomod(
     if force_gomod_tidy or dep_replacement:
         run_side_effects.append(proc_mock("go mod tidy", returncode=0, stdout=None))
     run_side_effects.append(
-        proc_mock("go list -m", returncode=0, stdout="github.com/release-engineering/retrodep/v2")
+        proc_mock(
+            "go list -e -mod readonly -m",
+            returncode=0,
+            stdout="github.com/release-engineering/retrodep/v2",
+        )
     )
-    run_side_effects.append(proc_mock("go list -m all", returncode=0, stdout=mock_cmd_output))
-    run_side_effects.append(proc_mock("go list -find ./...", returncode=0, stdout=mock_pkg_list))
-    run_side_effects.append(proc_mock("go list -deps -json", returncode=0, stdout=mock_pkg_deps))
+    run_side_effects.append(
+        proc_mock("go list -e -mod readonly -m all", returncode=0, stdout=mock_cmd_output)
+    )
+    run_side_effects.append(
+        proc_mock("go list -e -mod readonly -find ./...", returncode=0, stdout=mock_pkg_list)
+    )
+    run_side_effects.append(
+        proc_mock("go list -e -mod readonly -deps -json", returncode=0, stdout=mock_pkg_deps)
+    )
     mock_run.side_effect = run_side_effects
 
     mock_golang_version.return_value = "v2.1.1"
@@ -348,6 +358,7 @@ def test_resolve_gomod(
     assert mock_run.call_args_list[-2][0][0] == [
         "go",
         "list",
+        "-e",
         "-mod",
         "readonly",
         "-find",
@@ -409,15 +420,19 @@ def test_resolve_gomod_vendor_dependencies(
     if force_gomod_tidy:
         run_side_effects.append(proc_mock("go mod tidy", returncode=0, stdout=None))
     run_side_effects.append(
-        proc_mock("go list -m", returncode=0, stdout="github.com/release-engineering/retrodep/v2")
-    )
-    run_side_effects.append(
         proc_mock(
-            "go list -find ./...", returncode=0, stdout="github.com/release-engineering/retrodep/v2"
+            "go list -e -m", returncode=0, stdout="github.com/release-engineering/retrodep/v2"
         )
     )
     run_side_effects.append(
-        proc_mock("go list -deps -json", returncode=0, stdout=mock_pkg_deps_no_deps)
+        proc_mock(
+            "go list -e -find ./...",
+            returncode=0,
+            stdout="github.com/release-engineering/retrodep/v2",
+        )
+    )
+    run_side_effects.append(
+        proc_mock("go list -e -deps -json", returncode=0, stdout=mock_pkg_deps_no_deps)
     )
     mock_run.side_effect = run_side_effects
     mock_module_lines.return_value = []
@@ -435,7 +450,7 @@ def test_resolve_gomod_vendor_dependencies(
 
     assert mock_run.call_args_list[0][0][0] == ("go", "mod", "vendor")
     # when vendoring, go list should be called without -mod readonly
-    assert mock_run.call_args_list[-2][0][0] == ["go", "list", "-find", "./..."]
+    assert mock_run.call_args_list[-2][0][0] == ["go", "list", "-e", "-find", "./..."]
     assert gomod["module"] == sample_package
     assert not gomod["module_deps"]
 
@@ -476,10 +491,10 @@ def test_resolve_gomod_strict_mode_raise_error(
         proc_mock("go mod edit -replace", returncode=0, stdout=""),
         proc_mock("go mod download", returncode=0, stdout=""),
         proc_mock("go mod tidy", returncode=0, stdout=""),
-        proc_mock("go list -m", returncode=0, stdout="pizza"),
-        proc_mock("go list mod readonly", returncode=0, stdout="pizza v1.0.0 => pizza v1.0.1\n"),
-        proc_mock("go list -find", returncode=0, stdout=""),
-        proc_mock("go list -deps -json", returncode=0, stdout=""),
+        proc_mock("go list -e -m", returncode=0, stdout="pizza"),
+        proc_mock("go list -e mod readonly", returncode=0, stdout="pizza v1.0.0 => pizza v1.0.1\n"),
+        proc_mock("go list -e -find", returncode=0, stdout=""),
+        proc_mock("go list -e -deps -json", returncode=0, stdout=""),
     ]
 
     archive_path = gomod_request.source_dir / "path/to/archive.tar.gz"
@@ -525,16 +540,24 @@ def test_resolve_gomod_no_deps(
     if force_gomod_tidy:
         run_side_effects.append(proc_mock("go mod tidy", returncode=0, stdout=None))
     run_side_effects.append(
-        proc_mock("go list -m", returncode=0, stdout="github.com/release-engineering/retrodep/v2")
+        proc_mock(
+            "go list -e -mod readonly -m",
+            returncode=0,
+            stdout="github.com/release-engineering/retrodep/v2",
+        )
     )
-    run_side_effects.append(proc_mock("go list -m all", returncode=0, stdout=""))
+    run_side_effects.append(proc_mock("go list -e -mod readonly -m all", returncode=0, stdout=""))
     run_side_effects.append(
         proc_mock(
-            "go list -find ./...", returncode=0, stdout="github.com/release-engineering/retrodep/v2"
+            "go list -e -mod readonly -find ./...",
+            returncode=0,
+            stdout="github.com/release-engineering/retrodep/v2",
         )
     )
     run_side_effects.append(
-        proc_mock("go list -deps -json", returncode=0, stdout=mock_pkg_deps_no_deps)
+        proc_mock(
+            "go list -e -mod readonly -deps -json", returncode=0, stdout=mock_pkg_deps_no_deps
+        )
     )
     mock_run.side_effect = run_side_effects
 
@@ -574,8 +597,14 @@ def test_resolve_gomod_unused_dep(mock_run, mock_temp_dir, tmpdir, gomod_request
         proc_mock("go mod edit -replace", returncode=0, stdout=None),
         proc_mock("go mod download", returncode=0, stdout=None),
         proc_mock("go mod tidy", returncode=0, stdout=None),
-        proc_mock("go list -m", returncode=0, stdout="github.com/release-engineering/retrodep/v2"),
-        proc_mock("go list -m all", returncode=0, stdout=_generate_mock_cmd_output()),
+        proc_mock(
+            "go list -e -mod readonly -m",
+            returncode=0,
+            stdout="github.com/release-engineering/retrodep/v2",
+        ),
+        proc_mock(
+            "go list -e -mod readonly -m all", returncode=0, stdout=_generate_mock_cmd_output()
+        ),
     ]
 
     expected_error = "The following gomod dependency replacements don't apply: pizza"
@@ -602,12 +631,16 @@ def test_go_list_cmd_failure(
     # Mock the "subprocess.run" calls
     mock_run.side_effect = [
         proc_mock("go mod download", returncode=go_mod_rc, stdout=None),
-        proc_mock("go list -m all", returncode=go_list_rc, stdout=_generate_mock_cmd_output()),
+        proc_mock(
+            "go list -e -mod readonly -m all",
+            returncode=go_list_rc,
+            stdout=_generate_mock_cmd_output(),
+        ),
     ]
 
     expect_error = "Processing gomod dependencies failed"
     if go_mod_rc == 0:
-        expect_error += ": `go list -m all` failed with rc=1"
+        expect_error += ": `go list -e -mod readonly -m all` failed with rc=1"
 
     with pytest.raises(
         GoModError,

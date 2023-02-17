@@ -205,8 +205,13 @@ def _resolve_gomod(path: Path, request: Request, git_dir_path=None):
         if "force-gomod-tidy" in flags or request.dep_replacements:
             _run_gomod_cmd(("go", "mod", "tidy"), run_params)
 
+        go_list = ["go", "list", "-e"]
+        if not should_vendor:
+            # Make Go ignore the vendor dir even if there is one
+            go_list.extend(["-mod", "readonly"])
+
         # main module
-        module_name = _run_gomod_cmd(["go", "list", "-m"], run_params).rstrip()
+        module_name = _run_gomod_cmd([*go_list, "-m"], run_params).rstrip()
 
         # module level dependencies
         if should_vendor:
@@ -216,7 +221,7 @@ def _resolve_gomod(path: Path, request: Request, git_dir_path=None):
             #   where <replace> is <name> <version> or <path>
             output_format = "{{ if not .Main }}{{ .String }}{{ end }}"
             go_list_output = _run_gomod_cmd(
-                ("go", "list", "-mod", "readonly", "-m", "-f", output_format, "all"),
+                (*go_list, "-m", "-f", output_format, "all"),
                 run_params,
             )
             module_lines = go_list_output.splitlines()
@@ -302,18 +307,12 @@ def _resolve_gomod(path: Path, request: Request, git_dir_path=None):
             )
             _merge_bundle_dirs(tmp_download_cache_dir, str(request.gomod_download_dir))
 
-        if not should_vendor:
-            # Make Go ignore the vendor dir even if there is one
-            go_list = ["go", "list", "-mod", "readonly"]
-        else:
-            go_list = ["go", "list"]
-
         log.info("Retrieving the list of packages")
         package_list = _run_gomod_cmd([*go_list, "-find", "./..."], run_params).splitlines()
 
         log.info("Retrieving the list of package level dependencies")
         package_info = _load_list_deps(
-            _run_gomod_cmd([*go_list, "-e", "-deps", "-json", "./..."], run_params)
+            _run_gomod_cmd([*go_list, "-deps", "-json", "./..."], run_params)
         )
 
         packages: list[dict] = []
