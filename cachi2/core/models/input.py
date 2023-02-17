@@ -63,6 +63,27 @@ class _PackageInputBase(pydantic.BaseModel, extra="forbid"):
         return check_sane_relpath(path)
 
 
+class CargoPackageInput(_PackageInputBase):
+    """Accepted input for a cargo package."""
+
+    type: Literal["cargo"]
+    lock_file: Optional[Path] = None
+    pkg_name: str = None
+    pkg_version: str = None
+
+    @pydantic.validator("lock_file", "pkg_name", "pkg_version")
+    def _no_explicit_none(cls, value):
+        """Fail if the user explicitly passes None."""
+        if value is None:
+            # Note: same error message as pydantic's default
+            raise TypeError("none is not an allowed value")
+        return value
+
+    @pydantic.validator("lock_file")
+    def _lock_file_path_is_relative(cls, path: Path) -> Path:
+        return check_sane_relpath(path)
+
+
 class GomodPackageInput(_PackageInputBase):
     """Accepted input for a gomod package."""
 
@@ -105,7 +126,7 @@ class YarnPackageInput(_PackageInputBase):
 
 
 PackageInput = Annotated[
-    Union[GomodPackageInput, NpmPackageInput, PipPackageInput, YarnPackageInput],
+    Union[CargoPackageInput, GomodPackageInput, NpmPackageInput, PipPackageInput, YarnPackageInput],
     # https://pydantic-docs.helpmanual.io/usage/types/#discriminated-unions-aka-tagged-unions
     pydantic.Field(discriminator="type"),
 ]
@@ -150,6 +171,11 @@ class Request(pydantic.BaseModel):
         if len(packages) == 0:
             raise ValueError("at least one package must be defined, got an empty list")
         return packages
+
+    @property
+    def cargo_packages(self) -> list[CargoPackageInput]:
+        """Get the cargo packages specified for this request."""
+        return self._packages_by_type(CargoPackageInput)
 
     @property
     def gomod_packages(self) -> list[GomodPackageInput]:
