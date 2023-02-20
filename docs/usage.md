@@ -13,31 +13,6 @@ General process:
 4. set the environment variables ([Containerfile example](#write-the-dockerfile-or-containerfile))
 5. run the build ([container build example](#build-the-container))
 
-## Configuration
-
-There are several parameters with default values set. See the [config.py](../cachi2/core/config.py) module for defaults.
-Configuration can be changed by using a config file:
-
-```shell
- cachi2 --config-file config.yaml fetch-deps --source ./my-repo gomod
-```
-
-  In the file you can set only specific parameters that you need to change.
-
-### Configuration parameters
-* `default_environment_variables` - a dictionary where the keys
-are names of package managers. The values are dictionaries where the keys
-are default environment variables to set for that package manager and the
-values are the environment variable values.
-* `gomod_download_max_tries` - a maximum number of attempts for retrying go commands.
-* `gomod_strict_vendor` - the bool to disable/enable the strict vendor mode. For a repo that has gomod dependencies, 
-if the `vendor` directory exists and this config
-  option is set to `True`, one of the [vendoring flags](gomod.md#vendoring) must be used.
-* `goproxy_url` - sets the value of the GOPROXY variable that Cachi2 uses internally
-when downloading Go modules. See [Go environment variables](https://go.dev/ref/mod#environment-variables).
-* `subprocess_timeout` - a number (in seconds) to set a timeout for commands executed by
-  the `subprocess` module. Set a larger number to give the subprocess execution more time.
-
 ## Example: Go modules
 
 Let's show Cachi2 usage by building the glorious [fzf](https://github.com/junegunn/fzf) CLI tool hermetically. To follow

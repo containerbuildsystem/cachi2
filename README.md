@@ -15,6 +15,7 @@ The primary intended use of Cachi2's outputs is for network-isolated container b
 * [Goals](#goals)
 * [Installation](#installation)
 * [Basic usage](#basic-usage)
+* [Configuration](#configuration)
 * [Development](#development)
 * [Package managers](#package-managers)
 * [Project status](#project-status)
@@ -89,15 +90,37 @@ cachi2 fetch-deps \
 The `fetch-deps` command fetches your project's dependencies and stores them on your disk. You can then use these
 outputs to, say, build a container image.
 
-Cachi2 uses default configuration that can be changed by using a configuration file:
+See [docs/usage.md](docs/usage.md) for a more detailed, practical (*cough*) example of Cachi2 usage.
+
+You might also like to check out `cachi2 --help` and the `--help` texts of the available subcommands.
+
+## Configuration
+
+You can change Cachi2's configuration by specifying a configuration file while invoking any of the CLI commands:
 
 ```shell
  cachi2 --config-file config.yaml fetch-deps --source ./my-repo gomod
 ```
 
-See [docs/usage.md](docs/usage.md) for a more detailed, practical (*cough*) example of Cachi2 usage.
+Any parameter specified in this file will override the default values present in the
+[config.py](cachi2/core/config.py) module.
 
-You might also like to check out `cachi2 --help` and the `--help` texts of the available subcommands.
+The only supported format for the config file is YAML.
+
+### Available configuration parameters
+
+* `default_environment_variables` - a dictionary where the keys
+are names of package managers. The values are dictionaries where the keys
+are default environment variables to set for that package manager and the
+values are the environment variable values.
+* `gomod_download_max_tries` - a maximum number of attempts for retrying go commands.
+* `gomod_strict_vendor` - the bool to disable/enable the strict vendor mode. For a repo that has gomod dependencies,
+if the `vendor` directory exists and this config option is set to `True`, one of the
+[vendoring flags](gomod.md#vendoring) must be used.
+* `goproxy_url` - sets the value of the GOPROXY variable that Cachi2 uses internally
+when downloading Go modules. See [Go environment variables](https://go.dev/ref/mod#environment-variables).
+* `subprocess_timeout` - a number (in seconds) to set a timeout for commands executed by
+  the `subprocess` module. Set a larger number to give the subprocess execution more time.
 
 ## Development
 
