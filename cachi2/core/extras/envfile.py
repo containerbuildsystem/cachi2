@@ -35,8 +35,8 @@ class EnvFormat(str, Enum):
     @classmethod
     def _suffixes_repr(cls) -> str:
         return ", ".join(
-            f"{suffix}[=={fmt}]" if suffix != fmt else suffix
-            for suffix, fmt in cls.__members__.items()
+            f"{name}[=={member.value}]" if name != member.value else name
+            for name, member in cls.__members__.items()
         )
 
 
