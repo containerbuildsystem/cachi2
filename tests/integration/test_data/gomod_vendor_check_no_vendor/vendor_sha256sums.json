@@ -1,4 +1,4 @@
-{"./modules.txt": "sha256:306206f6339fab4570ba42dcafbb44d67b0ee818ff226d3f92c634a165bbdc83",
+{"modules.txt": "sha256:306206f6339fab4570ba42dcafbb44d67b0ee818ff226d3f92c634a165bbdc83",
  "rsc.io/quote/quote.go": "sha256:bacafde5f561ddeaf6884f760f10379d6af8dc44a6c22b378ce90925345c1a02",
  "rsc.io/quote/LICENSE": "sha256:2d36597f7117c38b006835ae7f537487207d8ec407aa9d9980794b2030cbc067",
  "rsc.io/quote/README.md": "sha256:8c3f49ee83461901b5112c0633f99e7d053e2f5d05400334833af741f135c91f",
