@@ -101,7 +101,7 @@ def test_pip_packages(
         pytest.param(
             utils.TestParameters(
                 repo="https://github.com/cachito-testing/pip-e2e-test.git",
-                ref="03939ea78542c7cbfe7a86c5a4133612813e9ec6",
+                ref="bae083d57dc265a899b59859b769e88eb8319404",
                 packages=(
                     {
                         "type": "pip",
