@@ -30,3 +30,7 @@ pip-compile:
 	# --allow-unsafe: we use pkg_resources (provided by setuptools) as a runtime dependency
 	venv/bin/pip-compile --allow-unsafe --generate-hashes --output-file=requirements.txt pyproject.toml
 	venv/bin/pip-compile --allow-unsafe --generate-hashes --output-file=requirements-test.txt requirements-test.in
+
+generate-test-data:
+	podman build --no-cache -t cachi2-${USER} .
+	CACHI2_GENERATE_TEST_DATA=true CACHI2_IMAGE=localhost/cachi2-${USER}:latest tox -e integration

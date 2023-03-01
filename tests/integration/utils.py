@@ -4,7 +4,6 @@ import json
 import logging
 import os
 import shutil
-import string
 from dataclasses import dataclass, field
 from pathlib import Path
 from subprocess import PIPE, Popen
@@ -195,6 +194,13 @@ def _safe_extract(tar: TarFile, path: str = ".", *, numeric_owner: bool = False)
     tar.extractall(path, numeric_owner=numeric_owner)
 
 
+def update_test_data_if_needed(path: Path, data: Dict) -> None:
+    if os.getenv("CACHI2_GENERATE_TEST_DATA") == "true":
+        with open(path, "w") as file:
+            json_formatted_str = json.dumps(data, indent=2, sort_keys=True)
+            file.write(json_formatted_str + "\n")
+
+
 def fetch_deps_and_check_output(
     tmp_path: Path,
     test_case: str,
@@ -238,10 +244,13 @@ def fetch_deps_and_check_output(
 
     if test_params.check_output_json:
         output_json = _load_json(output_folder.joinpath("output.json"))
-        expected_output_json = _load_json(test_data_dir.joinpath(test_case, "output.json"))
 
-        if "project_files" in expected_output_json:
-            _set_tmpdir_path(expected_output_json["project_files"], tmp_path)
+        if "project_files" in output_json:
+            _replace_tmp_path_with_placeholder(output_json["project_files"], tmp_path)
+
+        expected_output_json_path = test_data_dir.joinpath(test_case, "output.json")
+        update_test_data_if_needed(expected_output_json_path, output_json)
+        expected_output_json = _load_json(expected_output_json_path)
 
         log.info("Compare output.json files")
         assert output_json == expected_output_json
@@ -252,17 +261,21 @@ def fetch_deps_and_check_output(
 
     if test_params.check_deps_checksums:
         files_checksums = _calculate_files_checksums_in_dir(output_folder.joinpath("deps"))
-        expected_files_checksums = _load_json(
-            test_data_dir.joinpath(test_data_dir, test_case, "fetch_deps_sha256sums.json")
+        expected_files_checksums_path = test_data_dir.joinpath(
+            test_data_dir, test_case, "fetch_deps_sha256sums.json"
         )
+        update_test_data_if_needed(expected_files_checksums_path, files_checksums)
+        expected_files_checksums = _load_json(expected_files_checksums_path)
+
         log.info("Compare checksums of fetched deps files")
         assert files_checksums == expected_files_checksums
 
     if test_params.check_vendor_checksums:
         files_checksums = _calculate_files_checksums_in_dir(source_folder.joinpath("vendor"))
-        expected_files_checksums = _load_json(
-            test_data_dir.joinpath(test_case, "vendor_sha256sums.json")
-        )
+        expected_files_checksums_path = test_data_dir.joinpath(test_case, "vendor_sha256sums.json")
+        update_test_data_if_needed(expected_files_checksums_path, files_checksums)
+        expected_files_checksums = _load_json(expected_files_checksums_path)
+
         log.info("Compare checksums of files in source vendor folder")
         assert files_checksums == expected_files_checksums
 
@@ -325,10 +338,10 @@ def build_image_and_check_cmd(
         assert expected_cmd_output in output, f"{expected_cmd_output} is missing in {output}"
 
 
-def _set_tmpdir_path(project_files: list[dict[str, str]], path: Path) -> None:
+def _replace_tmp_path_with_placeholder(project_files: list[dict[str, str]], tmp_path: Path) -> None:
     for item in project_files:
-        template = string.Template(item.get("abspath", ""))
-        item["abspath"] = template.safe_substitute(test_case_tmpdir=str(path))
+        relative_path = item["abspath"].replace(str(tmp_path), "")
+        item["abspath"] = "${test_case_tmpdir}" + str(relative_path)
 
 
 def _validate_expected_dep_file_contents(dep_contents_file: Path, output_dir: Path) -> None:
