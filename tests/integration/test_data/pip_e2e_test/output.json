@@ -1,78 +1,78 @@
 {
-  "packages": [
-    {
-      "type": "pip",
-      "path": ".",
-      "name": "test_package_cachi2",
-      "version": "1.0.0",
-      "dependencies": [
-        {
-          "type": "pip",
-          "name": "certifi",
-          "version": "2022.12.7",
-          "dev": false
-        },
-        {
-          "type": "pip",
-          "name": "charset-normalizer",
-          "version": "3.0.1",
-          "dev": false
-        },
-        {
-          "type": "pip",
-          "name": "dockerfile-parse",
-          "version": "https://github.com/containerbuildsystem/dockerfile-parse/archive/refs/tags/2.0.0.tar.gz#cachito_hash=sha256:36e4469abb0d96b0e3cd656284d5016e8a674cd57b8ebe5af64786fe63b8184d",
-          "dev": false
-        },
-        {
-          "type": "pip",
-          "name": "idna",
-          "version": "3.4",
-          "dev": false
-        },
-        {
-          "type": "pip",
-          "name": "requests",
-          "version": "2.28.2",
-          "dev": false
-        },
-        {
-          "type": "pip",
-          "name": "urllib3",
-          "version": "1.26.14",
-          "dev": false
-        },
-        {
-          "type": "pip",
-          "name": "flit_core",
-          "version": "3.8.0",
-          "dev": true
-        },
-        {
-          "type": "pip",
-          "name": "setuptools",
-          "version": "67.1.0",
-          "dev": true
-        },
-        {
-          "type": "pip",
-          "name": "wheel",
-          "version": "0.38.4",
-          "dev": true
-        }
-      ]
-    }
-  ],
   "environment_variables": [
     {
+      "kind": "path",
       "name": "PIP_FIND_LINKS",
-      "value": "deps/pip",
-      "kind": "path"
+      "value": "deps/pip"
     },
     {
+      "kind": "literal",
       "name": "PIP_NO_INDEX",
-      "value": "true",
-      "kind": "literal"
+      "value": "true"
+    }
+  ],
+  "packages": [
+    {
+      "dependencies": [
+        {
+          "dev": false,
+          "name": "certifi",
+          "type": "pip",
+          "version": "2022.12.7"
+        },
+        {
+          "dev": false,
+          "name": "charset-normalizer",
+          "type": "pip",
+          "version": "3.0.1"
+        },
+        {
+          "dev": false,
+          "name": "dockerfile-parse",
+          "type": "pip",
+          "version": "https://github.com/containerbuildsystem/dockerfile-parse/archive/refs/tags/2.0.0.tar.gz#cachito_hash=sha256:36e4469abb0d96b0e3cd656284d5016e8a674cd57b8ebe5af64786fe63b8184d"
+        },
+        {
+          "dev": false,
+          "name": "idna",
+          "type": "pip",
+          "version": "3.4"
+        },
+        {
+          "dev": false,
+          "name": "requests",
+          "type": "pip",
+          "version": "2.28.2"
+        },
+        {
+          "dev": false,
+          "name": "urllib3",
+          "type": "pip",
+          "version": "1.26.14"
+        },
+        {
+          "dev": true,
+          "name": "flit_core",
+          "type": "pip",
+          "version": "3.8.0"
+        },
+        {
+          "dev": true,
+          "name": "setuptools",
+          "type": "pip",
+          "version": "67.1.0"
+        },
+        {
+          "dev": true,
+          "name": "wheel",
+          "type": "pip",
+          "version": "0.38.4"
+        }
+      ],
+      "name": "test_package_cachi2",
+      "path": ".",
+      "type": "pip",
+      "version": "1.0.0"
     }
   ],
   "project_files": [
