@@ -88,30 +88,46 @@ def fetch_gomod_source(request: Request) -> RequestOutput:
 
     components: list[Component] = []
 
-    for i, subpath in enumerate(subpaths):
-        log.info("Fetching the gomod dependencies at subpath %s", subpath)
+    with GoCacheTemporaryDirectory(prefix="cachito-") as tmp_dir:
+        request.gomod_download_dir.mkdir(exist_ok=True, parents=True)
+        for i, subpath in enumerate(subpaths):
+            log.info("Fetching the gomod dependencies at subpath %s", subpath)
 
-        log.info(f'Fetching the gomod dependencies at the "{subpath}" directory')
+            log.info(f'Fetching the gomod dependencies at the "{subpath}" directory')
 
-        gomod_source_path = request.source_dir / subpath
-        try:
-            gomod = _resolve_gomod(gomod_source_path, request)
-        except GoModError:
-            log.error("Failed to fetch gomod dependencies")
-            raise
+            gomod_source_path = request.source_dir / subpath
+            try:
+                gomod = _resolve_gomod(gomod_source_path, request, Path(tmp_dir))
+            except GoModError:
+                log.error("Failed to fetch gomod dependencies")
+                raise
 
-        module_info = gomod["module"]
+            module_info = gomod["module"]
 
-        components.append(Component(name=module_info["name"], version=module_info["version"]))
+            components.append(Component(name=module_info["name"], version=module_info["version"]))
 
-        # add package deps
-        for package in gomod["packages"]:
-            pkg_info = package["pkg"]
+            # add package deps
+            for package in gomod["packages"]:
+                pkg_info = package["pkg"]
 
-            components.append(Component.from_package_dict(pkg_info))
+                components.append(Component.from_package_dict(pkg_info))
 
-            for dependency in package.get("pkg_deps", []):
-                components.append(Component.from_package_dict(dependency))
+                for dependency in package.get("pkg_deps", []):
+                    components.append(Component.from_package_dict(dependency))
+
+        if "gomod-vendor-check" not in request.flags and "gomod-vendor" not in request.flags:
+            tmp_download_cache_dir = Path(tmp_dir).joinpath(request.go_mod_cache_download_part)
+            if tmp_download_cache_dir.exists():
+                log.debug(
+                    "Adding dependencies from %s to %s",
+                    tmp_download_cache_dir,
+                    request.gomod_download_dir,
+                )
+                shutil.copytree(
+                    tmp_download_cache_dir,
+                    str(request.gomod_download_dir),
+                    dirs_exist_ok=True,
+                )
 
     return RequestOutput.from_obj_list(
         components=components,
@@ -144,14 +160,13 @@ def _find_missing_gomod_files(source_path: Path, subpaths: list[str]) -> list[Pa
     return invalid_gomod_files
 
 
-def _resolve_gomod(path: Path, request: Request, git_dir_path=None):
+def _resolve_gomod(path: Path, request: Request, tmp_dir: Path, git_dir_path=None):
     """
     Resolve and fetch gomod dependencies for given app source archive.
 
     :param str path: the full path to the application source code
     :param dict request: the Cachi2 request this is for
-    :param list dep_replacements: dependency replacements with the keys "name" and "version"; this
-        results in a series of `go mod edit -replace` commands
+    :param Path tmp_dir: one temporary directory for all go modules
     :param RequestBundleDir git_dir_path: the full path to the application's git repository
     :return: a dict containing the Go module itself ("module" key), the list of dictionaries
         representing the dependencies ("module_deps" key), the top package level dependency
@@ -165,206 +180,186 @@ def _resolve_gomod(path: Path, request: Request, git_dir_path=None):
 
     config = get_config()
 
-    with GoCacheTemporaryDirectory(prefix="cachito-") as temp_dir:
-        env = {
-            "GOPATH": temp_dir,
-            "GO111MODULE": "on",
-            "GOCACHE": temp_dir,
-            "PATH": os.environ.get("PATH", ""),
-            "GOMODCACHE": "{}/pkg/mod".format(temp_dir),
-        }
+    env = {
+        "GOPATH": tmp_dir,
+        "GO111MODULE": "on",
+        "GOCACHE": tmp_dir,
+        "PATH": os.environ.get("PATH", ""),
+        "GOMODCACHE": "{}/pkg/mod".format(tmp_dir),
+    }
 
-        if config.goproxy_url:
-            env["GOPROXY"] = config.goproxy_url
+    if config.goproxy_url:
+        env["GOPROXY"] = config.goproxy_url
 
-        if "cgo-disable" in request.flags:
-            env["CGO_ENABLED"] = "0"
+    if "cgo-disable" in request.flags:
+        env["CGO_ENABLED"] = "0"
 
-        run_params = {"env": env, "cwd": path}
+    run_params = {"env": env, "cwd": path}
 
-        # Collect all the dependency names that are being replaced to later verify if they were
-        # all used
-        replaced_dep_names = set()
-        for dep_replacement in request.dep_replacements:
-            name = dep_replacement["name"]
-            replaced_dep_names.add(name)
-            new_name = dep_replacement.get("new_name", name)
-            version = dep_replacement["version"]
-            log.info("Applying the gomod replacement %s => %s@%s", name, new_name, version)
-            _run_gomod_cmd(
-                ("go", "mod", "edit", "-replace", f"{name}={new_name}@{version}"),
-                run_params,
-            )
-        # Vendor dependencies if the gomod-vendor flag is set
-        flags = request.flags
-        should_vendor, can_make_changes = _should_vendor_deps(
-            flags, path, config.gomod_strict_vendor
+    # Collect all the dependency names that are being replaced to later verify if they were
+    # all used
+    replaced_dep_names = set()
+    for dep_replacement in request.dep_replacements:
+        name = dep_replacement["name"]
+        replaced_dep_names.add(name)
+        new_name = dep_replacement.get("new_name", name)
+        version = dep_replacement["version"]
+        log.info("Applying the gomod replacement %s => %s@%s", name, new_name, version)
+        _run_gomod_cmd(
+            ("go", "mod", "edit", "-replace", f"{name}={new_name}@{version}"),
+            run_params,
         )
-        if should_vendor:
-            _vendor_deps(run_params, can_make_changes, git_dir_path)
-        else:
-            log.info("Downloading the gomod dependencies")
-            _run_download_cmd(("go", "mod", "download"), run_params)
-        if "force-gomod-tidy" in flags or request.dep_replacements:
-            _run_gomod_cmd(("go", "mod", "tidy"), run_params)
+    # Vendor dependencies if the gomod-vendor flag is set
+    flags = request.flags
+    should_vendor, can_make_changes = _should_vendor_deps(flags, path, config.gomod_strict_vendor)
+    if should_vendor:
+        _vendor_deps(run_params, can_make_changes, git_dir_path)
+    else:
+        log.info("Downloading the gomod dependencies")
+        _run_download_cmd(("go", "mod", "download"), run_params)
+    if "force-gomod-tidy" in flags or request.dep_replacements:
+        _run_gomod_cmd(("go", "mod", "tidy"), run_params)
 
-        go_list = ["go", "list", "-e"]
-        if not should_vendor:
-            # Make Go ignore the vendor dir even if there is one
-            go_list.extend(["-mod", "readonly"])
+    go_list = ["go", "list", "-e"]
+    if not should_vendor:
+        # Make Go ignore the vendor dir even if there is one
+        go_list.extend(["-mod", "readonly"])
 
-        # main module
-        module_name = _run_gomod_cmd([*go_list, "-m"], run_params).rstrip()
+    # main module
+    module_name = _run_gomod_cmd([*go_list, "-m"], run_params).rstrip()
 
-        # module level dependencies
-        if should_vendor:
-            module_lines = _module_lines_from_modules_txt(path)
-        else:
-            # .String formats the module as <name> <version> [=> <replace>],
-            #   where <replace> is <name> <version> or <path>
-            output_format = "{{ if not .Main }}{{ .String }}{{ end }}"
-            go_list_output = _run_gomod_cmd(
-                (*go_list, "-m", "-f", output_format, "all"),
-                run_params,
-            )
-            module_lines = go_list_output.splitlines()
-
-        module_level_deps = []
-        # Keep track of which dependency replacements were actually applied to verify they were all
-        # used later
-        used_replaced_dep_names = set()
-        for line in module_lines:
-            parts = line.split(" ")
-
-            replaces = None
-            if len(parts) == 4 and parts[2] == "=>":
-                # If a Go module uses a "replace" directive to a local path, it will be shown as:
-                # k8s.io/metrics v0.0.0 => ./staging/src/k8s.io/metrics
-                # In this case, take the module name and the relative path, since that is the
-                # actual dependency being used.
-                parts = [parts[0], parts[-1]]
-            elif len(parts) == 5 and parts[2] == "=>":
-                # If a Go module uses a "replace" directive, then it will be in the format:
-                # github.com/pkg/errors v0.8.0 => github.com/pkg/errors v0.8.1
-                # In this case, just take the right side since that is the actual
-                # dependency being used
-                old_name, old_version = parts[:2]
-                # Only keep track of user provided replaces. There could be existing "replace"
-                # directives in the go.mod file, but they are an implementation detail specific to
-                # Go and they don't need to be recorded in Cachi2.
-                if old_name in replaced_dep_names:
-                    used_replaced_dep_names.add(old_name)
-                    replaces = {
-                        "type": "gomod",
-                        "name": old_name,
-                        "version": old_version,
-                    }
-                parts = parts[3:]
-
-            if len(parts) == 2:
-                module_level_deps.append(
-                    {
-                        "name": parts[0],
-                        "replaces": replaces,
-                        "type": "gomod",
-                        "version": parts[1],
-                    }
-                )
-            else:
-                log.warning("Unexpected go module output: %s", line)
-
-        unused_dep_replacements = replaced_dep_names - used_replaced_dep_names
-        if unused_dep_replacements:
-            raise PackageRejected(
-                reason=(
-                    "The following gomod dependency replacements don't apply: "
-                    f'{", ".join(unused_dep_replacements)}'
-                ),
-                solution="Dependency replacements are deprecated! Please don't use them.",
-            )
-
-        # In case a submodule is being processed, we need to determine its path
-        subpath = None if path == git_dir_path else path.relative_to(f"{git_dir_path}/", "")
-
-        # NOTE: If there are multiple go modules in a single git repo, they will
-        #   all be versioned identically.
-        module_version = _get_golang_version(
-            module_name, git_dir_path, update_tags=True, subpath=subpath
+    # module level dependencies
+    if should_vendor:
+        module_lines = _module_lines_from_modules_txt(path)
+    else:
+        # .String formats the module as <name> <version> [=> <replace>],
+        #   where <replace> is <name> <version> or <path>
+        output_format = "{{ if not .Main }}{{ .String }}{{ end }}"
+        go_list_output = _run_gomod_cmd(
+            (*go_list, "-m", "-f", output_format, "all"),
+            run_params,
         )
-        module = {"name": module_name, "type": "gomod", "version": module_version}
+        module_lines = go_list_output.splitlines()
 
-        if should_vendor:
-            # Create an empty gomod cache in the bundle directory so that any Cachi2
-            # user does not have to guard against this directory not existing
-            request.gomod_download_dir.mkdir(exist_ok=True, parents=True)
+    module_level_deps = []
+    # Keep track of which dependency replacements were actually applied to verify they were all
+    # used later
+    used_replaced_dep_names = set()
+    for line in module_lines:
+        parts = line.split(" ")
+
+        replaces = None
+        if len(parts) == 4 and parts[2] == "=>":
+            # If a Go module uses a "replace" directive to a local path, it will be shown as:
+            # k8s.io/metrics v0.0.0 => ./staging/src/k8s.io/metrics
+            # In this case, take the module name and the relative path, since that is the
+            # actual dependency being used.
+            parts = [parts[0], parts[-1]]
+        elif len(parts) == 5 and parts[2] == "=>":
+            # If a Go module uses a "replace" directive, then it will be in the format:
+            # github.com/pkg/errors v0.8.0 => github.com/pkg/errors v0.8.1
+            # In this case, just take the right side since that is the actual
+            # dependency being used
+            old_name, old_version = parts[:2]
+            # Only keep track of user provided replaces. There could be existing "replace"
+            # directives in the go.mod file, but they are an implementation detail specific to
+            # Go and they don't need to be recorded in Cachi2.
+            if old_name in replaced_dep_names:
+                used_replaced_dep_names.add(old_name)
+                replaces = {
+                    "type": "gomod",
+                    "name": old_name,
+                    "version": old_version,
+                }
+            parts = parts[3:]
+
+        if len(parts) == 2:
+            module_level_deps.append(
+                {
+                    "name": parts[0],
+                    "replaces": replaces,
+                    "type": "gomod",
+                    "version": parts[1],
+                }
+            )
         else:
-            # Add the gomod cache to the bundle the user will later download
-            tmp_download_cache_dir = os.path.join(temp_dir, request.go_mod_cache_download_part)
-            if not os.path.exists(tmp_download_cache_dir):
-                os.makedirs(tmp_download_cache_dir, exist_ok=True)
+            log.warning("Unexpected go module output: %s", line)
 
+    unused_dep_replacements = replaced_dep_names - used_replaced_dep_names
+    if unused_dep_replacements:
+        raise PackageRejected(
+            reason=(
+                "The following gomod dependency replacements don't apply: "
+                f'{", ".join(unused_dep_replacements)}'
+            ),
+            solution="Dependency replacements are deprecated! Please don't use them.",
+        )
+
+    # In case a submodule is being processed, we need to determine its path
+    subpath = None if path == git_dir_path else path.relative_to(f"{git_dir_path}/", "")
+
+    # NOTE: If there are multiple go modules in a single git repo, they will
+    #   all be versioned identically.
+    module_version = _get_golang_version(
+        module_name, git_dir_path, update_tags=True, subpath=subpath
+    )
+    module = {"name": module_name, "type": "gomod", "version": module_version}
+
+    log.info("Retrieving the list of packages")
+    package_list = _run_gomod_cmd([*go_list, "-find", "./..."], run_params).splitlines()
+
+    log.info("Retrieving the list of package level dependencies")
+    package_info = _load_list_deps(
+        _run_gomod_cmd([*go_list, "-deps", "-json", "./..."], run_params)
+    )
+
+    packages: list[dict] = []
+    processed_pkg_deps = set()
+    for pkg_name in package_list:
+        if pkg_name in processed_pkg_deps:
+            # Go searches for packages in directories through a top-down approach. If a toplevel
+            # package is already listed as a dependency, we do not list it here, since its
+            # dependencies would also be listed in the parent package
             log.debug(
-                "Adding dependencies from %s to %s",
-                tmp_download_cache_dir,
-                request.gomod_download_dir,
+                "Package %s is already listed as a package dependency. Skipping...",
+                pkg_name,
             )
-            _merge_bundle_dirs(tmp_download_cache_dir, str(request.gomod_download_dir))
+            continue
 
-        log.info("Retrieving the list of packages")
-        package_list = _run_gomod_cmd([*go_list, "-find", "./..."], run_params).splitlines()
+        pkg_level_deps = []
+        for dep_name in package_info[pkg_name].get("Deps", []):
+            dep_info = package_info[dep_name]
 
-        log.info("Retrieving the list of package level dependencies")
-        package_info = _load_list_deps(
-            _run_gomod_cmd([*go_list, "-deps", "-json", "./..."], run_params)
-        )
+            processed_pkg_deps.add(dep_name)
+            if "Standard" in dep_info:
+                version = None
+            else:
+                # If the dependency does not have a version, we'll use the module version
+                version = _get_dep_version(dep_info) or module_version
 
-        packages: list[dict] = []
-        processed_pkg_deps = set()
-        for pkg_name in package_list:
-            if pkg_name in processed_pkg_deps:
-                # Go searches for packages in directories through a top-down approach. If a toplevel
-                # package is already listed as a dependency, we do not list it here, since its
-                # dependencies would also be listed in the parent package
-                log.debug(
-                    "Package %s is already listed as a package dependency. Skipping...",
-                    pkg_name,
-                )
-                continue
+            pkg_level_deps.append({"name": dep_name, "type": "go-package", "version": version})
 
-            pkg_level_deps = []
-            for dep_name in package_info[pkg_name].get("Deps", []):
-                dep_info = package_info[dep_name]
+        # Top-level packages always use the module version
+        pkg = {"name": pkg_name, "type": "go-package", "version": module_version}
+        packages.append({"pkg": pkg, "pkg_deps": pkg_level_deps})
 
-                processed_pkg_deps.add(dep_name)
-                if "Standard" in dep_info:
-                    version = None
-                else:
-                    # If the dependency does not have a version, we'll use the module version
-                    version = _get_dep_version(dep_info) or module_version
+    _vet_local_deps(module_level_deps)
+    for pkg in packages:
+        # Local dependencies are always relative to the main module, even for subpackages
+        _vet_local_deps(pkg["pkg_deps"])
+        _set_full_local_dep_relpaths(pkg["pkg_deps"], module_level_deps)
 
-                pkg_level_deps.append({"name": dep_name, "type": "go-package", "version": version})
+    # import time
+    # time.sleep(1000)
 
-            # Top-level packages always use the module version
-            pkg = {"name": pkg_name, "type": "go-package", "version": module_version}
-            packages.append({"pkg": pkg, "pkg_deps": pkg_level_deps})
-
-        _vet_local_deps(module_level_deps)
-        for pkg in packages:
-            # Local dependencies are always relative to the main module, even for subpackages
-            _vet_local_deps(pkg["pkg_deps"])
-            _set_full_local_dep_relpaths(pkg["pkg_deps"], module_level_deps)
-
-        # import time
-        # time.sleep(1000)
-
-        return {
-            "module": module,
-            "module_deps": module_level_deps,
-            "packages": packages,
-        }
+    return {
+        "module": module,
+        "module_deps": module_level_deps,
+        "packages": packages,
+    }
 
 
-class GoCacheTemporaryDirectory(tempfile.TemporaryDirectory):
+class GoCacheTemporaryDirectory(tempfile.TemporaryDirectory[str]):
     """
     A wrapper around the TemporaryDirectory context manager to also run `go clean -modcache`.
 
@@ -651,67 +646,6 @@ def _get_golang_pseudo_version(commit, tag=None, module_major_version=None, subp
         pseudo_semantic_version = tag_semantic_version.bump_patch()
 
     return f"v{pseudo_semantic_version}{version_seperator}0.{commit_timestamp}-{commit_hash}"
-
-
-def _merge_bundle_dirs(root_src_dir: str, root_dst_dir: str):
-    """
-    Merge two bundle directories together.
-
-    The contents of root_src_dir will be copied into root_dst_dir, overwriting any files
-    that might already be present. For a description of the algorithm, see
-    https://lukelogbook.tech/2018/01/25/merging-two-folders-in-python/
-
-    In addition to that merge algorithm, however, we also need to make sure that we merge
-    the list file to ensure all versions are represented. In order to protect against merging
-    extra files, we are also checking for the presence of the list.lock file since it should
-    be present according to https://github.com/golang/go/issues/29434
-
-    :param str root_src_dir: the root path to the source directory
-    :param str root_dst_dir: the root path to the destination directory
-    :return: None
-    """
-    for src_dir, dirs, files in os.walk(root_src_dir):
-        dst_dir = src_dir.replace(root_src_dir, root_dst_dir, 1)
-        if not os.path.exists(dst_dir):
-            os.makedirs(dst_dir)
-        for file_ in files:
-            src_file = os.path.join(src_dir, file_)
-            dst_file = os.path.join(dst_dir, file_)
-            if os.path.exists(dst_file):
-                # check to see if we are trying to merge the `list` file
-                # since we have to treat that seperately. We don't want to
-                # delete it or overwrite it -- we need to merge it.
-                if (
-                    file_ == "list"
-                    and os.path.isfile(src_file)
-                    and os.path.exists("{}.lock".format(src_file))
-                ):
-                    _merge_files(src_file, dst_file)
-                continue
-            shutil.copy2(src_file, dst_dir)
-
-
-def _merge_files(src_file, dst_file):
-    """
-    Merge two files so that we ensure that all packages are represented.
-
-    The dst_file will be updated by inserting the lines from the src_file,
-    sorting all lines, and removing duplicate lines.
-
-    :param str src_file: the source file (to be merged)
-    :param str dst_file: the destination file (to be merged into)
-    :return: None
-    """
-    with open(src_file, "r") as file1:
-        source_content = [line.rstrip() for line in file1.readlines()]
-    with open(dst_file, "r") as file2:
-        dest_content = [line.rstrip() for line in file2.readlines()]
-
-    with open(dst_file, "w") as target:
-        for line in sorted(set(source_content + dest_content)):
-            if line == "":
-                continue
-            target.write(str(line) + "\n")
 
 
 def _load_list_deps(list_deps_output: str) -> Dict[str, dict]:
