@@ -1,24 +1,24 @@
 {
-    "packages": [
-        {
-            "type": "pip",
-            "path": ".",
-            "name": "cachito-pip-empty",
-            "version": "1.0.0",
-            "dependencies": []
-        }
-    ],
-    "environment_variables": [
-        {
-            "name": "PIP_FIND_LINKS",
-            "value": "deps/pip",
-            "kind": "path"
-        },
-        {
-            "name": "PIP_NO_INDEX",
-            "value": "true",
-            "kind": "literal"
-        }
-    ],
-    "project_files": []
+  "environment_variables": [
+    {
+      "kind": "path",
+      "name": "PIP_FIND_LINKS",
+      "value": "deps/pip"
+    },
+    {
+      "kind": "literal",
+      "name": "PIP_NO_INDEX",
+      "value": "true"
+    }
+  ],
+  "packages": [
+    {
+      "dependencies": [],
+      "name": "cachito-pip-empty",
+      "path": ".",
+      "type": "pip",
+      "version": "1.0.0"
+    }
+  ],
+  "project_files": []
 }

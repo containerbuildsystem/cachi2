@@ -1,257 +1,257 @@
 {
+  "environment_variables": [
+    {
+      "kind": "path",
+      "name": "GOCACHE",
+      "value": "deps/gomod"
+    },
+    {
+      "kind": "path",
+      "name": "GOMODCACHE",
+      "value": "deps/gomod/pkg/mod"
+    },
+    {
+      "kind": "path",
+      "name": "GOPATH",
+      "value": "deps/gomod"
+    },
+    {
+      "kind": "literal",
+      "name": "GOSUMDB",
+      "value": "off"
+    }
+  ],
   "packages": [
     {
-      "type": "go-package",
-      "path": ".",
-      "name": "github.com/cachito-testing/cachito-gomod-local-deps",
-      "version": "v0.0.0-20210216123728-b2e465b91a6a",
       "dependencies": [
         {
-          "type": "go-package",
           "name": "errors",
+          "type": "go-package",
           "version": null
         },
         {
-          "type": "go-package",
           "name": "fmt",
+          "type": "go-package",
           "version": null
         },
         {
-          "type": "go-package",
           "name": "github.com/cachito-testing/some-module",
+          "type": "go-package",
           "version": "./staging/src/some-module"
         },
         {
-          "type": "go-package",
           "name": "github.com/cachito-testing/some-module/some-package",
+          "type": "go-package",
           "version": "./staging/src/some-module/some-package"
         },
         {
-          "type": "go-package",
           "name": "internal/abi",
+          "type": "go-package",
           "version": null
         },
         {
-          "type": "go-package",
           "name": "internal/bytealg",
+          "type": "go-package",
           "version": null
         },
         {
-          "type": "go-package",
           "name": "internal/cpu",
+          "type": "go-package",
           "version": null
         },
         {
-          "type": "go-package",
           "name": "internal/fmtsort",
+          "type": "go-package",
           "version": null
         },
         {
-          "type": "go-package",
           "name": "internal/goarch",
+          "type": "go-package",
           "version": null
         },
         {
-          "type": "go-package",
           "name": "internal/goexperiment",
+          "type": "go-package",
           "version": null
         },
         {
-          "type": "go-package",
           "name": "internal/goos",
+          "type": "go-package",
           "version": null
         },
         {
-          "type": "go-package",
           "name": "internal/itoa",
+          "type": "go-package",
           "version": null
         },
         {
-          "type": "go-package",
           "name": "internal/oserror",
+          "type": "go-package",
           "version": null
         },
         {
-          "type": "go-package",
           "name": "internal/poll",
+          "type": "go-package",
           "version": null
         },
         {
-          "type": "go-package",
           "name": "internal/race",
+          "type": "go-package",
           "version": null
         },
         {
-          "type": "go-package",
           "name": "internal/reflectlite",
+          "type": "go-package",
           "version": null
         },
         {
-          "type": "go-package",
           "name": "internal/safefilepath",
+          "type": "go-package",
           "version": null
         },
         {
-          "type": "go-package",
           "name": "internal/syscall/execenv",
+          "type": "go-package",
           "version": null
         },
         {
-          "type": "go-package",
           "name": "internal/syscall/unix",
+          "type": "go-package",
           "version": null
         },
         {
-          "type": "go-package",
           "name": "internal/testlog",
+          "type": "go-package",
           "version": null
         },
         {
-          "type": "go-package",
           "name": "internal/unsafeheader",
+          "type": "go-package",
           "version": null
         },
         {
-          "type": "go-package",
           "name": "io",
+          "type": "go-package",
           "version": null
         },
         {
-          "type": "go-package",
           "name": "io/fs",
+          "type": "go-package",
           "version": null
         },
         {
-          "type": "go-package",
           "name": "math",
+          "type": "go-package",
           "version": null
         },
         {
-          "type": "go-package",
           "name": "math/bits",
+          "type": "go-package",
           "version": null
         },
         {
-          "type": "go-package",
           "name": "os",
+          "type": "go-package",
           "version": null
         },
         {
-          "type": "go-package",
           "name": "path",
+          "type": "go-package",
           "version": null
         },
         {
-          "type": "go-package",
           "name": "reflect",
+          "type": "go-package",
           "version": null
         },
         {
-          "type": "go-package",
           "name": "runtime",
+          "type": "go-package",
           "version": null
         },
         {
-          "type": "go-package",
           "name": "runtime/internal/atomic",
+          "type": "go-package",
           "version": null
         },
         {
-          "type": "go-package",
           "name": "runtime/internal/math",
+          "type": "go-package",
           "version": null
         },
         {
-          "type": "go-package",
           "name": "runtime/internal/sys",
+          "type": "go-package",
           "version": null
         },
         {
-          "type": "go-package",
           "name": "runtime/internal/syscall",
+          "type": "go-package",
           "version": null
         },
         {
-          "type": "go-package",
           "name": "sort",
+          "type": "go-package",
           "version": null
         },
         {
-          "type": "go-package",
           "name": "strconv",
+          "type": "go-package",
           "version": null
         },
         {
-          "type": "go-package",
           "name": "sync",
+          "type": "go-package",
           "version": null
         },
         {
-          "type": "go-package",
           "name": "sync/atomic",
+          "type": "go-package",
           "version": null
         },
         {
-          "type": "go-package",
           "name": "syscall",
+          "type": "go-package",
           "version": null
         },
         {
-          "type": "go-package",
           "name": "time",
+          "type": "go-package",
           "version": null
         },
         {
-          "type": "go-package",
           "name": "unicode",
+          "type": "go-package",
           "version": null
         },
         {
-          "type": "go-package",
           "name": "unicode/utf8",
+          "type": "go-package",
           "version": null
         },
         {
-          "type": "go-package",
           "name": "unsafe",
+          "type": "go-package",
           "version": null
         }
-      ]
+      ],
+      "name": "github.com/cachito-testing/cachito-gomod-local-deps",
+      "path": ".",
+      "type": "go-package",
+      "version": "v0.0.0-20210216123728-b2e465b91a6a"
     },
     {
-      "type": "gomod",
-      "path": ".",
-      "name": "github.com/cachito-testing/cachito-gomod-local-deps",
-      "version": "v0.0.0-20210216123728-b2e465b91a6a",
       "dependencies": [
         {
-          "type": "gomod",
           "name": "github.com/cachito-testing/some-module",
+          "type": "gomod",
           "version": "./staging/src/some-module"
         }
-      ]
-    }
-  ],
-  "environment_variables": [
-    {
-      "name": "GOCACHE",
-      "value": "deps/gomod",
-      "kind": "path"
-    },
-    {
-      "name": "GOMODCACHE",
-      "value": "deps/gomod/pkg/mod",
-      "kind": "path"
-    },
-    {
-      "name": "GOPATH",
-      "value": "deps/gomod",
-      "kind": "path"
-    },
-    {
-      "name": "GOSUMDB",
-      "value": "off",
-      "kind": "literal"
+      ],
+      "name": "github.com/cachito-testing/cachito-gomod-local-deps",
+      "path": ".",
+      "type": "gomod",
+      "version": "v0.0.0-20210216123728-b2e465b91a6a"
     }
   ],
   "project_files": []
