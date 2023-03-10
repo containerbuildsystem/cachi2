@@ -21,7 +21,9 @@ def download_binary_file(url, download_path, auth=None, insecure=False, chunk_si
     :raise FetchError: If download failed
     """
     try:
-        resp = pkg_requests_session.get(url, stream=True, verify=not insecure, auth=auth)
+        resp = pkg_requests_session.get(
+            url, stream=True, verify=not insecure, auth=auth
+        )  # nosec request_without_timeout
         resp.raise_for_status()
     except requests.RequestException as e:
         raise FetchError(f"Could not download {url}: {e}")

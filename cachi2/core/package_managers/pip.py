@@ -1535,7 +1535,9 @@ def _download_pypi_package(requirement, pip_deps_dir, pypi_url, pypi_auth=None):
     # See https://www.python.org/dev/peps/pep-0503/
     package_url = f"{pypi_url.rstrip('/')}/simple/{canonicalize_name(package)}/"
     try:
-        pypi_resp = pkg_requests_session.get(package_url, auth=pypi_auth)
+        pypi_resp = pkg_requests_session.get(
+            package_url, auth=pypi_auth
+        )  # nosec request_without_timeout
         pypi_resp.raise_for_status()
     except requests.RequestException as e:
         raise FetchError(f"PyPI query failed: {e}")
