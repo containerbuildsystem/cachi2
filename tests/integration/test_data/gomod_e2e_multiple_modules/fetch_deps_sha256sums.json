@@ -5,7 +5,7 @@
   "gomod/pkg/mod/cache/download/golang.org/x/text/@v/v0.0.0-20170915032832-14c0d48ead0c.mod": "sha256:36879d586fd8001e84da8787190a11e4f78749e2a81dfe8b9b6931899fff31cf",
   "gomod/pkg/mod/cache/download/golang.org/x/text/@v/v0.0.0-20170915032832-14c0d48ead0c.zip": "sha256:119de6cd7e06055a33f51c65b0acdf74231a02c50edbd96bfa9c5ed0a1b0050d",
   "gomod/pkg/mod/cache/download/golang.org/x/text/@v/v0.0.0-20170915032832-14c0d48ead0c.ziphash": "sha256:cdc3d43d1d782705a91e8153f593bffeac4453d00e288e06c3c47d2c143a0d2a",
-  "gomod/pkg/mod/cache/download/rsc.io/quote/@v/list": "sha256:e12ce503171b3086e1ac148f8abc002fa33aa4a1b58e3cbb0d1273d42e84314a",
+  "gomod/pkg/mod/cache/download/rsc.io/quote/@v/list": "sha256:59ca590701f9791fd6b84edf03d661d00324590e1887e9f324618cb5e1658ea5",
   "gomod/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.1.info": "sha256:55b41bf69bd5b874eb0c7a453fdd1ecffbe79ce818b77476ba7a73eeec961f53",
   "gomod/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.1.lock": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
   "gomod/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.1.mod": "sha256:b167e79090d79e4b5738995c62a2186548fc33c919d6b4da1d36cc8c7c1e40c1",

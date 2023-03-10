@@ -5,7 +5,6 @@ import subprocess
 import textwrap
 from contextlib import nullcontext
 from pathlib import Path
-from tempfile import TemporaryDirectory as tempDir
 from textwrap import dedent
 from typing import Optional, Union
 from unittest import mock
@@ -23,8 +22,6 @@ from cachi2.core.package_managers.gomod import (
     _get_golang_version,
     _load_list_deps,
     _match_parent_module,
-    _merge_bundle_dirs,
-    _merge_files,
     _module_lines_from_modules_txt,
     _path_to_subpackage,
     _resolve_gomod,
@@ -37,7 +34,7 @@ from cachi2.core.package_managers.gomod import (
     fetch_gomod_source,
 )
 from cachi2.core.packages_data import _package_sort_key
-from tests.common_utils import assert_directories_equal, write_file_tree
+from tests.common_utils import write_file_tree
 
 
 def setup_module():
@@ -261,8 +258,6 @@ def _generate_mock_cmd_output(error_pkg="github.com/pkg/errors v1.0.0"):
 @pytest.mark.parametrize("cgo_disable", [False, True])
 @pytest.mark.parametrize("force_gomod_tidy", [False, True])
 @mock.patch("cachi2.core.package_managers.gomod._get_golang_version")
-@mock.patch("cachi2.core.package_managers.gomod.GoCacheTemporaryDirectory")
-@mock.patch("cachi2.core.package_managers.gomod._merge_bundle_dirs")
 @mock.patch("cachi2.core.package_managers.gomod._vet_local_deps")
 @mock.patch("cachi2.core.package_managers.gomod._set_full_local_dep_relpaths")
 @mock.patch("subprocess.run")
@@ -270,8 +265,6 @@ def test_resolve_gomod(
     mock_run,
     mock_set_full_relpaths,
     mock_vet_local_deps,
-    mock_merge_tree,
-    mock_temp_dir,
     mock_golang_version,
     dep_replacement,
     go_list_error_pkg,
@@ -287,8 +280,6 @@ def test_resolve_gomod(
     gomod_request,
 ):
     mock_cmd_output = _generate_mock_cmd_output(go_list_error_pkg)
-    # Mock the tempfile.TemporaryDirectory context manager
-    mock_temp_dir.return_value.__enter__.return_value = str(tmpdir)
 
     # Mock the "subprocess.run" calls
     run_side_effects = []
@@ -333,11 +324,11 @@ def test_resolve_gomod(
     gomod_request.flags = flags
 
     if dep_replacement is None:
-        gomod = _resolve_gomod(archive_path, gomod_request)
+        gomod = _resolve_gomod(archive_path, gomod_request, tmpdir)
         expected_deps = sample_deps
     else:
         gomod_request.dep_replacements = (dep_replacement,)
-        gomod = _resolve_gomod(archive_path, gomod_request)
+        gomod = _resolve_gomod(archive_path, gomod_request, tmpdir)
         if dep_replacement.get("new_name"):
             expected_deps = sample_deps_replace_new_name
         else:
@@ -381,10 +372,6 @@ def test_resolve_gomod(
             == sample_pkg_deps_without_replace
         )
 
-    mock_merge_tree.assert_called_once_with(
-        os.path.join(tmpdir, Request.go_mod_cache_download_part),
-        str(gomod_request.gomod_download_dir),
-    )
     mock_vet_local_deps.assert_has_calls(
         [
             mock.call(expected_deps),
@@ -396,7 +383,6 @@ def test_resolve_gomod(
 
 @pytest.mark.parametrize("force_gomod_tidy", [False, True])
 @mock.patch("cachi2.core.package_managers.gomod._get_golang_version")
-@mock.patch("cachi2.core.package_managers.gomod.GoCacheTemporaryDirectory")
 @mock.patch("subprocess.run")
 @mock.patch("cachi2.core.package_managers.gomod.Request.gomod_download_dir")
 @mock.patch("cachi2.core.package_managers.gomod._module_lines_from_modules_txt")
@@ -404,16 +390,12 @@ def test_resolve_gomod_vendor_dependencies(
     mock_module_lines,
     mock_bundle_dir,
     mock_run,
-    mock_temp_dir,
     mock_golang_version,
     force_gomod_tidy,
     tmpdir,
     sample_package,
     gomod_request,
 ):
-    # Mock the tempfile.TemporaryDirectory context manager
-    mock_temp_dir.return_value.__enter__.return_value = str(tmpdir)
-
     # Mock the "subprocess.run" calls
     run_side_effects = []
     run_side_effects.append(proc_mock("go mod vendor", returncode=0, stdout=None))
@@ -446,7 +428,7 @@ def test_resolve_gomod_vendor_dependencies(
     gomod_request.flags = flags
 
     archive_path = gomod_request.source_dir / "retrodep.tar.gz"
-    gomod = _resolve_gomod(archive_path, gomod_request)
+    gomod = _resolve_gomod(archive_path, gomod_request, tmpdir)
 
     assert mock_run.call_args_list[0][0][0] == ("go", "mod", "vendor")
     # when vendoring, go list should be called without -mod readonly
@@ -454,12 +436,7 @@ def test_resolve_gomod_vendor_dependencies(
     assert gomod["module"] == sample_package
     assert not gomod["module_deps"]
 
-    # Ensure an empty directory is created at bundle_dir.gomod_download_dir
-    mock_bundle_dir.mkdir.assert_called_once_with(exist_ok=True, parents=True)
-    mock_module_lines.assert_called_once_with(archive_path)
 
-
-@mock.patch("cachi2.core.package_managers.gomod.GoCacheTemporaryDirectory")
 @mock.patch("subprocess.run")
 @mock.patch("cachi2.core.package_managers.gomod._get_golang_version")
 @mock.patch("cachi2.core.package_managers.gomod.get_config")
@@ -470,7 +447,6 @@ def test_resolve_gomod_strict_mode_raise_error(
     mock_gwc,
     mock_golang_version,
     mock_run,
-    mock_temp_dir,
     tmpdir,
     strict_vendor,
     gomod_request,
@@ -482,8 +458,6 @@ def test_resolve_gomod_strict_mode_raise_error(
         mock_config.gomod_strict_vendor = strict_vendor
     mock_config.cachito_athens_url = "http://athens:3000"
     mock_gwc.return_value = mock_config
-    # Mock the tempfile.TemporaryDirectory context manager
-    mock_temp_dir.return_value.__enter__.return_value = str(tmpdir)
     mock_golang_version.return_value = "v2.1.1"
 
     # Mock the "subprocess.run" call
@@ -505,13 +479,11 @@ def test_resolve_gomod_strict_mode_raise_error(
         "vendored dependencies."
     )
     with strict_vendor and pytest.raises(PackageRejected, match=expected_error) or nullcontext():
-        _resolve_gomod(archive_path, gomod_request)
+        _resolve_gomod(archive_path, gomod_request, tmpdir)
 
 
 @pytest.mark.parametrize("force_gomod_tidy", [False, True])
 @mock.patch("cachi2.core.package_managers.gomod._get_golang_version")
-@mock.patch("cachi2.core.package_managers.gomod.GoCacheTemporaryDirectory")
-@mock.patch("cachi2.core.package_managers.gomod._merge_bundle_dirs")
 @mock.patch("subprocess.run")
 @mock.patch("os.makedirs")
 @mock.patch("os.path.exists")
@@ -519,8 +491,6 @@ def test_resolve_gomod_no_deps(
     mock_exists,
     mock_makedirs,
     mock_run,
-    mock_merge_tree,
-    mock_temp_dir,
     mock_golang_version,
     force_gomod_tidy,
     tmpdir,
@@ -530,9 +500,6 @@ def test_resolve_gomod_no_deps(
 ):
     # Ensure to create the gomod download cache directory
     mock_exists.return_value = False
-
-    # Mock the tempfile.TemporaryDirectory context manager
-    mock_temp_dir.return_value.__enter__.return_value = str(tmpdir)
 
     # Mock the "subprocess.run" calls
     run_side_effects = []
@@ -566,7 +533,7 @@ def test_resolve_gomod_no_deps(
     archive_path = gomod_request.source_dir / "path/to/archive.tar.gz"
     if force_gomod_tidy:
         gomod_request.flags = ["force-gomod-tidy"]
-    gomod = _resolve_gomod(archive_path, gomod_request)
+    gomod = _resolve_gomod(archive_path, gomod_request, tmpdir)
 
     assert gomod["module"] == sample_package
     assert not gomod["module_deps"]
@@ -574,22 +541,9 @@ def test_resolve_gomod_no_deps(
     assert gomod["packages"][0]["pkg"] == sample_pkg_lvl_pkg
     assert not gomod["packages"][0]["pkg_deps"]
 
-    # The second one ensures the source cache directory exists
-    mock_makedirs.assert_called_once_with(
-        os.path.join(tmpdir, gomod_request.go_mod_cache_download_part), exist_ok=True
-    )
 
-    mock_merge_tree.assert_called_once_with(
-        os.path.join(tmpdir, gomod_request.go_mod_cache_download_part),
-        str(gomod_request.gomod_download_dir),
-    )
-
-
-@mock.patch("cachi2.core.package_managers.gomod.GoCacheTemporaryDirectory")
 @mock.patch("subprocess.run")
-def test_resolve_gomod_unused_dep(mock_run, mock_temp_dir, tmpdir, gomod_request):
-    # Mock the tempfile.TemporaryDirectory context manager
-    mock_temp_dir.return_value.__enter__.return_value = str(tmpdir)
+def test_resolve_gomod_unused_dep(mock_run, tmpdir, gomod_request):
     gomod_request.dep_replacements = ({"name": "pizza", "type": "gomod", "version": "v1.0.0"},)
 
     # Mock the "subprocess.run" calls
@@ -612,20 +566,17 @@ def test_resolve_gomod_unused_dep(mock_run, mock_temp_dir, tmpdir, gomod_request
         _resolve_gomod(
             Path("./source/path/archive.tar.gz"),
             gomod_request,
+            tmpdir,
         )
 
 
 @pytest.mark.parametrize(("go_mod_rc", "go_list_rc"), ((0, 1), (1, 0)))
-@mock.patch("cachi2.core.package_managers.gomod.GoCacheTemporaryDirectory")
 @mock.patch("cachi2.core.package_managers.gomod.get_config")
 @mock.patch("subprocess.run")
-def test_go_list_cmd_failure(
-    mock_run, mock_config, mock_temp_dir, tmpdir, go_mod_rc, go_list_rc, gomod_request
-):
+def test_go_list_cmd_failure(mock_run, mock_config, tmpdir, go_mod_rc, go_list_rc, gomod_request):
     archive_path = gomod_request.source_dir / "path/to/archive.tar.gz"
 
     # Mock the tempfile.TemporaryDirectory context manager
-    mock_temp_dir.return_value.__enter__.return_value = str(tmpdir)
     mock_config.return_value.gomod_download_max_tries = 1
 
     # Mock the "subprocess.run" calls
@@ -646,7 +597,7 @@ def test_go_list_cmd_failure(
         GoModError,
         match="Processing gomod dependencies failed",
     ):
-        _resolve_gomod(archive_path, gomod_request)
+        _resolve_gomod(archive_path, gomod_request, tmpdir)
 
 
 @pytest.mark.parametrize(
@@ -763,116 +714,6 @@ def test_get_golang_version(golang_repo_path: Path, module_suffix, ref, expected
     module_name = f"github.com/mprahl/test-golang-pseudo-versions{module_suffix}"
     version = _get_golang_version(module_name, golang_repo_path, ref, subpath=subpath)
     assert version == expected
-
-
-@pytest.mark.parametrize(
-    "tree_1, tree_2, result_tree, merge_file_executions",
-    (
-        (
-            {"foo": {"bar": {"baz": "buzz"}}},
-            {"foo": {"baz": {"bar": "buzz"}}},
-            {"foo": {"baz": {"bar": "buzz"}, "bar": {"baz": "buzz"}}},
-            0,
-        ),
-        (
-            {"foo": {"bar": {"list.lock": ""}}},
-            {"foo": {"bar": {"list.lock": ""}}},
-            {"foo": {"bar": {"list.lock": ""}}},
-            0,
-        ),
-        (
-            {"foo": {"bar": {"list": "buzz v0.0.1", "list.lock": ""}}},
-            {"foo": {"baz": {"list": "buzz v0.0.2", "list.lock": ""}}},
-            {
-                "foo": {
-                    "baz": {"list": "buzz v0.0.2", "list.lock": ""},
-                    "bar": {"list": "buzz v0.0.1", "list.lock": ""},
-                }
-            },
-            0,
-        ),
-        (
-            # If a file exists in both directories, the destination will not be overwritten
-            {"foo": {"bar": {"list": "buzz v0.0.1"}}},
-            {"foo": {"bar": {"list": "buzz v0.0.2"}}},
-            {"foo": {"bar": {"list": "buzz v0.0.2"}}},
-            0,
-        ),
-        (
-            # This has a valid merging of list, but the file is not going to be
-            # actually merged since we are mocking it out. The content of the file
-            # will be identical to the destination file.
-            {"foo": {"bar": {"list": "buzz v0.0.1", "list.lock": ""}}},
-            {"foo": {"bar": {"list": "buzz v0.0.2", "list.lock": ""}}},
-            {"foo": {"bar": {"list": "buzz v0.0.2", "list.lock": ""}}},
-            1,
-        ),
-    ),
-)
-@mock.patch("cachi2.core.package_managers.gomod._merge_files")
-def test_merge_bundle_dirs(mock_merge_files, tree_1, tree_2, result_tree, merge_file_executions):
-    with tempDir() as dir_1, tempDir() as dir_2, tempDir() as dir_3:
-        write_file_tree(tree_1, dir_1)
-        write_file_tree(tree_2, dir_2)
-        write_file_tree(result_tree, dir_3)
-        _merge_bundle_dirs(dir_1, dir_2)
-        assert_directories_equal(dir_2, dir_3)
-    assert mock_merge_files.call_count == merge_file_executions
-
-
-@pytest.mark.parametrize(
-    "file_1_content, file_2_content, result_file_content",
-    (
-        (
-            dedent(
-                """\
-                package1: v1.0.0
-                package2 -- 1.2.3-gah!
-                """
-            ),
-            dedent(
-                """\
-                package1: v1.0.0
-                package3: v0.1.0-incompatible
-                """
-            ),
-            dedent(
-                """\
-                package1: v1.0.0
-                package2 -- 1.2.3-gah!
-                package3: v0.1.0-incompatible
-                """
-            ),
-        ),
-        (
-            dedent(
-                """\
-                package1: v1.0.0\n
-                """
-            ),
-            dedent(
-                """\
-                package1: v1.0.0 """
-            ),
-            dedent(
-                """\
-                package1: v1.0.0
-                """
-            ),
-        ),
-    ),
-)
-def test_merge_files(file_1_content, file_2_content, result_file_content):
-    with tempDir() as dir_1, tempDir() as dir_2, tempDir() as dir_3:
-        write_file_tree({"list": file_1_content}, dir_1)
-        write_file_tree({"list": file_2_content}, dir_2)
-        write_file_tree({"list": result_file_content}, dir_3)
-        _merge_files("{}/list".format(dir_1), "{}/list".format(dir_2))
-        with open("{}/list".format(dir_2), "r") as f:
-            print(f.read())
-        with open("{}/list".format(dir_3), "r") as f:
-            print(f.read())
-        assert_directories_equal(dir_2, dir_3)
 
 
 @pytest.mark.parametrize(
@@ -1424,7 +1265,9 @@ def test_missing_gomod_file(file_tree, tmp_path):
 @mock.patch("cachi2.core.package_managers.gomod._resolve_gomod")
 @mock.patch("cachi2.core.package_managers.gomod.RequestOutput")
 @mock.patch("cachi2.core.package_managers.gomod.Component")
+@mock.patch("cachi2.core.package_managers.gomod.GoCacheTemporaryDirectory")
 def test_dep_replacements(
+    mock_tmp_dir,
     mock_component,
     mock_request_output,
     mock_resolve_gomod,
@@ -1442,8 +1285,9 @@ def test_dep_replacements(
             fetch_gomod_source(gomod_request)
     else:
         fetch_gomod_source(gomod_request)
+        tmp_dir = Path(mock_tmp_dir.return_value.__enter__.return_value)
         expected_calls = [
-            mock.call(gomod_request.source_dir / pkg.path, gomod_request)
+            mock.call(gomod_request.source_dir / pkg.path, gomod_request, tmp_dir)
             for pkg in gomod_request.packages
         ]
         mock_resolve_gomod.assert_has_calls(expected_calls, any_order=True)
@@ -1493,7 +1337,9 @@ def test_dep_replacements(
 )
 @mock.patch("cachi2.core.package_managers.gomod._find_missing_gomod_files")
 @mock.patch("cachi2.core.package_managers.gomod._resolve_gomod")
+@mock.patch("cachi2.core.package_managers.gomod.GoCacheTemporaryDirectory")
 def test_fetch_gomod_source(
+    mock_tmp_dir,
     mock_resolve_gomod,
     mock_find_missing_gomod_files,
     gomod_request,
@@ -1501,7 +1347,7 @@ def test_fetch_gomod_source(
     env_variables,
     tmp_path,
 ):
-    def resolve_gomod_mocked(path: Path, request: Request):
+    def resolve_gomod_mocked(path: Path, request: Request, tmp_dir: Path):
         # Find package output based on the path being processed
         package = next(filter(lambda p: (tmp_path / p["path"]) == path, packages_output))
 
@@ -1525,8 +1371,9 @@ def test_fetch_gomod_source(
 
     output = fetch_gomod_source(gomod_request)
 
+    tmp_dir = Path(mock_tmp_dir.return_value.__enter__.return_value)
     calls = [
-        mock.call(gomod_request.source_dir / package.path, gomod_request)
+        mock.call(gomod_request.source_dir / package.path, gomod_request, tmp_dir)
         for package in gomod_request.packages
     ]
     mock_resolve_gomod.assert_has_calls(calls)
