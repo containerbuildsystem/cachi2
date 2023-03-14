@@ -1,8 +1,9 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
+import json
 import logging
 from pathlib import Path
-from typing import List
+from typing import Any, List, NamedTuple
 
 import pytest
 
@@ -173,9 +174,13 @@ def test_gomod_packages(
         test_params.repo, test_params.ref, f"{test_case}-source", tmp_path
     )
 
-    _ = utils.fetch_deps_and_check_output(
+    output_folder = utils.fetch_deps_and_check_output(
         tmp_path, test_case, test_params, source_folder, test_data_dir, cachi2_image
     )
+    if test_params.check_output_json:
+        _verify_reported_modules_match_downloaded_modules(
+            source_folder, output_folder, test_params.flags
+        )
 
 
 @pytest.mark.parametrize(
@@ -242,6 +247,10 @@ def test_e2e_gomod(
     output_folder = utils.fetch_deps_and_check_output(
         tmp_path, test_case, test_params, source_folder, test_data_dir, cachi2_image
     )
+    if test_params.check_output_json:
+        _verify_reported_modules_match_downloaded_modules(
+            source_folder, output_folder, test_params.flags
+        )
 
     utils.build_image_and_check_cmd(
         tmp_path,
@@ -252,3 +261,73 @@ def test_e2e_gomod(
         expected_cmd_output,
         cachi2_image,
     )
+
+
+class _GoModule(NamedTuple):
+    name: str
+    version: str
+
+    def __str__(self) -> str:
+        return f"{self.name}@{self.version}"
+
+    def is_local(self) -> bool:
+        return self.version.startswith(("./", "../"))
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]):
+        return cls(d["name"], d["version"])
+
+
+def _verify_reported_modules_match_downloaded_modules(
+    source_dir: Path, output_dir: Path, flags: list[str]
+):
+    if "--gomod-vendor" in flags or "--gomod-vendor-check" in flags:
+        return
+    output_json = json.loads(output_dir.joinpath("output.json").read_text())
+
+    log.info("Verify that the reported modules match those in <output>/deps/gomod/pkg/mod")
+    expected_downloaded = {
+        mod
+        for package in output_json["packages"]
+        for dep in package["dependencies"]
+        if dep["type"] == "gomod"
+        if not (mod := _GoModule.from_dict(dep)).is_local()
+    }
+    actual_downloaded = _parse_gomodcache(output_dir / "deps/gomod/pkg/mod")
+
+    assert sorted(map(str, expected_downloaded)) == sorted(map(str, actual_downloaded))
+
+    for package in output_json["packages"]:
+        if package["type"] != "gomod":
+            continue
+
+        package_path = Path(package["path"])
+        local_modules = [
+            mod for dep in package["dependencies"] if (mod := _GoModule.from_dict(dep)).is_local()
+        ]
+        for mod in local_modules:
+            log.info(
+                "Verify that the reported locally replaced module exists: <source>/%s",
+                package_path / mod.version / "go.mod",
+            )
+            assert source_dir.joinpath(package_path, mod.version, "go.mod").is_file()
+
+
+def _parse_gomodcache(gomodcache: Path) -> list[_GoModule]:
+    """Parse modules from the module cache.
+
+    https://go.dev/ref/mod#module-cache
+    """
+    download_dir = gomodcache / "cache" / "download"
+
+    def un_exclamation_mark(s: str) -> str:
+        first, *rest = s.split("!")
+        return first + "".join(map(str.capitalize, rest))
+
+    def parse_zipfile_path(zipfile: Path) -> _GoModule:
+        # filepath ends with @v/<version>.zip
+        name = zipfile.relative_to(download_dir).parent.parent.as_posix()
+        version = zipfile.stem
+        return _GoModule(un_exclamation_mark(name), un_exclamation_mark(version))
+
+    return list(map(parse_zipfile_path, download_dir.rglob("*.zip")))
