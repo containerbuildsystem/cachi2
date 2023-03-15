@@ -4,7 +4,7 @@ from enum import Enum
 from pathlib import Path
 
 from cachi2.core.errors import UnsupportedFeature
-from cachi2.core.models.output import RequestOutput
+from cachi2.core.models.output import BuildConfig
 
 
 class EnvFormat(str, Enum):
@@ -40,7 +40,7 @@ class EnvFormat(str, Enum):
         )
 
 
-def generate_envfile(output: RequestOutput, fmt: EnvFormat, relative_to_path: Path) -> str:
+def generate_envfile(build_config: BuildConfig, fmt: EnvFormat, relative_to_path: Path) -> str:
     """Generate an environment file in the specified format.
 
     Some environment variables need to be resolved relative to a path. Generally, this
@@ -53,7 +53,7 @@ def generate_envfile(output: RequestOutput, fmt: EnvFormat, relative_to_path: Pa
     """
     env_vars = [
         (env_var.name, env_var.resolve_value(relative_to_path))
-        for env_var in output.environment_variables
+        for env_var in build_config.environment_variables
     ]
     if fmt == EnvFormat.json:
         content = json.dumps([{"name": name, "value": value} for name, value in env_vars])

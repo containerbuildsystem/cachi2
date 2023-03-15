@@ -22,7 +22,7 @@ from cachi2.core.errors import (
     UnsupportedFeature,
 )
 from cachi2.core.models.input import Request
-from cachi2.core.models.output import RequestOutput
+from cachi2.core.models.output import Component, EnvironmentVariable, RequestOutput
 from cachi2.core.utils import load_json_stream, run_cmd
 
 log = logging.getLogger(__name__)
@@ -86,7 +86,7 @@ def fetch_gomod_source(request: Request) -> RequestOutput:
     }
     env_vars.update(config.default_environment_variables.get("gomod", {}))
 
-    packages = []
+    components: list[Component] = []
 
     for i, subpath in enumerate(subpaths):
         log.info("Fetching the gomod dependencies at subpath %s", subpath)
@@ -102,19 +102,22 @@ def fetch_gomod_source(request: Request) -> RequestOutput:
 
         module_info = gomod["module"]
 
-        packages.append({**module_info, "path": subpath, "dependencies": gomod["module_deps"]})
+        components.append(Component(name=module_info["name"], version=module_info["version"]))
 
         # add package deps
         for package in gomod["packages"]:
             pkg_info = package["pkg"]
-            package_subpath = _package_subpath(module_info["name"], pkg_info["name"], subpath)
-            packages.append(
-                {**pkg_info, "path": package_subpath, "dependencies": package.get("pkg_deps", [])}
-            )
 
-    return RequestOutput(
-        packages=packages,
-        environment_variables=[{"name": name, **obj} for name, obj in env_vars.items()],
+            components.append(Component.from_package_dict(pkg_info))
+
+            for dependency in package.get("pkg_deps", []):
+                components.append(Component.from_package_dict(dependency))
+
+    return RequestOutput.from_obj_list(
+        components=components,
+        environment_variables=[
+            EnvironmentVariable(name=name, **obj) for name, obj in env_vars.items()
+        ],
         project_files=[],
     )
 

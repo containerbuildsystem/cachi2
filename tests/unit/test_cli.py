@@ -14,7 +14,13 @@ import yaml
 
 import cachi2.core.config as config_file
 from cachi2.core.models.input import Request
-from cachi2.core.models.output import RequestOutput
+from cachi2.core.models.output import (
+    BuildConfig,
+    Component,
+    EnvironmentVariable,
+    RequestOutput,
+    Sbom,
+)
 from cachi2.interface.cli import DEFAULT_OUTPUT, DEFAULT_SOURCE, app
 
 runner = typer.testing.CliRunner()
@@ -96,18 +102,10 @@ class TestTopLevelOpts:
 
         args = ["--config-file", file, "fetch-deps", "gomod"]
 
-        output = RequestOutput(
-            packages=[
-                {
-                    "name": "cool-package",
-                    "version": "v1.0.0",
-                    "type": "gomod",
-                    "path": ".",
-                    "dependencies": [],
-                },
-            ],
+        output = RequestOutput.from_obj_list(
+            components=[Component(name="cool-package", version="v1.0.0", type="library")],
             environment_variables=[
-                {"name": "GOMOD_SOMETHING", "value": "yes", "kind": "literal"},
+                EnvironmentVariable(name="GOMOD_SOMETHING", value="yes", kind="literal"),
             ],
             project_files=[],
         )
@@ -530,18 +528,10 @@ class TestFetchDeps:
         "request_output",
         [
             RequestOutput.empty(),
-            RequestOutput(
-                packages=[
-                    {
-                        "name": "cool-package",
-                        "version": "v1.0.0",
-                        "type": "gomod",
-                        "path": ".",
-                        "dependencies": [],
-                    },
-                ],
+            RequestOutput.from_obj_list(
+                components=[Component(name="cool-package", version="v1.0.0", type="library")],
                 environment_variables=[
-                    {"name": "GOMOD_SOMETHING", "value": "yes", "kind": "literal"},
+                    EnvironmentVariable(name="GOMOD_SOMETHING", value="yes", kind="literal"),
                 ],
                 project_files=[],
             ),
@@ -551,10 +541,14 @@ class TestFetchDeps:
         with mock_fetch_deps(output=request_output):
             invoke_expecting_sucess(app, ["fetch-deps", "gomod"])
 
-        output_json = tmp_cwd / DEFAULT_OUTPUT / "output.json"
-        written_output = RequestOutput.parse_file(output_json)
+        build_config_path = tmp_cwd / DEFAULT_OUTPUT / ".build-config.json"
+        sbom_path = tmp_cwd / DEFAULT_OUTPUT / "bom.json"
 
-        assert written_output == request_output
+        written_build_config = BuildConfig.parse_file(build_config_path)
+        written_sbom = Sbom.parse_file(sbom_path)
+
+        assert written_build_config == request_output.build_config
+        assert written_sbom == request_output.sbom
 
 
 def env_file_as_json(for_output_dir: Path) -> str:
@@ -580,11 +574,9 @@ class TestGenerateEnv:
 
     @pytest.fixture
     def tmp_cwd_as_output_dir(self, tmp_cwd: Path) -> Path:
-        """Change working directory to a tmpdir and write output.json into it."""
-        request_output = RequestOutput(
-            packages=[], environment_variables=self.ENV_VARS, project_files=[]
-        )
-        tmp_cwd.joinpath("output.json").write_text(request_output.json())
+        """Change working directory to a tmpdir and write .build-config.json into it."""
+        build_config = BuildConfig(environment_variables=self.ENV_VARS, project_files=[])
+        tmp_cwd.joinpath(".build-config.json").write_text(build_config.json())
         return tmp_cwd
 
     @pytest.mark.parametrize(
@@ -667,7 +659,7 @@ class TestGenerateEnv:
 class TestInjectFiles:
     @pytest.fixture
     def tmp_cwd_as_output_dir(self, tmp_cwd: Path) -> Path:
-        """Change working directory to a tmpdir and write output.json into it.
+        """Change working directory to a tmpdir and write .build-config.json into it.
 
         Also create one of the project files in the output to test overwriting vs. creating.
         """
@@ -682,10 +674,8 @@ class TestInjectFiles:
                 "template": "bar @ file://${output_dir}/deps/pip/bar.tar.gz",
             },
         ]
-        request_output = RequestOutput(
-            packages=[], environment_variables=[], project_files=project_files
-        )
-        tmp_cwd.joinpath("output.json").write_text(request_output.json())
+        build_config = BuildConfig(environment_variables=[], project_files=project_files)
+        tmp_cwd.joinpath(".build-config.json").write_text(build_config.json())
         return tmp_cwd
 
     @pytest.mark.parametrize("for_output_dir", [None, "/cachi2/output"])

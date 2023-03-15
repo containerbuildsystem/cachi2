@@ -13,7 +13,7 @@ import cachi2.core.config as config
 from cachi2.core.errors import Cachi2Error, InvalidInput
 from cachi2.core.extras.envfile import EnvFormat, generate_envfile
 from cachi2.core.models.input import Flag, PackageInput, Request, parse_user_input
-from cachi2.core.models.output import RequestOutput
+from cachi2.core.models.output import BuildConfig
 from cachi2.core.resolver import resolve_packages, supported_package_managers
 from cachi2.interface.logging import LogLevel, setup_logging
 
@@ -239,7 +239,11 @@ def fetch_deps(
     request_output = resolve_packages(request)
 
     request.output_dir.mkdir(parents=True, exist_ok=True)
-    request.output_dir.joinpath("output.json").write_text(request_output.json())
+    request.output_dir.joinpath(".build-config.json").write_text(request_output.build_config.json())
+    request.output_dir.joinpath("bom.json").write_text(
+        # the Sbom model has camelCase aliases in some fields
+        request_output.sbom.json(by_alias=True, exclude_none=True)
+    )
 
     log.info(r"All dependencies fetched successfully \o/")
 
@@ -277,7 +281,7 @@ def generate_env(
     """Generate the environment variables needed to use the fetched dependencies."""
     fmt = fmt or (EnvFormat.based_on_suffix(output) if output else EnvFormat.json)
     for_output_dir = (for_output_dir or from_output_dir).resolve()
-    fetch_deps_output = _get_request_output(from_output_dir)
+    fetch_deps_output = _get_build_config(from_output_dir)
 
     env_file_content = generate_envfile(fetch_deps_output, fmt, for_output_dir)
 
@@ -296,7 +300,7 @@ def inject_files(
 ) -> None:
     """Inject the project files needed to use the fetched dependencies."""
     for_output_dir = (for_output_dir or from_output_dir).resolve()
-    fetch_deps_output = _get_request_output(from_output_dir)
+    fetch_deps_output = _get_build_config(from_output_dir)
 
     for project_file in fetch_deps_output.project_files:
         if project_file.abspath.exists():
@@ -309,11 +313,11 @@ def inject_files(
         project_file.abspath.write_text(content)
 
 
-def _get_request_output(output_dir: Path) -> RequestOutput:
-    output_json = output_dir / "output.json"
-    if not output_json.exists():
+def _get_build_config(output_dir: Path) -> BuildConfig:
+    build_config_json = output_dir / ".build-config.json"
+    if not build_config_json.exists():
         raise InvalidInput(
-            f"No output.json found in {output_dir}. "
+            f"No .build-config.json found in {output_dir}. "
             "Please use a directory populated by a previous fetch-deps command."
         )
-    return RequestOutput.parse_raw(output_json.read_text())
+    return BuildConfig.parse_raw(build_config_json.read_text())

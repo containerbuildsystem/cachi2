@@ -1,105 +1,95 @@
-import re
 from pathlib import Path
 from textwrap import dedent
-from typing import Any
 
 import pydantic
 import pytest
 
 from cachi2.core.models.output import (
-    Dependency,
+    BuildConfig,
+    Component,
     EnvironmentVariable,
-    GomodDependency,
-    GoPackageDependency,
-    Package,
-    PipDependency,
     ProjectFile,
     RequestOutput,
+    Sbom,
 )
 
 
-class TestDependency:
+class TestComponent:
     @pytest.mark.parametrize(
-        "input_data",
+        "input_data, expected_data",
         [
-            {"type": "gomod", "name": "github.com/org/cool-dep", "version": "v1.0.0"},
-            {"type": "go-package", "name": "fmt", "version": None},
-            {"type": "pip", "name": "requests", "version": "2.27.1", "dev": False},
+            ({"name": "mypkg"}, Component(name="mypkg")),
+            ({"name": "mypkg", "version": "1.0.0"}, Component(name="mypkg", version="1.0.0")),
+            (
+                {"name": "mypkg", "version": "random-version-string"},
+                Component(name="mypkg", version="random-version-string"),
+            ),
+            (
+                {
+                    "name": "mypkg",
+                    "version": "1.0.0",
+                    "type": "gomod",
+                    "path": ".",
+                    "dependencies": [],
+                },
+                Component(name="mypkg", version="1.0.0"),
+            ),
+            (
+                {"name": "mypkg", "version": "git+https://github.com/myorg/mydep.git"},
+                Component(name="mypkg"),
+            ),
+            (
+                {"name": "mypkg", "version": "https://github.com/myorg/mydep.git"},
+                Component(name="mypkg"),
+            ),
+            (
+                {"name": "mypkg", "version": "./a/replacement/module"},
+                Component(name="mypkg"),
+            ),
         ],
     )
-    def test_valid_deps(self, input_data: dict[str, Any]):
-        # doesn't pass type check: https://github.com/pydantic/pydantic/issues/1847
-        dep = pydantic.parse_obj_as(Dependency, input_data)  # type: ignore
-        assert dep.dict() == input_data
+    def test_construct_from_package_dict(self, input_data, expected_data):
+        component = Component.from_package_dict(input_data)
+        assert component == expected_data
 
     @pytest.mark.parametrize(
         "input_data, expect_error",
         [
             (
-                {"type": "made-up-type", "name": "foo", "version": "1.0"},
-                "No match for discriminator 'type' and value 'made-up-type'",
+                {},
+                "1 validation error for Component\nname\n  field required",
             ),
             (
-                {"type": "gomod", "name": "github.com/org/cool-dep", "version": None},
-                "version\n  none is not an allowed value",
+                {"type": "gomod", "name": "github.com/org/cool-dep"},
+                "1 validation error for Component\ntype\n  unexpected value",
             ),
         ],
     )
-    def test_invalid_deps(self, input_data: dict[str, Any], expect_error: str):
+    def test_invalid_components(self, input_data, expect_error):
         with pytest.raises(pydantic.ValidationError, match=expect_error):
-            # doesn't pass type check: https://github.com/pydantic/pydantic/issues/1847
-            pydantic.parse_obj_as(Dependency, input_data)  # type: ignore
+            Component(**input_data)
 
 
-class TestPackage:
-    def test_sort_and_dedupe_deps(self):
-        package = Package(
-            type="gomod",
-            name="github.com/my-org/my-module",
-            version="v1.0.0",
-            path=".",
-            dependencies=[
-                {"type": "gomod", "name": "github.com/org/B", "version": "v1.0.0"},
-                {"type": "gomod", "name": "github.com/org/A", "version": "v1.1.0"},
-                {"type": "gomod", "name": "github.com/org/A", "version": "v1.0.0"},
-                {"type": "gomod", "name": "github.com/org/A", "version": "v1.0.0"},
-                {"type": "go-package", "name": "github.com/org/B", "version": "v1.0.0"},
-                {"type": "go-package", "name": "fmt", "version": None},
-                {"type": "go-package", "name": "fmt", "version": None},
-                {"type": "go-package", "name": "bytes", "version": None},
+class TestSbom:
+    def test_sort_and_dedupe_components(self):
+        sbom = Sbom(
+            components=[
+                {"name": "github.com/org/B", "version": "v1.0.0"},
+                {"name": "github.com/org/A", "version": "v1.1.0"},
+                {"name": "github.com/org/A", "version": "v1.0.0"},
+                {"name": "github.com/org/A", "version": "v1.0.0"},
+                {"name": "github.com/org/B", "version": "v1.0.0"},
+                {"name": "fmt", "version": None},
+                {"name": "fmt", "version": None},
+                {"name": "bytes", "version": None},
             ],
         )
-        assert package.dependencies == [
-            GoPackageDependency(type="go-package", name="bytes", version=None),
-            GoPackageDependency(type="go-package", name="fmt", version=None),
-            GoPackageDependency(type="go-package", name="github.com/org/B", version="v1.0.0"),
-            GomodDependency(type="gomod", name="github.com/org/A", version="v1.0.0"),
-            GomodDependency(type="gomod", name="github.com/org/A", version="v1.1.0"),
-            GomodDependency(type="gomod", name="github.com/org/B", version="v1.0.0"),
-        ]
-
-    def test_sort_and_dedupe_dev_deps(self):
-        package = Package(
-            type="pip",
-            name="cachi2",
-            version="1.0.0",
-            path=".",
-            dependencies=[
-                {"type": "pip", "name": "packaging", "version": "0.23", "dev": True},
-                {"type": "pip", "name": "packaging", "version": "0.22", "dev": True},
-                {"type": "pip", "name": "requests", "version": "2.28.1", "dev": False},
-                {"type": "pip", "name": "packaging", "version": "0.23", "dev": False},
-                # de-duplicate
-                {"type": "pip", "name": "requests", "version": "2.28.1", "dev": False},
-                {"type": "pip", "name": "packaging", "version": "0.23", "dev": True},
-            ],
-        )
-        assert package.dependencies == [
-            # dev -> name -> version
-            PipDependency(type="pip", name="packaging", version="0.23", dev=False),
-            PipDependency(type="pip", name="requests", version="2.28.1", dev=False),
-            PipDependency(type="pip", name="packaging", version="0.22", dev=True),
-            PipDependency(type="pip", name="packaging", version="0.23", dev=True),
+        assert sbom.components == [
+            Component(name="bytes", version=None),
+            Component(name="fmt", version=None),
+            Component(name="github.com/org/A", version="v1.0.0"),
+            Component(name="github.com/org/A", version="v1.1.0"),
+            Component(name="github.com/org/B", version="v1.0.0"),
         ]
 
 
@@ -127,25 +117,7 @@ class TestProjectFile:
         assert project_file.resolve_content(Path("/some/output")) == expect_content
 
 
-class TestRequestOutput:
-    def test_duplicate_packages(self):
-        package = {
-            "type": "gomod",
-            "name": "github.com/my-org/my-module",
-            "version": "v1.0.0",
-            "path": ".",
-            "dependencies": [],
-        }
-        package2 = package | {"path": "subpath"}
-
-        expect_error = f"conflict by {('gomod', 'github.com/my-org/my-module', 'v1.0.0')}"
-        with pytest.raises(pydantic.ValidationError, match=re.escape(expect_error)):
-            RequestOutput(
-                packages=[package, package2],
-                environment_variables=[],
-                project_files=[],
-            )
-
+class TestBuildConfig:
     def test_conflicting_env_vars(self):
         expect_error = (
             "conflict by GOSUMDB: "
@@ -153,8 +125,7 @@ class TestRequestOutput:
             "X name='GOSUMDB' value='off' kind='literal'"
         )
         with pytest.raises(pydantic.ValidationError, match=expect_error):
-            RequestOutput(
-                packages=[],
+            BuildConfig(
                 environment_variables=[
                     {"name": "GOSUMDB", "value": "on", "kind": "literal"},
                     {"name": "GOSUMDB", "value": "off", "kind": "literal"},
@@ -163,8 +134,7 @@ class TestRequestOutput:
             )
 
     def test_sort_and_dedupe_env_vars(self):
-        output = RequestOutput(
-            packages=[],
+        build_config = BuildConfig(
             environment_variables=[
                 {"name": "B", "value": "y", "kind": "literal"},
                 {"name": "A", "value": "x", "kind": "literal"},
@@ -172,7 +142,7 @@ class TestRequestOutput:
             ],
             project_files=[],
         )
-        assert output.environment_variables == [
+        assert build_config.environment_variables == [
             EnvironmentVariable(name="A", value="x", kind="literal"),
             EnvironmentVariable(name="B", value="y", kind="literal"),
         ]
@@ -180,8 +150,7 @@ class TestRequestOutput:
     def test_conflicting_project_files(self):
         expect_error = "conflict by /some/path:"
         with pytest.raises(pydantic.ValidationError, match=expect_error):
-            RequestOutput(
-                packages=[],
+            BuildConfig(
                 environment_variables=[],
                 project_files=[
                     {"abspath": "/some/path", "template": "foo"},
@@ -190,8 +159,7 @@ class TestRequestOutput:
             )
 
     def test_sort_and_dedupe_project_files(self):
-        output = RequestOutput(
-            packages=[],
+        build_config = BuildConfig(
             environment_variables=[],
             project_files=[
                 {"abspath": "/second/path", "template": "bar"},
@@ -199,20 +167,41 @@ class TestRequestOutput:
                 {"abspath": "/second/path", "template": "bar"},
             ],
         )
-        assert output.project_files == [
+        assert build_config.project_files == [
             ProjectFile(abspath="/first/path", template="foo"),
             ProjectFile(abspath="/second/path", template="bar"),
         ]
 
 
-def mock_output(pkg_names: list[str], env_names: list[str]) -> RequestOutput:
-    return RequestOutput(
-        packages=[
-            Package(type="pip", name=name, version="1.0.0", path=".", dependencies=[])
-            for name in pkg_names
+class TestRequestOutput:
+    @pytest.mark.parametrize(
+        "input_data, expected_data",
+        [
+            (
+                {"components": [{"name": "mypkg"}]},
+                RequestOutput(
+                    sbom=Sbom(components=[{"name": "mypkg"}]),
+                    build_config=BuildConfig(),
+                ),
+            ),
+            (
+                {
+                    "components": [{"name": "mypkg"}],
+                    "environment_variables": [{"name": "a", "value": "y", "kind": "literal"}],
+                    "project_files": [{"abspath": "/first/path", "template": "foo"}],
+                },
+                RequestOutput(
+                    sbom=Sbom(components=[{"name": "mypkg"}]),
+                    build_config=BuildConfig(
+                        environment_variables=[
+                            EnvironmentVariable(name="a", value="y", kind="literal")
+                        ],
+                        project_files=[ProjectFile(abspath="/first/path", template="foo")],
+                    ),
+                ),
+            ),
         ],
-        environment_variables=[
-            EnvironmentVariable(name=name, value="foo", kind="literal") for name in env_names
-        ],
-        project_files=[],
     )
+    def test_create_from_obj_lists(self, input_data, expected_data):
+        request_output = RequestOutput.from_obj_list(**input_data)
+        assert request_output == expected_data

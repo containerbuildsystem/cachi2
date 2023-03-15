@@ -1423,7 +1423,9 @@ def test_missing_gomod_file(file_tree, tmp_path):
 @mock.patch("cachi2.core.package_managers.gomod._find_missing_gomod_files")
 @mock.patch("cachi2.core.package_managers.gomod._resolve_gomod")
 @mock.patch("cachi2.core.package_managers.gomod.RequestOutput")
+@mock.patch("cachi2.core.package_managers.gomod.Component")
 def test_dep_replacements(
+    mock_component,
     mock_request_output,
     mock_resolve_gomod,
     mock_find_missing_gomod_files,
@@ -1532,15 +1534,17 @@ def test_fetch_gomod_source(
     if len(gomod_request.packages) == 0:
         expected_output = RequestOutput.empty()
     else:
-        pkg_results = []
+        components = []
 
         # for each Go module, there is also a correspondent Go package
         for package in packages_output:
-            pkg_results.append(package)
-            pkg_results.append({**package, "type": "go-package"})
+            components.append({"name": package["name"], "version": package["version"]})
 
-        expected_output = RequestOutput(
-            packages=pkg_results, environment_variables=env_variables, project_files=[]
+            for dependency in package["dependencies"]:
+                components.append({"name": dependency["name"], "version": dependency["version"]})
+
+        expected_output = RequestOutput.from_obj_list(
+            components=components, environment_variables=env_variables
         )
 
     assert output == expected_output

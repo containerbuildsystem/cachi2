@@ -14,7 +14,7 @@ import requests
 from cachi2.core.checksum import ChecksumInfo
 from cachi2.core.errors import FetchError, PackageRejected, UnexpectedFormat, UnsupportedFeature
 from cachi2.core.models.input import Request
-from cachi2.core.models.output import ProjectFile
+from cachi2.core.models.output import Component, ProjectFile
 from cachi2.core.package_managers import general, pip
 from tests.common_utils import write_file_tree
 
@@ -3371,21 +3371,34 @@ def test_fetch_pip_source(
         ],
     }
 
+    def convert_to_component_list(packages: list[dict]) -> list[Component]:
+        components = []
+
+        for package in packages:
+            for dependency in package["dependencies"]:
+                components.append(Component.from_package_dict(dependency))
+
+            components.append(Component.from_package_dict(package))
+
+        components.sort(key=lambda c: c.key())
+
+        return components
+
     if n_pip_packages == 0:
         expect_packages = []
         expect_files = []
     elif n_pip_packages == 1:
-        expect_packages = [expect_package_a]
+        expect_packages = convert_to_component_list([expect_package_a])
         expect_files = [replaced_file_a]
     elif n_pip_packages == 2:
-        expect_packages = [expect_package_a, expect_package_b]
+        expect_packages = convert_to_component_list([expect_package_a, expect_package_b])
         expect_files = [replaced_file_a, replaced_file_b]
     else:
         assert False
 
-    assert output.packages == expect_packages
-    assert output.project_files == expect_files
-    assert len(output.environment_variables) == (2 if n_pip_packages > 0 else 0)
+    assert output.sbom.components == expect_packages
+    assert output.build_config.project_files == expect_files
+    assert len(output.build_config.environment_variables) == (2 if n_pip_packages > 0 else 0)
 
     if n_pip_packages >= 1:
         mock_resolve_pip.assert_any_call(source_dir, output_dir, [Path("requirements.txt")], None)
