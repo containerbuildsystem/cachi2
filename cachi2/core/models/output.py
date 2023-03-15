@@ -1,80 +1,80 @@
+import logging
+import re
 import string
 from pathlib import Path
-from typing import Annotated, Literal, Optional, Union
+from typing import Any, Literal, Optional
 
 import pydantic
 
-from cachi2.core.models.validators import check_sane_relpath, unique_sorted
+from cachi2.core.models.validators import unique_sorted
 
-# Supported package types (a superset of the supported package *manager* types)
-PackageType = Literal["gomod", "go-package", "pip"]
-
-
-class _DependencyBase(pydantic.BaseModel):
-    """Common attributes for all dependency types."""
-
-    type: PackageType
-    name: str
+log = logging.getLogger(__name__)
 
 
-class GomodDependency(_DependencyBase):
-    """Metadata about a gomod dependency."""
+class Component(pydantic.BaseModel):
+    """A software component such as a dependency or a package.
 
-    type: Literal["gomod"]
-    version: str
-
-
-class GoPackageDependency(_DependencyBase):
-    """Metadata about a go-package dependency.
-
-    Unlike other dependency types, go-package dependencies may come from the standard library,
-    in which case their version is null.
+    Compliant to the CycloneDX specification:
+    https://cyclonedx.org/docs/1.4/json/#components
     """
 
-    type: Literal["go-package"]
+    name: str
     version: Optional[str]
 
+    type: Literal["library"] = "library"
 
-class PipDependency(_DependencyBase):
-    """Metadata about a pip dependency.
+    # This will soon be replaced by the purl
+    def key(self) -> str:
+        """Uniquely identifies a package.
 
-    Pip dependencies have a 'dev' value to indicate whether the dependency is used at runtime
-    or at build time (requirements.txt X requirements-build.txt).
+        Used mainly for sorting and deduplication.
+        """
+        return f"{self.name}:{self.version}"
+
+    @pydantic.validator("version")
+    def _valid_semver(cls, version: Optional[str]) -> Optional[str]:
+        """Ignore invalid versions.
+
+        For now, versions for the following types of dependencies will be ignored:
+            * Direct files (starting with http|https)
+            * VCS dependencies (starting with git+)
+            * Gomod local replacements (starting with ./)
+
+        This behavior is meant to be temporary, proper version output should be handled at package
+        manager level.
+        """
+        regex = re.compile(r"^(git\+|https?://|\./).*$")
+
+        if version is None or regex.match(version):
+            return None
+
+        return version
+
+    @classmethod
+    def from_package_dict(cls, package: dict[str, Any]) -> "Component":
+        """Create a Component from a Cachi2 package dictionary.
+
+        A Cachi2 package has extra fields which are unnecessary and can cause validation errors.
+        """
+        return Component(name=package.get("name", None), version=package.get("version", None))
+
+
+class Sbom(pydantic.BaseModel):
+    """Software bill of materials in the CycloneDX format.
+
+    See full specification at:
+    https://cyclonedx.org/docs/1.4/json
     """
 
-    type: Literal["pip"]
-    version: str
-    dev: bool
+    bom_format: Literal["CycloneDX"] = pydantic.Field(alias="bomFormat", default="CycloneDX")
+    components: list[Component] = []
+    spec_version: str = pydantic.Field(alias="specVersion", default="1.4")
+    version: int = 1
 
-
-Dependency = Annotated[
-    Union[GomodDependency, GoPackageDependency, PipDependency],
-    pydantic.Field(discriminator="type"),
-]
-
-
-def _dependency_sorting_key(dep: Dependency) -> tuple[str, bool, str, str]:
-    # should return all the attributes a Dependency (the whole Union) can have
-    return dep.type, getattr(dep, "dev", False), dep.name, dep.version or ""
-
-
-class Package(pydantic.BaseModel):
-    """Metadata about a resolved package and its dependencies."""
-
-    type: PackageType
-    path: Path  # relative from source directory
-    name: str
-    version: str
-    dependencies: list[Dependency]
-
-    @pydantic.validator("path")
-    def _path_is_relative(cls, path: Path) -> Path:
-        return check_sane_relpath(path)
-
-    @pydantic.validator("dependencies")
-    def _unique_deps(cls, dependencies: list[Dependency]) -> list[Dependency]:
-        """Sort and de-duplicate dependencies."""
-        return unique_sorted(dependencies, by=_dependency_sorting_key)
+    @pydantic.validator("components")
+    def _unique_components(cls, components: list[Component]) -> list[Component]:
+        """Sort and de-duplicate components."""
+        return unique_sorted(components, by=lambda component: component.key())
 
 
 class EnvironmentVariable(pydantic.BaseModel):
@@ -131,21 +131,11 @@ class ProjectFile(pydantic.BaseModel):
         return template.safe_substitute(output_dir=output_dir)
 
 
-class RequestOutput(pydantic.BaseModel):
-    """Results of processing one or more package managers."""
+class BuildConfig(pydantic.BaseModel):
+    """Holds output used to configure a repository for a build."""
 
-    packages: list[Package]
-    environment_variables: list[EnvironmentVariable]
-    project_files: list[ProjectFile]
-
-    @pydantic.validator("packages")
-    def _unique_packages(cls, packages: list[Package]) -> list[Package]:
-        """Sort packages and check that there are no duplicates."""
-        return unique_sorted(
-            packages,
-            by=lambda pkg: (pkg.type, pkg.name, pkg.version),
-            dedupe=False,  # de-duplicating could be quite expensive with many dependencies
-        )
+    environment_variables: list[EnvironmentVariable] = []
+    project_files: list[ProjectFile] = []
 
     @pydantic.validator("environment_variables")
     def _unique_env_vars(cls, env_vars: list[EnvironmentVariable]) -> list[EnvironmentVariable]:
@@ -157,7 +147,35 @@ class RequestOutput(pydantic.BaseModel):
         """Sort and de-duplicate project files by path."""
         return unique_sorted(project_files, by=lambda f: f.abspath)
 
+
+class RequestOutput(pydantic.BaseModel):
+    """Results of processing one or more package managers."""
+
+    build_config: BuildConfig
+    sbom: Sbom
+
     @classmethod
     def empty(cls):
         """Return an empty RequestOutput."""
-        return cls(packages=[], environment_variables=[], project_files=[])
+        return cls(sbom=Sbom(), build_config=BuildConfig())
+
+    @classmethod
+    def from_obj_list(
+        cls,
+        components: list[Component],
+        environment_variables: Optional[list[EnvironmentVariable]] = None,
+        project_files: Optional[list[ProjectFile]] = None,
+    ) -> "RequestOutput":
+        """Create a RequestOutput from internal Sbom and BuildConfig contents."""
+        if environment_variables is None:
+            environment_variables = []
+
+        if project_files is None:
+            project_files = []
+
+        return RequestOutput(
+            sbom=Sbom(components=components),
+            build_config=BuildConfig(
+                environment_variables=environment_variables, project_files=project_files
+            ),
+        )

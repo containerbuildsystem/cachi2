@@ -5,7 +5,7 @@ import pytest
 
 from cachi2.core.errors import UnsupportedFeature
 from cachi2.core.extras.envfile import EnvFormat, generate_envfile
-from cachi2.core.models.output import RequestOutput
+from cachi2.core.models.output import BuildConfig
 
 
 @pytest.mark.parametrize(
@@ -48,13 +48,13 @@ def test_generate_env_as_json():
         {"name": "GOCACHE", "value": "deps/gomod", "kind": "path"},
         {"name": "GOSUMDB", "value": "off", "kind": "literal"},
     ]
-    request_output = RequestOutput(packages=[], environment_variables=env_vars, project_files=[])
+    build_config = BuildConfig(environment_variables=env_vars, project_files=[])
 
     gocache = '{"name": "GOCACHE", "value": "/output/dir/deps/gomod"}'
     gosumdb = '{"name": "GOSUMDB", "value": "off"}'
     expect_content = f"[{gocache}, {gosumdb}]"
 
-    content = generate_envfile(request_output, EnvFormat.json, relative_to_path=Path("/output/dir"))
+    content = generate_envfile(build_config, EnvFormat.json, relative_to_path=Path("/output/dir"))
     assert content == expect_content
 
 
@@ -64,7 +64,7 @@ def test_generate_env_as_env():
         {"name": "GOSUMDB", "value": "off", "kind": "literal"},
         {"name": "SNEAKY", "value": "foo; echo hello there", "kind": "literal"},
     ]
-    request_output = RequestOutput(packages=[], environment_variables=env_vars, project_files=[])
+    build_config = BuildConfig(environment_variables=env_vars, project_files=[])
 
     expect_content = dedent(
         """
@@ -74,5 +74,5 @@ def test_generate_env_as_env():
         """
     ).strip()
 
-    content = generate_envfile(request_output, EnvFormat.env, relative_to_path=Path("/output/dir"))
+    content = generate_envfile(build_config, EnvFormat.env, relative_to_path=Path("/output/dir"))
     assert content == expect_content

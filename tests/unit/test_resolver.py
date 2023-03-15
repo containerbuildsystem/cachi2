@@ -4,48 +4,37 @@ from unittest import mock
 
 from cachi2.core import resolver
 from cachi2.core.models.input import Request
-from cachi2.core.models.output import RequestOutput
+from cachi2.core.models.output import Component, EnvironmentVariable, ProjectFile, RequestOutput
 
-GOMOD_OUTPUT = RequestOutput(
-    packages=[
-        {
-            "type": "gomod",
-            "path": ".",
-            "name": "github.com/foo/bar",
-            "version": "v1.0.0",
-            "dependencies": [],
-        },
-    ],
+GOMOD_OUTPUT = RequestOutput.from_obj_list(
+    components=[Component(type="library", name="github.com/foo/bar", version="v1.0.0")],
     environment_variables=[
-        {"name": "GOMODCACHE", "value": "deps/gomod/pkg/mod", "kind": "path"},
-    ],
-    project_files=[{"abspath": "/your/project/go.mod", "template": "Hello gomod my old friend."}],
-)
-PIP_OUTPUT = RequestOutput(
-    packages=[
-        {
-            "type": "pip",
-            "path": ".",
-            "name": "spam",
-            "version": "1.0.0",
-            "dependencies": [],
-        },
-    ],
-    environment_variables=[
-        {"name": "PIP_INDEX_URL", "value": "file:///some/path", "kind": "literal"},
+        EnvironmentVariable(name="GOMODCACHE", value="deps/gomod/pkg/mod", kind="path"),
     ],
     project_files=[
-        {
-            "abspath": "/your/project/requirements.txt",
-            "template": "I've come to talk with you again.",
-        }
+        ProjectFile(abspath="/your/project/go.mod", template="Hello gomod my old friend.")
     ],
 )
 
-COMBINED_OUTPUT = RequestOutput(
-    packages=(GOMOD_OUTPUT.packages + PIP_OUTPUT.packages),
-    environment_variables=(GOMOD_OUTPUT.environment_variables + PIP_OUTPUT.environment_variables),
-    project_files=(GOMOD_OUTPUT.project_files + PIP_OUTPUT.project_files),
+PIP_OUTPUT = RequestOutput.from_obj_list(
+    components=[Component(type="library", name="spam", version="1.0.0")],
+    environment_variables=[
+        EnvironmentVariable(name="PIP_INDEX_URL", value="file:///some/path", kind="literal"),
+    ],
+    project_files=[
+        ProjectFile(
+            abspath="/your/project/requirements.txt", template="I've come to talk with you again."
+        ),
+    ],
+)
+
+COMBINED_OUTPUT = RequestOutput.from_obj_list(
+    components=(GOMOD_OUTPUT.sbom.components + PIP_OUTPUT.sbom.components),
+    environment_variables=(
+        GOMOD_OUTPUT.build_config.environment_variables
+        + PIP_OUTPUT.build_config.environment_variables
+    ),
+    project_files=(GOMOD_OUTPUT.build_config.project_files + PIP_OUTPUT.build_config.project_files),
 )
 
 

@@ -21,7 +21,7 @@ from packaging.utils import canonicalize_name, canonicalize_version
 from cachi2.core.checksum import ChecksumInfo, must_match_any_checksum
 from cachi2.core.errors import FetchError, PackageRejected, UnexpectedFormat, UnsupportedFeature
 from cachi2.core.models.input import Request
-from cachi2.core.models.output import EnvironmentVariable, Package, ProjectFile, RequestOutput
+from cachi2.core.models.output import Component, EnvironmentVariable, ProjectFile, RequestOutput
 from cachi2.core.package_managers.general import (
     download_binary_file,
     extract_git_info,
@@ -61,7 +61,7 @@ PIP_NO_SDIST_DOC = "https://github.com/containerbuildsystem/cachi2/blob/main/doc
 
 def fetch_pip_source(request: Request) -> RequestOutput:
     """Resolve and fetch pip dependencies for the given request."""
-    packages: list[Package] = []
+    components: list[Component] = []
     project_files: list[ProjectFile] = []
     environment_variables: list[EnvironmentVariable] = []
 
@@ -78,14 +78,17 @@ def fetch_pip_source(request: Request) -> RequestOutput:
             package.requirements_files,
             package.requirements_build_files,
         )
-        packages.append(
-            Package(**info["package"], path=package.path, dependencies=info["dependencies"])
-        )
+
+        components.append(Component.from_package_dict(info["package"]))
+
+        for dependency in info["dependencies"]:
+            components.append(Component.from_package_dict(dependency))
+
         replaced_requirements_files = map(_replace_external_requirements, info["requirements"])
         project_files.extend(filter(None, replaced_requirements_files))
 
-    return RequestOutput(
-        packages=packages,
+    return RequestOutput.from_obj_list(
+        components=components,
         environment_variables=environment_variables,
         project_files=project_files,
     )
