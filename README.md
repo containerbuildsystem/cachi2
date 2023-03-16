@@ -233,6 +233,14 @@ Similarly to unit tests, for finer control over which tests get executed, e.g. t
 CACHI2_IMAGE=localhost/cachi2-${USER}:latest tox -e integration -- tests/integration/test_package_managers.py::test_packages[gomod_without_deps]
 ```
 
+### Running integration tests and generating new test data
+
+To update or generate new data (output, dependencies checksums, vendor checksums) and run integration tests with them:
+
+```shell
+make generate-test-data
+```
+
 ## Package managers
 
 Supported:
