@@ -1,0 +1,3 @@
+# Strictly a dependabot hack, nothing to do with Heroku.
+# https://github.com/dependabot/dependabot-core/issues/4062
+python-3.9
