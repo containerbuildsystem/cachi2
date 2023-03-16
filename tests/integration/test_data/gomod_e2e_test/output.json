@@ -818,16 +818,6 @@
           "version": "v0.1.0"
         },
         {
-          "name": "github.com/kr/pty",
-          "type": "gomod",
-          "version": "v1.1.1"
-        },
-        {
-          "name": "github.com/kr/text",
-          "type": "gomod",
-          "version": "v0.1.0"
-        },
-        {
           "name": "github.com/op/go-logging",
           "type": "gomod",
           "version": "v0.0.0-20160315200505-970db520ece7"
@@ -836,26 +826,6 @@
           "name": "github.com/pkg/errors",
           "type": "gomod",
           "version": "v0.8.1"
-        },
-        {
-          "name": "golang.org/x/crypto",
-          "type": "gomod",
-          "version": "v0.0.0-20190308221718-c2843e01d9a2"
-        },
-        {
-          "name": "golang.org/x/net",
-          "type": "gomod",
-          "version": "v0.0.0-20190311183353-d8887717615a"
-        },
-        {
-          "name": "golang.org/x/sys",
-          "type": "gomod",
-          "version": "v0.0.0-20190215142949-d0b11bdaac8a"
-        },
-        {
-          "name": "golang.org/x/text",
-          "type": "gomod",
-          "version": "v0.3.0"
         },
         {
           "name": "golang.org/x/tools",

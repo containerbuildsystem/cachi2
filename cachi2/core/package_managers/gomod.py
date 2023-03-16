@@ -11,6 +11,7 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 import backoff
 import git
+import pydantic
 import semver
 
 from cachi2.core.config import get_config
@@ -141,7 +142,55 @@ def _find_missing_gomod_files(source_path: Path, subpaths: list[str]) -> list[Pa
     return invalid_gomod_files
 
 
-def _resolve_gomod(path: Path, request: Request, git_dir_path=None):
+class _GolangModel(pydantic.BaseModel):
+    """Attributes automatically get CamelCase aliases to make parsing Golang JSON easier.
+
+    >>> class SomeModel(_GolangModel):
+            some_attribute: str
+
+    >>> SomeModel.parse_obj({"SomeAttribute": "hello"})
+    SomeModel(some_attribute="hello")
+    """
+
+    class Config:
+        @staticmethod
+        def alias_generator(attr_name: str) -> str:
+            return "".join(word.capitalize() for word in attr_name.split("_"))
+
+        # allow SomeModel(some_attribute="hello"), not just SomeModel(SomeAttribute="hello")
+        allow_population_by_field_name = True
+
+
+class GoModule(_GolangModel):
+    """A Go module as returned by the -json option of various commands (relevant fields only).
+
+    See:
+        go help mod download    (Module struct)
+        go help list            (Module struct)
+    """
+
+    path: str
+    version: Optional[str] = None
+    main: bool = False
+    replace: Optional["GoModule"] = None
+
+
+class GoPackage(_GolangModel):
+    """A Go package as returned by the -json option of go list (relevant fields only).
+
+    See:
+        go help list    (Package struct)
+    """
+
+    import_path: str
+    standard: bool = False
+    module: Optional[GoModule]
+    deps: list[str] = []
+
+
+def _resolve_gomod(
+    path: Path, request: Request, git_dir_path: Optional[Path] = None
+) -> dict[str, Any]:
     """
     Resolve and fetch gomod dependencies for given app source archive.
 
@@ -197,98 +246,24 @@ def _resolve_gomod(path: Path, request: Request, git_dir_path=None):
         should_vendor, can_make_changes = _should_vendor_deps(
             flags, path, config.gomod_strict_vendor
         )
+
         if should_vendor:
-            _vendor_deps(run_params, can_make_changes, git_dir_path)
+            modules = [
+                mod
+                for mod in _vendor_deps(run_params, can_make_changes, git_dir_path)
+                if not mod.main
+            ]
         else:
             log.info("Downloading the gomod dependencies")
-            _run_download_cmd(("go", "mod", "download"), run_params)
+            modules = [
+                GoModule.parse_obj(obj)
+                for obj in load_json_stream(
+                    _run_download_cmd(("go", "mod", "download", "-json"), run_params)
+                )
+            ]
+
         if "force-gomod-tidy" in flags or request.dep_replacements:
             _run_gomod_cmd(("go", "mod", "tidy"), run_params)
-
-        go_list = ["go", "list", "-e"]
-        if not should_vendor:
-            # Make Go ignore the vendor dir even if there is one
-            go_list.extend(["-mod", "readonly"])
-
-        # main module
-        module_name = _run_gomod_cmd([*go_list, "-m"], run_params).rstrip()
-
-        # module level dependencies
-        if should_vendor:
-            module_lines = _module_lines_from_modules_txt(path)
-        else:
-            # .String formats the module as <name> <version> [=> <replace>],
-            #   where <replace> is <name> <version> or <path>
-            output_format = "{{ if not .Main }}{{ .String }}{{ end }}"
-            go_list_output = _run_gomod_cmd(
-                (*go_list, "-m", "-f", output_format, "all"),
-                run_params,
-            )
-            module_lines = go_list_output.splitlines()
-
-        module_level_deps = []
-        # Keep track of which dependency replacements were actually applied to verify they were all
-        # used later
-        used_replaced_dep_names = set()
-        for line in module_lines:
-            parts = line.split(" ")
-
-            replaces = None
-            if len(parts) == 4 and parts[2] == "=>":
-                # If a Go module uses a "replace" directive to a local path, it will be shown as:
-                # k8s.io/metrics v0.0.0 => ./staging/src/k8s.io/metrics
-                # In this case, take the module name and the relative path, since that is the
-                # actual dependency being used.
-                parts = [parts[0], parts[-1]]
-            elif len(parts) == 5 and parts[2] == "=>":
-                # If a Go module uses a "replace" directive, then it will be in the format:
-                # github.com/pkg/errors v0.8.0 => github.com/pkg/errors v0.8.1
-                # In this case, just take the right side since that is the actual
-                # dependency being used
-                old_name, old_version = parts[:2]
-                # Only keep track of user provided replaces. There could be existing "replace"
-                # directives in the go.mod file, but they are an implementation detail specific to
-                # Go and they don't need to be recorded in Cachi2.
-                if old_name in replaced_dep_names:
-                    used_replaced_dep_names.add(old_name)
-                    replaces = {
-                        "type": "gomod",
-                        "name": old_name,
-                        "version": old_version,
-                    }
-                parts = parts[3:]
-
-            if len(parts) == 2:
-                module_level_deps.append(
-                    {
-                        "name": parts[0],
-                        "replaces": replaces,
-                        "type": "gomod",
-                        "version": parts[1],
-                    }
-                )
-            else:
-                log.warning("Unexpected go module output: %s", line)
-
-        unused_dep_replacements = replaced_dep_names - used_replaced_dep_names
-        if unused_dep_replacements:
-            raise PackageRejected(
-                reason=(
-                    "The following gomod dependency replacements don't apply: "
-                    f'{", ".join(unused_dep_replacements)}'
-                ),
-                solution="Dependency replacements are deprecated! Please don't use them.",
-            )
-
-        # In case a submodule is being processed, we need to determine its path
-        subpath = None if path == git_dir_path else path.relative_to(f"{git_dir_path}/", "")
-
-        # NOTE: If there are multiple go modules in a single git repo, they will
-        #   all be versioned identically.
-        module_version = _get_golang_version(
-            module_name, git_dir_path, update_tags=True, subpath=subpath
-        )
-        module = {"name": module_name, "type": "gomod", "version": module_version}
 
         if should_vendor:
             # Create an empty gomod cache in the bundle directory so that any Cachi2
@@ -307,58 +282,124 @@ def _resolve_gomod(path: Path, request: Request, git_dir_path=None):
             )
             _merge_bundle_dirs(tmp_download_cache_dir, str(request.gomod_download_dir))
 
-        log.info("Retrieving the list of packages")
-        package_list = _run_gomod_cmd([*go_list, "-find", "./..."], run_params).splitlines()
+        go_list = ["go", "list", "-e"]
+        if not should_vendor:
+            # Make Go ignore the vendor dir even if there is one
+            go_list.extend(["-mod", "readonly"])
 
-        log.info("Retrieving the list of package level dependencies")
-        package_info = _load_list_deps(
-            _run_gomod_cmd([*go_list, "-deps", "-json", "./..."], run_params)
+        main_module_name = _run_gomod_cmd([*go_list, "-m"], run_params).rstrip()
+        main_module_version = _get_golang_version(
+            main_module_name,
+            git_dir_path,
+            update_tags=True,
+            subpath=None if path == git_dir_path else path.relative_to(git_dir_path),
+        )
+        main_module = {"name": main_module_name, "type": "gomod", "version": main_module_version}
+
+        log.info("Retrieving the list of packages")
+        packages: list[GoPackage] = [
+            GoPackage.parse_obj(obj)
+            for obj in load_json_stream(
+                _run_gomod_cmd(
+                    [*go_list, "-deps", "-json=ImportPath,Module,Standard,Deps", "./..."],
+                    run_params,
+                )
+            )
+        ]
+
+        dep_modules = set(map(_get_name_and_version, modules))
+        dep_modules.update(
+            # add locally replaced modules (go mod download -json does not list them)
+            (name, version)
+            for name, version in map(
+                _get_name_and_version,
+                (
+                    package.module
+                    for package in packages
+                    if package.module and not package.module.main
+                ),
+            )
+            if version.startswith(("./", "../"))
         )
 
-        packages: list[dict] = []
-        processed_pkg_deps = set()
-        for pkg_name in package_list:
-            if pkg_name in processed_pkg_deps:
-                # Go searches for packages in directories through a top-down approach. If a toplevel
-                # package is already listed as a dependency, we do not list it here, since its
-                # dependencies would also be listed in the parent package
+        main_module_deps = [
+            {"type": "gomod", "name": name, "version": version}
+            for name, version in sorted(dep_modules)
+        ]
+
+        main_packages: list[dict[str, Any]] = []
+        main_package_deps = set()
+
+        dep_map = {p.import_path: p for p in packages}
+
+        # The go list -deps command lists dependencies first and then the package which
+        # depends on them. We want the opposite order: package first, then its dependencies.
+        for pkg in reversed(packages):
+            if not pkg.module or not pkg.module.main:
+                continue  # This is a dependency, not a top-level package
+
+            if pkg.import_path in main_package_deps:
+                # If a top-level package is already listed as a dependency, we do not list it here,
+                # since its dependencies are already listed in the parent package.
                 log.debug(
                     "Package %s is already listed as a package dependency. Skipping...",
-                    pkg_name,
+                    pkg.import_path,
                 )
                 continue
 
-            pkg_level_deps = []
-            for dep_name in package_info[pkg_name].get("Deps", []):
-                dep_info = package_info[dep_name]
+            pkg_deps = []
+            for dep_name in pkg.deps:
+                dep = dep_map[dep_name]
+                main_package_deps.add(dep_name)
 
-                processed_pkg_deps.add(dep_name)
-                if "Standard" in dep_info:
+                if dep.standard:
                     version = None
+                elif not dep.module or dep.module.main:
+                    # Standard=false, Module.Main=true
+                    # Standard=false, Module=null   <- probably a to-be-generated package
+                    version = main_module_version
                 else:
-                    # If the dependency does not have a version, we'll use the module version
-                    version = _get_dep_version(dep_info) or module_version
+                    _, version = _get_name_and_version(dep.module)
 
-                pkg_level_deps.append({"name": dep_name, "type": "go-package", "version": version})
+                pkg_deps.append({"name": dep_name, "type": "go-package", "version": version})
 
-            # Top-level packages always use the module version
-            pkg = {"name": pkg_name, "type": "go-package", "version": module_version}
-            packages.append({"pkg": pkg, "pkg_deps": pkg_level_deps})
+            main_pkg = {
+                "name": pkg.import_path,
+                "type": "go-package",
+                "version": main_module_version,
+            }
+            main_packages.append({"pkg": main_pkg, "pkg_deps": pkg_deps})
 
-        _vet_local_deps(module_level_deps)
-        for pkg in packages:
+        _vet_local_deps(main_module_deps)
+        for main_pkg in main_packages:
             # Local dependencies are always relative to the main module, even for subpackages
-            _vet_local_deps(pkg["pkg_deps"])
-            _set_full_local_dep_relpaths(pkg["pkg_deps"], module_level_deps)
-
-        # import time
-        # time.sleep(1000)
+            _vet_local_deps(main_pkg["pkg_deps"])
+            _set_full_local_dep_relpaths(main_pkg["pkg_deps"], main_module_deps)
 
         return {
-            "module": module,
-            "module_deps": module_level_deps,
-            "packages": packages,
+            "module": main_module,
+            "module_deps": main_module_deps,
+            "packages": main_packages,
         }
+
+
+def _get_name_and_version(module: GoModule) -> tuple[str, str]:
+    if not (replace := module.replace):
+        name = module.path
+        version = module.version
+    elif replace.version:
+        # module/name v1.0.0 => replace/name v1.2.3
+        name = replace.path
+        version = replace.version
+    else:
+        # module/name v1.0.0 => ./local/path
+        name = module.path
+        version = replace.path
+    if not version:
+        # should be impossible for modules other than the main module
+        # (don't call this function on the main module)
+        raise RuntimeError(f"versionless module: {module}")
+    return name, version
 
 
 class GoCacheTemporaryDirectory(tempfile.TemporaryDirectory):
@@ -711,7 +752,7 @@ def _merge_files(src_file, dst_file):
             target.write(str(line) + "\n")
 
 
-def _load_list_deps(list_deps_output: str) -> Dict[str, dict]:
+def _load_list_deps(list_deps_output: str) -> dict[str, GoPackage]:
     """Load go list -deps -json output, return relevant data as a dict of {name: data}."""
     package_info = {}
 
@@ -852,57 +893,67 @@ def _get_semantic_version_from_tag(tag_name, subpath=None):
     return semver.VersionInfo.parse(semantic_version)
 
 
-def _module_lines_from_modules_txt(app_dir: Path) -> List[str]:
-    """
-    Read module lines from vendor/modules.txt.
+def _parse_vendor(module_dir: Path) -> list[GoModule]:
+    """Parse modules from vendor/modules.txt."""
+    modules_txt = module_dir / "vendor" / "modules.txt"
 
-    Exclude modules that do not have any packages, as those will not actually be downloaded by
-    go mod vendor.
+    def unexpected(msg: str) -> UnexpectedFormat:
+        unexpected_format_solution = (
+            "Does `go mod vendor` make any changes to modules.txt?\n"
+            "If not, please let the maintainers know that Cachi2 fails to parse valid modules.txt"
+        )
+        return UnexpectedFormat(f"vendor/modules.txt: {msg}", solution=unexpected_format_solution)
 
-    Note that vendor/modules.txt is fully managed by go. After you call go mod vendor, this file
-    is guaranteed to contain only the content written in it by go.
-    """
-    modules_txt = app_dir / "vendor" / "modules.txt"
-    module_lines: List[str] = []
-    has_packages = {}
+    def parse_module_line(line: str) -> GoModule:
+        parts = line.removeprefix("# ").split()
+        if len(parts) == 1:
+            # case [name]
+            name = parts[0]
+            return GoModule(path=name, main=True)
+        if len(parts) == 2:
+            # case [name, version]
+            name, version = parts
+            return GoModule(path=name, version=version)
+        if len(parts) == 3 and parts[1] == "=>":
+            # case [name, "=>", path]:
+            name, _, path = parts
+            return GoModule(path=name, replace=GoModule(path=path))
+        if len(parts) == 4 and parts[2] == "=>":
+            # case [name, version, "=>", path]:
+            name, version, _, path = parts
+            return GoModule(path=name, version=version, replace=GoModule(path=path))
+        if len(parts) == 4 and parts[1] == "=>":
+            # case [name, "=>", new_name, new_version]:
+            name, _, new_name, new_version = parts
+            return GoModule(path=name, replace=GoModule(path=new_name, version=new_version))
+        if len(parts) == 5 and parts[2] == "=>":
+            # case [name, version, "=>", new_name, new_version]:
+            name, version, _, new_name, new_version = parts
+            return GoModule(
+                path=name,
+                version=version,
+                replace=GoModule(path=new_name, version=new_version),
+            )
+        raise unexpected(f"unexpected format: {line!r}")
 
-    log.debug("Parsing modules from vendor/modules.txt")
-    unexpected_format_solution = (
-        "Does `go mod vendor` make any changes to modules.txt?\n"
-        "If not, please let the maintainers know that Cachi2 fails to parse valid modules.txt"
-    )
+    modules: list[GoModule] = []
+    module_has_packages: list[bool] = []
 
     for line in modules_txt.read_text().splitlines():
-        # modules.txt contains lines in one of 4 formats:
-        #   1) # <module_name> <version> [=> <replace>]
-        #   2) ## <markers>
-        #   3) <package_name>
-        #   4) # <module_name> => <replace>
+        if line.startswith("# "):  # module line
+            modules.append(parse_module_line(line))
+            module_has_packages.append(False)
+        elif not line.startswith("#"):  # package line
+            if not modules:
+                raise unexpected(f"package has no parent module: {line}")
+            module_has_packages[-1] = True
+        elif not line.startswith("##"):  # marker line
+            raise unexpected(f"unexpected format: {line!r}")
 
-        # the lines always appear in the order of 1, 2, 3 (2 and 3 are optional)
-        # 4 can only appear at the end of the file and is never followed by package lines (3)
-        # see https://github.com/golang/go/blob/master/src/cmd/go/internal/modcmd/vendor.go
-
-        if not line.startswith("#"):  # this is a package line
-            if not module_lines:
-                raise UnexpectedFormat(
-                    f"vendor/modules.txt: package has no parent module: {line}",
-                    solution=unexpected_format_solution,
-                )
-            has_packages[module_lines[-1]] = True
-        elif line.startswith("# "):  # this is a module line or a wildcard replacement (4)
-            module_lines.append(line[2:])
-        elif not line.startswith("##"):
-            # at this point, the line must be a marker, otherwise we don't know what it is
-            raise UnexpectedFormat(
-                f"vendor/modules.txt: unexpected format: {line!r}",
-                solution=unexpected_format_solution,
-            )
-
-    return list(filter(has_packages.get, module_lines))
+    return [module for module, has_packages in zip(modules, module_has_packages) if has_packages]
 
 
-def _vendor_deps(run_params: dict, can_make_changes: bool, git_dir: str):
+def _vendor_deps(run_params: dict, can_make_changes: bool, git_dir: Path) -> list[GoModule]:
     """
     Vendor golang dependencies.
 
@@ -930,6 +981,7 @@ def _vendor_deps(run_params: dict, can_make_changes: bool, git_dir: str):
             ),
             docs=VENDORING_DOC,
         )
+    return _parse_vendor(app_dir)
 
 
 def _match_parent_module(package_name: str, module_names: Iterable[str]) -> Optional[str]:
@@ -951,7 +1003,7 @@ def _match_parent_module(package_name: str, module_names: Iterable[str]) -> Opti
     )
 
 
-def _vendor_changed(git_dir: str, app_dir: str) -> bool:
+def _vendor_changed(git_dir: Path, app_dir: str) -> bool:
     """Check for changes in the vendor directory."""
     vendor = Path(app_dir).relative_to(git_dir).joinpath("vendor")
     modules_txt = vendor / "modules.txt"
