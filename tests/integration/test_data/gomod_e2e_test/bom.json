@@ -1,0 +1,639 @@
+{
+  "bomFormat": "CycloneDX",
+  "components": [
+    {
+      "name": "bufio",
+      "type": "library"
+    },
+    {
+      "name": "bytes",
+      "type": "library"
+    },
+    {
+      "name": "compress/flate",
+      "type": "library"
+    },
+    {
+      "name": "compress/gzip",
+      "type": "library"
+    },
+    {
+      "name": "container/list",
+      "type": "library"
+    },
+    {
+      "name": "context",
+      "type": "library"
+    },
+    {
+      "name": "crypto/aes",
+      "type": "library"
+    },
+    {
+      "name": "crypto/cipher",
+      "type": "library"
+    },
+    {
+      "name": "crypto/des",
+      "type": "library"
+    },
+    {
+      "name": "crypto/dsa",
+      "type": "library"
+    },
+    {
+      "name": "crypto/ecdsa",
+      "type": "library"
+    },
+    {
+      "name": "crypto/ed25519",
+      "type": "library"
+    },
+    {
+      "name": "crypto/elliptic",
+      "type": "library"
+    },
+    {
+      "name": "crypto/hmac",
+      "type": "library"
+    },
+    {
+      "name": "crypto/internal/boring/bbig",
+      "type": "library"
+    },
+    {
+      "name": "crypto/internal/boring/sig",
+      "type": "library"
+    },
+    {
+      "name": "crypto/internal/boring",
+      "type": "library"
+    },
+    {
+      "name": "crypto/internal/edwards25519/field",
+      "type": "library"
+    },
+    {
+      "name": "crypto/internal/edwards25519",
+      "type": "library"
+    },
+    {
+      "name": "crypto/internal/nistec/fiat",
+      "type": "library"
+    },
+    {
+      "name": "crypto/internal/nistec",
+      "type": "library"
+    },
+    {
+      "name": "crypto/internal/randutil",
+      "type": "library"
+    },
+    {
+      "name": "crypto/internal/subtle",
+      "type": "library"
+    },
+    {
+      "name": "crypto/md5",
+      "type": "library"
+    },
+    {
+      "name": "crypto/rand",
+      "type": "library"
+    },
+    {
+      "name": "crypto/rc4",
+      "type": "library"
+    },
+    {
+      "name": "crypto/rsa",
+      "type": "library"
+    },
+    {
+      "name": "crypto/sha1",
+      "type": "library"
+    },
+    {
+      "name": "crypto/sha256",
+      "type": "library"
+    },
+    {
+      "name": "crypto/sha512",
+      "type": "library"
+    },
+    {
+      "name": "crypto/subtle",
+      "type": "library"
+    },
+    {
+      "name": "crypto/tls",
+      "type": "library"
+    },
+    {
+      "name": "crypto/x509/pkix",
+      "type": "library"
+    },
+    {
+      "name": "crypto/x509",
+      "type": "library"
+    },
+    {
+      "name": "crypto",
+      "type": "library"
+    },
+    {
+      "name": "embed",
+      "type": "library"
+    },
+    {
+      "name": "encoding/asn1",
+      "type": "library"
+    },
+    {
+      "name": "encoding/base64",
+      "type": "library"
+    },
+    {
+      "name": "encoding/binary",
+      "type": "library"
+    },
+    {
+      "name": "encoding/hex",
+      "type": "library"
+    },
+    {
+      "name": "encoding/json",
+      "type": "library"
+    },
+    {
+      "name": "encoding/pem",
+      "type": "library"
+    },
+    {
+      "name": "encoding/xml",
+      "type": "library"
+    },
+    {
+      "name": "encoding",
+      "type": "library"
+    },
+    {
+      "name": "errors",
+      "type": "library"
+    },
+    {
+      "name": "flag",
+      "type": "library"
+    },
+    {
+      "name": "fmt",
+      "type": "library"
+    },
+    {
+      "name": "github.com/Masterminds/semver",
+      "type": "library",
+      "version": "v1.4.2"
+    },
+    {
+      "name": "github.com/op/go-logging",
+      "type": "library",
+      "version": "v0.0.0-20160315200505-970db520ece7"
+    },
+    {
+      "name": "github.com/pkg/errors",
+      "type": "library",
+      "version": "v0.8.1"
+    },
+    {
+      "name": "github.com/release-engineering/retrodep/v2/retrodep/glide",
+      "type": "library",
+      "version": "v2.1.2-0.20230109085255-c3496edd5d45"
+    },
+    {
+      "name": "github.com/release-engineering/retrodep/v2/retrodep",
+      "type": "library",
+      "version": "v2.1.2-0.20230109085255-c3496edd5d45"
+    },
+    {
+      "name": "github.com/release-engineering/retrodep/v2",
+      "type": "library",
+      "version": "v2.1.2-0.20230109085255-c3496edd5d45"
+    },
+    {
+      "name": "go/ast",
+      "type": "library"
+    },
+    {
+      "name": "go/build/constraint",
+      "type": "library"
+    },
+    {
+      "name": "go/build",
+      "type": "library"
+    },
+    {
+      "name": "go/doc/comment",
+      "type": "library"
+    },
+    {
+      "name": "go/doc",
+      "type": "library"
+    },
+    {
+      "name": "go/internal/typeparams",
+      "type": "library"
+    },
+    {
+      "name": "go/parser",
+      "type": "library"
+    },
+    {
+      "name": "go/scanner",
+      "type": "library"
+    },
+    {
+      "name": "go/token",
+      "type": "library"
+    },
+    {
+      "name": "golang.org/x/tools/go/vcs",
+      "type": "library",
+      "version": "v0.0.0-20190325161752-5a8dccf5b48a"
+    },
+    {
+      "name": "gopkg.in/yaml.v2",
+      "type": "library",
+      "version": "v2.2.2"
+    },
+    {
+      "name": "hash/crc32",
+      "type": "library"
+    },
+    {
+      "name": "hash",
+      "type": "library"
+    },
+    {
+      "name": "internal/abi",
+      "type": "library"
+    },
+    {
+      "name": "internal/buildcfg",
+      "type": "library"
+    },
+    {
+      "name": "internal/bytealg",
+      "type": "library"
+    },
+    {
+      "name": "internal/cpu",
+      "type": "library"
+    },
+    {
+      "name": "internal/fmtsort",
+      "type": "library"
+    },
+    {
+      "name": "internal/goarch",
+      "type": "library"
+    },
+    {
+      "name": "internal/godebug",
+      "type": "library"
+    },
+    {
+      "name": "internal/goexperiment",
+      "type": "library"
+    },
+    {
+      "name": "internal/goos",
+      "type": "library"
+    },
+    {
+      "name": "internal/goroot",
+      "type": "library"
+    },
+    {
+      "name": "internal/goversion",
+      "type": "library"
+    },
+    {
+      "name": "internal/intern",
+      "type": "library"
+    },
+    {
+      "name": "internal/itoa",
+      "type": "library"
+    },
+    {
+      "name": "internal/lazyregexp",
+      "type": "library"
+    },
+    {
+      "name": "internal/nettrace",
+      "type": "library"
+    },
+    {
+      "name": "internal/oserror",
+      "type": "library"
+    },
+    {
+      "name": "internal/poll",
+      "type": "library"
+    },
+    {
+      "name": "internal/race",
+      "type": "library"
+    },
+    {
+      "name": "internal/reflectlite",
+      "type": "library"
+    },
+    {
+      "name": "internal/safefilepath",
+      "type": "library"
+    },
+    {
+      "name": "internal/singleflight",
+      "type": "library"
+    },
+    {
+      "name": "internal/syscall/execenv",
+      "type": "library"
+    },
+    {
+      "name": "internal/syscall/unix",
+      "type": "library"
+    },
+    {
+      "name": "internal/testlog",
+      "type": "library"
+    },
+    {
+      "name": "internal/unsafeheader",
+      "type": "library"
+    },
+    {
+      "name": "io/fs",
+      "type": "library"
+    },
+    {
+      "name": "io/ioutil",
+      "type": "library"
+    },
+    {
+      "name": "io",
+      "type": "library"
+    },
+    {
+      "name": "log/syslog",
+      "type": "library"
+    },
+    {
+      "name": "log",
+      "type": "library"
+    },
+    {
+      "name": "math/big",
+      "type": "library"
+    },
+    {
+      "name": "math/bits",
+      "type": "library"
+    },
+    {
+      "name": "math/rand",
+      "type": "library"
+    },
+    {
+      "name": "math",
+      "type": "library"
+    },
+    {
+      "name": "mime/multipart",
+      "type": "library"
+    },
+    {
+      "name": "mime/quotedprintable",
+      "type": "library"
+    },
+    {
+      "name": "mime",
+      "type": "library"
+    },
+    {
+      "name": "net/http/httptrace",
+      "type": "library"
+    },
+    {
+      "name": "net/http/internal/ascii",
+      "type": "library"
+    },
+    {
+      "name": "net/http/internal",
+      "type": "library"
+    },
+    {
+      "name": "net/http",
+      "type": "library"
+    },
+    {
+      "name": "net/netip",
+      "type": "library"
+    },
+    {
+      "name": "net/textproto",
+      "type": "library"
+    },
+    {
+      "name": "net/url",
+      "type": "library"
+    },
+    {
+      "name": "net",
+      "type": "library"
+    },
+    {
+      "name": "os/exec",
+      "type": "library"
+    },
+    {
+      "name": "os",
+      "type": "library"
+    },
+    {
+      "name": "path/filepath",
+      "type": "library"
+    },
+    {
+      "name": "path",
+      "type": "library"
+    },
+    {
+      "name": "reflect",
+      "type": "library"
+    },
+    {
+      "name": "regexp/syntax",
+      "type": "library"
+    },
+    {
+      "name": "regexp",
+      "type": "library"
+    },
+    {
+      "name": "runtime/cgo",
+      "type": "library"
+    },
+    {
+      "name": "runtime/internal/atomic",
+      "type": "library"
+    },
+    {
+      "name": "runtime/internal/math",
+      "type": "library"
+    },
+    {
+      "name": "runtime/internal/sys",
+      "type": "library"
+    },
+    {
+      "name": "runtime/internal/syscall",
+      "type": "library"
+    },
+    {
+      "name": "runtime",
+      "type": "library"
+    },
+    {
+      "name": "sort",
+      "type": "library"
+    },
+    {
+      "name": "strconv",
+      "type": "library"
+    },
+    {
+      "name": "strings",
+      "type": "library"
+    },
+    {
+      "name": "sync/atomic",
+      "type": "library"
+    },
+    {
+      "name": "sync",
+      "type": "library"
+    },
+    {
+      "name": "syscall",
+      "type": "library"
+    },
+    {
+      "name": "text/template/parse",
+      "type": "library"
+    },
+    {
+      "name": "text/template",
+      "type": "library"
+    },
+    {
+      "name": "time",
+      "type": "library"
+    },
+    {
+      "name": "unicode/utf16",
+      "type": "library"
+    },
+    {
+      "name": "unicode/utf8",
+      "type": "library"
+    },
+    {
+      "name": "unicode",
+      "type": "library"
+    },
+    {
+      "name": "unsafe",
+      "type": "library"
+    },
+    {
+      "name": "vendor/golang.org/x/crypto/chacha20",
+      "type": "library"
+    },
+    {
+      "name": "vendor/golang.org/x/crypto/chacha20poly1305",
+      "type": "library"
+    },
+    {
+      "name": "vendor/golang.org/x/crypto/cryptobyte/asn1",
+      "type": "library"
+    },
+    {
+      "name": "vendor/golang.org/x/crypto/cryptobyte",
+      "type": "library"
+    },
+    {
+      "name": "vendor/golang.org/x/crypto/curve25519/internal/field",
+      "type": "library"
+    },
+    {
+      "name": "vendor/golang.org/x/crypto/curve25519",
+      "type": "library"
+    },
+    {
+      "name": "vendor/golang.org/x/crypto/hkdf",
+      "type": "library"
+    },
+    {
+      "name": "vendor/golang.org/x/crypto/internal/poly1305",
+      "type": "library"
+    },
+    {
+      "name": "vendor/golang.org/x/crypto/internal/subtle",
+      "type": "library"
+    },
+    {
+      "name": "vendor/golang.org/x/net/dns/dnsmessage",
+      "type": "library"
+    },
+    {
+      "name": "vendor/golang.org/x/net/http/httpguts",
+      "type": "library"
+    },
+    {
+      "name": "vendor/golang.org/x/net/http/httpproxy",
+      "type": "library"
+    },
+    {
+      "name": "vendor/golang.org/x/net/http2/hpack",
+      "type": "library"
+    },
+    {
+      "name": "vendor/golang.org/x/net/idna",
+      "type": "library"
+    },
+    {
+      "name": "vendor/golang.org/x/sys/cpu",
+      "type": "library"
+    },
+    {
+      "name": "vendor/golang.org/x/text/secure/bidirule",
+      "type": "library"
+    },
+    {
+      "name": "vendor/golang.org/x/text/transform",
+      "type": "library"
+    },
+    {
+      "name": "vendor/golang.org/x/text/unicode/bidi",
+      "type": "library"
+    },
+    {
+      "name": "vendor/golang.org/x/text/unicode/norm",
+      "type": "library"
+    }
+  ],
+  "specVersion": "1.4",
+  "version": 1
+}

@@ -1,0 +1,214 @@
+{
+  "bomFormat": "CycloneDX",
+  "components": [
+    {
+      "name": "bytes",
+      "type": "library"
+    },
+    {
+      "name": "encoding/base64",
+      "type": "library"
+    },
+    {
+      "name": "encoding/binary",
+      "type": "library"
+    },
+    {
+      "name": "encoding/json",
+      "type": "library"
+    },
+    {
+      "name": "encoding",
+      "type": "library"
+    },
+    {
+      "name": "errors",
+      "type": "library"
+    },
+    {
+      "name": "fmt",
+      "type": "library"
+    },
+    {
+      "name": "github.com/cachito-testing/go-generate-imported/foobar",
+      "type": "library",
+      "version": "v0.0.0-20211021010705-56659413f7db"
+    },
+    {
+      "name": "github.com/cachito-testing/go-generate-imported/internal/generate",
+      "type": "library",
+      "version": "v0.0.0-20211021010705-56659413f7db"
+    },
+    {
+      "name": "github.com/cachito-testing/go-generate-imported",
+      "type": "library",
+      "version": "v0.0.0-20211021010705-56659413f7db"
+    },
+    {
+      "name": "internal/abi",
+      "type": "library"
+    },
+    {
+      "name": "internal/bytealg",
+      "type": "library"
+    },
+    {
+      "name": "internal/cpu",
+      "type": "library"
+    },
+    {
+      "name": "internal/fmtsort",
+      "type": "library"
+    },
+    {
+      "name": "internal/goarch",
+      "type": "library"
+    },
+    {
+      "name": "internal/goexperiment",
+      "type": "library"
+    },
+    {
+      "name": "internal/goos",
+      "type": "library"
+    },
+    {
+      "name": "internal/itoa",
+      "type": "library"
+    },
+    {
+      "name": "internal/oserror",
+      "type": "library"
+    },
+    {
+      "name": "internal/poll",
+      "type": "library"
+    },
+    {
+      "name": "internal/race",
+      "type": "library"
+    },
+    {
+      "name": "internal/reflectlite",
+      "type": "library"
+    },
+    {
+      "name": "internal/safefilepath",
+      "type": "library"
+    },
+    {
+      "name": "internal/syscall/execenv",
+      "type": "library"
+    },
+    {
+      "name": "internal/syscall/unix",
+      "type": "library"
+    },
+    {
+      "name": "internal/testlog",
+      "type": "library"
+    },
+    {
+      "name": "internal/unsafeheader",
+      "type": "library"
+    },
+    {
+      "name": "io/fs",
+      "type": "library"
+    },
+    {
+      "name": "io/ioutil",
+      "type": "library"
+    },
+    {
+      "name": "io",
+      "type": "library"
+    },
+    {
+      "name": "math/bits",
+      "type": "library"
+    },
+    {
+      "name": "math",
+      "type": "library"
+    },
+    {
+      "name": "os",
+      "type": "library"
+    },
+    {
+      "name": "path",
+      "type": "library"
+    },
+    {
+      "name": "reflect",
+      "type": "library"
+    },
+    {
+      "name": "runtime/internal/atomic",
+      "type": "library"
+    },
+    {
+      "name": "runtime/internal/math",
+      "type": "library"
+    },
+    {
+      "name": "runtime/internal/sys",
+      "type": "library"
+    },
+    {
+      "name": "runtime/internal/syscall",
+      "type": "library"
+    },
+    {
+      "name": "runtime",
+      "type": "library"
+    },
+    {
+      "name": "sort",
+      "type": "library"
+    },
+    {
+      "name": "strconv",
+      "type": "library"
+    },
+    {
+      "name": "strings",
+      "type": "library"
+    },
+    {
+      "name": "sync/atomic",
+      "type": "library"
+    },
+    {
+      "name": "sync",
+      "type": "library"
+    },
+    {
+      "name": "syscall",
+      "type": "library"
+    },
+    {
+      "name": "time",
+      "type": "library"
+    },
+    {
+      "name": "unicode/utf16",
+      "type": "library"
+    },
+    {
+      "name": "unicode/utf8",
+      "type": "library"
+    },
+    {
+      "name": "unicode",
+      "type": "library"
+    },
+    {
+      "name": "unsafe",
+      "type": "library"
+    }
+  ],
+  "specVersion": "1.4",
+  "version": 1
+}

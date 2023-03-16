@@ -1,0 +1,25 @@
+{
+  "environment_variables": [
+    {
+      "kind": "path",
+      "name": "GOCACHE",
+      "value": "deps/gomod"
+    },
+    {
+      "kind": "path",
+      "name": "GOMODCACHE",
+      "value": "deps/gomod/pkg/mod"
+    },
+    {
+      "kind": "path",
+      "name": "GOPATH",
+      "value": "deps/gomod"
+    },
+    {
+      "kind": "literal",
+      "name": "GOSUMDB",
+      "value": "off"
+    }
+  ],
+  "project_files": []
+}

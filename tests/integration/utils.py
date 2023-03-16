@@ -243,17 +243,24 @@ def fetch_deps_and_check_output(
     ), f"Expected msg {test_params.expected_output} was not found in cmd output: {output}"
 
     if test_params.check_output_json:
-        output_json = _load_json(output_folder.joinpath("output.json"))
+        build_config = _load_json(output_folder.joinpath(".build-config.json"))
+        sbom = _load_json(output_folder.joinpath("bom.json"))
 
-        if "project_files" in output_json:
-            _replace_tmp_path_with_placeholder(output_json["project_files"], tmp_path)
+        if "project_files" in build_config:
+            _replace_tmp_path_with_placeholder(build_config["project_files"], tmp_path)
 
-        expected_output_json_path = test_data_dir.joinpath(test_case, "output.json")
-        update_test_data_if_needed(expected_output_json_path, output_json)
-        expected_output_json = _load_json(expected_output_json_path)
+        expected_build_config_path = test_data_dir.joinpath(test_case, ".build-config.json")
+        expected_sbom_path = test_data_dir.joinpath(test_case, "bom.json")
 
-        log.info("Compare output.json files")
-        assert output_json == expected_output_json
+        update_test_data_if_needed(expected_build_config_path, build_config)
+        update_test_data_if_needed(expected_sbom_path, sbom)
+
+        expected_build_config = _load_json(expected_build_config_path)
+        expected_sbom = _load_json(expected_sbom_path)
+
+        log.info("Compare output files")
+        assert build_config == expected_build_config
+        assert sbom == expected_sbom
 
     deps_content_file = Path(test_data_dir, test_case, "fetch_deps_file_contents.yaml")
     if deps_content_file.exists():
