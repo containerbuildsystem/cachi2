@@ -1,0 +1,56 @@
+{
+  "bomFormat": "CycloneDX",
+  "components": [
+    {
+      "name": "certifi",
+      "type": "library",
+      "version": "2022.12.7"
+    },
+    {
+      "name": "charset-normalizer",
+      "type": "library",
+      "version": "3.0.1"
+    },
+    {
+      "name": "dockerfile-parse",
+      "type": "library"
+    },
+    {
+      "name": "flit_core",
+      "type": "library",
+      "version": "3.8.0"
+    },
+    {
+      "name": "idna",
+      "type": "library",
+      "version": "3.4"
+    },
+    {
+      "name": "requests",
+      "type": "library",
+      "version": "2.28.2"
+    },
+    {
+      "name": "setuptools",
+      "type": "library",
+      "version": "67.1.0"
+    },
+    {
+      "name": "test_package_cachi2",
+      "type": "library",
+      "version": "1.0.0"
+    },
+    {
+      "name": "urllib3",
+      "type": "library",
+      "version": "1.26.14"
+    },
+    {
+      "name": "wheel",
+      "type": "library",
+      "version": "0.38.4"
+    }
+  ],
+  "specVersion": "1.4",
+  "version": 1
+}

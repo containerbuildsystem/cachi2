@@ -1,0 +1,12 @@
+{
+  "bomFormat": "CycloneDX",
+  "components": [
+    {
+      "name": "cachito-pip-empty",
+      "type": "library",
+      "version": "1.0.0"
+    }
+  ],
+  "specVersion": "1.4",
+  "version": 1
+}

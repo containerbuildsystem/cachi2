@@ -1,0 +1,26 @@
+{
+  "bomFormat": "CycloneDX",
+  "components": [
+    {
+      "name": "aiowsgi",
+      "type": "library",
+      "version": "0.7"
+    },
+    {
+      "name": "appr",
+      "type": "library"
+    },
+    {
+      "name": "first_pkg",
+      "type": "library",
+      "version": "1.0.0"
+    },
+    {
+      "name": "second_pkg",
+      "type": "library",
+      "version": "1.0.0"
+    }
+  ],
+  "specVersion": "1.4",
+  "version": 1
+}
