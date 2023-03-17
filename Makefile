@@ -16,16 +16,16 @@ venv:
 	venv/bin/pip install -e .
 
 test:
-	PATH="${PWD}/venv/bin:${PATH}" tox
+	venv/bin/tox
 
 test-unit:
-	PATH="${PWD}/venv/bin:${PATH}" tox -e $(TOX_ENVLIST) -- $(TOX_ARGS)
+	venv/bin/tox -e $(TOX_ENVLIST) -- $(TOX_ARGS)
 
 test-integration:
-	tox -e integration
+	venv/bin/tox -e integration
 
 generate-test-data:
-	CACHI2_GENERATE_TEST_DATA=true tox -e integration
+	CACHI2_GENERATE_TEST_DATA=true venv/bin/tox -e integration
 
 build-image:
 	podman build -t localhost/cachi2:latest .
