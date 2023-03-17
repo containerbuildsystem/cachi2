@@ -63,8 +63,12 @@ class ContainerImage:
             raise RuntimeError(f"Image deletion failed. Output:{output}")
 
 
-def build_image(tmp_path: Path, containerfile: str, test_case: str) -> ContainerImage:
-    image_cmd = [
+def build_image(context_dir: Path, tag: str) -> ContainerImage:
+    return _build_image(["podman", "build", str(context_dir)], tag=tag)
+
+
+def build_image_for_test_case(tmp_path: Path, containerfile: str, test_case: str) -> ContainerImage:
+    cmd = [
         "podman",
         "build",
         "-f",
@@ -74,13 +78,16 @@ def build_image(tmp_path: Path, containerfile: str, test_case: str) -> Container
         "--no-cache",
         "--network",
         "none",
-        "--tag",
-        test_case,
     ]
-    (output, exit_code) = run_cmd(image_cmd)
+    return _build_image(cmd, tag=f"localhost/{test_case}")
+
+
+def _build_image(podman_cmd: list[str], *, tag: str) -> ContainerImage:
+    podman_cmd = [*podman_cmd, "--tag", tag]
+    (output, exit_code) = run_cmd(podman_cmd)
     if exit_code != 0:
-        raise RuntimeError(f"Building image failed. Output:{output}")
-    return ContainerImage(f"localhost/{test_case}")
+        raise RuntimeError(f"Building image failed. Output:\n{output}")
+    return ContainerImage(tag)
 
 
 def clone_repository(repo_url: str, ref: str, folder_name: str, tmpdir: Path) -> Path:
@@ -353,7 +360,7 @@ def build_image_and_check_cmd(
     log.info("Build container image with all prerequisites retrieved in previous steps")
     container_folder = test_data_dir.joinpath(test_case, "container")
 
-    with build_image(
+    with build_image_for_test_case(
         tmp_path, str(container_folder.joinpath("Containerfile")), test_case
     ) as test_image:
         log.info(f"Run command {check_cmd} on built image {test_image.repository}")

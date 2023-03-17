@@ -15,22 +15,20 @@ venv:
 	venv/bin/pip install tox
 	venv/bin/pip install -e .
 
-test-integration:
-	podman build --no-cache -t cachi2-${USER} .
-	CACHI2_IMAGE=localhost/cachi2-${USER}:latest tox -e integration
-
 test:
 	PATH="${PWD}/venv/bin:${PATH}" tox
 
 test-unit:
 	PATH="${PWD}/venv/bin:${PATH}" tox -e $(TOX_ENVLIST) -- $(TOX_ARGS)
 
+test-integration:
+	tox -e integration
+
+generate-test-data:
+	CACHI2_GENERATE_TEST_DATA=true tox -e integration
+
 pip-compile:
 	venv/bin/pip install -U pip-tools
 	# --allow-unsafe: we use pkg_resources (provided by setuptools) as a runtime dependency
 	venv/bin/pip-compile --allow-unsafe --generate-hashes --output-file=requirements.txt pyproject.toml
 	venv/bin/pip-compile --all-extras --allow-unsafe --generate-hashes --output-file=requirements-extras.txt pyproject.toml
-
-generate-test-data:
-	podman build --no-cache -t cachi2-${USER} .
-	CACHI2_GENERATE_TEST_DATA=true CACHI2_IMAGE=localhost/cachi2-${USER}:latest tox -e integration
