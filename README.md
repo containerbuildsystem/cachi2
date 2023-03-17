@@ -214,23 +214,23 @@ In short, tox passes all arguments to the right of `--` directly to pytest.
 
 ### Running integration tests
 
-Build Cachi2 image and run all integration tests (but no other checks):
+Build Cachi2 image (localhost/cachi2:latest) and run all integration tests:
 
 ```shell
 make test-integration
 ```
 
-To run integration-tests with custom image, specify the CACHI2_IMAGE environment variable. Examples:
+To run integration-tests with custom image, specify the CACHI2\_IMAGE environment variable. Examples:
 
 ```shell
 CACHI2_IMAGE=quay.io/containerbuildsystem/cachi2:{tag} tox -e integration
-CACHI2_IMAGE=localhost/cachi2-${USER}:latest tox -e integration
+CACHI2_IMAGE=localhost/cachi2:latest tox -e integration
 ```
 
 Similarly to unit tests, for finer control over which tests get executed, e.g. to run only 1 specific test case, execute:
 
 ```shell
-CACHI2_IMAGE=localhost/cachi2-${USER}:latest tox -e integration -- tests/integration/test_package_managers.py::test_packages[gomod_without_deps]
+tox -e integration -- tests/integration/test_package_managers.py::test_packages[gomod_without_deps]
 ```
 
 ### Running integration tests and generating new test data
@@ -239,6 +239,12 @@ To update or generate new data (output, dependencies checksums, vendor checksums
 
 ```shell
 make generate-test-data
+```
+
+Generate data for test cases matching a pytest pattern:
+
+```shell
+CACHI2_GENERATE_TEST_DATA=true tox -e integration -- -k gomod
 ```
 
 ## Package managers
