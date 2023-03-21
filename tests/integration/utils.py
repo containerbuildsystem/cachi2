@@ -1,4 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
+import functools
 import hashlib
 import json
 import logging
@@ -10,10 +11,17 @@ from subprocess import PIPE, Popen
 from tarfile import ExtractError, TarFile
 from typing import Any, Dict, List, Tuple
 
+import jsonschema
+import requests
 import yaml
 from git import Repo
 
 log = logging.getLogger(__name__)
+
+
+CYCLONEDX_SCHEMA_URL = (
+    "https://raw.githubusercontent.com/CycloneDX/specification/1.4/schema/bom-1.4.schema.json"
+)
 
 
 @dataclass
@@ -21,7 +29,7 @@ class TestParameters:
     repo: str
     ref: str
     packages: Tuple[Dict[str, Any], ...]
-    check_output_json: bool = True
+    check_output: bool = True
     check_deps_checksums: bool = True
     check_vendor_checksums: bool = True
     expected_exit_code: int = 0
@@ -201,6 +209,13 @@ def update_test_data_if_needed(path: Path, data: Dict) -> None:
             file.write(json_formatted_str + "\n")
 
 
+@functools.cache
+def _fetch_cyclone_dx_schema() -> dict[str, Any]:
+    response = requests.get(CYCLONEDX_SCHEMA_URL)
+    response.raise_for_status()
+    return response.json()
+
+
 def fetch_deps_and_check_output(
     tmp_path: Path,
     test_case: str,
@@ -242,7 +257,7 @@ def fetch_deps_and_check_output(
         output
     ), f"Expected msg {test_params.expected_output} was not found in cmd output: {output}"
 
-    if test_params.check_output_json:
+    if test_params.check_output:
         build_config = _load_json(output_folder.joinpath(".build-config.json"))
         sbom = _load_json(output_folder.joinpath("bom.json"))
 
@@ -261,6 +276,10 @@ def fetch_deps_and_check_output(
         log.info("Compare output files")
         assert build_config == expected_build_config
         assert sbom == expected_sbom
+
+        log.info("Validate SBOM schema")
+        schema = _fetch_cyclone_dx_schema()
+        jsonschema.validate(instance=sbom, schema=schema)
 
     deps_content_file = Path(test_data_dir, test_case, "fetch_deps_file_contents.yaml")
     if deps_content_file.exists():
