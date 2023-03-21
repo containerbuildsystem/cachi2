@@ -1,5 +1,6 @@
 -r requirements.txt
 GitPython
+jsonschema
 pytest
 pytest-cov
 pytest-env
