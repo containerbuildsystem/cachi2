@@ -27,6 +27,25 @@ dependencies = [
     "typer",
 ]
 
+[project.optional-dependencies]
+dev = [
+    "bandit",
+    "black",
+    "click",
+    "flake8",
+    "flake8-docstrings",
+    "isort[colors]",
+    "mypy",
+]
+test = [
+    "GitPython",
+    "jsonschema",
+    "pytest",
+    "pytest-cov",
+    "pytest-env",
+    "pyyaml",
+]
+
 [project.scripts]
 cachi2 = "cachi2.interface.cli:app"
 

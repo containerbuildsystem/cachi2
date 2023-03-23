@@ -29,7 +29,7 @@ pip-compile:
 	venv/bin/pip install -U pip-tools
 	# --allow-unsafe: we use pkg_resources (provided by setuptools) as a runtime dependency
 	venv/bin/pip-compile --allow-unsafe --generate-hashes --output-file=requirements.txt pyproject.toml
-	venv/bin/pip-compile --allow-unsafe --generate-hashes --output-file=requirements-test.txt requirements-test.in
+	venv/bin/pip-compile --all-extras --allow-unsafe --generate-hashes --output-file=requirements-extras.txt pyproject.toml
 
 generate-test-data:
 	podman build --no-cache -t cachi2-${USER} .
