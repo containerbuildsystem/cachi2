@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 import ast
 import configparser
+import functools
 import io
 import logging
 import os.path
@@ -11,7 +12,10 @@ import zipfile
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
-from typing import IO, Optional, Union
+from typing import IO, TYPE_CHECKING, Any, Iterable, Optional, Union
+
+if TYPE_CHECKING:
+    from typing_extensions import TypeGuard
 
 import bs4
 import pkg_resources
@@ -94,7 +98,7 @@ def fetch_pip_source(request: Request) -> RequestOutput:
     )
 
 
-def _get_pip_metadata(package_dir):
+def _get_pip_metadata(package_dir: Path) -> tuple[str, str]:
     """
     Attempt to get the name and version of a Pip package.
 
@@ -105,7 +109,7 @@ def _get_pip_metadata(package_dir):
 
     If either name or version could not be resolved, raise an error.
 
-    :param str package_dir: Path to the root directory of a Pip package
+    :param package_dir: Path to the root directory of a Pip package
     :return: Tuple of strings (name, version)
     :raises PackageRejected: If either name or version could not be resolved
     """
@@ -129,21 +133,13 @@ def _get_pip_metadata(package_dir):
         name = name or setup_cfg.get_name()
         version = version or setup_cfg.get_version()
 
-    missing = []
-
     if name:
         log.info("Resolved package name: %r", name)
-    else:
-        log.error("Could not resolve package name")
-        missing.append("name")
-
     if version:
         log.info("Resolved package version: %r", version)
-    else:
-        log.error("Could not resolve package version")
-        missing.append("version")
 
-    if missing:
+    if not (name and version):
+        missing = [attr for attr, value in zip(["name", "version"], [name, version]) if not value]
         raise PackageRejected(
             f"Could not resolve package metadata: {', '.join(missing)}",
             solution=(
@@ -155,14 +151,13 @@ def _get_pip_metadata(package_dir):
     return name, version
 
 
-def _any_to_version(obj):
+def _any_to_version(obj: Any) -> str:
     """
     Convert any python object to a version string.
 
     https://github.com/pypa/setuptools/blob/ba209a15247b9578d565b7491f88dc1142ba29e4/setuptools/config.py#L535
 
-    :param any obj: object to convert to version
-    :rtype: str
+    :param obj: object to convert to version
     """
     version = obj
 
@@ -175,7 +170,9 @@ def _any_to_version(obj):
     return pkg_resources.safe_version(version)
 
 
-def _get_top_level_attr(body, attr_name, before_line=None):
+def _get_top_level_attr(
+    body: list[ast.stmt], attr_name: str, before_line: Optional[int] = None
+) -> Any:
     """
     Get attribute from module if it is defined at top level and assigned to a literal expression.
 
@@ -185,21 +182,19 @@ def _get_top_level_attr(body, attr_name, before_line=None):
     attribute starting from the top, we start at the bottom. Arguably, starting at the bottom
     makes more sense, but it should not make any real difference in practice.
 
-    :param list[ast.AST] body: The body of an AST node
-    :param str attr_name: Name of attribute to search for
-    :param int before_line: Only look for attributes defined before this line
+    :param body: The body of an AST node
+    :param attr_name: Name of attribute to search for
+    :param before_line: Only look for attributes defined before this line
 
     :rtype: anything that can be expressed as a literal ("primitive" types, collections)
     :raises AttributeError: If attribute not found
     :raises ValueError: If attribute assigned to something that is not a literal
     """
-    if before_line is None:
-        before_line = float("inf")
     try:
         return next(
             ast.literal_eval(node.value)
             for node in reversed(body)
-            if node.lineno < before_line and isinstance(node, ast.Assign)
+            if (before_line is None or node.lineno < before_line) and isinstance(node, ast.Assign)
             for target in node.targets
             if isinstance(target, ast.Name) and target.id == attr_name
         )
@@ -212,26 +207,30 @@ def _get_top_level_attr(body, attr_name, before_line=None):
 class SetupFile(ABC):
     """Abstract base class for setup.cfg and setup.py handling."""
 
-    def __init__(self, top_dir, file_name):
+    def __init__(self, top_dir: Path, file_name: str) -> None:
         """
         Initialize a SetupFile.
 
-        :param str top_dir: Path to root of project directory
-        :param str file_name: Name of Python setup file, expected to be in the root directory
+        :param top_dir: Path to root of project directory
+        :param file_name: Name of Python setup file, expected to be in the root directory
         """
-        self._top_dir = Path(top_dir).resolve()
-        self._path = self._top_dir / file_name
+        self._top_dir = top_dir.resolve()
+        self._file_name = file_name
 
-    def exists(self):
+    @property
+    def _path(self) -> Path:
+        return self._top_dir / self._file_name
+
+    def exists(self) -> bool:
         """Check if file exists."""
         return self._path.is_file()
 
     @abstractmethod
-    def get_name(self):
+    def get_name(self) -> Optional[str]:
         """Attempt to determine the package name. Should only be called if file exists."""
 
     @abstractmethod
-    def get_version(self):
+    def get_version(self) -> Optional[str]:
         """Attempt to determine the package version. Should only be called if file exists."""
 
 
@@ -246,21 +245,16 @@ class SetupCFG(SetupFile):
     # Valid Python name - any sequence of \w characters that does not start with a number
     _name_re = re.compile(r"[^\W\d]\w*")
 
-    def __init__(self, top_dir):
+    def __init__(self, top_dir: Path) -> None:
         """
         Initialize a SetupCFG.
 
-        :param str top_dir: Path to root of project directory
+        :param top_dir: Path to root of project directory
         """
         super().__init__(top_dir, "setup.cfg")
-        self.__parsed = NOTHING
 
-    def get_name(self):
-        """
-        Get metadata.name if present.
-
-        :rtype: str or None
-        """
+    def get_name(self) -> Optional[str]:
+        """Get metadata.name if present."""
         name = self._get_option("metadata", "name")
         if not name:
             log.info("No metadata.name in setup.cfg")
@@ -269,7 +263,7 @@ class SetupCFG(SetupFile):
         log.info("Found metadata.name in setup.cfg: %r", name)
         return name
 
-    def get_version(self):
+    def get_version(self) -> Optional[str]:
         """
         Get metadata.version if present.
 
@@ -278,8 +272,6 @@ class SetupCFG(SetupFile):
 
         Partially supports the attr: directive (will only work if the attribute
         being referenced is assigned to a literal expression).
-
-        :rtype: str or None
         """
         version = self._get_option("metadata", "version")
         if not version:
@@ -297,28 +289,25 @@ class SetupCFG(SetupFile):
         log.info("Found metadata.version in setup.cfg: %r", version)
         return version
 
-    @property
-    def _parsed(self):
+    @functools.cached_property
+    def _parsed(self) -> Optional[configparser.ConfigParser]:
         """
         Try to parse config file, return None if parsing failed.
 
         Will not parse file (or try to) more than once.
         """
-        if self.__parsed is NOTHING:  # Have not tried to parse file yet
-            log.debug("Parsing setup.cfg at %r", str(self._path))
-            parsed = configparser.ConfigParser()
+        log.debug("Parsing setup.cfg at %r", str(self._path))
+        parsed = configparser.ConfigParser()
 
-            with self._path.open() as f:
-                try:
-                    parsed.read_file(f)
-                    self.__parsed = parsed
-                except configparser.Error as e:
-                    log.error("Failed to parse setup.cfg: %s", e)
-                    self.__parsed = None  # Tried to parse file and failed
+        with self._path.open() as f:
+            try:
+                parsed.read_file(f)
+                return parsed
+            except configparser.Error as e:
+                log.error("Failed to parse setup.cfg: %s", e)
+                return None
 
-        return self.__parsed
-
-    def _get_option(self, section, option):
+    def _get_option(self, section: str, option: str) -> Optional[str]:
         """Get option from config section, return None if option missing or file invalid."""
         if self._parsed is None:
             return None
@@ -327,17 +316,19 @@ class SetupCFG(SetupFile):
         except (configparser.NoSectionError, configparser.NoOptionError):
             return None
 
-    def _resolve_version(self, version):
+    def _resolve_version(self, raw_version: str) -> Optional[str]:
         """Attempt to resolve the version attribute."""
-        if version.startswith("file:"):
-            file_arg = version[len("file:") :].strip()
+        if raw_version.startswith("file:"):
+            file_arg = raw_version[len("file:") :].strip()
             version = self._read_version_from_file(file_arg)
-        elif version.startswith("attr:"):
-            attr_arg = version[len("attr:") :].strip()
+        elif raw_version.startswith("attr:"):
+            attr_arg = raw_version[len("attr:") :].strip()
             version = self._read_version_from_attr(attr_arg)
+        else:
+            version = raw_version
         return version
 
-    def _read_version_from_file(self, file_path):
+    def _read_version_from_file(self, file_path: str) -> Optional[str]:
         """Read version from file after making sure file is a subpath of project dir."""
         full_file_path = self._ensure_local(file_path)
         if full_file_path.is_file():
@@ -348,7 +339,7 @@ class SetupCFG(SetupFile):
             log.error("Version file %r does not exist or is not a file", file_path)
             return None
 
-    def _ensure_local(self, path):
+    def _ensure_local(self, path: Union[str, Path]) -> Path:
         """Check that path is a subpath of project directory, return resolved path."""
         full_path = (self._top_dir / path).resolve()
         try:
@@ -359,7 +350,7 @@ class SetupCFG(SetupFile):
             )
         return full_path
 
-    def _read_version_from_attr(self, attr_spec):
+    def _read_version_from_attr(self, attr_spec: str) -> Optional[str]:
         """
         Read version from module attribute.
 
@@ -369,8 +360,7 @@ class SetupCFG(SetupFile):
 
         https://github.com/pypa/setuptools/blob/ba209a15247b9578d565b7491f88dc1142ba29e4/setuptools/config.py#L354
 
-        :param str attr_spec: "import path" of attribute, e.g. package.version.__version__
-        :rtype: str or None
+        :param attr_spec: "import path" of attribute, e.g. package.version.__version__
         """
         module_name, _, attr_name = attr_spec.rpartition(".")
         if not module_name:
@@ -400,14 +390,14 @@ class SetupCFG(SetupFile):
             log.error("Could not find attribute in %r: %s", module_name, e)
             return None
 
-    def _find_module(self, module_name, package_dir=None):
+    def _find_module(
+        self, module_name: str, package_dir: Optional[dict[str, str]] = None
+    ) -> Optional[Path]:
         """
         Try to find a module in the project directory and return path to source file.
 
-        :param str module_name: "import path" of module
-        :param dict[str, str] package_dir: same semantics as options.package_dir in setup.cfg
-
-        :rtype: Path or None
+        :param module_name: "import path" of module
+        :param package_dir: same semantics as options.package_dir in setup.cfg
         """
         module_path = self._convert_to_path(module_name)
         root_module = module_path.parts[0]
@@ -437,7 +427,7 @@ class SetupCFG(SetupFile):
 
         return None
 
-    def _convert_to_path(self, module_name):
+    def _convert_to_path(self, module_name: str) -> Path:
         """Check that module name is valid and covert to file path."""
         parts = module_name.split(".")
         if not parts[0]:
@@ -450,20 +440,18 @@ class SetupCFG(SetupFile):
             )
         return Path(*parts)
 
-    def _get_package_dirs(self):
+    def _get_package_dirs(self) -> Optional[dict[str, str]]:
         """
         Get options.package_dir and convert to dict if present.
 
         https://github.com/pypa/setuptools/blob/ba209a15247b9578d565b7491f88dc1142ba29e4/setuptools/config.py#L264
-
-        :rtype: dict[str, str] or None
         """
         package_dir_value = self._get_option("options", "package_dir")
         if package_dir_value is None:
             return None
 
         if "\n" in package_dir_value:
-            package_items = package_dir_value.splitlines()
+            package_items: Iterable[str] = package_dir_value.splitlines()
         else:
             package_items = package_dir_value.split(",")
 
@@ -489,11 +477,11 @@ class ASTPathElement:
     index: Optional[int] = None  # If field is a list, this is the index of the child node
 
     @property
-    def field(self):
+    def field(self) -> Any:
         """Return field referenced by self.attr."""
         return getattr(self.node, self.attr)
 
-    def field_is_body(self):
+    def field_is_body(self) -> bool:
         r"""
         Check if the field is a body (a list of statement nodes).
 
@@ -507,7 +495,7 @@ class ASTPathElement:
         """
         return self.attr in ("body", "orelse", "finalbody")
 
-    def __str__(self):
+    def __str__(self) -> str:
         """Make string representation of path element: <type>(<lineno>).<field>[<index>]."""
         s = self.node.__class__.__name__
         if hasattr(self.node, "lineno"):
@@ -522,8 +510,8 @@ class ASTPathElement:
 class SetupBranch:
     """Setup call node, path to setup call from root node."""
 
-    call_node: ast.AST
-    node_path: list  # of ASTPathElements
+    call_node: ast.Call
+    node_path: list[ASTPathElement]
 
 
 class SetupPY(SetupFile):
@@ -568,22 +556,16 @@ class SetupPY(SetupFile):
     this being the setup.py script, setup() will end up being called no matter what.
     """
 
-    def __init__(self, top_dir):
+    def __init__(self, top_dir: Path) -> None:
         """
         Initialize a SetupPY.
 
-        :param str top_dir: Path to root of project directory
+        :param top_dir: Path to root of project directory
         """
         super().__init__(top_dir, "setup.py")
-        self.__ast = NOTHING
-        self.__setup_branch = NOTHING
 
-    def get_name(self):
-        """
-        Attempt to extract package name from setup.py.
-
-        :rtype: str or None
-        """
+    def get_name(self) -> Optional[str]:
+        """Attempt to extract package name from setup.py."""
         name = self._get_setup_kwarg("name")
         if not name or not isinstance(name, str):
             log.info(
@@ -594,7 +576,7 @@ class SetupPY(SetupFile):
         log.info("Found name in setup.py: %r", name)
         return name
 
-    def get_version(self):
+    def get_version(self) -> Optional[str]:
         """
         Attempt to extract package version from setup.py.
 
@@ -606,8 +588,6 @@ class SetupPY(SetupFile):
 
         Rather than trying to keep edge cases consistent with setuptools, treat them
         consistently within Cachi2.
-
-        :rtype: str or None
         """
         version = self._get_setup_kwarg("version")
         if not version:
@@ -621,26 +601,18 @@ class SetupPY(SetupFile):
         log.info("Found version in setup.py: %r", version)
         return version
 
-    @property
-    def _ast(self):
-        """
-        Try to parse AST if not already parsed.
+    @functools.cached_property
+    def _ast(self) -> Optional[ast.AST]:
+        """Try to parse the AST."""
+        log.debug("Parsing setup.py at %r", str(self._path))
+        try:
+            return ast.parse(self._path.read_text(), self._path.name)
+        except SyntaxError as e:
+            log.error("Syntax error when parsing setup.py: %s", e)
+            return None
 
-        Will not parse file (or try to) more than once.
-        """
-        if self.__ast is NOTHING:
-            log.debug("Parsing setup.py at %r", str(self._path))
-
-            try:
-                self.__ast = ast.parse(self._path.read_text(), self._path.name)
-            except SyntaxError as e:
-                log.error("Syntax error when parsing setup.py: %s", e)
-                self.__ast = None
-
-        return self.__ast
-
-    @property
-    def _setup_branch(self):
+    @functools.cached_property
+    def _setup_branch(self) -> Optional[SetupBranch]:
         """
         Find setup() call anywhere in the file, return setup branch.
 
@@ -648,27 +620,25 @@ class SetupPY(SetupFile):
         we cannot safely determine which one gets called. In such a case, we will simply
         find and process the first one.
 
-        If setup call not found, return None. Will not search more than once.
+        If setup call not found, return None.
         """
         if self._ast is None:
             return None
 
-        if self.__setup_branch is NOTHING:
-            setup_call, setup_path = self._find_setup_call(self._ast)
+        setup_call, setup_path = self._find_setup_call(self._ast)
+        if setup_call is None:
+            log.error("File does not seem to have a setup call")
+            return None
 
-            if setup_call is None:
-                log.error("File does not seem to have a setup call")
-                self.__setup_branch = None
-            else:
-                setup_path.reverse()  # Path is in reverse order
-                log.debug("Found setup call on line %s", setup_call.lineno)
-                path_repr = " -> ".join(map(str, setup_path))
-                log.debug("Pseudo-path: %s", path_repr)
-                self.__setup_branch = SetupBranch(setup_call, setup_path)
+        setup_path.reverse()  # Path is in reverse order
+        log.debug("Found setup call on line %s", setup_call.lineno)
+        path_repr = " -> ".join(map(str, setup_path))
+        log.debug("Pseudo-path: %s", path_repr)
+        return SetupBranch(setup_call, setup_path)
 
-        return self.__setup_branch
-
-    def _find_setup_call(self, root_node):
+    def _find_setup_call(
+        self, root_node: ast.AST
+    ) -> tuple[Optional[ast.Call], list[ASTPathElement]]:
         """
         Find setup() or setuptools.setup() call anywhere in or under root_node.
 
@@ -694,7 +664,7 @@ class SetupPY(SetupFile):
 
         return None, []  # No setup call under root_node
 
-    def _is_setup_call(self, node):
+    def _is_setup_call(self, node: ast.AST) -> "TypeGuard[ast.Call]":
         """Check if node is setup() or setuptools.setup() call."""
         if not isinstance(node, ast.Call):
             return False
@@ -707,7 +677,7 @@ class SetupPY(SetupFile):
             and fn.value.id == "setuptools"
         )
 
-    def _get_setup_kwarg(self, arg_name):
+    def _get_setup_kwarg(self, arg_name: str) -> Optional[Any]:
         """
         Find setup() call, extract specified argument from keyword arguments.
 
@@ -749,7 +719,9 @@ class SetupPY(SetupFile):
 
                 if isinstance(kw.value, ast.Name):
                     log.debug("setup kwarg %r looks like a variable", arg_name)
-                    return self._get_variable(kw.value.id)
+                    return self._get_variable(
+                        kw.value.id, self._setup_branch.call_node, self._setup_branch.node_path
+                    )
 
                 expr_type = kw.value.__class__.__name__
                 log.error("setup kwarg %r is an unsupported expression: %s", arg_name, expr_type)
@@ -758,14 +730,15 @@ class SetupPY(SetupFile):
         log.debug("setup kwarg %r not found", arg_name)
         return None
 
-    def _get_variable(self, var_name):
+    def _get_variable(
+        self, var_name: str, call_node: ast.Call, path_to_call_node: list[ASTPathElement]
+    ) -> Optional[Any]:
         """Walk back up the AST along setup branch, look for first assignment of variable."""
-        lineno = self._setup_branch.call_node.lineno
-        node_path = self._setup_branch.node_path
+        lineno = call_node.lineno
 
         log.debug("Backtracking up the AST from line %s to find variable %r", lineno, var_name)
 
-        for elem in filter(ASTPathElement.field_is_body, reversed(node_path)):
+        for elem in filter(ASTPathElement.field_is_body, reversed(path_to_call_node)):
             try:
                 value = _get_top_level_attr(elem.field, var_name, lineno)
                 log.debug("Found variable %r: %r", var_name, value)
@@ -1758,20 +1731,19 @@ def _verify_hash(download_path: Path, hashes: list[str]) -> None:
     must_match_any_checksum(download_path, checksums)
 
 
-def _download_from_requirement_files(output_dir: Path, files):
+def _download_from_requirement_files(output_dir: Path, files: list[Path]) -> list[dict[str, Any]]:
     """
     Download dependencies listed in the requirement files.
 
-    :param Path output_dir: the root output directory for this request
-    :param list files: list of str, each representing the absolute path of a pip requirement file
+    :param output_dir: the root output directory for this request
+    :param files: list of absolute paths to pip requirements files
     :return: Info about downloaded packages; see download_dependencies return docs for further
         reference
-    :rtype: list[dict]
     :raises PackageRejected: If requirement file does not exist
     """
     requirements = []
     for req_file in files:
-        if not os.path.exists(req_file):
+        if not req_file.exists():
             raise PackageRejected(
                 f"The requirements file does not exist: {req_file}",
                 solution="Please check that you have specified correct requirements file paths",
@@ -1780,28 +1752,30 @@ def _download_from_requirement_files(output_dir: Path, files):
     return requirements
 
 
-def _default_requirement_file_list(path, devel=False):
+def _default_requirement_file_list(path: Path, devel: bool = False) -> list[Path]:
     """
     Get the paths for the default pip requirement files, if they are present.
 
-    :param Path path: the full path to the application source code
-    :param bool devel: whether to return the build requirement files
+    :param path: the full path to the application source code
+    :param devel: whether to return the build requirement files
     :return: list of str representing the absolute paths to the Python requirement files
-    :rtype: list[str]
     """
     filename = DEFAULT_BUILD_REQUIREMENTS_FILE if devel else DEFAULT_REQUIREMENTS_FILE
     req = path / filename
-    return [str(req)] if req.is_file() else []
+    return [req] if req.is_file() else []
 
 
 def _resolve_pip(
-    app_path: Path, output_dir: Path, requirement_files=None, build_requirement_files=None
-):
+    app_path: Path,
+    output_dir: Path,
+    requirement_files: Optional[list[Path]] = None,
+    build_requirement_files: Optional[list[Path]] = None,
+) -> dict[str, Any]:
     """
     Resolve and fetch pip dependencies for the given pip application.
 
-    :param Path app_path: the full path to the application source code
-    :param Path output_dir: the root output directory for this request
+    :param app_path: the full path to the application source code
+    :param output_dir: the root output directory for this request
     :param list requirement_files: a list of str representing paths to the Python requirement files
         to be used to compile a list of dependencies to be fetched
     :param list build_requirement_files: a list of str representing paths to the Python build
@@ -1811,7 +1785,6 @@ def _resolve_pip(
         ``dependencies`` which is a list of dicts representing the package Dependencies
         ``requirements`` which is a list of str with the absolute paths for the requirement files
             belonging to the package
-    :rtype: dict
     :raises PackageRejected | UnsupportedFeature: if the package is not cachi2-pip compatible
     """
     pkg_name, pkg_version = _get_pip_metadata(app_path)
@@ -1820,13 +1793,13 @@ def _resolve_pip(
     if requirement_files is None:
         requirement_files = _default_requirement_file_list(app_path)
     else:
-        requirement_files = _get_absolute_pkg_file_paths(app_path, requirement_files)
+        requirement_files = [app_path / r for r in requirement_files]
 
     # This could be an empty list
     if build_requirement_files is None:
         build_requirement_files = _default_requirement_file_list(app_path, devel=True)
     else:
-        build_requirement_files = _get_absolute_pkg_file_paths(app_path, build_requirement_files)
+        build_requirement_files = [app_path / r for r in build_requirement_files]
 
     requires = _download_from_requirement_files(output_dir, requirement_files)
     buildrequires = _download_from_requirement_files(output_dir, build_requirement_files)
@@ -1861,18 +1834,6 @@ def _resolve_pip(
         "dependencies": dependencies,
         "requirements": [*requirement_files, *build_requirement_files],
     }
-
-
-def _get_absolute_pkg_file_paths(path, relative_paths):
-    """
-    Get the absolute paths for a list of files in a package.
-
-    :param Path path: the root path for the package containing the files in relative_paths
-    :param list relative_paths: paths to be converted to absolute paths
-    :return: absolute paths for the items in relative_paths
-    :rtype: list
-    """
-    return [str(path / r) for r in relative_paths]
 
 
 def _get_external_requirement_filepath(requirement: PipRequirement) -> Path:
