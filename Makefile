@@ -24,6 +24,9 @@ test-unit:
 test-integration:
 	venv/bin/tox -e integration
 
+mock-unittest-data:
+	hack/mock-unittest-data/gomod.sh
+
 generate-test-data:
 	CACHI2_GENERATE_TEST_DATA=true venv/bin/tox -e integration
 
