@@ -417,6 +417,7 @@ typing-extensions==4.5.0 \
     --hash=sha256:fb33085c39dd998ac16d1431ebc293a8b3eedd00fd4a32de0ff79002c19511b4
     # via
     #   black
+    #   cachi2 (pyproject.toml)
     #   mypy
     #   pydantic
 urllib3==1.26.15 \

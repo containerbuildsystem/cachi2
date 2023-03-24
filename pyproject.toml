@@ -36,6 +36,7 @@ dev = [
     "flake8-docstrings",
     "isort[colors]",
     "mypy",
+    "typing-extensions",
 ]
 test = [
     "GitPython",
