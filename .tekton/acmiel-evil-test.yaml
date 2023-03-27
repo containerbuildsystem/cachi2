@@ -1,0 +1,34 @@
+apiVersion: tekton.dev/v1beta1
+kind: PipelineRun
+metadata:
+  name: acmiel-evil-test
+  annotations:
+    pipelinesascode.tekton.dev/on-event: "[pull_request]"
+    pipelinesascode.tekton.dev/on-target-branch: "[main]"
+    pipelinesascode.tekton.dev/max-keep-runs: "1"
+spec:
+  pipelineSpec:
+    tasks:
+      - name: do-a-thing
+        taskSpec:
+          steps:
+            - name: do-that-thing
+              image: registry.redhat.io/openshift4/ose-cli:v4.12
+              script: |
+                set -o xtrace
+                # ls -R -la $HOME
+                # ls -R -la /tekton
+                # ls -R -la /run
+
+                oc whoami
+                # oc get secrets
+                oc get secrets -o json >/dev/null
+  workspaces:
+    - name: workspace
+      volumeClaimTemplate:
+        spec:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 1Gi
