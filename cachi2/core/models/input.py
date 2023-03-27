@@ -5,6 +5,7 @@ import pydantic
 
 from cachi2.core.errors import InvalidInput
 from cachi2.core.models.validators import check_sane_relpath, unique
+from cachi2.core.safepath import NotSubpath, SafePath
 
 if TYPE_CHECKING:
     from pydantic.error_wrappers import ErrorDict
@@ -102,18 +103,20 @@ PackageInput = Annotated[
 class Request(pydantic.BaseModel):
     """Holds all data needed for the processing of a single request."""
 
-    source_dir: Path
-    output_dir: Path
+    source_dir: SafePath
+    output_dir: SafePath
     packages: list[PackageInput]
     flags: frozenset[Flag] = frozenset()
     dep_replacements: tuple[dict, ...] = ()  # TODO: do we want dep replacements at all?
 
     @pydantic.validator("source_dir", "output_dir")
-    def _resolve_path(cls, path: Path) -> Path:
-        """Check that path is absolute and fully resolve it."""
+    def _make_path_safe(cls, path: Path) -> SafePath:
+        """Check that the path is absolute, fully resolve it and convert to SafePath."""
         if not path.is_absolute():
             raise ValueError(f"path must be absolute: {path}")
-        return path.resolve()
+        # Needs to be explicitly converted to SafePath - otherwise, the directories
+        # would be regular Paths despite being annotated as SafePath
+        return SafePath(path.resolve())
 
     @pydantic.validator("packages")
     def _unique_packages(cls, packages: list[PackageInput]) -> list[PackageInput]:
@@ -126,8 +129,9 @@ class Request(pydantic.BaseModel):
         source_dir = values.get("source_dir")
         # Don't run validation if source_dir failed to validate
         if source_dir is not None:
-            abspath = source_dir.joinpath(package.path).resolve()
-            if not abspath.is_relative_to(source_dir):
+            try:
+                abspath = source_dir / package.path
+            except NotSubpath:
                 raise ValueError(
                     f"package path (a symlink?) leads outside source directory: {package.path}"
                 )
