@@ -192,7 +192,6 @@ def _safe_extract(tar: TarFile, path: str = ".", *, numeric_owner: bool = False)
     """
     abs_path = Path(path).resolve()
     for member in tar.getmembers():
-
         member_path = Path(path).joinpath(member.name)
         abs_member_path = member_path.resolve()
 
