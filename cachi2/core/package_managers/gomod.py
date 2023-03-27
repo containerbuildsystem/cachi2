@@ -7,7 +7,7 @@ import subprocess  # nosec
 import tempfile
 from datetime import datetime
 from pathlib import Path, PureWindowsPath
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 
 import backoff
 import git
@@ -23,6 +23,7 @@ from cachi2.core.errors import (
 )
 from cachi2.core.models.input import Request
 from cachi2.core.models.output import Component, EnvironmentVariable, RequestOutput
+from cachi2.core.safepath import SafePath
 from cachi2.core.utils import load_json_stream, run_cmd
 
 log = logging.getLogger(__name__)
@@ -138,7 +139,7 @@ def fetch_gomod_source(request: Request) -> RequestOutput:
     )
 
 
-def _find_missing_gomod_files(source_path: Path, subpaths: list[str]) -> list[Path]:
+def _find_missing_gomod_files(source_path: SafePath, subpaths: list[str]) -> list[SafePath]:
     """
     Find all go modules with missing gomod files.
 
@@ -160,19 +161,20 @@ def _find_missing_gomod_files(source_path: Path, subpaths: list[str]) -> list[Pa
     return invalid_gomod_files
 
 
-def _resolve_gomod(path: Path, request: Request, tmp_dir: Path, git_dir_path=None):
+def _resolve_gomod(
+    path: SafePath, request: Request, tmp_dir: Path, git_dir_path: Optional[Path] = None
+) -> dict[str, Any]:
     """
     Resolve and fetch gomod dependencies for given app source archive.
 
-    :param str path: the full path to the application source code
-    :param dict request: the Cachi2 request this is for
-    :param Path tmp_dir: one temporary directory for all go modules
-    :param RequestBundleDir git_dir_path: the full path to the application's git repository
+    :param path: the full path to the application source code
+    :param request: the Cachi2 request this is for
+    :param tmp_dir: one temporary directory for all go modules
+    :param git_dir_path: the full path to the application's git repository
     :return: a dict containing the Go module itself ("module" key), the list of dictionaries
         representing the dependencies ("module_deps" key), the top package level dependency
         ("pkg" key), and a list of dictionaries representing the package level dependencies
         ("pkg_deps" key)
-    :rtype: dict
     :raises GoModError: if fetching dependencies fails
     """
     if git_dir_path is None:
@@ -410,7 +412,7 @@ def _run_download_cmd(cmd: Iterable[str], params: Dict[str, Any]) -> str:
         raise GoModError(err_msg) from None
 
 
-def _should_vendor_deps(flags: Iterable[str], app_dir: Path, strict: bool) -> Tuple[bool, bool]:
+def _should_vendor_deps(flags: Iterable[str], app_dir: SafePath, strict: bool) -> Tuple[bool, bool]:
     """
     Determine if Cachi2 should vendor dependencies and if it is allowed to make changes.
 
@@ -789,7 +791,7 @@ def _get_semantic_version_from_tag(tag_name, subpath=None):
     return semver.VersionInfo.parse(semantic_version)
 
 
-def _module_lines_from_modules_txt(app_dir: Path) -> List[str]:
+def _module_lines_from_modules_txt(app_dir: SafePath) -> List[str]:
     """
     Read module lines from vendor/modules.txt.
 
@@ -799,7 +801,7 @@ def _module_lines_from_modules_txt(app_dir: Path) -> List[str]:
     Note that vendor/modules.txt is fully managed by go. After you call go mod vendor, this file
     is guaranteed to contain only the content written in it by go.
     """
-    modules_txt = app_dir / "vendor" / "modules.txt"
+    modules_txt: SafePath = app_dir / "vendor" / "modules.txt"
     module_lines: List[str] = []
     has_packages = {}
 
@@ -839,7 +841,7 @@ def _module_lines_from_modules_txt(app_dir: Path) -> List[str]:
     return list(filter(has_packages.get, module_lines))
 
 
-def _vendor_deps(run_params: dict, can_make_changes: bool, git_dir: str):
+def _vendor_deps(run_params: dict, can_make_changes: bool, git_dir: Union[str, Path]):
     """
     Vendor golang dependencies.
 
@@ -888,7 +890,7 @@ def _match_parent_module(package_name: str, module_names: Iterable[str]) -> Opti
     )
 
 
-def _vendor_changed(git_dir: str, app_dir: str) -> bool:
+def _vendor_changed(git_dir: Union[str, Path], app_dir: str) -> bool:
     """Check for changes in the vendor directory."""
     vendor = Path(app_dir).relative_to(git_dir).joinpath("vendor")
     modules_txt = vendor / "modules.txt"
