@@ -23,7 +23,7 @@ from cachi2.core.errors import (
 )
 from cachi2.core.models.input import Request
 from cachi2.core.models.output import Component, EnvironmentVariable, RequestOutput
-from cachi2.core.safepath import SafePath
+from cachi2.core.safepath import NotSubpath, SafePath
 from cachi2.core.utils import load_json_stream, run_cmd
 
 log = logging.getLogger(__name__)
@@ -139,6 +139,32 @@ def fetch_gomod_source(request: Request) -> RequestOutput:
     )
 
 
+def _protect_against_symlinks(app_dir: SafePath) -> None:
+    """Try to prevent go subcommands from following suspicious symlinks.
+
+    The go command doesn't particularly care if the files it reads are subpaths of the directory
+    where it is executed. Check some of the common paths that the subcommands may read.
+    """
+
+    def check_path(supposed_subpath: Union[str, Path]) -> None:
+        try:
+            app_dir.joinpath(supposed_subpath)
+        except NotSubpath:
+            raise PackageRejected(
+                reason=(
+                    f"Found suspicious symlink ({supposed_subpath}) in Go module directory "
+                    f"({app_dir}). Refusing to proceed."
+                ),
+                solution=None,
+            )
+
+    check_path("go.mod")
+    check_path("go.sum")
+    check_path("vendor/modules.txt")
+    for go_file in app_dir.rglob("*.go"):
+        check_path(go_file.relative_to(app_dir))
+
+
 def _find_missing_gomod_files(source_path: SafePath, subpaths: list[str]) -> list[SafePath]:
     """
     Find all go modules with missing gomod files.
@@ -177,6 +203,8 @@ def _resolve_gomod(
         ("pkg_deps" key)
     :raises GoModError: if fetching dependencies fails
     """
+    _protect_against_symlinks(path)
+
     if git_dir_path is None:
         git_dir_path = request.source_dir
 

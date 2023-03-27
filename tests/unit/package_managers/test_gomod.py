@@ -447,10 +447,8 @@ def test_resolve_gomod_vendor_dependencies(
 @mock.patch("subprocess.run")
 @mock.patch("cachi2.core.package_managers.gomod._get_golang_version")
 @mock.patch("cachi2.core.package_managers.gomod.get_config")
-@mock.patch("pathlib.Path.is_dir")
 @pytest.mark.parametrize("strict_vendor", [True, False])
 def test_resolve_gomod_strict_mode_raise_error(
-    mock_isdir,
     mock_gwc,
     mock_golang_version,
     mock_run,
@@ -458,7 +456,6 @@ def test_resolve_gomod_strict_mode_raise_error(
     strict_vendor,
     gomod_request,
 ):
-    mock_isdir.return_value = True
     # Mock the get_config
     mock_config = mock.Mock()
     if strict_vendor != "default":
@@ -478,7 +475,9 @@ def test_resolve_gomod_strict_mode_raise_error(
         proc_mock("go list -e -deps -json", returncode=0, stdout=""),
     ]
 
-    archive_path = gomod_request.source_dir / "path/to/archive.tar.gz"
+    archive_path = gomod_request.source_dir
+    archive_path.joinpath("vendor").mkdir()
+
     gomod_request.dep_replacements = ({"name": "pizza", "type": "gomod", "version": "v1.0.0"},)
 
     expected_error = (
@@ -575,6 +574,30 @@ def test_resolve_gomod_unused_dep(mock_run, tmpdir, gomod_request):
             gomod_request,
             tmpdir,
         )
+
+
+@pytest.mark.parametrize(
+    "symlinked_file",
+    [
+        "go.mod",
+        "go.sum",
+        "vendor/modules.txt",
+        "some-package/foo.go",
+        "vendor/github.com/foo/bar/main.go",
+    ],
+)
+def test_resolve_gomod_suspicious_symlinks(symlinked_file: str, gomod_request: Request) -> None:
+    tmp_path = gomod_request.source_dir
+    tmp_path.joinpath(symlinked_file).parent.mkdir(parents=True, exist_ok=True)
+    tmp_path.joinpath(symlinked_file).symlink_to("/foo")
+
+    app_dir = tmp_path
+
+    expect_err_msg = re.escape(
+        f"Found suspicious symlink ({symlinked_file}) in Go module directory ({app_dir})."
+    )
+    with pytest.raises(PackageRejected, match=expect_err_msg):
+        _resolve_gomod(app_dir, gomod_request, tmp_path)
 
 
 @pytest.mark.parametrize(("go_mod_rc", "go_list_rc"), ((0, 1), (1, 0)))
