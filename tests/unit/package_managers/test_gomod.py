@@ -33,7 +33,6 @@ from cachi2.core.package_managers.gomod import (
     _vet_local_deps,
     fetch_gomod_source,
 )
-from cachi2.core.packages_data import _package_sort_key
 from tests.common_utils import write_file_tree
 
 
@@ -368,7 +367,15 @@ def test_resolve_gomod(
     assert len(gomod["packages"]) == 1
     if dep_replacement is None:
         assert (
-            sorted(gomod["packages"][0]["pkg_deps"], key=_package_sort_key)
+            sorted(
+                gomod["packages"][0]["pkg_deps"],
+                key=lambda package: (
+                    package["type"],
+                    package.get("dev", False),
+                    package["name"],
+                    package["version"],
+                ),
+            )
             == sample_pkg_deps_without_replace
         )
 
