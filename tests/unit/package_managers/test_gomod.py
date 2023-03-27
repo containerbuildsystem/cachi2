@@ -33,7 +33,7 @@ from cachi2.core.package_managers.gomod import (
     _vet_local_deps,
     fetch_gomod_source,
 )
-from cachi2.core.rooted_path import RootedPath
+from cachi2.core.rooted_path import PathOutsideRoot, RootedPath
 from tests.common_utils import write_file_tree
 
 
@@ -453,10 +453,8 @@ def test_resolve_gomod_vendor_dependencies(
 @mock.patch("subprocess.run")
 @mock.patch("cachi2.core.package_managers.gomod._get_golang_version")
 @mock.patch("cachi2.core.package_managers.gomod.get_config")
-@mock.patch("pathlib.Path.is_dir")
 @pytest.mark.parametrize("strict_vendor", [True, False])
 def test_resolve_gomod_strict_mode_raise_error(
-    mock_isdir,
     mock_gwc,
     mock_golang_version,
     mock_run,
@@ -464,7 +462,6 @@ def test_resolve_gomod_strict_mode_raise_error(
     strict_vendor,
     gomod_request,
 ):
-    mock_isdir.return_value = True
     # Mock the get_config
     mock_config = mock.Mock()
     if strict_vendor != "default":
@@ -583,6 +580,31 @@ def test_resolve_gomod_unused_dep(mock_run, tmpdir, gomod_request):
             gomod_request,
             tmpdir,
         )
+
+
+@pytest.mark.parametrize(
+    "symlinked_file",
+    [
+        "go.mod",
+        "go.sum",
+        "vendor/modules.txt",
+        "some-package/foo.go",
+        "vendor/github.com/foo/bar/main.go",
+    ],
+)
+def test_resolve_gomod_suspicious_symlinks(symlinked_file: str, gomod_request: Request) -> None:
+    tmp_path = gomod_request.source_dir.path
+    tmp_path.joinpath(symlinked_file).parent.mkdir(parents=True, exist_ok=True)
+    tmp_path.joinpath(symlinked_file).symlink_to("/foo")
+
+    app_dir = gomod_request.source_dir
+
+    expect_err_msg = re.escape(f"Joining path '{symlinked_file}' to '{app_dir}'")
+    with pytest.raises(PathOutsideRoot, match=expect_err_msg) as exc_info:
+        _resolve_gomod(app_dir, gomod_request, tmp_path)
+
+    e = exc_info.value
+    assert "Found a potentially harmful symlink" in e.friendly_msg()
 
 
 @pytest.mark.parametrize(("go_mod_rc", "go_list_rc"), ((0, 1), (1, 0)))

@@ -23,7 +23,7 @@ from cachi2.core.errors import (
 )
 from cachi2.core.models.input import Request
 from cachi2.core.models.output import Component, EnvironmentVariable, RequestOutput
-from cachi2.core.rooted_path import RootedPath
+from cachi2.core.rooted_path import PathOutsideRoot, RootedPath
 from cachi2.core.utils import load_json_stream, run_cmd
 
 log = logging.getLogger(__name__)
@@ -137,6 +137,33 @@ def fetch_gomod_source(request: Request) -> RequestOutput:
     )
 
 
+def _protect_against_symlinks(app_dir: RootedPath) -> None:
+    """Try to prevent go subcommands from following suspicious symlinks.
+
+    The go command doesn't particularly care if the files it reads are subpaths of the directory
+    where it is executed. Check some of the common paths that the subcommands may read.
+
+    :raises PathOutsideRoot: if go.mod, go.sum, vendor/modules.txt or any **/*.go file is a symlink
+        that leads outside the source directory
+    """
+
+    def check_potential_symlink(relative_path: Union[str, Path]) -> None:
+        try:
+            app_dir.join_within_root(relative_path)
+        except PathOutsideRoot as e:
+            e.solution = (
+                "Found a potentially harmful symlink, which would make the go command read "
+                "a file outside of your source repository. Refusing to proceed."
+            )
+            raise
+
+    check_potential_symlink("go.mod")
+    check_potential_symlink("go.sum")
+    check_potential_symlink("vendor/modules.txt")
+    for go_file in app_dir.path.rglob("*.go"):
+        check_potential_symlink(go_file.relative_to(app_dir))
+
+
 def _find_missing_gomod_files(source_path: RootedPath, subpaths: list[str]) -> list[Path]:
     """
     Find all go modules with missing gomod files.
@@ -175,6 +202,8 @@ def _resolve_gomod(
         ("pkg_deps" key)
     :raises GoModError: if fetching dependencies fails
     """
+    _protect_against_symlinks(app_dir)
+
     if git_dir_path is None:
         git_dir_path = request.source_dir.path
 
