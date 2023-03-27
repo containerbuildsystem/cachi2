@@ -15,6 +15,7 @@ from cachi2.core.extras.envfile import EnvFormat, generate_envfile
 from cachi2.core.models.input import Flag, PackageInput, Request, parse_user_input
 from cachi2.core.models.output import BuildConfig
 from cachi2.core.resolver import resolve_packages, supported_package_managers
+from cachi2.core.rooted_path import RootedPath
 from cachi2.interface.logging import LogLevel, setup_logging
 
 app = typer.Typer()
@@ -238,9 +239,11 @@ def fetch_deps(
 
     request_output = resolve_packages(request)
 
-    request.output_dir.mkdir(parents=True, exist_ok=True)
-    request.output_dir.joinpath(".build-config.json").write_text(request_output.build_config.json())
-    request.output_dir.joinpath("bom.json").write_text(
+    request.output_dir.path.mkdir(parents=True, exist_ok=True)
+    request.output_dir.join_within_root(".build-config.json").path.write_text(
+        request_output.build_config.json()
+    )
+    request.output_dir.join_within_root("bom.json").path.write_text(
         # the Sbom model has camelCase aliases in some fields
         request_output.sbom.json(by_alias=True, exclude_none=True)
     )
@@ -314,7 +317,7 @@ def inject_files(
 
 
 def _get_build_config(output_dir: Path) -> BuildConfig:
-    build_config_json = output_dir / ".build-config.json"
+    build_config_json = RootedPath(output_dir).join_within_root(".build-config.json").path
     if not build_config_json.exists():
         raise InvalidInput(
             f"No .build-config.json found in {output_dir}. "

@@ -119,6 +119,16 @@ def test_dont_leave_root(
         join(rooted_path.re_root("subpath"), "..")
 
 
+def test_rooted_path_eq() -> None:
+    assert RootedPath("/some/directory") == RootedPath("/some/directory")
+    assert RootedPath("/some/directory").re_root("subpath") == RootedPath("/some/directory/subpath")
+
+    a = RootedPath("/some/directory").join_within_root("subpath")
+    assert a != RootedPath("/some/directory")
+    assert a != RootedPath("/some/directory/subpath")
+    assert a == RootedPath("/some/directory").join_within_root("subpath")
+
+
 def test_rooted_path_repr() -> None:
     rooted_path = RootedPath("/some/path")
     assert repr(rooted_path) == "<RootedPath root='/some/path' subpath='.'>"
