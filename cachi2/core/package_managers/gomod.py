@@ -7,7 +7,7 @@ import subprocess  # nosec
 import tempfile
 from datetime import datetime
 from pathlib import Path, PureWindowsPath
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 
 import backoff
 import git
@@ -23,6 +23,7 @@ from cachi2.core.errors import (
 )
 from cachi2.core.models.input import Request
 from cachi2.core.models.output import Component, EnvironmentVariable, RequestOutput
+from cachi2.core.rooted_path import RootedPath
 from cachi2.core.utils import load_json_stream, run_cmd
 
 log = logging.getLogger(__name__)
@@ -89,13 +90,13 @@ def fetch_gomod_source(request: Request) -> RequestOutput:
     components: list[Component] = []
 
     with GoCacheTemporaryDirectory(prefix="cachito-") as tmp_dir:
-        request.gomod_download_dir.mkdir(exist_ok=True, parents=True)
+        request.gomod_download_dir.path.mkdir(exist_ok=True, parents=True)
         for i, subpath in enumerate(subpaths):
             log.info("Fetching the gomod dependencies at subpath %s", subpath)
 
             log.info(f'Fetching the gomod dependencies at the "{subpath}" directory')
 
-            gomod_source_path = request.source_dir / subpath
+            gomod_source_path = request.source_dir.join_within_root(subpath)
             try:
                 gomod = _resolve_gomod(gomod_source_path, request, Path(tmp_dir))
             except GoModError:
@@ -136,7 +137,7 @@ def fetch_gomod_source(request: Request) -> RequestOutput:
     )
 
 
-def _find_missing_gomod_files(source_path: Path, subpaths: list[str]) -> list[Path]:
+def _find_missing_gomod_files(source_path: RootedPath, subpaths: list[str]) -> list[Path]:
     """
     Find all go modules with missing gomod files.
 
@@ -150,7 +151,7 @@ def _find_missing_gomod_files(source_path: Path, subpaths: list[str]) -> list[Pa
     """
     invalid_gomod_files = []
     for subpath in subpaths:
-        package_gomod_path = source_path / subpath / "go.mod"
+        package_gomod_path = source_path.join_within_root(subpath, "go.mod").path
         log.debug("Testing for go mod file in {}".format(package_gomod_path))
         if not package_gomod_path.exists():
             invalid_gomod_files.append(package_gomod_path)
@@ -158,23 +159,24 @@ def _find_missing_gomod_files(source_path: Path, subpaths: list[str]) -> list[Pa
     return invalid_gomod_files
 
 
-def _resolve_gomod(path: Path, request: Request, tmp_dir: Path, git_dir_path=None):
+def _resolve_gomod(
+    app_dir: RootedPath, request: Request, tmp_dir: Path, git_dir_path: Optional[Path] = None
+) -> dict[str, Any]:
     """
     Resolve and fetch gomod dependencies for given app source archive.
 
-    :param str path: the full path to the application source code
-    :param dict request: the Cachi2 request this is for
-    :param Path tmp_dir: one temporary directory for all go modules
-    :param RequestBundleDir git_dir_path: the full path to the application's git repository
+    :param app_dir: the full path to the application source code
+    :param request: the Cachi2 request this is for
+    :param tmp_dir: one temporary directory for all go modules
+    :param git_dir_path: the full path to the application's git repository
     :return: a dict containing the Go module itself ("module" key), the list of dictionaries
         representing the dependencies ("module_deps" key), the top package level dependency
         ("pkg" key), and a list of dictionaries representing the package level dependencies
         ("pkg_deps" key)
-    :rtype: dict
     :raises GoModError: if fetching dependencies fails
     """
     if git_dir_path is None:
-        git_dir_path = request.source_dir
+        git_dir_path = request.source_dir.path
 
     config = get_config()
 
@@ -192,7 +194,7 @@ def _resolve_gomod(path: Path, request: Request, tmp_dir: Path, git_dir_path=Non
     if "cgo-disable" in request.flags:
         env["CGO_ENABLED"] = "0"
 
-    run_params = {"env": env, "cwd": path}
+    run_params = {"env": env, "cwd": app_dir}
 
     # Collect all the dependency names that are being replaced to later verify if they were
     # all used
@@ -209,7 +211,9 @@ def _resolve_gomod(path: Path, request: Request, tmp_dir: Path, git_dir_path=Non
         )
     # Vendor dependencies if the gomod-vendor flag is set
     flags = request.flags
-    should_vendor, can_make_changes = _should_vendor_deps(flags, path, config.gomod_strict_vendor)
+    should_vendor, can_make_changes = _should_vendor_deps(
+        flags, app_dir, config.gomod_strict_vendor
+    )
     if should_vendor:
         _vendor_deps(run_params, can_make_changes, git_dir_path)
     else:
@@ -228,7 +232,7 @@ def _resolve_gomod(path: Path, request: Request, tmp_dir: Path, git_dir_path=Non
 
     # module level dependencies
     if should_vendor:
-        module_lines = _module_lines_from_modules_txt(path)
+        module_lines = _module_lines_from_modules_txt(app_dir)
     else:
         # .String formats the module as <name> <version> [=> <replace>],
         #   where <replace> is <name> <version> or <path>
@@ -294,7 +298,9 @@ def _resolve_gomod(path: Path, request: Request, tmp_dir: Path, git_dir_path=Non
         )
 
     # In case a submodule is being processed, we need to determine its path
-    subpath = None if path == git_dir_path else path.relative_to(f"{git_dir_path}/", "")
+    subpath = (
+        None if app_dir.path == git_dir_path else app_dir.path.relative_to(f"{git_dir_path}/", "")
+    )
 
     # NOTE: If there are multiple go modules in a single git repo, they will
     #   all be versioned identically.
@@ -408,7 +414,9 @@ def _run_download_cmd(cmd: Iterable[str], params: Dict[str, Any]) -> str:
         raise GoModError(err_msg) from None
 
 
-def _should_vendor_deps(flags: Iterable[str], app_dir: Path, strict: bool) -> Tuple[bool, bool]:
+def _should_vendor_deps(
+    flags: Iterable[str], app_dir: RootedPath, strict: bool
+) -> Tuple[bool, bool]:
     """
     Determine if Cachi2 should vendor dependencies and if it is allowed to make changes.
 
@@ -422,7 +430,7 @@ def _should_vendor_deps(flags: Iterable[str], app_dir: Path, strict: bool) -> Tu
     :return: (should vendor: bool, allowed to make changes in the vendor directory: bool)
     :raise PackageRejected: if the vendor dir is present, the flags are not used and we are strict
     """
-    vendor = app_dir.joinpath("vendor")
+    vendor = app_dir.join_within_root("vendor").path
 
     if "gomod-vendor-check" in flags:
         return True, not vendor.exists()
@@ -786,7 +794,7 @@ def _get_semantic_version_from_tag(tag_name, subpath=None):
     return semver.VersionInfo.parse(semantic_version)
 
 
-def _module_lines_from_modules_txt(app_dir: Path) -> List[str]:
+def _module_lines_from_modules_txt(app_dir: RootedPath) -> List[str]:
     """
     Read module lines from vendor/modules.txt.
 
@@ -796,7 +804,7 @@ def _module_lines_from_modules_txt(app_dir: Path) -> List[str]:
     Note that vendor/modules.txt is fully managed by go. After you call go mod vendor, this file
     is guaranteed to contain only the content written in it by go.
     """
-    modules_txt = app_dir / "vendor" / "modules.txt"
+    modules_txt: RootedPath = app_dir.join_within_root("vendor", "modules.txt")
     module_lines: List[str] = []
     has_packages = {}
 
@@ -806,7 +814,7 @@ def _module_lines_from_modules_txt(app_dir: Path) -> List[str]:
         "If not, please let the maintainers know that Cachi2 fails to parse valid modules.txt"
     )
 
-    for line in modules_txt.read_text().splitlines():
+    for line in modules_txt.path.read_text().splitlines():
         # modules.txt contains lines in one of 4 formats:
         #   1) # <module_name> <version> [=> <replace>]
         #   2) ## <markers>
@@ -836,7 +844,7 @@ def _module_lines_from_modules_txt(app_dir: Path) -> List[str]:
     return list(filter(has_packages.get, module_lines))
 
 
-def _vendor_deps(run_params: dict, can_make_changes: bool, git_dir: str):
+def _vendor_deps(run_params: dict, can_make_changes: bool, git_dir: Union[str, Path]):
     """
     Vendor golang dependencies.
 
@@ -885,7 +893,7 @@ def _match_parent_module(package_name: str, module_names: Iterable[str]) -> Opti
     )
 
 
-def _vendor_changed(git_dir: str, app_dir: str) -> bool:
+def _vendor_changed(git_dir: Union[str, Path], app_dir: str) -> bool:
     """Check for changes in the vendor directory."""
     vendor = Path(app_dir).relative_to(git_dir).joinpath("vendor")
     modules_txt = vendor / "modules.txt"
