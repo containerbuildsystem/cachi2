@@ -142,7 +142,7 @@ class TestTopLevelOpts:
                 False,
                 "config.yaml",
                 "",
-                "Usage: cachi2 [OPTIONS] COMMAND [ARGS]...\nTry 'cachi2 --help' for help.\n\nError: Invalid value for '--config-file': File 'config.yaml' does not exist.\n",
+                "Invalid value for '--config-file': File 'config.yaml' does not exist.",
             ),
         ],
     )
@@ -184,7 +184,7 @@ class TestTopLevelOpts:
     def test_unknown_loglevel(self, tmp_cwd):
         args = ["--log-level=unknown", "fetch-deps", "gomod"]
         result = invoke_expecting_invalid_usage(app, args)
-        assert "Error: Invalid value for '--log-level': 'unknown' is not one of" in result.output
+        assert "Invalid value for '--log-level': 'unknown' is not one of" in result.output
 
 
 class TestFetchDeps:
@@ -243,7 +243,7 @@ class TestFetchDeps:
 
     def test_no_packages(self):
         result = invoke_expecting_invalid_usage(app, ["fetch-deps"])
-        assert "Error: Missing argument 'PKG'" in result.output
+        assert "Missing argument 'PKG'" in result.output
 
     @pytest.mark.parametrize(
         "package_arg, expect_packages",
@@ -493,7 +493,7 @@ class TestFetchDeps:
     @pytest.mark.parametrize(
         "cli_args, expect_error",
         [
-            (["gomod", "--no-such-flag"], "Error: No such option: --no-such-flag"),
+            (["gomod", "--no-such-flag"], "No such option: --no-such-flag"),
             (
                 ['{"packages": [{"type": "gomod"}], "flags": "not-a-list"}'],
                 re.compile(
