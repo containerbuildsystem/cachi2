@@ -102,18 +102,16 @@ def fetch_gomod_source(request: Request) -> RequestOutput:
                 log.error("Failed to fetch gomod dependencies")
                 raise
 
-            module_info = gomod["module"]
-
-            components.append(Component(name=module_info["name"], version=module_info["version"]))
-
+            components.append(Component.from_package_dict(gomod["module"]))
+            components.extend(
+                Component.from_package_dict(module_dep) for module_dep in gomod["module_deps"]
+            )
             # add package deps
             for package in gomod["packages"]:
-                pkg_info = package["pkg"]
-
-                components.append(Component.from_package_dict(pkg_info))
-
-                for dependency in package.get("pkg_deps", []):
-                    components.append(Component.from_package_dict(dependency))
+                components.append(Component.from_package_dict(package["pkg"]))
+                components.extend(
+                    Component.from_package_dict(pkg_dep) for pkg_dep in package["pkg_deps"]
+                )
 
         if "gomod-vendor-check" not in request.flags and "gomod-vendor" not in request.flags:
             tmp_download_cache_dir = Path(tmp_dir).joinpath(request.go_mod_cache_download_part)
