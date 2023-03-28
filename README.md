@@ -64,7 +64,7 @@ To install Cachi2 for local development, see the [development](#development) sec
 [![container][cachi2-container-status]][cachi2-container]
 
 ```text
-quay.io/containerbuildsystem/cachi2:latest
+quay.io/redhat-appstudio/cachi2:latest
 ```
 
 The container is re-built automatically on every merge to the main branch.
@@ -72,7 +72,7 @@ The container is re-built automatically on every merge to the main branch.
 You may wish to set up an alias to make local usage more convenient:
 
 ```shell
-alias cachi2='podman run --rm -ti -v "$PWD:$PWD:z" -w "$PWD" quay.io/containerbuildsystem/cachi2:latest'
+alias cachi2='podman run --rm -ti -v "$PWD:$PWD:z" -w "$PWD" quay.io/redhat-appstudio/cachi2:latest'
 ```
 
 Note that the alias mounts the current working directory - the container will have access to files in that directory
@@ -223,7 +223,7 @@ make test-integration
 To run integration-tests with custom image, specify the CACHI2\_IMAGE environment variable. Examples:
 
 ```shell
-CACHI2_IMAGE=quay.io/containerbuildsystem/cachi2:{tag} tox -e integration
+CACHI2_IMAGE=quay.io/redhat-appstudio/cachi2:{tag} tox -e integration
 CACHI2_IMAGE=localhost/cachi2:latest tox -e integration
 ```
 
@@ -314,8 +314,8 @@ still in early development phase.
 
 [cachi2-coveralls]: https://coveralls.io/github/containerbuildsystem/cachi2?branch=main
 [cachi2-coveralls-badge]: https://coveralls.io/repos/github/containerbuildsystem/cachi2/badge.svg?branch=main
-[cachi2-container]: https://quay.io/repository/containerbuildsystem/cachi2
-[cachi2-container-status]: https://quay.io/repository/containerbuildsystem/cachi2/status
+[cachi2-container]: https://quay.io/repository/redhat-appstudio/cachi2
+[cachi2-container-status]: https://quay.io/repository/redhat-appstudio/cachi2/status
 [wheel-spec]: https://packaging.python.org/en/latest/specifications/binary-distribution-format/
 [setuppy-discouraged]: https://setuptools.pypa.io/en/latest/userguide/quickstart.html#setuppy-discouraged
 [go117-changelog]: https://tip.golang.org/doc/go1.17#go-command
