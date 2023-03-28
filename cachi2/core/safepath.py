@@ -5,7 +5,7 @@ from typing import Any, Callable, Iterator, TypeVar, Union
 from cachi2.core.errors import PackageRejected
 
 StrPath = Union[str, PathLike[str]]
-SafePathT = TypeVar("SafePathT", bound="SafePath")
+RootedPathT = TypeVar("RootedPathT", bound="RootedPath")
 
 
 class NotSubpath(PackageRejected):
@@ -16,31 +16,40 @@ class NotSubpath(PackageRejected):
         super().__init__(reason, solution=None, docs=None)
 
 
-class SafePath(PathLike[str]):
+class RootedPath(PathLike[str]):
     """A safer way to handle subpaths.
 
     Get a subpath, guaranteeing that it really is a subpath:
 
-    >>> safe_path = SafePath("/some/directory")
-    >>> safe_path.safe_join("..")                   # ERROR NotSubpath
-    >>> safe_path.safe_join("/abspath")             # ERROR NotSubpath
-    >>> safe_path.safe_join("symlink-to-parent")    # ERROR NotSubpath
+    >>> rooted_path = RootedPath("/some/directory")
+    >>> rooted_path.join_within_root("..")                  # ERROR NotSubpath
+    >>> rooted_path.join_within_root("/abspath")            # ERROR NotSubpath
+    >>> rooted_path.join_within_root("symlink-to-parent")   # ERROR NotSubpath
 
     Access the underlying Path object:
 
-    >>> safe_path = SafePath("/some/directory")
-    >>> safe_path.safe_join("vendor", "modules.txt").path.read_text()
+    >>> rooted_path = RootedPath("/some/directory")
+    >>> rooted_path.join_within_root("vendor", "modules.txt").path.read_text()
+
+    The join_within_root method remembers the original root. See the join_within_root
+    and re_root docstrings for more details.
     """
 
     def __init__(self, path: StrPath) -> None:
-        """Create a SafePath. The argument must be an absolute path."""
+        """Create a RootedPath. The argument must be an absolute path."""
         self._path = Path(path)
+        self._root = self._path
         if not self._path.is_absolute():
             raise ValueError(f"path must be absolute: {path}")
 
     @property
+    def root(self) -> Path:
+        """Get the root directory which this path is not allowed to leave."""
+        return self._root
+
+    @property
     def path(self) -> Path:
-        """Get the underlying Path object."""
+        """Get the current path (guaranteed to be at or below the root)."""
         return self._path
 
     def __fspath__(self) -> str:
@@ -49,32 +58,38 @@ class SafePath(PathLike[str]):
     def __str__(self) -> str:
         return str(self.path)
 
-    def __repr__(self) -> str:
-        return f"{type(self).__name__}({str(self.path)!r})"
+    def re_root(self: RootedPathT, *other: StrPath) -> RootedPathT:
+        """Safely join other path components and make the result the new root.
 
-    def __eq__(self, other: object) -> bool:
-        return isinstance(other, type(self)) and self.path == other.path
-
-    def __hash__(self) -> int:
-        return hash(self.path)
-
-    def safe_join(self: SafePathT, *other: StrPath) -> SafePathT:
-        """Join other components to the SafePath. If the result is not a subpath, raise an error."""
+        >>> rooted_path = RootedPath("/some/directory")
+        >>> rooted_path.re_root("subpath").join_within_root("..")      # ERROR
+        """
         subpath = self.path.joinpath(*other).resolve()
-        if not subpath.is_relative_to(self):
+        if not subpath.is_relative_to(self.root):
+            subpath_from_root = self.path.relative_to(self.root).joinpath(*other)
             raise NotSubpath(
-                f"supposed subpath ({Path(*other)}) leads outside parent path ({self})"
+                f"supposed subpath ({subpath_from_root}) leads outside root path ({self.root})"
             )
         cls = type(self)
         return cls(subpath)
 
+    def join_within_root(self: RootedPathT, *other: StrPath) -> RootedPathT:
+        """Safely join other path components but remember the original root.
+
+        >>> rooted_path = RootedPath("/some/directory")
+        >>> rooted_path.join_within_root("subpath").join_within_root("..")    # OK
+        """
+        new = self.re_root(*other)
+        new._root = self.root
+        return new
+
     # pydantic integration
     @classmethod
-    def __get_validators__(cls: type[SafePathT]) -> Iterator[Callable[[Any], SafePathT]]:
+    def __get_validators__(cls: type[RootedPathT]) -> Iterator[Callable[[Any], RootedPathT]]:
         yield cls._validate
 
     @classmethod
-    def _validate(cls: type[SafePathT], v: Any) -> SafePathT:
+    def _validate(cls: type[RootedPathT], v: Any) -> RootedPathT:
         if not isinstance(v, (str, PathLike)):
             raise TypeError(f"expected str or os.PathLike, got {type(v).__name__}")
         return cls(Path(v))

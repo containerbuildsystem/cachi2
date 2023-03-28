@@ -4,7 +4,7 @@ from typing import Union
 
 import pytest
 
-from cachi2.core.safepath import NotSubpath, SafePath
+from cachi2.core.safepath import NotSubpath, RootedPath
 
 
 @pytest.fixture
@@ -24,11 +24,11 @@ def expect_err_msg(parent: Union[str, Path], subpath: Union[str, Path]) -> str:
 
 def test_safepath_must_be_absolute() -> None:
     with pytest.raises(ValueError, match="path must be absolute: foo"):
-        SafePath("foo")
+        RootedPath("foo")
 
 
 def test_safepath_repr() -> None:
-    assert repr(SafePath("/some/path")) == "SafePath('/some/path')"
+    assert repr(RootedPath("/some/path")) == "SafePath('/some/path')"
 
 
 @pytest.mark.parametrize(
@@ -47,30 +47,30 @@ def test_safepath_repr() -> None:
 def test_safepath_rejects_unsafe_joinpath(
     joinpath_args: list[str], subpath_in_err_msg: str, test_path: Path
 ) -> None:
-    safepath = SafePath(test_path)
+    safepath = RootedPath(test_path)
 
     with pytest.raises(NotSubpath, match=expect_err_msg(test_path, subpath_in_err_msg)):
-        safepath.safe_join(*joinpath_args)
+        safepath.join_within_root(*joinpath_args)
 
 
 def test_sub_safepath(test_path: Path) -> None:
-    safepath = SafePath(test_path)
+    safepath = RootedPath(test_path)
 
     with pytest.raises(NotSubpath, match=expect_err_msg(test_path / "subpath", "..")):
-        safepath.safe_join("subpath").safe_join("..")
+        safepath.join_within_root("subpath").join_within_root("..")
 
     with pytest.raises(
         NotSubpath, match=expect_err_msg(test_path / "subpath", "symlink-to-parent")
     ):
-        safepath.safe_join("subpath").safe_join("symlink-to-parent")
+        safepath.join_within_root("subpath").join_within_root("symlink-to-parent")
 
 
 def test_safepath_allows_safe_join(test_path: Path) -> None:
-    safepath = SafePath(test_path)
+    safepath = RootedPath(test_path)
 
-    assert safepath.safe_join("subpath/..").path == test_path
-    assert safepath.safe_join("subpath", "..").path == test_path
+    assert safepath.join_within_root("subpath/..").path == test_path
+    assert safepath.join_within_root("subpath", "..").path == test_path
 
-    assert safepath.safe_join("subpath", "symlink-to-parent").path == test_path
+    assert safepath.join_within_root("subpath", "symlink-to-parent").path == test_path
 
-    assert safepath.safe_join("subpath").path == test_path / "subpath"
+    assert safepath.join_within_root("subpath").path == test_path / "subpath"

@@ -33,7 +33,7 @@ from cachi2.core.package_managers.gomod import (
     _vet_local_deps,
     fetch_gomod_source,
 )
-from cachi2.core.safepath import SafePath
+from cachi2.core.safepath import RootedPath
 from tests.common_utils import write_file_tree
 
 
@@ -63,8 +63,8 @@ def gomod_request(tmp_path: Path, gomod_input_packages: list[dict[str, str]]) ->
 
 
 @pytest.fixture
-def safe_tmp_path(tmp_path: Path) -> SafePath:
-    return SafePath(tmp_path)
+def safe_tmp_path(tmp_path: Path) -> RootedPath:
+    return RootedPath(tmp_path)
 
 
 def proc_mock(
@@ -576,7 +576,7 @@ def test_resolve_gomod_unused_dep(mock_run, tmpdir, gomod_request):
     expected_error = "The following gomod dependency replacements don't apply: pizza"
     with pytest.raises(PackageRejected, match=expected_error):
         _resolve_gomod(
-            SafePath("/source/path/archive.tar.gz"),
+            RootedPath("/source/path/archive.tar.gz"),
             gomod_request,
             tmpdir,
         )
@@ -927,9 +927,9 @@ def test_match_parent_module(package_name, module_names, expect_parent_module):
         (["gomod-vendor", "gomod-vendor-check"], True, (True, False)),
     ],
 )
-def test_should_vendor_deps(flags, vendor_exists, expect_result, safe_tmp_path: SafePath):
+def test_should_vendor_deps(flags, vendor_exists, expect_result, safe_tmp_path: RootedPath):
     if vendor_exists:
-        safe_tmp_path.safe_join("vendor").path.mkdir()
+        safe_tmp_path.join_within_root("vendor").path.mkdir()
 
     assert _should_vendor_deps(flags, safe_tmp_path, False) == expect_result
 
@@ -943,9 +943,9 @@ def test_should_vendor_deps(flags, vendor_exists, expect_result, safe_tmp_path: 
         (["gomod-vendor-check"], True, False),
     ],
 )
-def test_should_vendor_deps_strict(flags, vendor_exists, expect_error, safe_tmp_path: SafePath):
+def test_should_vendor_deps_strict(flags, vendor_exists, expect_error, safe_tmp_path: RootedPath):
     if vendor_exists:
-        safe_tmp_path.safe_join("vendor").path.mkdir()
+        safe_tmp_path.join_within_root("vendor").path.mkdir()
 
     if expect_error:
         msg = 'The "gomod-vendor" or "gomod-vendor-check" flag must be set'
@@ -1069,8 +1069,8 @@ def test_vendor_changed(subpath, vendor_before, vendor_changes, expected_change,
     assert not repo.git.diff("--diff-filter", "A")
 
 
-def test_module_lines_from_modules_txt(safe_tmp_path: SafePath) -> None:
-    vendor = safe_tmp_path.safe_join("vendor").path
+def test_module_lines_from_modules_txt(safe_tmp_path: RootedPath) -> None:
+    vendor = safe_tmp_path.join_within_root("vendor").path
     vendor.mkdir()
     vendor.joinpath("modules.txt").write_text(
         dedent(
@@ -1110,9 +1110,9 @@ def test_module_lines_from_modules_txt(safe_tmp_path: SafePath) -> None:
     ],
 )
 def test_module_lines_from_modules_txt_invalid_format(
-    file_content, expect_error_msg, safe_tmp_path: SafePath
+    file_content, expect_error_msg, safe_tmp_path: RootedPath
 ):
-    vendor = safe_tmp_path.safe_join("vendor").path
+    vendor = safe_tmp_path.join_within_root("vendor").path
     vendor.mkdir()
     vendor.joinpath("modules.txt").write_text(file_content)
 
@@ -1385,7 +1385,7 @@ def test_fetch_gomod_source(
     env_variables,
     tmp_path,
 ):
-    def resolve_gomod_mocked(app_dir: SafePath, request: Request, tmp_dir: Path):
+    def resolve_gomod_mocked(app_dir: RootedPath, request: Request, tmp_dir: Path):
         # Find package output based on the path being processed
         package = next(filter(lambda p: (tmp_path / p["path"]) == app_dir.path, packages_output))
 

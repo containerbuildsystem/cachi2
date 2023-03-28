@@ -23,7 +23,7 @@ from cachi2.core.errors import (
 )
 from cachi2.core.models.input import Request
 from cachi2.core.models.output import Component, EnvironmentVariable, RequestOutput
-from cachi2.core.safepath import NotSubpath, SafePath
+from cachi2.core.safepath import NotSubpath, RootedPath
 from cachi2.core.utils import load_json_stream, run_cmd
 
 log = logging.getLogger(__name__)
@@ -96,7 +96,7 @@ def fetch_gomod_source(request: Request) -> RequestOutput:
 
             log.info(f'Fetching the gomod dependencies at the "{subpath}" directory')
 
-            gomod_source_path = request.source_dir.safe_join(subpath)
+            gomod_source_path = request.source_dir.join_within_root(subpath)
             try:
                 gomod = _resolve_gomod(gomod_source_path, request, Path(tmp_dir))
             except GoModError:
@@ -139,7 +139,7 @@ def fetch_gomod_source(request: Request) -> RequestOutput:
     )
 
 
-def _protect_against_symlinks(app_dir: SafePath) -> None:
+def _protect_against_symlinks(app_dir: RootedPath) -> None:
     """Try to prevent go subcommands from following suspicious symlinks.
 
     The go command doesn't particularly care if the files it reads are subpaths of the directory
@@ -148,7 +148,7 @@ def _protect_against_symlinks(app_dir: SafePath) -> None:
 
     def check_path(supposed_subpath: Union[str, Path]) -> None:
         try:
-            app_dir.safe_join(supposed_subpath)
+            app_dir.join_within_root(supposed_subpath)
         except NotSubpath:
             raise PackageRejected(
                 reason=(
@@ -165,7 +165,7 @@ def _protect_against_symlinks(app_dir: SafePath) -> None:
         check_path(go_file.relative_to(app_dir.path))
 
 
-def _find_missing_gomod_files(source_path: SafePath, subpaths: list[str]) -> list[Path]:
+def _find_missing_gomod_files(source_path: RootedPath, subpaths: list[str]) -> list[Path]:
     """
     Find all go modules with missing gomod files.
 
@@ -179,7 +179,7 @@ def _find_missing_gomod_files(source_path: SafePath, subpaths: list[str]) -> lis
     """
     invalid_gomod_files = []
     for subpath in subpaths:
-        package_gomod_path = source_path.safe_join(subpath, "go.mod").path
+        package_gomod_path = source_path.join_within_root(subpath, "go.mod").path
         log.debug("Testing for go mod file in {}".format(package_gomod_path))
         if not package_gomod_path.exists():
             invalid_gomod_files.append(package_gomod_path)
@@ -188,7 +188,7 @@ def _find_missing_gomod_files(source_path: SafePath, subpaths: list[str]) -> lis
 
 
 def _resolve_gomod(
-    app_dir: SafePath, request: Request, tmp_dir: Path, git_dir_path: Optional[Path] = None
+    app_dir: RootedPath, request: Request, tmp_dir: Path, git_dir_path: Optional[Path] = None
 ) -> dict[str, Any]:
     """
     Resolve and fetch gomod dependencies for given app source archive.
@@ -444,7 +444,7 @@ def _run_download_cmd(cmd: Iterable[str], params: Dict[str, Any]) -> str:
         raise GoModError(err_msg) from None
 
 
-def _should_vendor_deps(flags: Iterable[str], app_dir: SafePath, strict: bool) -> Tuple[bool, bool]:
+def _should_vendor_deps(flags: Iterable[str], app_dir: RootedPath, strict: bool) -> Tuple[bool, bool]:
     """
     Determine if Cachi2 should vendor dependencies and if it is allowed to make changes.
 
@@ -458,7 +458,7 @@ def _should_vendor_deps(flags: Iterable[str], app_dir: SafePath, strict: bool) -
     :return: (should vendor: bool, allowed to make changes in the vendor directory: bool)
     :raise PackageRejected: if the vendor dir is present, the flags are not used and we are strict
     """
-    vendor = app_dir.safe_join("vendor").path
+    vendor = app_dir.join_within_root("vendor").path
 
     if "gomod-vendor-check" in flags:
         return True, not vendor.exists()
@@ -823,7 +823,7 @@ def _get_semantic_version_from_tag(tag_name, subpath=None):
     return semver.VersionInfo.parse(semantic_version)
 
 
-def _module_lines_from_modules_txt(app_dir: SafePath) -> List[str]:
+def _module_lines_from_modules_txt(app_dir: RootedPath) -> List[str]:
     """
     Read module lines from vendor/modules.txt.
 
@@ -833,7 +833,7 @@ def _module_lines_from_modules_txt(app_dir: SafePath) -> List[str]:
     Note that vendor/modules.txt is fully managed by go. After you call go mod vendor, this file
     is guaranteed to contain only the content written in it by go.
     """
-    modules_txt: SafePath = app_dir.safe_join("vendor", "modules.txt")
+    modules_txt: RootedPath = app_dir.join_within_root("vendor", "modules.txt")
     module_lines: List[str] = []
     has_packages = {}
 

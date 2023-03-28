@@ -13,7 +13,7 @@ from cachi2.core.models.input import (
     Request,
     parse_user_input,
 )
-from cachi2.core.safepath import SafePath
+from cachi2.core.safepath import RootedPath
 
 
 def test_parse_user_input():
@@ -129,8 +129,8 @@ class TestRequest:
         )
 
         assert request.dict() == {
-            "source_dir": SafePath(tmp_path),
-            "output_dir": SafePath(tmp_path),
+            "source_dir": RootedPath(tmp_path),
+            "output_dir": RootedPath(tmp_path),
             "packages": [
                 GomodPackageInput(type="gomod"),
                 GomodPackageInput(type="gomod", path="subpath"),
@@ -139,8 +139,8 @@ class TestRequest:
             "flags": frozenset(),
             "dep_replacements": (),
         }
-        assert isinstance(request.source_dir, SafePath)
-        assert isinstance(request.output_dir, SafePath)
+        assert isinstance(request.source_dir, RootedPath)
+        assert isinstance(request.output_dir, RootedPath)
 
     def test_packages_properties(self, tmp_path: Path):
         packages = [{"type": "gomod"}, {"type": "pip"}]

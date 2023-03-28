@@ -5,7 +5,7 @@ import pydantic
 
 from cachi2.core.errors import InvalidInput
 from cachi2.core.models.validators import check_sane_relpath, unique
-from cachi2.core.safepath import NotSubpath, SafePath
+from cachi2.core.safepath import NotSubpath, RootedPath
 
 if TYPE_CHECKING:
     from pydantic.error_wrappers import ErrorDict
@@ -103,8 +103,8 @@ PackageInput = Annotated[
 class Request(pydantic.BaseModel):
     """Holds all data needed for the processing of a single request."""
 
-    source_dir: SafePath
-    output_dir: SafePath
+    source_dir: RootedPath
+    output_dir: RootedPath
     packages: list[PackageInput]
     flags: frozenset[Flag] = frozenset()
     dep_replacements: tuple[dict, ...] = ()  # TODO: do we want dep replacements at all?
@@ -121,7 +121,7 @@ class Request(pydantic.BaseModel):
         # Don't run validation if source_dir failed to validate
         if source_dir is not None:
             try:
-                abspath = source_dir.safe_join(package.path).path
+                abspath = source_dir.join_within_root(package.path).path
             except NotSubpath:
                 raise ValueError(
                     f"package path (a symlink?) leads outside source directory: {package.path}"
@@ -157,6 +157,6 @@ class Request(pydantic.BaseModel):
 
     # This is kept here temporarily, should be refactored
     @property
-    def gomod_download_dir(self) -> SafePath:
+    def gomod_download_dir(self) -> RootedPath:
         """Directory where the fetched dependencies will be placed."""
-        return self.output_dir.safe_join("deps", "gomod", self.go_mod_cache_download_part)
+        return self.output_dir.join_within_root("deps", "gomod", self.go_mod_cache_download_part)
