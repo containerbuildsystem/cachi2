@@ -6,7 +6,7 @@ import textwrap
 from contextlib import nullcontext
 from pathlib import Path
 from textwrap import dedent
-from typing import Optional, Union
+from typing import Any, Optional, Union
 from unittest import mock
 
 import git
@@ -14,7 +14,7 @@ import pytest
 
 from cachi2.core.errors import GoModError, PackageRejected, UnexpectedFormat, UnsupportedFeature
 from cachi2.core.models.input import Request
-from cachi2.core.models.output import RequestOutput
+from cachi2.core.models.output import BuildConfig, Component, RequestOutput, Sbom
 from cachi2.core.package_managers import gomod
 from cachi2.core.package_managers.gomod import (
     _contains_package,
@@ -1301,43 +1301,75 @@ def test_dep_replacements(
 
 
 @pytest.mark.parametrize(
-    "gomod_input_packages, packages_output",
+    "gomod_input_packages, packages_output_by_path, expect_components",
     (
         (
             [{"type": "gomod", "path": "."}],
-            [
-                {
-                    "type": "gomod",
-                    "name": "github.com/my-org/my-repo",
-                    "version": "1.0.0",
-                    "path": ".",
-                    "dependencies": [
+            {
+                ".": {
+                    "module": {
+                        "type": "gomod",
+                        "name": "github.com/my-org/my-repo",
+                        "version": "1.0.0",
+                    },
+                    "module_deps": [
                         {
-                            "name": "golang.org/x/net",
                             "type": "gomod",
+                            "name": "golang.org/x/net",
                             "version": "v0.0.0-20190311183353-d8887717615a",
                         }
                     ],
+                    "packages": [
+                        {
+                            "pkg": {
+                                "type": "go-package",
+                                "name": "github.com/my-org/my-repo",
+                                "version": "1.0.0",
+                            },
+                            "pkg_deps": [
+                                {
+                                    "type": "go-package",
+                                    "name": "golang.org/x/net/http",
+                                    "version": "v0.0.0-20190311183353-d8887717615a",
+                                }
+                            ],
+                        }
+                    ],
                 },
+            },
+            [
+                Component(name="github.com/my-org/my-repo", version="1.0.0"),
+                Component(name="golang.org/x/net", version="v0.0.0-20190311183353-d8887717615a"),
+                Component(
+                    name="golang.org/x/net/http", version="v0.0.0-20190311183353-d8887717615a"
+                ),
             ],
         ),
         (
             [{"type": "gomod", "path": "."}, {"type": "gomod", "path": "path"}],
+            {
+                ".": {
+                    "module": {
+                        "type": "gomod",
+                        "name": "github.com/my-org/my-repo",
+                        "version": "1.0.0",
+                    },
+                    "module_deps": [],
+                    "packages": [],
+                },
+                "path": {
+                    "module": {
+                        "type": "gomod",
+                        "name": "github.com/my-org/my-repo/path",
+                        "version": "1.0.0",
+                    },
+                    "module_deps": [],
+                    "packages": [],
+                },
+            },
             [
-                {
-                    "type": "gomod",
-                    "name": "github.com/my-org/my-repo",
-                    "version": "1.0.0",
-                    "path": ".",
-                    "dependencies": [],
-                },
-                {
-                    "type": "gomod",
-                    "name": "github.com/my-org/my-repo/path",
-                    "version": "1.0.0",
-                    "path": "path",
-                    "dependencies": [],
-                },
+                Component(name="github.com/my-org/my-repo", version="1.0.0"),
+                Component(name="github.com/my-org/my-repo/path", version="1.0.0"),
             ],
         ),
     ),
@@ -1346,32 +1378,17 @@ def test_dep_replacements(
 @mock.patch("cachi2.core.package_managers.gomod._resolve_gomod")
 @mock.patch("cachi2.core.package_managers.gomod.GoCacheTemporaryDirectory")
 def test_fetch_gomod_source(
-    mock_tmp_dir,
-    mock_resolve_gomod,
-    mock_find_missing_gomod_files,
-    gomod_request,
-    packages_output,
-    env_variables,
-    tmp_path,
-):
+    mock_tmp_dir: mock.Mock,
+    mock_resolve_gomod: mock.Mock,
+    mock_find_missing_gomod_files: mock.Mock,
+    gomod_request: Request,
+    packages_output_by_path: dict[str, dict[str, Any]],
+    expect_components: list[Component],
+    env_variables: list[dict[str, Any]],
+) -> None:
     def resolve_gomod_mocked(path: Path, request: Request, tmp_dir: Path):
         # Find package output based on the path being processed
-        package = next(filter(lambda p: (tmp_path / p["path"]) == path, packages_output))
-
-        return {
-            "module": {"type": "gomod", "name": package["name"], "version": package["version"]},
-            "module_deps": [*package["dependencies"]],
-            "packages": [
-                {
-                    "pkg": {
-                        "type": "go-package",
-                        "name": package["name"],
-                        "version": package["version"],
-                    },
-                    "pkg_deps": [*package["dependencies"]],
-                },
-            ],
-        }
+        return packages_output_by_path[path.relative_to(gomod_request.source_dir).as_posix()]
 
     mock_resolve_gomod.side_effect = resolve_gomod_mocked
     mock_find_missing_gomod_files.return_value = []
@@ -1388,17 +1405,9 @@ def test_fetch_gomod_source(
     if len(gomod_request.packages) == 0:
         expected_output = RequestOutput.empty()
     else:
-        components = []
-
-        # for each Go module, there is also a correspondent Go package
-        for package in packages_output:
-            components.append({"name": package["name"], "version": package["version"]})
-
-            for dependency in package["dependencies"]:
-                components.append({"name": dependency["name"], "version": dependency["version"]})
-
-        expected_output = RequestOutput.from_obj_list(
-            components=components, environment_variables=env_variables
+        expected_output = RequestOutput(
+            sbom=Sbom(components=expect_components),
+            build_config=BuildConfig(environment_variables=env_variables),
         )
 
     assert output == expected_output
