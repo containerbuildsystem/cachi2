@@ -33,6 +33,7 @@ from cachi2.core.package_managers.gomod import (
     _vet_local_deps,
     fetch_gomod_source,
 )
+from cachi2.core.safepath import SafePath
 from tests.common_utils import write_file_tree
 
 
@@ -59,6 +60,11 @@ def gomod_request(tmp_path: Path, gomod_input_packages: list[dict[str, str]]) ->
         output_dir=tmp_path / "output",
         packages=gomod_input_packages,
     )
+
+
+@pytest.fixture
+def safe_tmp_path(tmp_path: Path) -> SafePath:
+    return SafePath(tmp_path)
 
 
 def proc_mock(
@@ -307,7 +313,7 @@ def test_resolve_gomod(
 
     mock_golang_version.return_value = "v2.1.1"
 
-    archive_path = gomod_request.source_dir / "path/to/archive.tar.gz"
+    archive_path = gomod_request.source_dir.safe_join("path/to/archive.tar.gz")
 
     flags = []
 
@@ -434,7 +440,7 @@ def test_resolve_gomod_vendor_dependencies(
 
     gomod_request.flags = flags
 
-    archive_path = gomod_request.source_dir / "retrodep.tar.gz"
+    archive_path = gomod_request.source_dir.safe_join("retrodep.tar.gz")
     gomod = _resolve_gomod(archive_path, gomod_request, tmpdir)
 
     assert mock_run.call_args_list[0][0][0] == ("go", "mod", "vendor")
@@ -476,7 +482,7 @@ def test_resolve_gomod_strict_mode_raise_error(
     ]
 
     archive_path = gomod_request.source_dir
-    archive_path.joinpath("vendor").mkdir()
+    archive_path.safe_join("vendor").path.mkdir()
 
     gomod_request.dep_replacements = ({"name": "pizza", "type": "gomod", "version": "v1.0.0"},)
 
@@ -536,7 +542,7 @@ def test_resolve_gomod_no_deps(
 
     mock_golang_version.return_value = "v2.1.1"
 
-    archive_path = gomod_request.source_dir / "path/to/archive.tar.gz"
+    archive_path = gomod_request.source_dir.safe_join("path/to/archive.tar.gz")
     if force_gomod_tidy:
         gomod_request.flags = ["force-gomod-tidy"]
     gomod = _resolve_gomod(archive_path, gomod_request, tmpdir)
@@ -570,7 +576,7 @@ def test_resolve_gomod_unused_dep(mock_run, tmpdir, gomod_request):
     expected_error = "The following gomod dependency replacements don't apply: pizza"
     with pytest.raises(PackageRejected, match=expected_error):
         _resolve_gomod(
-            Path("./source/path/archive.tar.gz"),
+            SafePath("/source/path/archive.tar.gz"),
             gomod_request,
             tmpdir,
         )
@@ -587,11 +593,11 @@ def test_resolve_gomod_unused_dep(mock_run, tmpdir, gomod_request):
     ],
 )
 def test_resolve_gomod_suspicious_symlinks(symlinked_file: str, gomod_request: Request) -> None:
-    tmp_path = gomod_request.source_dir
+    tmp_path = gomod_request.source_dir.path
     tmp_path.joinpath(symlinked_file).parent.mkdir(parents=True, exist_ok=True)
     tmp_path.joinpath(symlinked_file).symlink_to("/foo")
 
-    app_dir = tmp_path
+    app_dir = gomod_request.source_dir
 
     expect_err_msg = re.escape(
         f"Found suspicious symlink ({symlinked_file}) in Go module directory ({app_dir})."
@@ -604,7 +610,7 @@ def test_resolve_gomod_suspicious_symlinks(symlinked_file: str, gomod_request: R
 @mock.patch("cachi2.core.package_managers.gomod.get_config")
 @mock.patch("subprocess.run")
 def test_go_list_cmd_failure(mock_run, mock_config, tmpdir, go_mod_rc, go_list_rc, gomod_request):
-    archive_path = gomod_request.source_dir / "path/to/archive.tar.gz"
+    archive_path = gomod_request.source_dir.safe_join("path/to/archive.tar.gz")
 
     # Mock the tempfile.TemporaryDirectory context manager
     mock_config.return_value.gomod_download_max_tries = 1
@@ -921,11 +927,11 @@ def test_match_parent_module(package_name, module_names, expect_parent_module):
         (["gomod-vendor", "gomod-vendor-check"], True, (True, False)),
     ],
 )
-def test_should_vendor_deps(flags, vendor_exists, expect_result, tmp_path):
+def test_should_vendor_deps(flags, vendor_exists, expect_result, safe_tmp_path: SafePath):
     if vendor_exists:
-        tmp_path.joinpath("vendor").mkdir()
+        safe_tmp_path.safe_join("vendor").path.mkdir()
 
-    assert _should_vendor_deps(flags, tmp_path, False) == expect_result
+    assert _should_vendor_deps(flags, safe_tmp_path, False) == expect_result
 
 
 @pytest.mark.parametrize(
@@ -937,16 +943,16 @@ def test_should_vendor_deps(flags, vendor_exists, expect_result, tmp_path):
         (["gomod-vendor-check"], True, False),
     ],
 )
-def test_should_vendor_deps_strict(flags, vendor_exists, expect_error, tmp_path):
+def test_should_vendor_deps_strict(flags, vendor_exists, expect_error, safe_tmp_path: SafePath):
     if vendor_exists:
-        tmp_path.joinpath("vendor").mkdir()
+        safe_tmp_path.safe_join("vendor").path.mkdir()
 
     if expect_error:
         msg = 'The "gomod-vendor" or "gomod-vendor-check" flag must be set'
         with pytest.raises(PackageRejected, match=msg):
-            _should_vendor_deps(flags, tmp_path, True)
+            _should_vendor_deps(flags, safe_tmp_path, True)
     else:
-        _should_vendor_deps(flags, tmp_path, True)
+        _should_vendor_deps(flags, safe_tmp_path, True)
 
 
 @pytest.mark.parametrize("can_make_changes", [True, False])
@@ -1063,8 +1069,8 @@ def test_vendor_changed(subpath, vendor_before, vendor_changes, expected_change,
     assert not repo.git.diff("--diff-filter", "A")
 
 
-def test_module_lines_from_modules_txt(tmp_path):
-    vendor = tmp_path / "vendor"
+def test_module_lines_from_modules_txt(safe_tmp_path: SafePath) -> None:
+    vendor = safe_tmp_path.safe_join("vendor").path
     vendor.mkdir()
     vendor.joinpath("modules.txt").write_text(
         dedent(
@@ -1085,7 +1091,7 @@ def test_module_lines_from_modules_txt(tmp_path):
             """
         )
     )
-    assert _module_lines_from_modules_txt(tmp_path) == [
+    assert _module_lines_from_modules_txt(safe_tmp_path) == [
         "github.com/org/some-module v0.0.0 => ./example/src/some-module",
         "golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c",
         "rsc.io/quote v1.5.2 => rsc.io/quote v1.5.1",
@@ -1103,13 +1109,15 @@ def test_module_lines_from_modules_txt(tmp_path):
         ),
     ],
 )
-def test_module_lines_from_modules_txt_invalid_format(file_content, expect_error_msg, tmp_path):
-    vendor = tmp_path / "vendor"
+def test_module_lines_from_modules_txt_invalid_format(
+    file_content, expect_error_msg, safe_tmp_path: SafePath
+):
+    vendor = safe_tmp_path.safe_join("vendor").path
     vendor.mkdir()
     vendor.joinpath("modules.txt").write_text(file_content)
 
     with pytest.raises(UnexpectedFormat, match=expect_error_msg):
-        _module_lines_from_modules_txt(tmp_path)
+        _module_lines_from_modules_txt(safe_tmp_path)
 
 
 def test_load_list_deps():
@@ -1317,7 +1325,7 @@ def test_dep_replacements(
         fetch_gomod_source(gomod_request)
         tmp_dir = Path(mock_tmp_dir.return_value.__enter__.return_value)
         expected_calls = [
-            mock.call(gomod_request.source_dir / pkg.path, gomod_request, tmp_dir)
+            mock.call(gomod_request.source_dir.safe_join(pkg.path), gomod_request, tmp_dir)
             for pkg in gomod_request.packages
         ]
         mock_resolve_gomod.assert_has_calls(expected_calls, any_order=True)
@@ -1377,9 +1385,9 @@ def test_fetch_gomod_source(
     env_variables,
     tmp_path,
 ):
-    def resolve_gomod_mocked(path: Path, request: Request, tmp_dir: Path):
+    def resolve_gomod_mocked(app_dir: SafePath, request: Request, tmp_dir: Path):
         # Find package output based on the path being processed
-        package = next(filter(lambda p: (tmp_path / p["path"]) == path, packages_output))
+        package = next(filter(lambda p: (tmp_path / p["path"]) == app_dir.path, packages_output))
 
         return {
             "module": {"type": "gomod", "name": package["name"], "version": package["version"]},
@@ -1403,7 +1411,7 @@ def test_fetch_gomod_source(
 
     tmp_dir = Path(mock_tmp_dir.return_value.__enter__.return_value)
     calls = [
-        mock.call(gomod_request.source_dir / package.path, gomod_request, tmp_dir)
+        mock.call(gomod_request.source_dir.safe_join(package.path), gomod_request, tmp_dir)
         for package in gomod_request.packages
     ]
     mock_resolve_gomod.assert_has_calls(calls)

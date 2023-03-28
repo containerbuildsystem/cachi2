@@ -239,9 +239,11 @@ def fetch_deps(
 
     request_output = resolve_packages(request)
 
-    request.output_dir.mkdir(parents=True, exist_ok=True)
-    request.output_dir.joinpath(".build-config.json").write_text(request_output.build_config.json())
-    request.output_dir.joinpath("bom.json").write_text(
+    request.output_dir.path.mkdir(parents=True, exist_ok=True)
+    request.output_dir.safe_join(".build-config.json").path.write_text(
+        request_output.build_config.json()
+    )
+    request.output_dir.safe_join("bom.json").path.write_text(
         # the Sbom model has camelCase aliases in some fields
         request_output.sbom.json(by_alias=True, exclude_none=True)
     )
@@ -315,7 +317,7 @@ def inject_files(
 
 
 def _get_build_config(output_dir: Path) -> BuildConfig:
-    build_config_json = SafePath(output_dir) / ".build-config.json"
+    build_config_json = SafePath(output_dir).safe_join(".build-config.json").path
     if not build_config_json.exists():
         raise InvalidInput(
             f"No .build-config.json found in {output_dir}. "

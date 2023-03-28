@@ -109,15 +109,6 @@ class Request(pydantic.BaseModel):
     flags: frozenset[Flag] = frozenset()
     dep_replacements: tuple[dict, ...] = ()  # TODO: do we want dep replacements at all?
 
-    @pydantic.validator("source_dir", "output_dir")
-    def _make_path_safe(cls, path: Path) -> SafePath:
-        """Check that the path is absolute, fully resolve it and convert to SafePath."""
-        if not path.is_absolute():
-            raise ValueError(f"path must be absolute: {path}")
-        # Needs to be explicitly converted to SafePath - otherwise, the directories
-        # would be regular Paths despite being annotated as SafePath
-        return SafePath(path.resolve())
-
     @pydantic.validator("packages")
     def _unique_packages(cls, packages: list[PackageInput]) -> list[PackageInput]:
         """De-duplicate the packages to be processed."""
@@ -130,7 +121,7 @@ class Request(pydantic.BaseModel):
         # Don't run validation if source_dir failed to validate
         if source_dir is not None:
             try:
-                abspath = source_dir / package.path
+                abspath = source_dir.safe_join(package.path).path
             except NotSubpath:
                 raise ValueError(
                     f"package path (a symlink?) leads outside source directory: {package.path}"
@@ -166,6 +157,6 @@ class Request(pydantic.BaseModel):
 
     # This is kept here temporarily, should be refactored
     @property
-    def gomod_download_dir(self):
+    def gomod_download_dir(self) -> SafePath:
         """Directory where the fetched dependencies will be placed."""
-        return self.output_dir / "deps" / "gomod" / self.go_mod_cache_download_part
+        return self.output_dir.safe_join("deps", "gomod", self.go_mod_cache_download_part)

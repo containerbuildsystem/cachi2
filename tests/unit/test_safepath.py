@@ -7,17 +7,6 @@ import pytest
 from cachi2.core.safepath import NotSubpath, SafePath
 
 
-def test_safepath_stays_safe() -> None:
-    safepath = SafePath("/foo")
-    assert isinstance(safepath / "bar", SafePath)
-    assert isinstance(safepath.joinpath("bar"), SafePath)
-
-
-def test_safepath_must_be_absolute() -> None:
-    with pytest.raises(ValueError, match="safe path must be absolute but isn't: foo"):
-        SafePath("foo")
-
-
 @pytest.fixture
 def test_path(tmp_path: Path) -> Path:
     tmp_path.joinpath("symlink-to-parent").symlink_to("..")
@@ -31,6 +20,15 @@ def expect_err_msg(parent: Union[str, Path], subpath: Union[str, Path]) -> str:
     return re.escape(
         f"supposed subpath ({Path(subpath)}) leads outside parent path ({Path(parent)})"
     )
+
+
+def test_safepath_must_be_absolute() -> None:
+    with pytest.raises(ValueError, match="path must be absolute: foo"):
+        SafePath("foo")
+
+
+def test_safepath_repr() -> None:
+    assert repr(SafePath("/some/path")) == "SafePath('/some/path')"
 
 
 @pytest.mark.parametrize(
@@ -51,34 +49,28 @@ def test_safepath_rejects_unsafe_joinpath(
 ) -> None:
     safepath = SafePath(test_path)
 
-    with pytest.raises(NotSubpath, match=expect_err_msg(safepath, subpath_in_err_msg)):
-        safepath.joinpath(*joinpath_args)
+    with pytest.raises(NotSubpath, match=expect_err_msg(test_path, subpath_in_err_msg)):
+        safepath.safe_join(*joinpath_args)
 
 
-def test_safepath_rejects_unsafe_join_operator(test_path: Path) -> None:
+def test_sub_safepath(test_path: Path) -> None:
     safepath = SafePath(test_path)
 
-    with pytest.raises(NotSubpath, match=expect_err_msg(safepath, "..")):
-        _ = safepath / ".."
+    with pytest.raises(NotSubpath, match=expect_err_msg(test_path / "subpath", "..")):
+        safepath.safe_join("subpath").safe_join("..")
 
-    with pytest.raises(NotSubpath, match=expect_err_msg(safepath, "symlink-to-parent")):
-        _ = safepath / "symlink-to-parent"
-
-    with pytest.raises(NotSubpath, match=expect_err_msg(safepath / "subpath", "..")):
-        _ = safepath / "subpath" / ".."
-
-    with pytest.raises(NotSubpath, match=expect_err_msg(safepath / "subpath", "symlink-to-parent")):
-        _ = safepath / "subpath" / "symlink-to-parent"
+    with pytest.raises(
+        NotSubpath, match=expect_err_msg(test_path / "subpath", "symlink-to-parent")
+    ):
+        safepath.safe_join("subpath").safe_join("symlink-to-parent")
 
 
 def test_safepath_allows_safe_join(test_path: Path) -> None:
     safepath = SafePath(test_path)
 
-    assert safepath / "subpath/.." == safepath
-    assert safepath.joinpath("subpath", "..") == safepath
+    assert safepath.safe_join("subpath/..").path == test_path
+    assert safepath.safe_join("subpath", "..").path == test_path
 
-    assert safepath / "subpath/symlink-to-parent" == safepath
-    assert safepath.joinpath("subpath", "symlink-to-parent") == safepath
+    assert safepath.safe_join("subpath", "symlink-to-parent").path == test_path
 
-    assert safepath / "subpath" == test_path / "subpath"
-    assert safepath.joinpath("subpath") == test_path / "subpath"
+    assert safepath.safe_join("subpath").path == test_path / "subpath"

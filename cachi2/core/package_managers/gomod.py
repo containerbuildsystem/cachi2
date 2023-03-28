@@ -90,13 +90,13 @@ def fetch_gomod_source(request: Request) -> RequestOutput:
     components: list[Component] = []
 
     with GoCacheTemporaryDirectory(prefix="cachito-") as tmp_dir:
-        request.gomod_download_dir.mkdir(exist_ok=True, parents=True)
+        request.gomod_download_dir.path.mkdir(exist_ok=True, parents=True)
         for i, subpath in enumerate(subpaths):
             log.info("Fetching the gomod dependencies at subpath %s", subpath)
 
             log.info(f'Fetching the gomod dependencies at the "{subpath}" directory')
 
-            gomod_source_path = request.source_dir / subpath
+            gomod_source_path = request.source_dir.safe_join(subpath)
             try:
                 gomod = _resolve_gomod(gomod_source_path, request, Path(tmp_dir))
             except GoModError:
@@ -148,7 +148,7 @@ def _protect_against_symlinks(app_dir: SafePath) -> None:
 
     def check_path(supposed_subpath: Union[str, Path]) -> None:
         try:
-            app_dir.joinpath(supposed_subpath)
+            app_dir.safe_join(supposed_subpath)
         except NotSubpath:
             raise PackageRejected(
                 reason=(
@@ -161,11 +161,11 @@ def _protect_against_symlinks(app_dir: SafePath) -> None:
     check_path("go.mod")
     check_path("go.sum")
     check_path("vendor/modules.txt")
-    for go_file in app_dir.rglob("*.go"):
-        check_path(go_file.relative_to(app_dir))
+    for go_file in app_dir.path.rglob("*.go"):
+        check_path(go_file.relative_to(app_dir.path))
 
 
-def _find_missing_gomod_files(source_path: SafePath, subpaths: list[str]) -> list[SafePath]:
+def _find_missing_gomod_files(source_path: SafePath, subpaths: list[str]) -> list[Path]:
     """
     Find all go modules with missing gomod files.
 
@@ -179,7 +179,7 @@ def _find_missing_gomod_files(source_path: SafePath, subpaths: list[str]) -> lis
     """
     invalid_gomod_files = []
     for subpath in subpaths:
-        package_gomod_path = source_path / subpath / "go.mod"
+        package_gomod_path = source_path.safe_join(subpath, "go.mod").path
         log.debug("Testing for go mod file in {}".format(package_gomod_path))
         if not package_gomod_path.exists():
             invalid_gomod_files.append(package_gomod_path)
@@ -188,7 +188,7 @@ def _find_missing_gomod_files(source_path: SafePath, subpaths: list[str]) -> lis
 
 
 def _resolve_gomod(
-    path: SafePath, request: Request, tmp_dir: Path, git_dir_path: Optional[Path] = None
+    app_dir: SafePath, request: Request, tmp_dir: Path, git_dir_path: Optional[Path] = None
 ) -> dict[str, Any]:
     """
     Resolve and fetch gomod dependencies for given app source archive.
@@ -203,10 +203,10 @@ def _resolve_gomod(
         ("pkg_deps" key)
     :raises GoModError: if fetching dependencies fails
     """
-    _protect_against_symlinks(path)
+    _protect_against_symlinks(app_dir)
 
     if git_dir_path is None:
-        git_dir_path = request.source_dir
+        git_dir_path = request.source_dir.path
 
     config = get_config()
 
@@ -224,7 +224,7 @@ def _resolve_gomod(
     if "cgo-disable" in request.flags:
         env["CGO_ENABLED"] = "0"
 
-    run_params = {"env": env, "cwd": path}
+    run_params = {"env": env, "cwd": app_dir}
 
     # Collect all the dependency names that are being replaced to later verify if they were
     # all used
@@ -241,7 +241,9 @@ def _resolve_gomod(
         )
     # Vendor dependencies if the gomod-vendor flag is set
     flags = request.flags
-    should_vendor, can_make_changes = _should_vendor_deps(flags, path, config.gomod_strict_vendor)
+    should_vendor, can_make_changes = _should_vendor_deps(
+        flags, app_dir, config.gomod_strict_vendor
+    )
     if should_vendor:
         _vendor_deps(run_params, can_make_changes, git_dir_path)
     else:
@@ -260,7 +262,7 @@ def _resolve_gomod(
 
     # module level dependencies
     if should_vendor:
-        module_lines = _module_lines_from_modules_txt(path)
+        module_lines = _module_lines_from_modules_txt(app_dir)
     else:
         # .String formats the module as <name> <version> [=> <replace>],
         #   where <replace> is <name> <version> or <path>
@@ -326,7 +328,9 @@ def _resolve_gomod(
         )
 
     # In case a submodule is being processed, we need to determine its path
-    subpath = None if path == git_dir_path else path.relative_to(f"{git_dir_path}/", "")
+    subpath = (
+        None if app_dir.path == git_dir_path else app_dir.path.relative_to(f"{git_dir_path}/", "")
+    )
 
     # NOTE: If there are multiple go modules in a single git repo, they will
     #   all be versioned identically.
@@ -454,7 +458,7 @@ def _should_vendor_deps(flags: Iterable[str], app_dir: SafePath, strict: bool) -
     :return: (should vendor: bool, allowed to make changes in the vendor directory: bool)
     :raise PackageRejected: if the vendor dir is present, the flags are not used and we are strict
     """
-    vendor = app_dir.joinpath("vendor")
+    vendor = app_dir.safe_join("vendor").path
 
     if "gomod-vendor-check" in flags:
         return True, not vendor.exists()
@@ -829,7 +833,7 @@ def _module_lines_from_modules_txt(app_dir: SafePath) -> List[str]:
     Note that vendor/modules.txt is fully managed by go. After you call go mod vendor, this file
     is guaranteed to contain only the content written in it by go.
     """
-    modules_txt: SafePath = app_dir / "vendor" / "modules.txt"
+    modules_txt: SafePath = app_dir.safe_join("vendor", "modules.txt")
     module_lines: List[str] = []
     has_packages = {}
 
@@ -839,7 +843,7 @@ def _module_lines_from_modules_txt(app_dir: SafePath) -> List[str]:
         "If not, please let the maintainers know that Cachi2 fails to parse valid modules.txt"
     )
 
-    for line in modules_txt.read_text().splitlines():
+    for line in modules_txt.path.read_text().splitlines():
         # modules.txt contains lines in one of 4 formats:
         #   1) # <module_name> <version> [=> <replace>]
         #   2) ## <markers>

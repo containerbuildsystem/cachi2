@@ -129,8 +129,8 @@ class TestRequest:
         )
 
         assert request.dict() == {
-            "source_dir": tmp_path,
-            "output_dir": tmp_path,
+            "source_dir": SafePath(tmp_path),
+            "output_dir": SafePath(tmp_path),
             "packages": [
                 GomodPackageInput(type="gomod"),
                 GomodPackageInput(type="gomod", path="subpath"),

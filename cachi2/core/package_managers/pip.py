@@ -73,8 +73,8 @@ def fetch_pip_source(request: Request) -> RequestOutput:
 
     for package in request.pip_packages:
         info = _resolve_pip(
-            request.source_dir / package.path,
-            request.output_dir,
+            request.source_dir.safe_join(package.path).path,
+            request.output_dir.path,
             package.requirements_files,
             package.requirements_build_files,
         )
