@@ -59,3 +59,15 @@ def test_fetch_error_friendly_msg():
         """
     ).strip()
     assert err.friendly_msg() == expect_msg
+
+
+def test_unclean_source_repo_msg():
+    err = errors.UncleanSourceRepo("The repository is considered dirty")
+    expect_msg = dedent(
+        """
+        The repository is considered dirty
+          Fetching dependencies is not supported for unclean git repositories.
+          The source repository must be clean (no untracked files, no changes).
+        """
+    ).strip()
+    assert err.friendly_msg() == expect_msg

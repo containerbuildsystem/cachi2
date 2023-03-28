@@ -8,9 +8,10 @@ from typing import Any, Callable, Optional
 
 import pydantic
 import typer
+from git import InvalidGitRepositoryError, Repo
 
 import cachi2.core.config as config
-from cachi2.core.errors import Cachi2Error, InvalidInput
+from cachi2.core.errors import Cachi2Error, InvalidInput, UncleanSourceRepo
 from cachi2.core.extras.envfile import EnvFormat, generate_envfile
 from cachi2.core.models.input import Flag, PackageInput, Request, parse_user_input
 from cachi2.core.models.output import BuildConfig
@@ -236,6 +237,9 @@ def fetch_deps(
         },
     )
 
+    if _is_dirty_git_repository(request.source_dir):
+        raise UncleanSourceRepo("The repository is considered dirty")
+
     request_output = resolve_packages(request)
 
     request.output_dir.mkdir(parents=True, exist_ok=True)
@@ -321,3 +325,17 @@ def _get_build_config(output_dir: Path) -> BuildConfig:
             "Please use a directory populated by a previous fetch-deps command."
         )
     return BuildConfig.parse_raw(build_config_json.read_text())
+
+
+def _is_dirty_git_repository(source_dir: Path) -> bool:
+    try:
+        repo = Repo(source_dir)
+    except InvalidGitRepositoryError:
+        # not a git repository => clean
+        return False
+
+    if repo.is_dirty(untracked_files=True):
+        log.info(repo.git.status("--porcelain"))
+        return True
+
+    return False

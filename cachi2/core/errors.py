@@ -125,6 +125,20 @@ class GoModError(Cachi2Error):
         return _friendly_error_msg(str(self), self.notice)
 
 
+class UncleanSourceRepo(Cachi2Error):
+    """If that repo is unclean, Cachi2 will not process the repo and will fail the run."""
+
+    is_invalid_usage: ClassVar[bool] = True
+    solution = (
+        "Fetching dependencies is not supported for unclean git repositories.\n"
+        "The source repository must be clean (no untracked files, no changes)."
+    )
+
+    def friendly_msg(self) -> str:
+        """Return the user-friendly representation of this error."""
+        return _friendly_error_msg(str(self), self.solution)
+
+
 def _friendly_error_msg(
     reason: str, solution: Optional[str], docs_link: Optional[str] = None
 ) -> str:

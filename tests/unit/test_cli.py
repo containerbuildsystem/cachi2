@@ -11,6 +11,7 @@ from unittest import mock
 import pytest
 import typer.testing
 import yaml
+from git import Repo
 
 import cachi2.core.config as config_file
 from cachi2.core.models.input import Request
@@ -549,6 +550,66 @@ class TestFetchDeps:
 
         assert written_build_config == request_output.build_config
         assert written_sbom == request_output.sbom
+
+    @pytest.mark.parametrize(
+        "expected_error_lines, staged",
+        [
+            (
+                [
+                    "Fetching dependencies is not supported for unclean git repositories.",
+                    "The source repository must be clean (no untracked files, no changes).",
+                ],
+                False,
+            ),
+            (
+                [
+                    "Fetching dependencies is not supported for unclean git repositories.",
+                    "The source repository must be clean (no untracked files, no changes).",
+                ],
+                True,
+            ),
+        ],
+    )
+    def test_unclean_repository(
+        self, expected_error_lines: list[str], staged: bool, golang_repo_path: Path
+    ):
+        file = golang_repo_path.joinpath("hello.txt")
+        file.touch()
+
+        if staged:
+            repo = Repo(golang_repo_path)
+            repo.index.add(str(file))
+
+        result = invoke_expecting_invalid_usage(
+            app, ["fetch-deps", f"--source={str(golang_repo_path)}", "gomod"]
+        )
+        for pattern in expected_error_lines:
+            assert_pattern_in_output(pattern, result.output)
+
+    @pytest.mark.parametrize(
+        "expected_error_lines",
+        [
+            (
+                [
+                    "Fetching dependencies is not supported for unclean git repositories.",
+                    "The source repository must be clean (no untracked files, no changes).",
+                ]
+            )
+        ],
+    )
+    def test_modified_clean_repository(
+        self, expected_error_lines: list[str], golang_repo_path: Path
+    ):
+        for item in golang_repo_path.iterdir():
+            if item.is_file():
+                with open(item, "a") as file:
+                    file.write("hello")
+
+        result = invoke_expecting_invalid_usage(
+            app, ["fetch-deps", f"--source={str(golang_repo_path)}", "gomod"]
+        )
+        for pattern in expected_error_lines:
+            assert_pattern_in_output(pattern, result.output)
 
 
 def env_file_as_json(for_output_dir: Path) -> str:
