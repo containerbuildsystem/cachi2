@@ -1,0 +1,46 @@
+---
+apiVersion: tekton.dev/v1beta1
+kind: PipelineRun
+metadata:
+  name: cachi2-on-tag-latest
+  annotations:
+    build.appstudio.redhat.com/commit_sha: "{{revision}}"
+    build.appstudio.redhat.com/target_branch: "{{target_branch}}"
+    pipelinesascode.tekton.dev/max-keep-runs: "3"
+    pipelinesascode.tekton.dev/on-event: "[push]"
+    pipelinesascode.tekton.dev/on-target-branch: "[main]"
+spec:
+  params:
+    - name: revision
+      value: "{{revision}}"
+  pipelineSpec:
+    params:
+      - name: revision
+    tasks:
+      - name: tag-with-latest
+        params:
+          - name: revision
+            value: "$(params.revision)"
+        timeout: "15m"
+        taskSpec:
+          params:
+            - name: revision
+          steps:
+            - name: tag-with-latest
+              image: registry.access.redhat.com/ubi9/skopeo:latest@sha256:23c9ed4af1f42614bdc56309452568b2110a67f23102f42f6a6582a63b63dcdb
+              script: |
+                #!/usr/bin/env bash
+                SRC_REF="quay.io/redhat-appstudio/cachi2:$(params.revision)"
+                TARGET_REF="quay.io/redhat-appstudio/cachi2:latest"
+
+                echo "Waiting until ${SRC_REF} is pushed"
+
+                while ! skopeo inspect --no-tags docker://${SRC_REF} >/dev/null 2>&1; do
+                  echo -n .
+                  sleep 3
+                done
+
+                echo
+                echo "${SRC_REF} has been pushed, copying to ${TARGET_REF}"
+
+                skopeo copy "docker://${SRC_REF}" "docker://${TARGET_REF}"
