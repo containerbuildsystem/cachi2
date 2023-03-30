@@ -1,0 +1,363 @@
+{
+  "bomFormat": "CycloneDX",
+  "components": [
+    {
+      "name": "abbrev",
+      "version": "2.0.0",
+      "type": "library"
+    },
+    {
+      "name": "accepts",
+      "version": "1.3.8",
+      "type": "library"
+    },
+    {
+      "name": "array-flatten",
+      "version": "1.1.1",
+      "type": "library"
+    },
+    {
+      "name": "bar",
+      "type": "library"
+    },
+    {
+      "name": "bitbucket-cachi2-npm-without-deps-second",
+      "type": "library"
+    },
+    {
+      "name": "bitbucket-cachi2-npm-without-deps",
+      "type": "library"
+    },
+    {
+      "name": "body-parser",
+      "version": "1.20.1",
+      "type": "library"
+    },
+    {
+      "name": "bytes",
+      "version": "3.1.2",
+      "type": "library"
+    },
+    {
+      "name": "cachito-npm-without-deps",
+      "type": "library"
+    },
+    {
+      "name": "call-bind",
+      "version": "1.0.2",
+      "type": "library"
+    },
+    {
+      "name": "classnames",
+      "version": "2.3.2",
+      "type": "library"
+    },
+    {
+      "name": "colors",
+      "version": "1.4.0",
+      "type": "library"
+    },
+    {
+      "name": "content-disposition",
+      "version": "0.5.4",
+      "type": "library"
+    },
+    {
+      "name": "content-type",
+      "version": "1.0.5",
+      "type": "library"
+    },
+    {
+      "name": "cookie-signature",
+      "version": "1.0.6",
+      "type": "library"
+    },
+    {
+      "name": "cookie",
+      "version": "0.5.0",
+      "type": "library"
+    },
+    {
+      "name": "dateformat",
+      "version": "5.0.3",
+      "type": "library"
+    },
+    {
+      "name": "debug",
+      "version": "2.6.9",
+      "type": "library"
+    },
+    {
+      "name": "depd",
+      "version": "2.0.0",
+      "type": "library"
+    },
+    {
+      "name": "destroy",
+      "version": "1.2.0",
+      "type": "library"
+    },
+    {
+      "name": "ee-first",
+      "version": "1.1.1",
+      "type": "library"
+    },
+    {
+      "name": "eggs",
+      "type": "library"
+    },
+    {
+      "name": "encodeurl",
+      "version": "1.0.2",
+      "type": "library"
+    },
+    {
+      "name": "escape-html",
+      "version": "1.0.3",
+      "type": "library"
+    },
+    {
+      "name": "etag",
+      "version": "1.8.1",
+      "type": "library"
+    },
+    {
+      "name": "express",
+      "version": "4.18.2",
+      "type": "library"
+    },
+    {
+      "name": "finalhandler",
+      "version": "1.2.0",
+      "type": "library"
+    },
+    {
+      "name": "foo",
+      "type": "library"
+    },
+    {
+      "name": "forwarded",
+      "version": "0.2.0",
+      "type": "library"
+    },
+    {
+      "name": "fresh",
+      "version": "0.5.2",
+      "type": "library"
+    },
+    {
+      "name": "function-bind",
+      "version": "1.1.1",
+      "type": "library"
+    },
+    {
+      "name": "get-intrinsic",
+      "version": "1.2.0",
+      "type": "library"
+    },
+    {
+      "name": "has-symbols",
+      "version": "1.0.3",
+      "type": "library"
+    },
+    {
+      "name": "has",
+      "version": "1.0.3",
+      "type": "library"
+    },
+    {
+      "name": "http-errors",
+      "version": "2.0.0",
+      "type": "library"
+    },
+    {
+      "name": "iconv-lite",
+      "version": "0.4.24",
+      "type": "library"
+    },
+    {
+      "name": "inherits",
+      "version": "2.0.4",
+      "type": "library"
+    },
+    {
+      "name": "ipaddr.js",
+      "version": "1.9.1",
+      "type": "library"
+    },
+    {
+      "name": "is-positive",
+      "type": "library"
+    },
+    {
+      "name": "media-typer",
+      "version": "0.3.0",
+      "type": "library"
+    },
+    {
+      "name": "merge-descriptors",
+      "version": "1.0.1",
+      "type": "library"
+    },
+    {
+      "name": "methods",
+      "version": "1.1.2",
+      "type": "library"
+    },
+    {
+      "name": "mime-db",
+      "version": "1.52.0",
+      "type": "library"
+    },
+    {
+      "name": "mime-types",
+      "version": "2.1.35",
+      "type": "library"
+    },
+    {
+      "name": "mime",
+      "version": "1.6.0",
+      "type": "library"
+    },
+    {
+      "name": "ms",
+      "version": "2.0.0",
+      "type": "library"
+    },
+    {
+      "name": "ms",
+      "version": "2.1.3",
+      "type": "library"
+    },
+    {
+      "name": "negotiator",
+      "version": "0.6.3",
+      "type": "library"
+    },
+    {
+      "name": "not-baz",
+      "type": "library"
+    },
+    {
+      "name": "npm_test",
+      "version": "1.1.0",
+      "type": "library"
+    },
+    {
+      "name": "object-inspect",
+      "version": "1.12.3",
+      "type": "library"
+    },
+    {
+      "name": "on-finished",
+      "version": "2.4.1",
+      "type": "library"
+    },
+    {
+      "name": "parseurl",
+      "version": "1.3.3",
+      "type": "library"
+    },
+    {
+      "name": "path-to-regexp",
+      "version": "0.1.7",
+      "type": "library"
+    },
+    {
+      "name": "proxy-addr",
+      "version": "2.0.7",
+      "type": "library"
+    },
+    {
+      "name": "qs",
+      "version": "6.11.0",
+      "type": "library"
+    },
+    {
+      "name": "range-parser",
+      "version": "1.2.1",
+      "type": "library"
+    },
+    {
+      "name": "raw-body",
+      "version": "2.5.1",
+      "type": "library"
+    },
+    {
+      "name": "safe-buffer",
+      "version": "5.2.1",
+      "type": "library"
+    },
+    {
+      "name": "safer-buffer",
+      "version": "2.1.2",
+      "type": "library"
+    },
+    {
+      "name": "sax",
+      "version": "0.1.1",
+      "type": "library"
+    },
+    {
+      "name": "send",
+      "version": "0.18.0",
+      "type": "library"
+    },
+    {
+      "name": "serve-static",
+      "version": "1.15.0",
+      "type": "library"
+    },
+    {
+      "name": "setprototypeof",
+      "version": "1.2.0",
+      "type": "library"
+    },
+    {
+      "name": "side-channel",
+      "version": "1.0.4",
+      "type": "library"
+    },
+    {
+      "name": "spam",
+      "type": "library"
+    },
+    {
+      "name": "statuses",
+      "version": "2.0.1",
+      "type": "library"
+    },
+    {
+      "name": "toidentifier",
+      "version": "1.0.1",
+      "type": "library"
+    },
+    {
+      "name": "type-is",
+      "version": "1.6.18",
+      "type": "library"
+    },
+    {
+      "name": "unpipe",
+      "version": "1.0.0",
+      "type": "library"
+    },
+    {
+      "name": "utils-merge",
+      "version": "1.0.1",
+      "type": "library"
+    },
+    {
+      "name": "uuid",
+      "version": "9.0.0",
+      "type": "library"
+    },
+    {
+      "name": "vary",
+      "version": "1.1.2",
+      "type": "library"
+    }
+  ],
+  "specVersion": "1.4",
+  "version": 1
+}
