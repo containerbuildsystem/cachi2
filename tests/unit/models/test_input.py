@@ -8,6 +8,7 @@ import pytest as pytest
 from cachi2.core.errors import InvalidInput
 from cachi2.core.models.input import (
     GomodPackageInput,
+    NpmPackageInput,
     PackageInput,
     PipPackageInput,
     Request,
@@ -120,10 +121,14 @@ class TestRequest:
             packages=[
                 {"type": "gomod"},
                 {"type": "gomod", "path": "subpath"},
+                {"type": "npm"},
+                {"type": "npm", "path": "subpath"},
                 {"type": "pip", "requirements_build_files": []},
                 # check de-duplication
                 {"type": "gomod"},
                 {"type": "gomod", "path": "subpath"},
+                {"type": "npm"},
+                {"type": "npm", "path": "subpath"},
                 {"type": "pip", "requirements_build_files": []},
             ],
         )
@@ -134,6 +139,8 @@ class TestRequest:
             "packages": [
                 GomodPackageInput(type="gomod"),
                 GomodPackageInput(type="gomod", path="subpath"),
+                NpmPackageInput(type="npm"),
+                NpmPackageInput(type="npm", path="subpath"),
                 PipPackageInput(type="pip", requirements_build_files=[]),
             ],
             "flags": frozenset(),
@@ -143,9 +150,10 @@ class TestRequest:
         assert isinstance(request.output_dir, RootedPath)
 
     def test_packages_properties(self, tmp_path: Path):
-        packages = [{"type": "gomod"}, {"type": "pip"}]
+        packages = [{"type": "gomod"}, {"type": "npm"}, {"type": "pip"}]
         request = Request(source_dir=tmp_path, output_dir=tmp_path, packages=packages)
         assert request.gomod_packages == [GomodPackageInput(type="gomod")]
+        assert request.npm_packages == [NpmPackageInput(type="npm")]
         assert request.pip_packages == [PipPackageInput(type="pip")]
 
     @pytest.mark.parametrize("which_path", ["source_dir", "output_dir"])
