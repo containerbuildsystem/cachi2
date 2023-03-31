@@ -477,9 +477,8 @@ def _get_golang_version(module_name, git_path, commit_sha=None, update_tags=Fals
             repo.remote().fetch(force=True, tags=True)
         except Exception as ex:
             raise FetchError(
-                "Failed to fetch the tags on the Git repository (%s) for %s",
-                type(ex).__name__,
-                module_name,
+                f"Failed to fetch the tags on the Git repository ({type(ex).__name__}) "
+                f"for {module_name}"
             )
 
     if module_major_version:

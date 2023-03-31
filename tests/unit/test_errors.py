@@ -3,7 +3,7 @@ from textwrap import dedent
 from cachi2.core import errors
 
 
-def test_package_rejected_friendly_msg():
+def test_package_rejected_friendly_msg() -> None:
     err = errors.PackageRejected(
         "The package does not look valid",
         solution="Please fix your package\nOr read this second line",
@@ -20,7 +20,7 @@ def test_package_rejected_friendly_msg():
     assert err.friendly_msg() == expect_msg
 
 
-def test_unsupported_feature_default_friendly_msg():
+def test_unsupported_feature_default_friendly_msg() -> None:
     err = errors.UnsupportedFeature("This feature is not supported")
     expect_msg = dedent(
         """
@@ -34,7 +34,12 @@ def test_unsupported_feature_default_friendly_msg():
     assert no_default.friendly_msg() == "This feature is not supported"
 
 
-def test_gomod_error_friendly_msg():
+def test_turn_off_default_solution() -> None:
+    err = errors.UnsupportedFeature("This feature is not supported", solution=None)
+    assert err.friendly_msg() == "This feature is not supported"
+
+
+def test_gomod_error_friendly_msg() -> None:
     err = errors.GoModError("Some go command failed")
     expect_msg = dedent(
         """
@@ -49,7 +54,7 @@ def test_gomod_error_friendly_msg():
     assert err.friendly_msg() == expect_msg
 
 
-def test_fetch_error_friendly_msg():
+def test_fetch_error_friendly_msg() -> None:
     err = errors.FetchError("Failed to fetch something")
     expect_msg = dedent(
         """
