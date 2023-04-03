@@ -12,21 +12,33 @@ import pytest
 import requests
 
 from cachi2.core.checksum import ChecksumInfo
-from cachi2.core.errors import FetchError, PackageRejected, UnexpectedFormat, UnsupportedFeature
+from cachi2.core.errors import (
+    Cachi2Error,
+    FetchError,
+    PackageRejected,
+    UnexpectedFormat,
+    UnsupportedFeature,
+)
 from cachi2.core.models.input import Request
 from cachi2.core.models.output import Component, ProjectFile
 from cachi2.core.package_managers import general, pip
-from tests.common_utils import write_file_tree
+from cachi2.core.rooted_path import PathOutsideRoot, RootedPath
+from tests.common_utils import Symlink, write_file_tree
 
 THIS_MODULE_DIR = Path(__file__).resolve().parent
 GIT_REF = "9a557920b2a6d4110f838506120904a6fda421a2"
-PKG_DIR = Path("/foo/package_dir")
+PKG_DIR = RootedPath("/foo/package_dir")
 
 
 def setup_module():
     """Re-enable logging that was disabled at some point in previous tests."""
     pip.log.disabled = False
     pip.log.setLevel(logging.DEBUG)
+
+
+@pytest.fixture
+def rooted_tmp_path(tmp_path: Path) -> RootedPath:
+    return RootedPath(tmp_path)
 
 
 @pytest.mark.parametrize("py_exists", [True, False])
@@ -118,12 +130,12 @@ class TestSetupCFG:
     """SetupCFG tests."""
 
     @pytest.mark.parametrize("exists", [True, False])
-    def test_exists(self, exists: bool, tmp_path: Path) -> None:
+    def test_exists(self, exists: bool, rooted_tmp_path: RootedPath) -> None:
         """Test file existence check."""
         if exists:
-            tmp_path.joinpath("setup.cfg").write_text("")
+            rooted_tmp_path.join_within_root("setup.cfg").path.write_text("")
 
-        setup_cfg = pip.SetupCFG(tmp_path)
+        setup_cfg = pip.SetupCFG(rooted_tmp_path)
         assert setup_cfg.exists() == exists
 
     @pytest.mark.parametrize(
@@ -164,15 +176,15 @@ class TestSetupCFG:
         cfg_content: str,
         expect_name: Optional[str],
         expect_logs: list[str],
-        tmp_path: Path,
+        rooted_tmp_path: RootedPath,
         caplog: pytest.LogCaptureFixture,
     ) -> None:
         """Test get_name() method."""
-        setup_cfg = tmp_path.joinpath("setup.cfg")
-        setup_cfg.write_text(cfg_content)
+        setup_cfg = rooted_tmp_path.join_within_root("setup.cfg")
+        setup_cfg.path.write_text(cfg_content)
 
-        assert pip.SetupCFG(tmp_path).get_name() == expect_name
-        self._assert_has_logs(expect_logs, tmp_path, caplog)
+        assert pip.SetupCFG(rooted_tmp_path).get_name() == expect_name
+        self._assert_has_logs(expect_logs, rooted_tmp_path.path, caplog)
 
     @pytest.mark.parametrize(
         "cfg_content, expect_version, expect_logs",
@@ -213,15 +225,15 @@ class TestSetupCFG:
         cfg_content: str,
         expect_version: Optional[str],
         expect_logs: list[str],
-        tmp_path: Path,
+        rooted_tmp_path: RootedPath,
         caplog: pytest.LogCaptureFixture,
     ) -> None:
         """Test get_version() method with basic cases."""
-        setup_cfg = tmp_path.joinpath("setup.cfg")
-        setup_cfg.write_text(cfg_content)
+        setup_cfg = rooted_tmp_path.join_within_root("setup.cfg")
+        setup_cfg.path.write_text(cfg_content)
 
-        assert pip.SetupCFG(tmp_path).get_version() == expect_version
-        self._assert_has_logs(expect_logs, tmp_path, caplog)
+        assert pip.SetupCFG(rooted_tmp_path).get_version() == expect_version
+        self._assert_has_logs(expect_logs, rooted_tmp_path.path, caplog)
 
     def _assert_has_logs(
         self, expect_logs: list[str], tmpdir: Path, caplog: pytest.LogCaptureFixture
@@ -234,30 +246,30 @@ class TestSetupCFG:
         project_tree: dict[str, Any],
         expect_version: Optional[str],
         expect_logs: list[str],
-        expect_error: Optional[str],
-        tmpdir: Path,
+        expect_error: Optional[Cachi2Error],
+        rooted_tmpdir: RootedPath,
         caplog: pytest.LogCaptureFixture,
     ) -> None:
         """Test resolving version from file: or attr: directive."""
-        write_file_tree(project_tree, tmpdir)
-        setup_cfg = pip.SetupCFG(tmpdir)
+        write_file_tree(project_tree, rooted_tmpdir.path)
+        setup_cfg = pip.SetupCFG(rooted_tmpdir)
 
         if expect_error is None:
             assert setup_cfg.get_version() == expect_version
         else:
-            with pytest.raises(PackageRejected) as exc_info:
+            err_msg = str(expect_error).format(tmpdir=rooted_tmpdir)
+            with pytest.raises(type(expect_error), match=err_msg):
                 setup_cfg.get_version()
-            assert str(exc_info.value) == expect_error.format(tmpdir=tmpdir)
 
         logs = expect_logs.copy()
         # Does not actually have to be at index 0, this is just to be more obvious
-        logs.insert(0, f"Parsing setup.cfg at '{tmpdir.joinpath('setup.cfg')}'")
+        logs.insert(0, f"Parsing setup.cfg at '{rooted_tmpdir.join_within_root('setup.cfg')}'")
         if expect_version is not None:
             logs.append(f"Found metadata.version in setup.cfg: '{expect_version}'")
         elif expect_error is None:
             logs.append("Failed to resolve metadata.version in setup.cfg")
 
-        self._assert_has_logs(logs, tmpdir, caplog)
+        self._assert_has_logs(logs, rooted_tmpdir.path, caplog)
 
     @pytest.mark.parametrize(
         "project_tree, expect_version, expect_logs, expect_error",
@@ -340,7 +352,7 @@ class TestSetupCFG:
                 },
                 None,
                 ["Resolving metadata.version in setup.cfg from 'file: ../version.txt'"],
-                "'../version.txt' is not a subpath of '{tmpdir}'",
+                PathOutsideRoot("Joining path '../version.txt' to '{tmpdir}'"),
             ),
         ],
     )
@@ -349,13 +361,13 @@ class TestSetupCFG:
         project_tree: dict[str, Any],
         expect_version: Optional[str],
         expect_logs: list[str],
-        expect_error: Optional[str],
-        tmp_path: Path,
+        expect_error: Optional[Cachi2Error],
+        rooted_tmp_path: RootedPath,
         caplog: pytest.LogCaptureFixture,
     ) -> None:
         """Test get_version() method with file: directive."""
         self._test_version_with_file_tree(
-            project_tree, expect_version, expect_logs, expect_error, tmp_path, caplog
+            project_tree, expect_version, expect_logs, expect_error, rooted_tmp_path, caplog
         )
 
     @pytest.mark.parametrize(
@@ -611,7 +623,7 @@ class TestSetupCFG:
                     "Resolving metadata.version in setup.cfg from 'attr: ..module.__ver__'",
                     "Attempting to find attribute '__ver__' in '..module'",
                 ],
-                "'..module' is not an accepted module name",
+                PackageRejected("'..module' is not an accepted module name", solution=None),
             ),
             (
                 {
@@ -627,7 +639,7 @@ class TestSetupCFG:
                     "Resolving metadata.version in setup.cfg from 'attr: /root.module.__ver__'",
                     "Attempting to find attribute '__ver__' in '/root.module'",
                 ],
-                "'/root.module' is not an accepted module name",
+                PackageRejected("'/root.module' is not an accepted module name", solution=None),
             ),
         ],
     )
@@ -636,13 +648,13 @@ class TestSetupCFG:
         project_tree: dict[str, Any],
         expect_version: Optional[str],
         expect_logs: list[str],
-        expect_error: Optional[str],
-        tmp_path: Path,
+        expect_error: Optional[Cachi2Error],
+        rooted_tmp_path: RootedPath,
         caplog: pytest.LogCaptureFixture,
     ):
         """Test get_version() method with attr: directive."""
         self._test_version_with_file_tree(
-            project_tree, expect_version, expect_logs, expect_error, tmp_path, caplog
+            project_tree, expect_version, expect_logs, expect_error, rooted_tmp_path, caplog
         )
 
     @pytest.mark.parametrize(
@@ -738,7 +750,7 @@ class TestSetupCFG:
                     "Attempting to find attribute '__ver__' in 'module'",
                     "Custom path set for all root modules: '..'",
                 ],
-                "'../module' is not a subpath of '{tmpdir}'",
+                PathOutsideRoot("Joining path '../module' to '{tmpdir}'"),
             ),
             (
                 {
@@ -759,7 +771,43 @@ class TestSetupCFG:
                     "Attempting to find attribute '__ver__' in 'module'",
                     "Custom path set for root module 'module': '../module'",
                 ],
-                "'../module' is not a subpath of '{tmpdir}'",
+                PathOutsideRoot("Joining path '../module' to '{tmpdir}'"),
+            ),
+            (
+                {
+                    "setup.cfg": dedent(
+                        """\
+                        [metadata]
+                        version = attr: module.__ver__
+                        """
+                    ),
+                    "module.py": Symlink("../module.py"),
+                },
+                None,
+                [
+                    "Resolving metadata.version in setup.cfg from 'attr: module.__ver__'",
+                    "Attempting to find attribute '__ver__' in 'module'",
+                ],
+                PathOutsideRoot("Joining path 'module.py' to '{tmpdir}'"),
+            ),
+            (
+                {
+                    "setup.cfg": dedent(
+                        """\
+                        [metadata]
+                        version = attr: module.__ver__
+                        """
+                    ),
+                    "module": {
+                        "__init__.py": Symlink("../../foo.py"),
+                    },
+                },
+                None,
+                [
+                    "Resolving metadata.version in setup.cfg from 'attr: module.__ver__'",
+                    "Attempting to find attribute '__ver__' in 'module'",
+                ],
+                PathOutsideRoot("Joining path '__init__.py' to '{tmpdir}/module'"),
             ),
         ],
     )
@@ -768,13 +816,13 @@ class TestSetupCFG:
         project_tree: dict[str, Any],
         expect_version: Optional[str],
         expect_logs: list[str],
-        expect_error: Optional[str],
-        tmp_path: Path,
+        expect_error: Optional[Cachi2Error],
+        rooted_tmp_path: RootedPath,
         caplog: pytest.LogCaptureFixture,
     ):
         """Test get_version() method with attr: directive and options.package_dir."""
         self._test_version_with_file_tree(
-            project_tree, expect_version, expect_logs, expect_error, tmp_path, caplog
+            project_tree, expect_version, expect_logs, expect_error, rooted_tmp_path, caplog
         )
 
 
@@ -782,17 +830,17 @@ class TestSetupPY:
     """SetupPY tests."""
 
     @pytest.mark.parametrize("exists", [True, False])
-    def test_exists(self, exists: bool, tmp_path: Path) -> None:
+    def test_exists(self, exists: bool, rooted_tmp_path: RootedPath) -> None:
         """Test file existence check."""
         if exists:
-            tmp_path.joinpath("setup.py").write_text("")
+            rooted_tmp_path.join_within_root("setup.py").path.write_text("")
 
-        setup_py = pip.SetupPY(tmp_path)
+        setup_py = pip.SetupPY(rooted_tmp_path)
         assert setup_py.exists() == exists
 
     def _test_get_value(
         self,
-        tmpdir: Path,
+        rooted_tmpdir: RootedPath,
         caplog: pytest.LogCaptureFixture,
         script_content: str,
         expect_val: Optional[str],
@@ -800,8 +848,8 @@ class TestSetupPY:
         what: Literal["name", "version"] = "name",
     ) -> None:
         """Test getting name or version from setup.py."""
-        tmpdir.joinpath("setup.py").write_text(script_content.format(what=what))
-        setup_py = pip.SetupPY(tmpdir)
+        rooted_tmpdir.join_within_root("setup.py").path.write_text(script_content.format(what=what))
+        setup_py = pip.SetupPY(rooted_tmpdir)
 
         if what == "name":
             value = setup_py.get_name()
@@ -812,7 +860,7 @@ class TestSetupPY:
 
         logs = expect_logs.copy()
         # Does not actually have to be at index 0, this is just to be more obvious
-        logs.insert(0, f"Parsing setup.py at '{tmpdir.joinpath('setup.py')}'")
+        logs.insert(0, f"Parsing setup.py at '{rooted_tmpdir.join_within_root('setup.py')}'")
         if expect_val is None:
             msg = (
                 "Version in setup.py was either not found, or failed to resolve to a valid value"
@@ -824,7 +872,7 @@ class TestSetupPY:
             logs.append(f"Found {what} in setup.py: '{expect_val}'")
 
         for log in logs:
-            assert log.format(tmpdir=tmpdir, what=what) in caplog.text
+            assert log.format(tmpdir=rooted_tmpdir, what=what) in caplog.text
 
     @pytest.mark.parametrize(
         "script_content, expect_val, expect_logs",
@@ -922,7 +970,7 @@ class TestSetupPY:
         expect_val: Optional[str],
         expect_logs: list[str],
         what: Literal["name", "version"],
-        tmp_path: Path,
+        rooted_tmp_path: RootedPath,
         caplog: pytest.LogCaptureFixture,
     ) -> None:
         """
@@ -931,7 +979,9 @@ class TestSetupPY:
         Test cases only call setup() at top level, location of setup call is much more
         important for tests with variables.
         """
-        self._test_get_value(tmp_path, caplog, script_content, expect_val, expect_logs, what=what)
+        self._test_get_value(
+            rooted_tmp_path, caplog, script_content, expect_val, expect_logs, what=what
+        )
 
     @pytest.mark.parametrize(
         "version_val, expect_version",
@@ -941,7 +991,7 @@ class TestSetupPY:
         self,
         version_val: Any,
         expect_version: str,
-        tmp_path: Path,
+        rooted_tmp_path: RootedPath,
         caplog: pytest.LogCaptureFixture,
     ) -> None:
         """Test cases where version values get special handling."""
@@ -952,7 +1002,7 @@ class TestSetupPY:
             f"setup kwarg 'version' is a literal: {version_val!r}",
         ]
         self._test_get_value(
-            tmp_path, caplog, script_content, expect_version, expect_logs, what="version"
+            rooted_tmp_path, caplog, script_content, expect_version, expect_logs, what="version"
         )
 
     @pytest.mark.parametrize(
@@ -1219,7 +1269,7 @@ class TestSetupPY:
         expect_val: Optional[str],
         expect_logs: list[str],
         what: Literal["name", "version"],
-        tmp_path: Path,
+        rooted_tmp_path: RootedPath,
         caplog: pytest.LogCaptureFixture,
     ) -> None:
         """Tests for getting kwarg value from a variable."""
@@ -1231,7 +1281,7 @@ class TestSetupPY:
             "setup kwarg '{what}' looks like a variable",
             f"Backtracking up the AST from line {lineno} to find variable 'foo'",
         ]
-        self._test_get_value(tmp_path, caplog, script_content, expect_val, logs, what=what)
+        self._test_get_value(rooted_tmp_path, caplog, script_content, expect_val, logs, what=what)
 
     @pytest.mark.parametrize(
         "version_val, expect_version",
@@ -1241,7 +1291,7 @@ class TestSetupPY:
         self,
         version_val: Any,
         expect_version: str,
-        tmp_path: Path,
+        rooted_tmp_path: RootedPath,
         caplog: pytest.LogCaptureFixture,
     ) -> None:
         """Test that special version values are supported also for variables."""
@@ -1260,12 +1310,15 @@ class TestSetupPY:
             f"Found variable 'foo': {version_val!r}",
         ]
         self._test_get_value(
-            tmp_path, caplog, script_content, expect_version, expect_logs, what="version"
+            rooted_tmp_path, caplog, script_content, expect_version, expect_logs, what="version"
         )
 
     @pytest.mark.parametrize("what", ["name", "version"])
     def test_kwarg_unsupported_expr(
-        self, what: Literal["name", "version"], tmp_path: Path, caplog: pytest.LogCaptureFixture
+        self,
+        what: Literal["name", "version"],
+        rooted_tmp_path: RootedPath,
+        caplog: pytest.LogCaptureFixture,
     ) -> None:
         """Value of kwarg is neither a literal nor a Name."""
         script_content = f"setup({what}=get_version())"
@@ -1274,7 +1327,7 @@ class TestSetupPY:
             "Pseudo-path: Module.body[0] -> Expr(#1).value",
             f"setup kwarg '{what}' is an unsupported expression: Call",
         ]
-        self._test_get_value(tmp_path, caplog, script_content, None, expect_logs, what=what)
+        self._test_get_value(rooted_tmp_path, caplog, script_content, None, expect_logs, what=what)
 
 
 class TestPipRequirementsFile:
@@ -2412,7 +2465,7 @@ class TestDownload:
         sdist_exists,
         sdist_not_yanked,
         package_name,
-        tmp_path,
+        rooted_tmp_path,
     ):
         """Test downloading of a single PyPI package."""
         mock_requirement = self.mock_requirement(
@@ -2439,12 +2492,12 @@ class TestDownload:
 
         if expect_error is None:
             download_info = pip._download_pypi_package(
-                mock_requirement, tmp_path, "https://pypi-proxy.org/", ("user", "password")
+                mock_requirement, rooted_tmp_path, "https://pypi-proxy.org/", ("user", "password")
             )
             assert download_info == {
                 "package": "aiowsgi",
                 "version": "0.7",
-                "path": tmp_path / "aiowsgi-0.7.tar.gz",
+                "path": rooted_tmp_path.join_within_root("aiowsgi-0.7.tar.gz").path,
             }
 
             absolute_file_url = "https://pypi-proxy.org/packages/aiowsgi-0.7.tar.gz"
@@ -2454,7 +2507,10 @@ class TestDownload:
         else:
             with pytest.raises((PackageRejected, FetchError)) as exc_info:
                 pip._download_pypi_package(
-                    mock_requirement, tmp_path, "https://pypi-proxy.org", ("user", "password")
+                    mock_requirement,
+                    rooted_tmp_path,
+                    "https://pypi-proxy.org",
+                    ("user", "password"),
                 )
             assert str(exc_info.value) == expect_error
 
@@ -2617,7 +2673,7 @@ class TestDownload:
     def test_download_vcs_package(
         self,
         mock_clone_as_tarball,
-        tmp_path,
+        rooted_tmp_path,
     ):
         """Test downloading of a single VCS package."""
         vcs_url = f"git+https://github.com/spam/eggs@{GIT_REF}"
@@ -2626,13 +2682,13 @@ class TestDownload:
             "eggs", "vcs", url=vcs_url, download_line=f"eggs @ {vcs_url}"
         )
 
-        download_info = pip._download_vcs_package(mock_requirement, tmp_path)
+        download_info = pip._download_vcs_package(mock_requirement, rooted_tmp_path)
 
         assert download_info == {
             "package": "eggs",
-            "path": tmp_path.joinpath(
+            "path": rooted_tmp_path.join_within_root(
                 "github.com", "spam", "eggs", f"eggs-external-gitcommit-{GIT_REF}.tar.gz"
-            ),
+            ).path,
             "url": "https://github.com/spam/eggs",
             "ref": GIT_REF,
             "namespace": "spam",
@@ -2667,7 +2723,7 @@ class TestDownload:
         host_in_url,
         trusted_hosts,
         host_is_trusted,
-        tmp_path,
+        rooted_tmp_path,
     ):
         """Test downloading of a single URL package."""
         # Add the #cachito_package fragment to make sure the .tar.gz extension
@@ -2688,13 +2744,15 @@ class TestDownload:
 
         download_info = pip._download_url_package(
             mock_requirement,
-            tmp_path,
+            rooted_tmp_path,
             set(trusted_hosts),
         )
 
         assert download_info == {
             "package": "foo",
-            "path": tmp_path / "external-foo" / "foo-external-sha256-abcdef.tar.gz",
+            "path": rooted_tmp_path.join_within_root(
+                "external-foo", "foo-external-sha256-abcdef.tar.gz"
+            ).path,
             "original_url": original_url,
             "url_with_hash": url_with_hash,
         }
@@ -2740,7 +2798,7 @@ class TestDownload:
         options = all_rejected + ["-c", "constraints.txt", "--use-feature", "some_feature", "--foo"]
         req_file = self.mock_requirements_file(options=options)
         with pytest.raises(UnsupportedFeature) as exc_info:
-            pip._download_dependencies(Path(), req_file)
+            pip._download_dependencies(RootedPath("/output"), req_file)
 
         err_msg = (
             "Cachi2 does not support the following options: -i, --index-url, --extra-index-url, "
@@ -2765,7 +2823,7 @@ class TestDownload:
         req = self.mock_requirement("foo", "pypi", version_specs=version_specs)
         req_file = self.mock_requirements_file(requirements=[req])
         with pytest.raises(PackageRejected) as exc_info:
-            pip._download_dependencies(Path(), req_file)
+            pip._download_dependencies(RootedPath("/output"), req_file)
         msg = f"Requirement must be pinned to an exact version: {req.download_line}"
         assert str(exc_info.value) == msg
 
@@ -2788,7 +2846,7 @@ class TestDownload:
         req_file = self.mock_requirements_file(requirements=[req])
 
         with pytest.raises(PackageRejected) as exc_info:
-            pip._download_dependencies(Path(), req_file)
+            pip._download_dependencies(RootedPath("/output"), req_file)
 
         msg = f"No git ref in {req.download_line} (expected 40 hexadecimal characters)"
         assert str(exc_info.value) == msg
@@ -2801,7 +2859,7 @@ class TestDownload:
         req_file = self.mock_requirements_file(requirements=[req])
 
         with pytest.raises(UnsupportedFeature) as exc_info:
-            pip._download_dependencies(Path(), req_file)
+            pip._download_dependencies(RootedPath("/output"), req_file)
 
         msg = f"Unsupported VCS for {req.download_line}: {scheme} (only git is supported)"
         assert str(exc_info.value) == msg
@@ -2828,7 +2886,7 @@ class TestDownload:
         req_file = self.mock_requirements_file(requirements=[req])
 
         with pytest.raises(PackageRejected) as exc_info:
-            pip._download_dependencies(Path(), req_file)
+            pip._download_dependencies(RootedPath("/output"), req_file)
 
         assert str(exc_info.value) == (
             f"URL requirement must specify exactly one hash, but specifies {total}: foo @ {url}."
@@ -2850,7 +2908,7 @@ class TestDownload:
         req_file = self.mock_requirements_file(requirements=[req])
 
         with pytest.raises(PackageRejected) as exc_info:
-            pip._download_dependencies(Path(), req_file)
+            pip._download_dependencies(RootedPath("/output"), req_file)
 
         assert str(exc_info.value) == (
             f"URL for requirement does not contain any recognized file extension: "
@@ -2879,7 +2937,7 @@ class TestDownload:
         req_file = self.mock_requirements_file(requirements=[req_1, req_2], options=options)
 
         with pytest.raises(PackageRejected) as exc_info:
-            pip._download_dependencies(Path(), req_file)
+            pip._download_dependencies(RootedPath("/output"), req_file)
 
         if global_require_hash:
             assert "Global --require-hashes option used, will require hashes" in caplog.text
@@ -2909,7 +2967,7 @@ class TestDownload:
         req_file = self.mock_requirements_file(requirements=[req])
 
         with pytest.raises(PackageRejected) as exc_info:
-            pip._download_dependencies(Path(), req_file)
+            pip._download_dependencies(RootedPath("/output"), req_file)
 
         msg = "Not a valid hash specifier: 'malformed' (expected algorithm:digest)"
         assert str(exc_info.value) == msg
@@ -2930,7 +2988,7 @@ class TestDownload:
         mock_pypi_download,
         use_hashes,
         trusted_hosts,
-        tmp_path,
+        rooted_tmp_path,
         caplog,
     ):
         """
@@ -2970,16 +3028,18 @@ class TestDownload:
             options=options,
         )
 
-        pip_deps = tmp_path / "deps" / "pip"
+        pip_deps = rooted_tmp_path.join_within_root("deps", "pip")
 
-        pypi_download = pip_deps / "foo-1.0.tar.gz"
-        vcs_download = pip_deps.joinpath(
+        pypi_download = pip_deps.join_within_root("foo-1.0.tar.gz").path
+        vcs_download = pip_deps.join_within_root(
             "github.com",
             "spam",
             "eggs",
             f"eggs-external-gitcommit-{GIT_REF}.tar.gz",
-        )
-        url_download = pip_deps / "external-bar" / "bar-external-sha256-654321.tar.gz"
+        ).path
+        url_download = pip_deps.join_within_root(
+            "external-bar", "bar-external-sha256-654321.tar.gz"
+        ).path
 
         pypi_info = {"package": "foo", "version": "1.0", "path": pypi_download}
         vcs_info = {
@@ -3001,13 +3061,13 @@ class TestDownload:
         # </setup>
 
         # <call>
-        downloads = pip._download_dependencies(tmp_path, req_file)
+        downloads = pip._download_dependencies(rooted_tmp_path, req_file)
         assert downloads == [
             {**pypi_info, "kind": "pypi"},
             {**vcs_info, "kind": "vcs"},
             {**url_info, "kind": "url"},
         ]
-        assert pip_deps.is_dir()
+        assert pip_deps.path.is_dir()
         # </call>
 
         # <check calls that must always be made>
@@ -3090,25 +3150,25 @@ class TestDownload:
         self,
         check_metadata_in_sdist: mock.Mock,
         mock_pypi_download: mock.Mock,
-        tmp_path: Path,
+        rooted_tmp_path: RootedPath,
     ) -> None:
         """Test downloading dependencies from a requirement file list."""
-        req_file1 = tmp_path / "requirements.txt"
-        req_file1.write_text("foo==1.0.0")
-        req_file2 = tmp_path / "requirements-alt.txt"
-        req_file2.write_text("bar==0.0.1")
+        req_file1 = rooted_tmp_path.join_within_root("requirements.txt")
+        req_file1.path.write_text("foo==1.0.0")
+        req_file2 = rooted_tmp_path.join_within_root("requirements-alt.txt")
+        req_file2.path.write_text("bar==0.0.1")
 
-        pip_deps = tmp_path / "deps" / "pip"
+        pip_deps = rooted_tmp_path.join_within_root("deps", "pip")
 
-        pypi_download1 = pip_deps / "foo" / "foo-1.0.0.tar.gz"
-        pypi_download2 = pip_deps / "bar" / "bar-0.0.1.tar.gz"
+        pypi_download1 = pip_deps.join_within_root("foo", "foo-1.0.0.tar.gz").path
+        pypi_download2 = pip_deps.join_within_root("bar", "bar-0.0.1.tar.gz").path
 
         pypi_info1 = {"package": "foo", "version": "1.0.0", "path": pypi_download1}
         pypi_info2 = {"package": "bar", "version": "0.0.1", "path": pypi_download2}
 
         mock_pypi_download.side_effect = [pypi_info1, pypi_info2]
 
-        downloads = pip._download_from_requirement_files(tmp_path, [req_file1, req_file2])
+        downloads = pip._download_from_requirement_files(rooted_tmp_path, [req_file1, req_file2])
         assert downloads == [pypi_info1 | {"kind": "pypi"}, pypi_info2 | {"kind": "pypi"}]
         check_metadata_in_sdist.assert_has_calls(
             [mock.call(pypi_info1["path"]), mock.call(pypi_info2["path"])], any_order=True
@@ -3117,24 +3177,26 @@ class TestDownload:
 
 @pytest.mark.parametrize("exists", [True, False])
 @pytest.mark.parametrize("devel", [True, False])
-def test_default_requirement_file_list(tmp_path: Path, exists: bool, devel: bool) -> None:
+def test_default_requirement_file_list(
+    rooted_tmp_path: RootedPath, exists: bool, devel: bool
+) -> None:
     req_file = None
     requirements = pip.DEFAULT_REQUIREMENTS_FILE
     build_requirements = pip.DEFAULT_BUILD_REQUIREMENTS_FILE
     if exists:
         filename = build_requirements if devel else requirements
-        req_file = tmp_path / filename
-        req_file.write_text("nothing to see here\n")
+        req_file = rooted_tmp_path.join_within_root(filename)
+        req_file.path.write_text("nothing to see here\n")
 
-    req_files = pip._default_requirement_file_list(tmp_path, devel)
+    req_files = pip._default_requirement_file_list(rooted_tmp_path, devel)
     expected = [req_file] if req_file else []
     assert req_files == expected
 
 
 @mock.patch("cachi2.core.package_managers.pip._get_pip_metadata")
-def test_resolve_pip_no_deps(mock_metadata: mock.Mock, tmp_path: Path) -> None:
+def test_resolve_pip_no_deps(mock_metadata: mock.Mock, rooted_tmp_path: RootedPath) -> None:
     mock_metadata.return_value = ("foo", "1.0")
-    pkg_info = pip._resolve_pip(tmp_path, tmp_path / "output")
+    pkg_info = pip._resolve_pip(rooted_tmp_path, rooted_tmp_path.join_within_root("output"))
     expected = {
         "package": {"name": "foo", "version": "1.0", "type": "pip"},
         "dependencies": [],
@@ -3144,49 +3206,67 @@ def test_resolve_pip_no_deps(mock_metadata: mock.Mock, tmp_path: Path) -> None:
 
 
 @mock.patch("cachi2.core.package_managers.pip._get_pip_metadata")
-def test_resolve_pip_incompatible(mock_metadata: mock.Mock, tmp_path: Path) -> None:
+def test_resolve_pip_incompatible(mock_metadata: mock.Mock, rooted_tmp_path: RootedPath) -> None:
     expected_error = "Could not resolve package metadata: name"
     mock_metadata.side_effect = PackageRejected(expected_error, solution=None)
     with pytest.raises(PackageRejected, match=expected_error):
-        pip._resolve_pip(tmp_path, tmp_path / "output")
+        pip._resolve_pip(rooted_tmp_path, rooted_tmp_path.join_within_root("output"))
 
 
 @mock.patch("cachi2.core.package_managers.pip._get_pip_metadata")
-def test_resolve_pip_invalid_req_file_path(mock_metadata: mock.Mock, tmp_path: Path) -> None:
+def test_resolve_pip_invalid_req_file_path(
+    mock_metadata: mock.Mock, rooted_tmp_path: RootedPath
+) -> None:
     mock_metadata.return_value = ("foo", "1.0")
-    invalid_path = Path("/foo/bar.txt")
-    expected_error = f"The requirements file does not exist: {invalid_path}"
+    invalid_path = Path("foo/bar.txt")
+    expected_error = (
+        f"The requirements file does not exist: {rooted_tmp_path.join_within_root(invalid_path)}"
+    )
     requirement_files = [invalid_path]
     with pytest.raises(PackageRejected, match=expected_error):
-        pip._resolve_pip(tmp_path, tmp_path / "output", requirement_files, None)
+        pip._resolve_pip(
+            rooted_tmp_path, rooted_tmp_path.join_within_root("output"), requirement_files, None
+        )
 
 
 @mock.patch("cachi2.core.package_managers.pip._get_pip_metadata")
-def test_resolve_pip_invalid_bld_req_file_path(mock_metadata: mock.Mock, tmp_path: Path) -> None:
+def test_resolve_pip_invalid_bld_req_file_path(
+    mock_metadata: mock.Mock, rooted_tmp_path: RootedPath
+) -> None:
     mock_metadata.return_value = ("foo", "1.0")
-    invalid_path = Path("/foo/bar.txt")
-    expected_error = f"The requirements file does not exist: {invalid_path}"
+    invalid_path = Path("foo/bar.txt")
+    expected_error = (
+        f"The requirements file does not exist: {rooted_tmp_path.join_within_root(invalid_path)}"
+    )
     build_requirement_files = [invalid_path]
     with pytest.raises(PackageRejected, match=expected_error):
-        pip._resolve_pip(tmp_path, tmp_path / "output", None, build_requirement_files)
+        pip._resolve_pip(
+            rooted_tmp_path,
+            rooted_tmp_path.join_within_root("output"),
+            None,
+            build_requirement_files,
+        )
 
 
 @pytest.mark.parametrize("custom_requirements", [True, False])
 @mock.patch("cachi2.core.package_managers.pip._get_pip_metadata")
 @mock.patch("cachi2.core.package_managers.pip._download_dependencies")
 def test_resolve_pip(
-    mock_download: mock.Mock, mock_metadata: mock.Mock, tmp_path: Path, custom_requirements: bool
+    mock_download: mock.Mock,
+    mock_metadata: mock.Mock,
+    rooted_tmp_path: RootedPath,
+    custom_requirements: bool,
 ) -> None:
     relative_req_file_path = Path("req.txt")
     relative_build_req_file_path = Path("breq.txt")
-    req_file = tmp_path / pip.DEFAULT_REQUIREMENTS_FILE
-    build_req_file = tmp_path / pip.DEFAULT_BUILD_REQUIREMENTS_FILE
+    req_file = rooted_tmp_path.join_within_root(pip.DEFAULT_REQUIREMENTS_FILE)
+    build_req_file = rooted_tmp_path.join_within_root(pip.DEFAULT_BUILD_REQUIREMENTS_FILE)
     if custom_requirements:
-        req_file = tmp_path / relative_req_file_path
-        build_req_file = tmp_path / relative_build_req_file_path
+        req_file = rooted_tmp_path.join_within_root(relative_req_file_path)
+        build_req_file = rooted_tmp_path.join_within_root(relative_build_req_file_path)
 
-    req_file.write_text("bar==2.1")
-    build_req_file.write_text("baz==0.0.5")
+    req_file.path.write_text("bar==2.1")
+    build_req_file.path.write_text("baz==0.0.5")
     mock_metadata.return_value = ("foo", "1.0")
     mock_download.side_effect = [
         [{"kind": "pypi", "path": "some/path", "package": "bar", "version": "2.1"}],
@@ -3194,13 +3274,13 @@ def test_resolve_pip(
     ]
     if custom_requirements:
         pkg_info = pip._resolve_pip(
-            tmp_path,
-            tmp_path / "output",
+            rooted_tmp_path,
+            rooted_tmp_path.join_within_root("output"),
             requirement_files=[relative_req_file_path],
             build_requirement_files=[relative_build_req_file_path],
         )
     else:
-        pkg_info = pip._resolve_pip(tmp_path, tmp_path / "output")
+        pkg_info = pip._resolve_pip(rooted_tmp_path, rooted_tmp_path.join_within_root("output"))
 
     expected = {
         "package": {"name": "foo", "version": "1.0", "type": "pip"},
@@ -3341,18 +3421,18 @@ def test_metadata_check_invalid_argument():
     ],
 )
 def test_replace_external_requirements(
-    original_content: str, expect_replaced: Optional[str], tmp_path: Path
+    original_content: str, expect_replaced: Optional[str], rooted_tmp_path: RootedPath
 ):
-    requirements_path = tmp_path / "requirements.txt"
-    requirements_path.write_text(original_content)
+    requirements_file = rooted_tmp_path.join_within_root("requirements.txt")
+    requirements_file.path.write_text(original_content)
 
-    replaced_file = pip._replace_external_requirements(requirements_path)
+    replaced_file = pip._replace_external_requirements(requirements_file)
     if expect_replaced is None:
         assert replaced_file is None
     else:
         assert replaced_file is not None
         assert replaced_file.template == expect_replaced
-        assert replaced_file.abspath == requirements_path
+        assert replaced_file.abspath == requirements_file.path
 
 
 @pytest.mark.parametrize(
@@ -3376,12 +3456,12 @@ def test_fetch_pip_source(
     mock_replace_requirements: mock.Mock,
     packages: list[dict[str, Any]],
     n_pip_packages: int,
-    tmp_path: Path,
+    rooted_tmp_path: RootedPath,
 ):
-    source_dir = tmp_path / "source"
-    output_dir = tmp_path / "output"
-    source_dir.mkdir()
-    source_dir.joinpath("foo").mkdir()
+    source_dir = rooted_tmp_path.re_root("source")
+    output_dir = rooted_tmp_path.re_root("output")
+    source_dir.path.mkdir()
+    source_dir.join_within_root("foo").path.mkdir()
 
     request = Request(source_dir=source_dir, output_dir=output_dir, packages=packages)
 
@@ -3471,5 +3551,5 @@ def test_fetch_pip_source(
         mock_replace_requirements.assert_any_call("/package_a/requirements.txt")
         mock_replace_requirements.assert_any_call("/package_a/requirements-build.txt")
     if n_pip_packages >= 2:
-        mock_resolve_pip.assert_any_call(source_dir / "foo", output_dir, None, [])
+        mock_resolve_pip.assert_any_call(source_dir.join_within_root("foo"), output_dir, None, [])
         mock_replace_requirements.assert_any_call("/package_b/requirements.txt")
