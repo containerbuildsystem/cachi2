@@ -12,7 +12,9 @@ import zipfile
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
-from typing import IO, TYPE_CHECKING, Any, Iterable, Optional, Union
+from typing import IO, TYPE_CHECKING, Any, Iterable, Optional
+
+from cachi2.core.rooted_path import RootedPath
 
 if TYPE_CHECKING:
     from typing_extensions import TypeGuard
@@ -77,8 +79,8 @@ def fetch_pip_source(request: Request) -> RequestOutput:
 
     for package in request.pip_packages:
         info = _resolve_pip(
-            request.source_dir.join_within_root(package.path).path,
-            request.output_dir.path,
+            request.source_dir.join_within_root(package.path),
+            request.output_dir,
             package.requirements_files,
             package.requirements_build_files,
         )
@@ -98,7 +100,7 @@ def fetch_pip_source(request: Request) -> RequestOutput:
     )
 
 
-def _get_pip_metadata(package_dir: Path) -> tuple[str, str]:
+def _get_pip_metadata(package_dir: RootedPath) -> tuple[str, str]:
     """
     Attempt to get the name and version of a Pip package.
 
@@ -207,23 +209,23 @@ def _get_top_level_attr(
 class SetupFile(ABC):
     """Abstract base class for setup.cfg and setup.py handling."""
 
-    def __init__(self, top_dir: Path, file_name: str) -> None:
+    def __init__(self, top_dir: RootedPath, file_name: str) -> None:
         """
         Initialize a SetupFile.
 
         :param top_dir: Path to root of project directory
         :param file_name: Name of Python setup file, expected to be in the root directory
         """
-        self._top_dir = top_dir.resolve()
+        self._top_dir = top_dir
         self._file_name = file_name
 
     @property
-    def _path(self) -> Path:
-        return self._top_dir / self._file_name
+    def _setup_file(self) -> RootedPath:
+        return self._top_dir.join_within_root(self._file_name)
 
     def exists(self) -> bool:
         """Check if file exists."""
-        return self._path.is_file()
+        return self._setup_file.path.is_file()
 
     @abstractmethod
     def get_name(self) -> Optional[str]:
@@ -245,7 +247,7 @@ class SetupCFG(SetupFile):
     # Valid Python name - any sequence of \w characters that does not start with a number
     _name_re = re.compile(r"[^\W\d]\w*")
 
-    def __init__(self, top_dir: Path) -> None:
+    def __init__(self, top_dir: RootedPath) -> None:
         """
         Initialize a SetupCFG.
 
@@ -296,10 +298,10 @@ class SetupCFG(SetupFile):
 
         Will not parse file (or try to) more than once.
         """
-        log.debug("Parsing setup.cfg at %r", str(self._path))
+        log.debug("Parsing setup.cfg at %r", str(self._setup_file))
         parsed = configparser.ConfigParser()
 
-        with self._path.open() as f:
+        with self._setup_file.path.open() as f:
             try:
                 parsed.read_file(f)
                 return parsed
@@ -329,26 +331,15 @@ class SetupCFG(SetupFile):
         return version
 
     def _read_version_from_file(self, file_path: str) -> Optional[str]:
-        """Read version from file after making sure file is a subpath of project dir."""
-        full_file_path = self._ensure_local(file_path)
-        if full_file_path.is_file():
-            version = full_file_path.read_text().strip()
+        """Read version from file."""
+        version_file = self._top_dir.join_within_root(file_path)
+        if version_file.path.is_file():
+            version = version_file.path.read_text().strip()
             log.debug("Read version from %r: %r", file_path, version)
             return version
         else:
             log.error("Version file %r does not exist or is not a file", file_path)
             return None
-
-    def _ensure_local(self, path: Union[str, Path]) -> Path:
-        """Check that path is a subpath of project directory, return resolved path."""
-        full_path = (self._top_dir / path).resolve()
-        try:
-            full_path.relative_to(self._top_dir)
-        except ValueError:
-            raise PackageRejected(
-                f"{str(path)!r} is not a subpath of {str(self._top_dir)!r}", solution=None
-            )
-        return full_path
 
     def _read_version_from_attr(self, attr_spec: str) -> Optional[str]:
         """
@@ -377,7 +368,7 @@ class SetupCFG(SetupFile):
             return None
 
         try:
-            module_ast = ast.parse(module_file.read_text(), module_file.name)
+            module_ast = ast.parse(module_file.path.read_text(), module_file.path.name)
         except SyntaxError as e:
             log.error("Syntax error when parsing module: %s", e)
             return None
@@ -392,7 +383,7 @@ class SetupCFG(SetupFile):
 
     def _find_module(
         self, module_name: str, package_dir: Optional[dict[str, str]] = None
-    ) -> Optional[Path]:
+    ) -> Optional[RootedPath]:
         """
         Try to find a module in the project directory and return path to source file.
 
@@ -415,14 +406,12 @@ class SetupCFG(SetupFile):
             # Custom path does not replace the root module
             module_path = custom_path / module_path
 
-        full_module_path = self._ensure_local(module_path)
-
-        package_init = full_module_path / "__init__.py"
-        if package_init.is_file():
+        package_init = self._top_dir.join_within_root(module_path).join_within_root("__init__.py")
+        if package_init.path.is_file():
             return package_init
 
-        module_py = Path(f"{full_module_path}.py")
-        if module_py.is_file():
+        module_py = self._top_dir.join_within_root(f"{module_path}.py")
+        if module_py.path.is_file():
             return module_py
 
         return None
@@ -556,7 +545,7 @@ class SetupPY(SetupFile):
     this being the setup.py script, setup() will end up being called no matter what.
     """
 
-    def __init__(self, top_dir: Path) -> None:
+    def __init__(self, top_dir: RootedPath) -> None:
         """
         Initialize a SetupPY.
 
@@ -604,9 +593,9 @@ class SetupPY(SetupFile):
     @functools.cached_property
     def _ast(self) -> Optional[ast.AST]:
         """Try to parse the AST."""
-        log.debug("Parsing setup.py at %r", str(self._path))
+        log.debug("Parsing setup.py at %r", str(self._setup_file))
         try:
-            return ast.parse(self._path.read_text(), self._path.name)
+            return ast.parse(self._setup_file.path.read_text(), self._setup_file.path.name)
         except SyntaxError as e:
             log.error("Syntax error when parsing setup.py: %s", e)
             return None
@@ -792,7 +781,7 @@ class PipRequirementsFile:
     def __init__(self, file_path):
         """Initialize a PipRequirementsFile.
 
-        :param str file_path: the full path to the requirements file
+        :param str | PathLike[str] file_path: the full path to the requirements file
         """
         self.file_path = file_path
         self.__parsed = NOTHING
@@ -1239,12 +1228,14 @@ class PipRequirement:
         return hashes, reduced_options
 
 
-def _download_dependencies(output_dir: Path, requirements_file):
+def _download_dependencies(
+    output_dir: RootedPath, requirements_file: PipRequirementsFile
+) -> list[dict[str, Any]]:
     """
     Download sdists (source distributions) of all dependencies in a requirements.txt file.
 
-    :param Path output_dir: the root output directory for this request
-    :param PipRequirementsFile requirements_file: A requirements.txt file
+    :param output_dir: the root output directory for this request
+    :param requirements_file: A requirements.txt file
     :return: Info about downloaded packages; all items will contain "kind" and "path" keys
         (and more based on kind, see _download_*_package functions for more details)
     :rtype: list[dict]
@@ -1267,8 +1258,8 @@ def _download_dependencies(output_dir: Path, requirements_file):
     _validate_requirements(requirements_file.requirements)
     _validate_provided_hashes(requirements_file.requirements, require_hashes)
 
-    pip_deps_dir = output_dir / "deps" / "pip"
-    pip_deps_dir.mkdir(parents=True, exist_ok=True)
+    pip_deps_dir = output_dir.join_within_root("deps", "pip")
+    pip_deps_dir.path.mkdir(parents=True, exist_ok=True)
 
     downloads = []
 
@@ -1497,7 +1488,7 @@ def _download_pypi_package(requirement, pip_deps_dir, pypi_url, pypi_auth=None):
     markers (target environment is not known to Cachi2).
 
     :param PipRequirement requirement: PyPI requirement from a requirement.txt file
-    :param Path pip_deps_dir: The deps/pip directory in a Cachi2 request bundle
+    :param RootedPath pip_deps_dir: The deps/pip directory in a Cachi2 request bundle
     :param str pypi_url: URL of the PyPI server or a proxy
     :param (requests.auth.AuthBase | None) pypi_auth: Authorization for the PyPI server
 
@@ -1548,16 +1539,16 @@ def _download_pypi_package(requirement, pip_deps_dir, pypi_url, pypi_auth=None):
             ),
         )
 
-    download_path = pip_deps_dir / sdist["filename"]
+    download_to = pip_deps_dir.join_within_root(sdist["filename"])
 
     # URLs may be absolute or relative, see https://peps.python.org/pep-0503/
     sdist_url = urllib.parse.urljoin(package_url, sdist["url"])
-    download_binary_file(sdist_url, download_path, auth=pypi_auth)
+    download_binary_file(sdist_url, download_to.path, auth=pypi_auth)
 
     return {
         "package": sdist["name"],
         "version": sdist["version"],
-        "path": download_path,
+        "path": download_to.path,
     }
 
 
@@ -1639,20 +1630,20 @@ def _download_vcs_package(requirement, pip_deps_dir):
     Fetch the source for a Python package from VCS (only git is supported).
 
     :param PipRequirement requirement: VCS requirement from a requirements.txt file
-    :param Path pip_deps_dir: The deps/pip directory in a Cachi2 request bundle
+    :param RootedPath pip_deps_dir: The deps/pip directory in a Cachi2 request bundle
 
     :return: Dict with package name, download path and git info
     """
     git_info = extract_git_info(requirement.url)
 
-    download_path = pip_deps_dir / _get_external_requirement_filepath(requirement)
-    download_path.parent.mkdir(exist_ok=True, parents=True)
+    download_to = pip_deps_dir.join_within_root(_get_external_requirement_filepath(requirement))
+    download_to.path.parent.mkdir(exist_ok=True, parents=True)
 
-    clone_as_tarball(git_info["url"], git_info["ref"], to_path=download_path)
+    clone_as_tarball(git_info["url"], git_info["ref"], to_path=download_to.path)
 
     return {
         "package": requirement.package,
-        "path": download_path,
+        "path": download_to.path,
         **git_info,
     }
 
@@ -1662,15 +1653,15 @@ def _download_url_package(requirement, pip_deps_dir, trusted_hosts):
     Download a Python package from a URL.
 
     :param PipRequirement requirement: VCS requirement from a requirements.txt file
-    :param Path pip_deps_dir: The deps/pip directory in a Cachi2 request bundle
+    :param RootedPath pip_deps_dir: The deps/pip directory in a Cachi2 request bundle
     :param set[str] trusted_hosts: If host (or host:port) is trusted, do not verify SSL
 
     :return: Dict with package name, download path, original URL and URL with hash
     """
     url = urllib.parse.urlparse(requirement.url)
 
-    download_path = pip_deps_dir / _get_external_requirement_filepath(requirement)
-    download_path.parent.mkdir(exist_ok=True, parents=True)
+    download_to = pip_deps_dir.join_within_root(_get_external_requirement_filepath(requirement))
+    download_to.path.parent.mkdir(exist_ok=True, parents=True)
 
     if url.hostname in trusted_hosts:
         log.debug("Disabling SSL verification, %s is a --trusted-host", url.hostname)
@@ -1681,7 +1672,7 @@ def _download_url_package(requirement, pip_deps_dir, trusted_hosts):
     else:
         insecure = False
 
-    download_binary_file(requirement.url, download_path, insecure=insecure)
+    download_binary_file(requirement.url, download_to.path, insecure=insecure)
 
     if "cachito_hash" in requirement.qualifiers:
         url_with_hash = requirement.url
@@ -1692,7 +1683,7 @@ def _download_url_package(requirement, pip_deps_dir, trusted_hosts):
 
     return {
         "package": requirement.package,
-        "path": download_path,
+        "path": download_to.path,
         "original_url": requirement.url,
         "url_with_hash": url_with_hash,
     }
@@ -1731,7 +1722,9 @@ def _verify_hash(download_path: Path, hashes: list[str]) -> None:
     must_match_any_checksum(download_path, checksums)
 
 
-def _download_from_requirement_files(output_dir: Path, files: list[Path]) -> list[dict[str, Any]]:
+def _download_from_requirement_files(
+    output_dir: RootedPath, files: list[RootedPath]
+) -> list[dict[str, Any]]:
     """
     Download dependencies listed in the requirement files.
 
@@ -1743,7 +1736,7 @@ def _download_from_requirement_files(output_dir: Path, files: list[Path]) -> lis
     """
     requirements = []
     for req_file in files:
-        if not req_file.exists():
+        if not req_file.path.exists():
             raise PackageRejected(
                 f"The requirements file does not exist: {req_file}",
                 solution="Please check that you have specified correct requirements file paths",
@@ -1752,7 +1745,7 @@ def _download_from_requirement_files(output_dir: Path, files: list[Path]) -> lis
     return requirements
 
 
-def _default_requirement_file_list(path: Path, devel: bool = False) -> list[Path]:
+def _default_requirement_file_list(path: RootedPath, devel: bool = False) -> list[RootedPath]:
     """
     Get the paths for the default pip requirement files, if they are present.
 
@@ -1761,13 +1754,13 @@ def _default_requirement_file_list(path: Path, devel: bool = False) -> list[Path
     :return: list of str representing the absolute paths to the Python requirement files
     """
     filename = DEFAULT_BUILD_REQUIREMENTS_FILE if devel else DEFAULT_REQUIREMENTS_FILE
-    req = path / filename
-    return [req] if req.is_file() else []
+    req = path.join_within_root(filename)
+    return [req] if req.path.is_file() else []
 
 
 def _resolve_pip(
-    app_path: Path,
-    output_dir: Path,
+    app_path: RootedPath,
+    output_dir: RootedPath,
     requirement_files: Optional[list[Path]] = None,
     build_requirement_files: Optional[list[Path]] = None,
 ) -> dict[str, Any]:
@@ -1783,26 +1776,25 @@ def _resolve_pip(
     :return: a dictionary that has the following keys:
         ``package`` which is the dict representing the main Package,
         ``dependencies`` which is a list of dicts representing the package Dependencies
-        ``requirements`` which is a list of str with the absolute paths for the requirement files
-            belonging to the package
+        ``requirements`` which is a list of absolute paths for the processed requirement files
     :raises PackageRejected | UnsupportedFeature: if the package is not cachi2-pip compatible
     """
     pkg_name, pkg_version = _get_pip_metadata(app_path)
 
     # This could be an empty list
     if requirement_files is None:
-        requirement_files = _default_requirement_file_list(app_path)
+        resolved_req_files = _default_requirement_file_list(app_path)
     else:
-        requirement_files = [app_path / r for r in requirement_files]
+        resolved_req_files = [app_path.join_within_root(r) for r in requirement_files]
 
     # This could be an empty list
     if build_requirement_files is None:
-        build_requirement_files = _default_requirement_file_list(app_path, devel=True)
+        resolved_build_req_files = _default_requirement_file_list(app_path, devel=True)
     else:
-        build_requirement_files = [app_path / r for r in build_requirement_files]
+        resolved_build_req_files = [app_path.join_within_root(r) for r in build_requirement_files]
 
-    requires = _download_from_requirement_files(output_dir, requirement_files)
-    buildrequires = _download_from_requirement_files(output_dir, build_requirement_files)
+    requires = _download_from_requirement_files(output_dir, resolved_req_files)
+    buildrequires = _download_from_requirement_files(output_dir, resolved_build_req_files)
 
     # Mark all build dependencies as Cachi2 dev dependencies
     for dependency in buildrequires:
@@ -1832,7 +1824,7 @@ def _resolve_pip(
     return {
         "package": {"name": pkg_name, "version": pkg_version, "type": "pip"},
         "dependencies": dependencies,
-        "requirements": [*requirement_files, *build_requirement_files],
+        "requirements": [*resolved_req_files, *resolved_build_req_files],
     }
 
 
@@ -1930,9 +1922,7 @@ def _check_metadata_in_sdist(sdist_path: Path):
         )
 
 
-def _replace_external_requirements(
-    requirements_file_path: Union[str, Path]
-) -> Optional[ProjectFile]:
+def _replace_external_requirements(requirements_file_path: RootedPath) -> Optional[ProjectFile]:
     """Generate an updated requirements file.
 
     Replace the urls of external dependencies with file paths (templated).
