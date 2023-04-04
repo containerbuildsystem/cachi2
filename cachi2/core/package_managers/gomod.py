@@ -746,12 +746,6 @@ def _set_full_local_dep_relpaths(pkg_deps: List[dict], main_module_deps: List[di
             dep["version"] = os.path.join(dep_path, path_from_module_to_pkg)
 
 
-def _package_subpath(module_name: str, package_name: str, module_subpath: str) -> str:
-    """Get path from repository root to a package inside a module."""
-    subpath = _path_to_subpackage(module_name, package_name)
-    return os.path.normpath(os.path.join(module_subpath, subpath))
-
-
 def _path_to_subpackage(parent_name: str, subpackage_name: str) -> str:
     """
     Get relative path from parent module/package to subpackage inside the parent.
