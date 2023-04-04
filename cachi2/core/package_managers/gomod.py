@@ -765,7 +765,9 @@ def _get_dep_version(dep_info: dict) -> Optional[str]:
     return module.get("Version")
 
 
-def _get_semantic_version_from_tag(tag_name, subpath=None):
+def _get_semantic_version_from_tag(
+    tag_name: str, subpath: Optional[str] = None
+) -> semver.version.Version:
     """
     Parse a version tag to a semantic version.
 
@@ -775,16 +777,15 @@ def _get_semantic_version_from_tag(tag_name, subpath=None):
     In case `subpath` is defined, it will be removed from the tag_name, e.g. `subpath/v0.1.0`
     will be parsed as `0.1.0`.
 
-    :param str tag_name: tag to be converted into a semver object
-    :param str subpath: path to the module, relative to the root repository folder
-    :rtype: semver.VersionInfo
+    :param tag_name: tag to be converted into a semver object
+    :param subpath: path to the module, relative to the root repository folder
     """
     if subpath:
         semantic_version = tag_name.replace(f"{subpath}/v", "")
     else:
         semantic_version = tag_name[1:]
 
-    return semver.VersionInfo.parse(semantic_version)
+    return semver.version.Version.parse(semantic_version)
 
 
 def _module_lines_from_modules_txt(app_dir: Path) -> List[str]:
