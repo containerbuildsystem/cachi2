@@ -1,4 +1,19 @@
 FROM registry.fedoraproject.org/fedora-minimal:37
+LABEL name="Cachi2" \
+      vendor="RHTAP Build Team" \
+      maintainer="container-build-guild@redhat.com" \
+      release="1" \
+      build-date=$BUILD_DATE \
+      description="CLI tool for prefetching build dependencies" \
+      url="https://github.com/containerbuildsystem/cachi2" \
+      distribution-scope="public" \
+      io.k8s.description="CLI tool for prefetching build dependencies" \
+      io.k8s.display-name="Cachi2" \
+      vcs-ref=$GIT_ID \
+      vcs-type=git \
+      architecture=$TARGETARCH \
+      com.redhat.component="rhtap-build-cachi2"
+
 LABEL maintainer="Red Hat"
 
 WORKDIR /src
