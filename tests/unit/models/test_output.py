@@ -46,6 +46,10 @@ class TestComponent:
                 {"name": "mypkg", "version": "./a/replacement/module"},
                 Component(name="mypkg"),
             ),
+            (
+                {"name": "mypkg", "version": "file:mypkg"},
+                Component(name="mypkg"),
+            ),
         ],
     )
     def test_construct_from_package_dict(self, input_data, expected_data):

@@ -43,7 +43,7 @@ class Component(pydantic.BaseModel):
         This behavior is meant to be temporary, proper version output should be handled at package
         manager level.
         """
-        regex = re.compile(r"^(git\+|https?://|\./).*$")
+        regex = re.compile(r"^(git\+|https?://|\./|file:).*$")
 
         if version is None or regex.match(version):
             return None

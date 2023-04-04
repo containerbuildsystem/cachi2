@@ -62,11 +62,6 @@ def gomod_request(tmp_path: Path, gomod_input_packages: list[dict[str, str]]) ->
     )
 
 
-@pytest.fixture
-def rooted_tmp_path(tmp_path: Path) -> RootedPath:
-    return RootedPath(tmp_path)
-
-
 def proc_mock(
     args: Union[str, list[str]] = "", *, returncode: int, stdout: Optional[str]
 ) -> subprocess.CompletedProcess:
