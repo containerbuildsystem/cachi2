@@ -28,13 +28,32 @@ PIP_OUTPUT = RequestOutput.from_obj_list(
     ],
 )
 
+NPM_OUTPUT = RequestOutput.from_obj_list(
+    components=[Component(type="library", name="eggs", version="1.0.0")],
+    environment_variables=[
+        EnvironmentVariable(name="CHROMEDRIVER_SKIP_DOWNLOAD", value="true", kind="literal"),
+    ],
+    project_files=[
+        ProjectFile(
+            abspath="/your/project/package-lock.json", template="Because a vision softly creeping."
+        )
+    ],
+)
+
 COMBINED_OUTPUT = RequestOutput.from_obj_list(
-    components=(GOMOD_OUTPUT.sbom.components + PIP_OUTPUT.sbom.components),
+    components=(
+        GOMOD_OUTPUT.sbom.components + PIP_OUTPUT.sbom.components + NPM_OUTPUT.sbom.components
+    ),
     environment_variables=(
         GOMOD_OUTPUT.build_config.environment_variables
         + PIP_OUTPUT.build_config.environment_variables
+        + NPM_OUTPUT.build_config.environment_variables
     ),
-    project_files=(GOMOD_OUTPUT.build_config.project_files + PIP_OUTPUT.build_config.project_files),
+    project_files=(
+        GOMOD_OUTPUT.build_config.project_files
+        + PIP_OUTPUT.build_config.project_files
+        + NPM_OUTPUT.build_config.project_files
+    ),
 )
 
 
@@ -42,7 +61,7 @@ def test_resolve_packages(tmp_path: Path):
     request = Request(
         source_dir=tmp_path,
         output_dir=tmp_path,
-        packages=[{"type": "pip"}, {"type": "gomod"}],
+        packages=[{"type": "pip"}, {"type": "npm"}, {"type": "gomod"}],
     )
 
     calls_by_pkgtype = []
@@ -59,9 +78,10 @@ def test_resolve_packages(tmp_path: Path):
         resolver._package_managers,
         {
             "gomod": mock_fetch("gomod", GOMOD_OUTPUT),
+            "npm": mock_fetch("npm", NPM_OUTPUT),
             "pip": mock_fetch("pip", PIP_OUTPUT),
         },
     ):
         assert resolver.resolve_packages(request) == COMBINED_OUTPUT
 
-    assert calls_by_pkgtype == ["gomod", "pip"]
+    assert calls_by_pkgtype == ["gomod", "npm", "pip"]

@@ -1,9 +1,12 @@
 import copy
 import os
 import tempfile
+from pathlib import Path
 
 import git
 import pytest
+
+from cachi2.core.rooted_path import RootedPath
 
 
 @pytest.fixture()
@@ -208,3 +211,8 @@ def env_variables():
         {"name": "GOPATH", "value": "deps/gomod", "kind": "path"},
         {"name": "GOSUMDB", "value": "off", "kind": "literal"},
     ]
+
+
+@pytest.fixture
+def rooted_tmp_path(tmp_path: Path) -> RootedPath:
+    return RootedPath(tmp_path)
