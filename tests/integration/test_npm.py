@@ -16,7 +16,7 @@ log = logging.getLogger(__name__)
         pytest.param(
             utils.TestParameters(
                 repo="https://github.com/cachito-testing/npm-cachi2-smoketest.git",
-                ref="cb56134a2543ba56c303b4cd8e7c174cef9de4ea",
+                ref="4baf3d58db432752aa63156597b28a7e775fd862",
                 packages=({"path": ".", "type": "npm"},),
             ),
             id="npm_smoketest_lockfile1",
@@ -32,7 +32,7 @@ log = logging.getLogger(__name__)
         pytest.param(
             utils.TestParameters(
                 repo="https://github.com/cachito-testing/npm-cachi2-smoketest.git",
-                ref="4baf3d58db432752aa63156597b28a7e775fd862",
+                ref="cb56134a2543ba56c303b4cd8e7c174cef9de4ea",
                 packages=({"path": ".", "type": "npm"},),
             ),
             id="npm_smoketest_lockfile3",
