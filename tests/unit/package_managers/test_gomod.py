@@ -1058,7 +1058,7 @@ def test_vendor_changed(subpath, vendor_before, vendor_changes, expected_change,
 
     write_file_tree(vendor_before, app_dir)
     repo.index.add(os.path.join(app_dir, path) for path in vendor_before)
-    repo.index.commit("before vendoring")
+    repo.index.commit("before vendoring", skip_hooks=True)
 
     write_file_tree(vendor_changes, app_dir, exist_ok=True)
 

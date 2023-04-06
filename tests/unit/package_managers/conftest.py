@@ -193,10 +193,10 @@ def fake_repo():
         r.git.config("user.email", "tester@localhost")
         open(os.path.join(repo_dir, "readme.rst"), "w").close()
         r.index.add(["readme.rst"])
-        r.index.commit("first commit")
+        r.index.commit("first commit", skip_hooks=True)
         open(os.path.join(repo_dir, "main.py"), "w").close()
         r.index.add(["main.py"])
-        r.index.commit("add main source")
+        r.index.commit("add main source", skip_hooks=True)
         yield repo_dir, repo_dir.lstrip("/")
 
 
