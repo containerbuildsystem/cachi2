@@ -244,7 +244,7 @@ def _resolve_gomod(
         flags, app_dir, config.gomod_strict_vendor
     )
     if should_vendor:
-        _vendor_deps(run_params, can_make_changes, git_dir_path)
+        _vendor_deps(app_dir, can_make_changes, run_params)
     else:
         log.info("Downloading the gomod dependencies")
         _run_download_cmd(("go", "mod", "download"), run_params)
@@ -868,22 +868,21 @@ def _module_lines_from_modules_txt(app_dir: RootedPath) -> List[str]:
     return list(filter(has_packages.get, module_lines))
 
 
-def _vendor_deps(run_params: dict, can_make_changes: bool, git_dir: Union[str, Path]):
+def _vendor_deps(app_dir: RootedPath, can_make_changes: bool, run_params: dict[str, Any]) -> None:
     """
     Vendor golang dependencies.
 
     If Cachi2 is not allowed to make changes, it will verify that the vendor directory already
     contained the correct content.
 
-    :param run_params: common params for the subprocess calls to `go`
+    :param app_dir: path to the module directory
     :param can_make_changes: is Cachi2 allowed to make changes?
-    :param git_dir: path to the repository root
+    :param run_params: common params for the subprocess calls to `go`
     :raise PackageRejected: if vendor directory changed and Cachi2 is not allowed to make changes
     """
     log.info("Vendoring the gomod dependencies")
     _run_download_cmd(("go", "mod", "vendor"), run_params)
-    app_dir = run_params["cwd"]
-    if not can_make_changes and _vendor_changed(git_dir, app_dir):
+    if not can_make_changes and _vendor_changed(app_dir):
         raise PackageRejected(
             reason=(
                 "The content of the vendor directory is not consistent with go.mod. "
@@ -917,12 +916,13 @@ def _match_parent_module(package_name: str, module_names: Iterable[str]) -> Opti
     )
 
 
-def _vendor_changed(git_dir: Union[str, Path], app_dir: str) -> bool:
+def _vendor_changed(app_dir: RootedPath) -> bool:
     """Check for changes in the vendor directory."""
-    vendor = Path(app_dir).relative_to(git_dir).joinpath("vendor")
+    repo_root = app_dir.root
+    vendor = app_dir.path.relative_to(repo_root).joinpath("vendor")
     modules_txt = vendor / "modules.txt"
 
-    repo = git.Repo(git_dir)
+    repo = git.Repo(repo_root)
     # Add untracked files but do not stage them
     repo.git.add("--intent-to-add", "--force", "--", app_dir)
 

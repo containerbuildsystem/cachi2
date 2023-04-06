@@ -955,9 +955,13 @@ def test_should_vendor_deps_strict(flags, vendor_exists, expect_error, rooted_tm
 @pytest.mark.parametrize("vendor_changed", [True, False])
 @mock.patch("cachi2.core.package_managers.gomod._run_download_cmd")
 @mock.patch("cachi2.core.package_managers.gomod._vendor_changed")
-def test_vendor_deps(mock_vendor_changed, mock_run_cmd, can_make_changes, vendor_changed):
-    git_dir = "/fake/repo"
-    app_dir = "/fake/repo/some/app"
+def test_vendor_deps(
+    mock_vendor_changed: mock.Mock,
+    mock_run_cmd: mock.Mock,
+    can_make_changes: bool,
+    vendor_changed: bool,
+) -> None:
+    app_dir = RootedPath("/fake/repo").join_within_root("some/app")
     run_params = {"cwd": app_dir}
     mock_vendor_changed.return_value = vendor_changed
     expect_error = vendor_changed and not can_make_changes
@@ -965,13 +969,13 @@ def test_vendor_deps(mock_vendor_changed, mock_run_cmd, can_make_changes, vendor
     if expect_error:
         msg = "The content of the vendor directory is not consistent with go.mod."
         with pytest.raises(PackageRejected, match=msg):
-            _vendor_deps(run_params, can_make_changes, git_dir)
+            _vendor_deps(app_dir, can_make_changes, run_params)
     else:
-        _vendor_deps(run_params, can_make_changes, git_dir)
+        _vendor_deps(app_dir, can_make_changes, run_params)
 
     mock_run_cmd.assert_called_once_with(("go", "mod", "vendor"), run_params)
     if not can_make_changes:
-        mock_vendor_changed.assert_called_once_with(git_dir, app_dir)
+        mock_vendor_changed.assert_called_once_with(app_dir)
 
 
 @pytest.mark.parametrize("subpath", ["", "some/app/"])
@@ -1044,20 +1048,27 @@ def test_vendor_deps(mock_vendor_changed, mock_run_cmd, can_make_changes, vendor
         ),
     ],
 )
-def test_vendor_changed(subpath, vendor_before, vendor_changes, expected_change, fake_repo, caplog):
+def test_vendor_changed(
+    subpath: str,
+    vendor_before: dict[str, Any],
+    vendor_changes: dict[str, Any],
+    expected_change: Optional[str],
+    fake_repo: tuple[str, str],
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     repo_dir, _ = fake_repo
     repo = git.Repo(repo_dir)
 
-    app_dir = os.path.join(repo_dir, subpath)
+    app_dir = RootedPath(repo_dir).join_within_root(subpath)
     os.makedirs(app_dir, exist_ok=True)
 
     write_file_tree(vendor_before, app_dir)
-    repo.index.add(os.path.join(app_dir, path) for path in vendor_before)
+    repo.index.add([app_dir.join_within_root(path) for path in vendor_before])
     repo.index.commit("before vendoring", skip_hooks=True)
 
     write_file_tree(vendor_changes, app_dir, exist_ok=True)
 
-    assert _vendor_changed(repo_dir, app_dir) == bool(expected_change)
+    assert _vendor_changed(app_dir) == bool(expected_change)
     if expected_change:
         assert expected_change.format(subpath=subpath) in caplog.text
 
