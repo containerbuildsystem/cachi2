@@ -220,12 +220,8 @@ def _resolve_gomod(app_dir: RootedPath, request: Request, tmp_dir: Path) -> dict
 
     run_params = {"env": env, "cwd": app_dir}
 
-    # Collect all the dependency names that are being replaced to later verify if they were
-    # all used
-    replaced_dep_names = set()
     for dep_replacement in request.dep_replacements:
         name = dep_replacement["name"]
-        replaced_dep_names.add(name)
         new_name = dep_replacement.get("new_name", name)
         version = dep_replacement["version"]
         log.info("Applying the gomod replacement %s => %s@%s", name, new_name, version)
@@ -270,7 +266,6 @@ def _resolve_gomod(app_dir: RootedPath, request: Request, tmp_dir: Path) -> dict
     module_level_deps = []
     # Keep track of which dependency replacements were actually applied to verify they were all
     # used later
-    used_replaced_dep_names = set()
     for line in module_lines:
         parts = line.split(" ")
 
@@ -291,7 +286,6 @@ def _resolve_gomod(app_dir: RootedPath, request: Request, tmp_dir: Path) -> dict
             # directives in the go.mod file, but they are an implementation detail specific to
             # Go and they don't need to be recorded in Cachi2.
             if old_name in replaced_dep_names:
-                used_replaced_dep_names.add(old_name)
                 replaces = {
                     "type": "gomod",
                     "name": old_name,
@@ -310,16 +304,6 @@ def _resolve_gomod(app_dir: RootedPath, request: Request, tmp_dir: Path) -> dict
             )
         else:
             log.warning("Unexpected go module output: %s", line)
-
-    unused_dep_replacements = replaced_dep_names - used_replaced_dep_names
-    if unused_dep_replacements:
-        raise PackageRejected(
-            reason=(
-                "The following gomod dependency replacements don't apply: "
-                f'{", ".join(unused_dep_replacements)}'
-            ),
-            solution="Dependency replacements are deprecated! Please don't use them.",
-        )
 
     module_version = _get_golang_version(module_name, app_dir, update_tags=True)
     module = {"name": module_name, "type": "gomod", "version": module_version}

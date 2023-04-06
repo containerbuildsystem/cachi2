@@ -549,34 +549,6 @@ def test_resolve_gomod_no_deps(
     assert not gomod["packages"][0]["pkg_deps"]
 
 
-@mock.patch("subprocess.run")
-def test_resolve_gomod_unused_dep(mock_run, tmpdir, gomod_request):
-    gomod_request.dep_replacements = ({"name": "pizza", "type": "gomod", "version": "v1.0.0"},)
-
-    # Mock the "subprocess.run" calls
-    mock_run.side_effect = [
-        proc_mock("go mod edit -replace", returncode=0, stdout=None),
-        proc_mock("go mod download", returncode=0, stdout=None),
-        proc_mock("go mod tidy", returncode=0, stdout=None),
-        proc_mock(
-            "go list -e -mod readonly -m",
-            returncode=0,
-            stdout="github.com/release-engineering/retrodep/v2",
-        ),
-        proc_mock(
-            "go list -e -mod readonly -m all", returncode=0, stdout=_generate_mock_cmd_output()
-        ),
-    ]
-
-    expected_error = "The following gomod dependency replacements don't apply: pizza"
-    with pytest.raises(PackageRejected, match=expected_error):
-        _resolve_gomod(
-            RootedPath("/source/path/archive.tar.gz"),
-            gomod_request,
-            tmpdir,
-        )
-
-
 @pytest.mark.parametrize(
     "symlinked_file",
     [
