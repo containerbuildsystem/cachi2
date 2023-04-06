@@ -39,7 +39,9 @@ class Symlink(str):
     """
 
 
-def write_file_tree(tree_def: dict, rooted_at: Union[str, Path], exist_ok: bool = False):
+def write_file_tree(
+    tree_def: dict, rooted_at: Union[str, os.PathLike[str]], exist_ok: bool = False
+) -> None:
     """
     Write a file tree to disk.
 
