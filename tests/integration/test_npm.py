@@ -18,6 +18,8 @@ log = logging.getLogger(__name__)
                 repo="https://github.com/cachito-testing/npm-cachi2-smoketest.git",
                 ref="e5bd11ca3a7aacd81aa195275d679d954848c71c",
                 packages=({"path": ".", "type": "npm"},),
+                check_deps_checksums=False,
+                check_vendor_checksums=False,
             ),
             id="npm_smoketest_lockfile1",
         ),
@@ -26,6 +28,8 @@ log = logging.getLogger(__name__)
                 repo="https://github.com/cachito-testing/npm-cachi2-smoketest.git",
                 ref="b9a264fb7244f2cefa782feb1fd8c51ead9fb88b",
                 packages=({"path": ".", "type": "npm"},),
+                check_deps_checksums=False,
+                check_vendor_checksums=False,
             ),
             id="npm_smoketest_lockfile2",
         ),
@@ -34,6 +38,8 @@ log = logging.getLogger(__name__)
                 repo="https://github.com/cachito-testing/npm-cachi2-smoketest.git",
                 ref="f229b5b9c9085dabf71622cc1204c5deef97fbe8",
                 packages=({"path": ".", "type": "npm"},),
+                check_deps_checksums=False,
+                check_vendor_checksums=False,
             ),
             id="npm_smoketest_lockfile3",
         ),
@@ -54,8 +60,12 @@ def test_npm_smoketest(
     """
     test_case = request.node.callspec.id
 
-    utils.clone_repository(test_params.repo, test_params.ref, f"{test_case}-source", tmp_path)
+    source_folder = utils.clone_repository(
+        test_params.repo, test_params.ref, f"{test_case}-source", tmp_path
+    )
 
-    # TODO: Load SBOM for package-lock.json - STONEBLD-1053
+    utils.fetch_deps_and_check_output(
+        tmp_path, test_case, test_params, source_folder, test_data_dir, cachi2_image
+    )
 
     # TODO: Fetch npm dependencies for source_repo - STONEBLD-1054
