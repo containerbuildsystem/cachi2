@@ -11,6 +11,7 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 
 import backoff
 import git
+import git.objects
 import semver
 
 from cachi2.core.config import get_config
@@ -186,16 +187,13 @@ def _find_missing_gomod_files(source_path: RootedPath, subpaths: list[str]) -> l
     return invalid_gomod_files
 
 
-def _resolve_gomod(
-    app_dir: RootedPath, request: Request, tmp_dir: Path, git_dir_path: Optional[Path] = None
-) -> dict[str, Any]:
+def _resolve_gomod(app_dir: RootedPath, request: Request, tmp_dir: Path) -> dict[str, Any]:
     """
     Resolve and fetch gomod dependencies for given app source archive.
 
     :param app_dir: the full path to the application source code
     :param request: the Cachi2 request this is for
     :param tmp_dir: one temporary directory for all go modules
-    :param git_dir_path: the full path to the application's git repository
     :return: a dict containing the Go module itself ("module" key), the list of dictionaries
         representing the dependencies ("module_deps" key), the top package level dependency
         ("pkg" key), and a list of dictionaries representing the package level dependencies
@@ -203,9 +201,6 @@ def _resolve_gomod(
     :raises GoModError: if fetching dependencies fails
     """
     _protect_against_symlinks(app_dir)
-
-    if git_dir_path is None:
-        git_dir_path = request.source_dir.path
 
     config = get_config()
 
@@ -326,16 +321,7 @@ def _resolve_gomod(
             solution="Dependency replacements are deprecated! Please don't use them.",
         )
 
-    # In case a submodule is being processed, we need to determine its path
-    subpath = (
-        None if app_dir.path == git_dir_path else app_dir.path.relative_to(f"{git_dir_path}/", "")
-    )
-
-    # NOTE: If there are multiple go modules in a single git repo, they will
-    #   all be versioned identically.
-    module_version = _get_golang_version(
-        module_name, git_dir_path, update_tags=True, subpath=subpath
-    )
+    module_version = _get_golang_version(module_name, app_dir, update_tags=True)
     module = {"name": module_name, "type": "gomod", "version": module_version}
 
     log.info("Retrieving the list of packages")
@@ -377,10 +363,10 @@ def _resolve_gomod(
         packages.append({"pkg": pkg, "pkg_deps": pkg_level_deps})
 
     _vet_local_deps(module_level_deps)
-    for pkg in packages:
+    for package in packages:
         # Local dependencies are always relative to the main module, even for subpackages
-        _vet_local_deps(pkg["pkg_deps"])
-        _set_full_local_dep_relpaths(pkg["pkg_deps"], module_level_deps)
+        _vet_local_deps(package["pkg_deps"])
+        _set_full_local_dep_relpaths(package["pkg_deps"], module_level_deps)
 
     # import time
     # time.sleep(1000)
@@ -483,21 +469,24 @@ def _should_vendor_deps(
     return False, False
 
 
-def _get_golang_version(module_name, git_path, commit_sha=None, update_tags=False, subpath=None):
+def _get_golang_version(
+    module_name: str,
+    app_dir: RootedPath,
+    commit_sha: Optional[str] = None,
+    update_tags: bool = False,
+) -> str:
     """
     Get the version of the Go module in the input Git repository in the same format as `go list`.
 
     If commit doesn't point to a commit with a semantically versioned tag, a pseudo-version
     will be returned.
 
-    :param str module_name: the Go module's name
-    :param str git_path: the path to the Git repository
-    :param str commit_sha: the Git commit SHA1 of the Go module to get the version for
-    :param bool update_tags: determines if `git fetch --tags --force` should be run before
+    :param module_name: the Go module's name
+    :param app_dir: the path to the module directory
+    :param commit_sha: the Git commit SHA1 of the Go module to get the version for
+    :param update_tags: determines if `git fetch --tags --force` should be run before
         determining the version. If this fails, it will be logged as a warning.
-    :param str subpath: path to the module, relative to the root repository folder
     :return: a version as `go list` would provide
-    :rtype: str
     :raises FetchError: if failed to fetch the tags on the Git repository
     """
     # If the module is version v2 or higher, the major version of the module is included as /vN at
@@ -508,7 +497,7 @@ def _get_golang_version(module_name, git_path, commit_sha=None, update_tags=Fals
     if match:
         module_major_version = int(match.groupdict()["major_version"])
 
-    repo = git.Repo(git_path)
+    repo = git.Repo(app_dir.root)
     if update_tags:
         try:
             repo.remote().fetch(force=True, tags=True)
@@ -519,13 +508,18 @@ def _get_golang_version(module_name, git_path, commit_sha=None, update_tags=Fals
             )
 
     if module_major_version:
-        major_versions_to_try = (module_major_version,)
+        major_versions_to_try: tuple[int, ...] = (module_major_version,)
     else:
         # Prefer v1.x.x tags but fallback to v0.x.x tags if both are present
         major_versions_to_try = (1, 0)
 
     if commit_sha is None:
         commit_sha = repo.rev_parse("HEAD").hexsha
+
+    if app_dir.path == app_dir.root:
+        subpath = None
+    else:
+        subpath = app_dir.path.relative_to(app_dir.root).as_posix()
 
     commit = repo.commit(commit_sha)
     for major_version in major_versions_to_try:
@@ -573,21 +567,25 @@ def _get_golang_version(module_name, git_path, commit_sha=None, update_tags=Fals
     )
 
 
-def _get_highest_semver_tag(repo, target_commit, major_version, all_reachable=False, subpath=None):
+def _get_highest_semver_tag(
+    repo: git.Repo,
+    target_commit: git.objects.Commit,
+    major_version: int,
+    all_reachable: bool = False,
+    subpath: Optional[str] = None,
+) -> Optional[git.Tag]:
     """
     Get the highest semantic version tag related to the input commit.
 
-    :param Git.Repo repo: the Git repository object to search
-    :param int major_version: the major version of the Go module as in the go.mod file to use as a
+    :param repo: the Git repository object to search
+    :param major_version: the major version of the Go module as in the go.mod file to use as a
         filter for major version tags
-    :param bool all_reachable: if False, the search is constrained to the input commit. If True,
+    :param all_reachable: if False, the search is constrained to the input commit. If True,
         then the search is constrained to the input commit and preceding commits.
-    :param str subpath: path to the module, relative to the root repository folder
+    :param subpath: path to the module, relative to the root repository folder
     :return: the highest semantic version tag if one is found
-    :rtype: git.Tag
     """
     try:
-        g = git.Git(repo.working_dir)
         if all_reachable:
             # Get all the tags on the input commit and all that precede it.
             # This is based on:
@@ -604,7 +602,15 @@ def _get_highest_semver_tag(repo, target_commit, major_version, all_reachable=Fa
         else:
             # Get the tags that point to this commit
             cmd = ["git", "tag", "--points-at", target_commit.hexsha]
-        tag_names = g.execute(cmd).splitlines()
+
+        tag_names = repo.git.execute(
+            cmd,
+            # these args are the defaults, but are required to let mypy know which override to match
+            # (the one that returns a string)
+            with_extended_output=False,
+            as_process=False,
+            stdout_as_string=True,
+        ).splitlines()
     except git.GitCommandError:
         msg = f"Failed to get the tags associated with the reference {target_commit.hexsha}"
         log.error(msg)
@@ -615,7 +621,7 @@ def _get_highest_semver_tag(repo, target_commit, major_version, all_reachable=Fa
     filtered_tags = [tag_name for tag_name in tag_names if tag_name.startswith(prefix)]
 
     not_semver_tag_msg = "%s is not a semantic version tag"
-    highest = None
+    highest: Optional[dict[str, Any]] = None
 
     for tag_name in filtered_tags:
         try:
@@ -638,16 +644,21 @@ def _get_highest_semver_tag(repo, target_commit, major_version, all_reachable=Fa
     return None
 
 
-def _get_golang_pseudo_version(commit, tag=None, module_major_version=None, subpath=None):
+def _get_golang_pseudo_version(
+    commit: git.objects.Commit,
+    tag: Optional[git.Tag] = None,
+    module_major_version: Optional[int] = None,
+    subpath: Optional[str] = None,
+) -> str:
     """
     Get the Go module's pseudo-version when a non-version commit is used.
 
     For a description of the algorithm, see https://tip.golang.org/cmd/go/#hdr-Pseudo_versions.
 
-    :param git.Commit commit: the commit object of the Go module
-    :param git.Tag tag: the highest semantic version tag with a matching major version before the
+    :param commit: the commit object of the Go module
+    :param tag: the highest semantic version tag with a matching major version before the
         input commit. If this isn't specified, it is assumed there was no previous valid tag.
-    :param int module_major_version: the Go module's major version as stated in its go.mod file. If
+    :param module_major_version: the Go module's major version as stated in its go.mod file. If
         this and "tag" are not provided, 0 is assumed.
     :param str subpath: path to the module, relative to the root repository folder
     :return: the Go module's pseudo-version as returned by `go list`

@@ -742,9 +742,16 @@ def test_go_list_cmd_failure(mock_run, mock_config, tmpdir, go_mod_rc, go_list_r
         ("/v2", "4a481f0bae82adef3ea6eae3d167af6e74499cb2", "v2.6.0", "submodule"),
     ),
 )
-def test_get_golang_version(golang_repo_path: Path, module_suffix, ref, expected, subpath):
+def test_get_golang_version(
+    golang_repo_path: Path, module_suffix: str, ref: str, expected: str, subpath: Optional[str]
+) -> None:
     module_name = f"github.com/mprahl/test-golang-pseudo-versions{module_suffix}"
-    version = _get_golang_version(module_name, golang_repo_path, ref, subpath=subpath)
+
+    module_dir = RootedPath(golang_repo_path)
+    if subpath:
+        module_dir = module_dir.join_within_root(subpath)
+
+    version = _get_golang_version(module_name, module_dir, ref)
     assert version == expected
 
 
