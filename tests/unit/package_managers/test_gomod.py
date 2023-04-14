@@ -18,7 +18,9 @@ from cachi2.core.models.output import BuildConfig, Component, RequestOutput, Sbo
 from cachi2.core.package_managers import gomod
 from cachi2.core.package_managers.gomod import (
     GoModule,
+    GoPackage,
     _contains_package,
+    _deduplicate_resolved_modules,
     _get_golang_version,
     _match_parent_module,
     _parse_vendor,
@@ -27,6 +29,7 @@ from cachi2.core.package_managers.gomod import (
     _run_download_cmd,
     _set_full_local_dep_relpaths,
     _should_vendor_deps,
+    _validate_local_replacements,
     _vendor_changed,
     _vendor_deps,
     _vet_local_deps,
@@ -71,16 +74,26 @@ def get_mocked_data(data_dir: Path, filepath: Union[str, Path]) -> str:
     return data_dir.joinpath("gomod-mocks", filepath).read_text()
 
 
+def _parse_mocked_data(
+    data_dir: Path, file_path: str
+) -> tuple[GoModule, list[GoModule], list[GoPackage]]:
+    mocked_data = json.loads(get_mocked_data(data_dir, file_path))
+
+    main_module = GoModule(**mocked_data["main_module"])
+    modules = [GoModule(**module) for module in mocked_data["modules"]]
+    packages = [GoPackage(**package) for package in mocked_data["packages"]]
+
+    return main_module, modules, packages
+
+
 @pytest.mark.parametrize("cgo_disable", [False, True])
 @pytest.mark.parametrize("force_gomod_tidy", [False, True])
 @mock.patch("cachi2.core.package_managers.gomod._get_golang_version")
-@mock.patch("cachi2.core.package_managers.gomod._vet_local_deps")
-@mock.patch("cachi2.core.package_managers.gomod._set_full_local_dep_relpaths")
+@mock.patch("cachi2.core.package_managers.gomod._validate_local_replacements")
 @mock.patch("subprocess.run")
 def test_resolve_gomod(
     mock_run: mock.Mock,
-    mock_set_full_relpaths: mock.Mock,
-    mock_vet_local_deps: mock.Mock,
+    mock_validate_local_replacements: mock.Mock,
     mock_golang_version: mock.Mock,
     cgo_disable: bool,
     force_gomod_tidy: bool,
@@ -134,7 +147,7 @@ def test_resolve_gomod(
 
     module_dir = gomod_request.source_dir.join_within_root("path/to/module")
 
-    gomod = _resolve_gomod(module_dir, gomod_request, tmp_path)
+    main_module, modules, packages = _resolve_gomod(module_dir, gomod_request, tmp_path)
 
     if force_gomod_tidy:
         assert mock_run.call_args_list[1][0][0] == ("go", "mod", "tidy")
@@ -159,23 +172,24 @@ def test_resolve_gomod(
         else:
             assert "CGO_ENABLED" not in env
 
-    expect_gomod = json.loads(get_mocked_data(data_dir, "expected-results/resolve_gomod.json"))
-    assert gomod == expect_gomod
-
-    expect_module_deps = expect_gomod["module_deps"]
-    expect_pkg_deps = expect_gomod["packages"][0]["pkg_deps"]
-
-    mock_vet_local_deps.assert_has_calls(
-        [mock.call(expect_module_deps), mock.call(expect_pkg_deps)],
+    expect_main_module, expect_modules, expect_packages = _parse_mocked_data(
+        data_dir, "expected-results/resolve_gomod.json"
     )
-    mock_set_full_relpaths.assert_called_once_with(expect_pkg_deps, expect_module_deps)
+
+    assert main_module == expect_main_module
+    assert list(modules) == expect_modules
+    assert list(packages) == expect_packages
+
+    mock_validate_local_replacements.assert_called_once_with(modules, module_dir)
 
 
 @pytest.mark.parametrize("force_gomod_tidy", [False, True])
 @mock.patch("cachi2.core.package_managers.gomod._get_golang_version")
+@mock.patch("cachi2.core.package_managers.gomod._validate_local_replacements")
 @mock.patch("subprocess.run")
 def test_resolve_gomod_vendor_dependencies(
     mock_run: mock.Mock,
+    mock_validate_local_replacements: mock.Mock,
     mock_golang_version: mock.Mock,
     force_gomod_tidy: bool,
     tmp_path: Path,
@@ -224,7 +238,7 @@ def test_resolve_gomod_vendor_dependencies(
         get_mocked_data(data_dir, "vendored/modules.txt")
     )
 
-    gomod = _resolve_gomod(module_dir, gomod_request, tmp_path)
+    main_module, modules, packages = _resolve_gomod(module_dir, gomod_request, tmp_path)
 
     assert mock_run.call_args_list[0][0][0] == ("go", "mod", "vendor")
     # when vendoring, go list should be called without -mod readonly
@@ -237,10 +251,9 @@ def test_resolve_gomod_vendor_dependencies(
         "all",
     ]
 
-    expect_gomod = json.loads(
-        get_mocked_data(data_dir, "expected-results/resolve_gomod_vendored.json")
-    )
-    assert gomod == expect_gomod
+    expect_gomod = _parse_mocked_data(data_dir, "expected-results/resolve_gomod_vendored.json")
+
+    assert (main_module, list(modules), list(packages)) == expect_gomod
 
 
 def test_resolve_gomod_vendor_without_flag(tmp_path: Path, gomod_request: Request) -> None:
@@ -307,21 +320,24 @@ def test_resolve_gomod_no_deps(
         gomod_request.flags = frozenset({"force-gomod-tidy"})
 
     module_path = gomod_request.source_dir.join_within_root("path/to/module")
-    gomod = _resolve_gomod(module_path, gomod_request, tmp_path)
+    main_module, modules, packages = _resolve_gomod(module_path, gomod_request, tmp_path)
+    packages_list = list(packages)
 
-    assert gomod["module"] == {
-        "type": "gomod",
-        "name": "github.com/release-engineering/retrodep/v2",
-        "version": "v2.1.1",
-    }
-    assert not gomod["module_deps"]
-    assert len(gomod["packages"]) == 1
-    assert gomod["packages"][0]["pkg"] == {
-        "type": "go-package",
-        "name": "github.com/release-engineering/retrodep/v2",
-        "version": "v2.1.1",
-    }
-    assert not gomod["packages"][0]["pkg_deps"]
+    assert main_module == GoModule(
+        path="github.com/release-engineering/retrodep/v2",
+        version="v2.1.1",
+        main=True,
+    )
+
+    assert not modules
+    assert len(packages_list) == 1
+    assert packages_list[0] == GoPackage(
+        import_path="github.com/release-engineering/retrodep/v2",
+        module=GoModule(
+            path="github.com/release-engineering/retrodep/v2",
+            main=True,
+        ),
+    )
 
 
 @pytest.mark.parametrize(
@@ -382,6 +398,64 @@ def test_go_list_cmd_failure(
 
     with pytest.raises(GoModError, match=expect_error):
         _resolve_gomod(module_path, gomod_request, tmp_path)
+
+
+def test_deduplicate_resolved_modules():
+    # as reported by "go list -deps all"
+    package_modules = [
+        # local replacement
+        GoModule(
+            path="github.com/my-org/local-replacement",
+            version="v1.0.0",
+            replace=GoModule(path="./local-folder"),
+        ),
+        # dependency replacement
+        GoModule(
+            path="github.com/my-org/my-dep",
+            version="v2.0.0",
+            replace=GoModule(path="github.com/another-org/another-dep", version="v2.0.1"),
+        ),
+        # common dependency
+        GoModule(
+            path="github.com/awesome-org/neat-dep",
+            version="v2.0.1",
+        ),
+    ]
+
+    # as reported by "go mod download -json"
+    downloaded_modules = [
+        # duplicate of dependency replacement
+        GoModule(
+            path="github.com/another-org/another-dep",
+            version="v2.0.1",
+        ),
+        # duplicate of common dependency
+        GoModule(
+            path="github.com/awesome-org/neat-dep",
+            version="v2.0.1",
+        ),
+    ]
+
+    dedup_modules = _deduplicate_resolved_modules(package_modules, downloaded_modules)
+
+    expect_dedup_modules = [
+        GoModule(
+            path="github.com/my-org/local-replacement",
+            version="v1.0.0",
+            replace=GoModule(path="./local-folder"),
+        ),
+        GoModule(
+            path="github.com/my-org/my-dep",
+            version="v2.0.0",
+            replace=GoModule(path="github.com/another-org/another-dep", version="v2.0.1"),
+        ),
+        GoModule(
+            path="github.com/awesome-org/neat-dep",
+            version="v2.0.1",
+        ),
+    ]
+
+    assert list(dedup_modules) == expect_dedup_modules
 
 
 @pytest.mark.parametrize(
@@ -505,6 +579,32 @@ def test_get_golang_version(
 
     version = _get_golang_version(module_name, module_dir, ref)
     assert version == expected
+
+
+def test_validate_local_replacements(tmpdir):
+    app_path = RootedPath(tmpdir).join_within_root("subpath")
+
+    modules = [
+        GoModule(path="example.org/foo", version="v1.0.0", replace=GoModule(path="./another-foo")),
+        GoModule(path="example.org/foo", version="v1.0.0", replace=GoModule(path="../sibling-foo")),
+    ]
+
+    _validate_local_replacements(modules, app_path)
+
+
+def test_invalid_local_replacements(tmpdir):
+    app_path = RootedPath(tmpdir)
+
+    modules = [
+        GoModule(
+            path="example.org/foo", version="v1.0.0", replace=GoModule(path="../outside-repo")
+        ),
+    ]
+
+    expect_error = f"Joining path '../outside-repo' to '{tmpdir}': target is outside '{tmpdir}'"
+
+    with pytest.raises(PathOutsideRoot, match=expect_error):
+        _validate_local_replacements(modules, app_path)
 
 
 @pytest.mark.parametrize(
@@ -787,7 +887,7 @@ def test_parse_vendor(rooted_tmp_path: RootedPath, data_dir: Path) -> None:
         GoModule(path="gopkg.in/yaml.v2", version="v2.2.2"),
         GoModule(path="gopkg.in/yaml.v3", version="v3.0.1"),
     ]
-    assert _parse_vendor(rooted_tmp_path) == expect_modules
+    assert list(_parse_vendor(rooted_tmp_path)) == expect_modules
 
 
 @pytest.mark.parametrize(
@@ -1019,6 +1119,7 @@ def test_dep_replacements(
 ):
     gomod_request.dep_replacements = dep_replacements
     mock_find_missing_gomod_files.return_value = []
+    mock_resolve_gomod.return_value = (GoModule(path=""), [], [])
 
     if raises_error:
         msg = "Dependency replacements are only supported for a single go module path."
@@ -1040,36 +1141,34 @@ def test_dep_replacements(
         (
             [{"type": "gomod", "path": "."}],
             {
-                ".": {
-                    "module": {
-                        "type": "gomod",
-                        "name": "github.com/my-org/my-repo",
-                        "version": "1.0.0",
-                    },
-                    "module_deps": [
-                        {
-                            "type": "gomod",
-                            "name": "golang.org/x/net",
-                            "version": "v0.0.0-20190311183353-d8887717615a",
-                        }
+                ".": (
+                    GoModule(
+                        path="github.com/my-org/my-repo",
+                        version="1.0.0",
+                    ),
+                    [
+                        GoModule(
+                            path="golang.org/x/net",
+                            version="v0.0.0-20190311183353-d8887717615a",
+                        ),
                     ],
-                    "packages": [
-                        {
-                            "pkg": {
-                                "type": "go-package",
-                                "name": "github.com/my-org/my-repo",
-                                "version": "1.0.0",
-                            },
-                            "pkg_deps": [
-                                {
-                                    "type": "go-package",
-                                    "name": "golang.org/x/net/http",
-                                    "version": "v0.0.0-20190311183353-d8887717615a",
-                                }
-                            ],
-                        }
+                    [
+                        GoPackage(
+                            import_path="github.com/my-org/my-repo",
+                            module=GoModule(
+                                path="github.com/my-org/my-repo",
+                                version="1.0.0",
+                            ),
+                        ),
+                        GoPackage(
+                            import_path="golang.org/x/net/http",
+                            module=GoModule(
+                                path="golang.org/x/net",
+                                version="v0.0.0-20190311183353-d8887717615a",
+                            ),
+                        ),
                     ],
-                },
+                ),
             },
             [
                 Component(name="github.com/my-org/my-repo", version="1.0.0"),
@@ -1082,24 +1181,22 @@ def test_dep_replacements(
         (
             [{"type": "gomod", "path": "."}, {"type": "gomod", "path": "path"}],
             {
-                ".": {
-                    "module": {
-                        "type": "gomod",
-                        "name": "github.com/my-org/my-repo",
-                        "version": "1.0.0",
-                    },
-                    "module_deps": [],
-                    "packages": [],
-                },
-                "path": {
-                    "module": {
-                        "type": "gomod",
-                        "name": "github.com/my-org/my-repo/path",
-                        "version": "1.0.0",
-                    },
-                    "module_deps": [],
-                    "packages": [],
-                },
+                ".": (
+                    GoModule(
+                        path="github.com/my-org/my-repo",
+                        version="1.0.0",
+                    ),
+                    [],
+                    [],
+                ),
+                "path": (
+                    GoModule(
+                        path="github.com/my-org/my-repo/path",
+                        version="1.0.0",
+                    ),
+                    [],
+                    [],
+                ),
             },
             [
                 Component(name="github.com/my-org/my-repo", version="1.0.0"),
