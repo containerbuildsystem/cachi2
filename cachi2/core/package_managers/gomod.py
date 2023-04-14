@@ -80,7 +80,6 @@ class GoPackage(_GolangModel):
     import_path: str
     standard: bool = False
     module: Optional[GoModule]
-    deps: list[str] = []
 
 
 def _run_gomod_cmd(cmd: Iterable[str], params: dict[str, Any]) -> str:
@@ -147,21 +146,31 @@ def fetch_gomod_source(request: Request) -> RequestOutput:
 
             gomod_source_path = request.source_dir.join_within_root(subpath)
             try:
-                gomod = _resolve_gomod(gomod_source_path, request, Path(tmp_dir))
+                resolve_result = _resolve_gomod(gomod_source_path, request, Path(tmp_dir))
             except GoModError:
                 log.error("Failed to fetch gomod dependencies")
                 raise
 
-            components.append(Component.from_package_dict(gomod["module"]))
+            main_module, modules, packages = resolve_result
+
+            components.append(Component(name=main_module.path, version=main_module.version))
+
+            modules_names_and_versions = (_get_name_and_version(module) for module in modules)
+
             components.extend(
-                Component.from_package_dict(module_dep) for module_dep in gomod["module_deps"]
+                Component(name=name_version[0], version=name_version[1])
+                for name_version in modules_names_and_versions
             )
-            # add package deps
-            for package in gomod["packages"]:
-                components.append(Component.from_package_dict(package["pkg"]))
-                components.extend(
-                    Component.from_package_dict(pkg_dep) for pkg_dep in package["pkg_deps"]
-                )
+
+            for package in packages:
+                if package.standard:
+                    version = None
+                elif package.module:
+                    version = package.module.version
+                else:
+                    raise RuntimeError("Non-stdlib package does not have a parent module")
+
+                components.append(Component(name=package.import_path, version=version))
 
         if "gomod-vendor-check" not in request.flags and "gomod-vendor" not in request.flags:
             tmp_download_cache_dir = Path(tmp_dir).joinpath(request.go_mod_cache_download_part)
@@ -235,7 +244,9 @@ def _find_missing_gomod_files(source_path: RootedPath, subpaths: list[str]) -> l
     return invalid_gomod_files
 
 
-def _resolve_gomod(app_dir: RootedPath, request: Request, tmp_dir: Path) -> dict[str, Any]:
+def _resolve_gomod(
+    app_dir: RootedPath, request: Request, tmp_dir: Path
+) -> tuple[GoModule, Iterable[GoModule], Iterable[GoPackage]]:
     """
     Resolve and fetch gomod dependencies for given app source archive.
 
@@ -288,10 +299,10 @@ def _resolve_gomod(app_dir: RootedPath, request: Request, tmp_dir: Path) -> dict
     else:
         log.info("Downloading the gomod dependencies")
         download_cmd = ["go", "mod", "download", "-json"]
-        downloaded_modules = [
+        downloaded_modules = (
             GoModule.parse_obj(obj)
             for obj in load_json_stream(_run_download_cmd(download_cmd, run_params))
-        ]
+        )
 
     if "force-gomod-tidy" in flags or request.dep_replacements:
         _run_gomod_cmd(("go", "mod", "tidy"), run_params)
@@ -303,7 +314,7 @@ def _resolve_gomod(app_dir: RootedPath, request: Request, tmp_dir: Path) -> dict
 
     main_module_name = _run_gomod_cmd([*go_list, "-m"], run_params).rstrip()
     main_module_version = _get_golang_version(main_module_name, app_dir, update_tags=True)
-    main_module = {"type": "gomod", "name": main_module_name, "version": main_module_version}
+    main_module = GoModule(path=main_module_name, version=main_module_version, main=True)
 
     def go_list_deps(pattern: Literal["./...", "all"]) -> Iterator[GoPackage]:
         """Run go list -deps -json and return the parsed list of packages.
@@ -316,75 +327,42 @@ def _resolve_gomod(app_dir: RootedPath, request: Request, tmp_dir: Path) -> dict
         cmd = [*go_list, "-deps", "-json=ImportPath,Module,Standard,Deps", pattern]
         return map(GoPackage.parse_obj, load_json_stream(_run_gomod_cmd(cmd, run_params)))
 
-    package_modules = (mod for pkg in go_list_deps("all") if (mod := pkg.module) and not mod.main)
-    module_names_and_versions = set(
-        chain(
-            map(_get_name_and_version, downloaded_modules),
-            # package_modules should generally be a subset of downloaded_modules,
-            # but modules replaced with local paths may only appear in package_modules
-            map(_get_name_and_version, package_modules),
-        )
+    package_modules = (
+        module for pkg in go_list_deps("all") if (module := pkg.module) and not module.main
     )
 
-    main_module_deps = [
-        {"type": "gomod", "name": name, "version": version}
-        for name, version in sorted(module_names_and_versions)
-    ]
+    all_modules = _deduplicate_resolved_modules(package_modules, downloaded_modules)
 
     log.info("Retrieving the list of packages")
-    main_packages: list[dict[str, Any]] = []
-    main_packages_deps = set()
-    all_packages = {pkg.import_path: pkg for pkg in go_list_deps("./...")}
+    all_packages = list(go_list_deps("./..."))
 
-    # The go list -deps command lists dependencies first and then the package which
-    # depends on them. We want the opposite order: package first, then its dependencies.
-    for pkg in reversed(all_packages.values()):
-        if not pkg.module or not pkg.module.main:
-            continue  # This is a dependency, not a top-level package
+    _validate_local_replacements(all_modules, app_dir)
 
-        if pkg.import_path in main_packages_deps:
-            # If a top-level package is already listed as a dependency, we do not list it here,
-            # since its dependencies are already listed in the parent package.
-            log.debug(
-                "Package %s is already listed as a package dependency. Skipping...",
-                pkg.import_path,
-            )
-            continue
+    return main_module, all_modules, all_packages
 
-        pkg_deps = []
-        for dep_name in pkg.deps:
-            dep = all_packages[dep_name]
-            main_packages_deps.add(dep_name)
 
-            if dep.standard:
-                dep_version = None
-            elif not dep.module or dep.module.main:
-                # Standard=false, Module.Main=true
-                # Standard=false, Module=null   <- probably a to-be-generated package
-                dep_version = main_module_version
-            else:
-                _, dep_version = _get_name_and_version(dep.module)
+def _deduplicate_resolved_modules(
+    package_modules: Iterable[GoModule],
+    downloaded_modules: Iterable[GoModule],
+) -> Iterable[GoModule]:
+    def get_unique_key(module: GoModule) -> tuple[str, Optional[str]]:
+        if not (replace := module.replace):
+            return module.path, module.version
+        elif replace.version:
+            # module/name v1.0.0 => replace/name v1.2.3
+            return replace.path, replace.version
+        else:
+            # module/name v1.0.0 => ./local/path
+            return module.path, replace.path
 
-            pkg_deps.append({"type": "go-package", "name": dep_name, "version": dep_version})
+    modules_by_name_and_version: dict[tuple[str, Optional[str]], GoModule] = {}
 
-        main_pkg = {
-            "type": "go-package",
-            "name": pkg.import_path,
-            "version": main_module_version,
-        }
-        main_packages.append({"pkg": main_pkg, "pkg_deps": pkg_deps})
+    # package_modules have the replace data, so they should take precedence in the deduplication
+    for module in chain(package_modules, downloaded_modules):
+        # get the module for this name+version or create a new one
+        modules_by_name_and_version.setdefault(get_unique_key(module), module)
 
-    _vet_local_deps(main_module_deps)
-    for package in main_packages:
-        # Local dependencies are always relative to the main module, even for subpackages
-        _vet_local_deps(package["pkg_deps"])
-        _set_full_local_dep_relpaths(package["pkg_deps"], main_module_deps)
-
-    return {
-        "module": main_module,
-        "module_deps": main_module_deps,
-        "packages": main_packages,
-    }
+    return modules_by_name_and_version.values()
 
 
 def _get_name_and_version(module: GoModule) -> tuple[str, str]:
@@ -728,7 +706,6 @@ def _vet_local_deps(dependencies: List[dict]) -> None:
 
         if not version:
             continue  # go stdlib
-
         if version.startswith(".") and ".." in Path(version).parts:
             raise UnsupportedFeature(f"Path to gomod dependency contains '..': {version}.")
         elif version.startswith("/") or PureWindowsPath(version).root:
@@ -736,6 +713,24 @@ def _vet_local_deps(dependencies: List[dict]) -> None:
             raise UnsupportedFeature(
                 f"Absolute paths to gomod dependencies are not supported: {version}"
             )
+
+
+def _validate_local_replacements(modules: Iterable[GoModule], app_path: RootedPath) -> None:
+    replaced_paths = [
+        (module.path, module.replace.path)
+        for module in modules
+        if module.replace and module.replace.path.startswith(".")
+    ]
+
+    for name, path in replaced_paths:
+        try:
+            app_path.join_within_root(path)
+        except PathOutsideRoot as e:
+            e.solution = (
+                f"The module '{name}' is being replaced by the local path '{path}', "
+                "which falls outside of the repository root. Refusing to proceed."
+            )
+            raise
 
 
 def _set_full_local_dep_relpaths(pkg_deps: List[dict], main_module_deps: List[dict]) -> None:
@@ -826,7 +821,7 @@ def _get_semantic_version_from_tag(
     return semver.version.Version.parse(semantic_version)
 
 
-def _parse_vendor(module_dir: RootedPath) -> list[GoModule]:
+def _parse_vendor(module_dir: RootedPath) -> Iterable[GoModule]:
     """Parse modules from vendor/modules.txt."""
     modules_txt = module_dir.join_within_root("vendor", "modules.txt")
     if not modules_txt.path.exists():
@@ -881,12 +876,12 @@ def _parse_vendor(module_dir: RootedPath) -> list[GoModule]:
         elif not line.startswith("##"):  # marker line
             fail_for_unexpected_format(f"unexpected format: {line!r}")
 
-    return [module for module, has_packages in zip(modules, module_has_packages) if has_packages]
+    return (module for module, has_packages in zip(modules, module_has_packages) if has_packages)
 
 
 def _vendor_deps(
     app_dir: RootedPath, can_make_changes: bool, run_params: dict[str, Any]
-) -> list[GoModule]:
+) -> Iterable[GoModule]:
     """
     Vendor golang dependencies.
 
