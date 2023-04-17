@@ -4,6 +4,7 @@ from unittest import mock
 import pytest
 import requests
 
+from cachi2.core.config import get_config
 from cachi2.core.errors import FetchError
 from cachi2.core.package_managers import general
 from cachi2.core.package_managers.general import download_binary_file, pkg_requests_session
@@ -16,6 +17,7 @@ GIT_REF = "9a557920b2a6d4110f838506120904a6fda421a2"
 @pytest.mark.parametrize("chunk_size", [1024, 2048])
 @mock.patch.object(pkg_requests_session, "get")
 def test_download_binary_file(mock_get, auth, insecure, chunk_size, tmpdir):
+    timeout = get_config().requests_timeout
     url = "http://example.org/example.tar.gz"
     content = b"file content"
 
@@ -28,7 +30,7 @@ def test_download_binary_file(mock_get, auth, insecure, chunk_size, tmpdir):
     )
 
     assert download_path.read_binary() == content
-    mock_get.assert_called_with(url, stream=True, auth=auth, verify=not insecure)
+    mock_get.assert_called_with(url, stream=True, verify=not insecure, auth=auth, timeout=timeout)
     mock_response.iter_content.assert_called_with(chunk_size=chunk_size)
 
 

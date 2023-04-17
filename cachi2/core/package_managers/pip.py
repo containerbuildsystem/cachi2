@@ -25,6 +25,7 @@ import requests
 from packaging.utils import canonicalize_name, canonicalize_version
 
 from cachi2.core.checksum import ChecksumInfo, must_match_any_checksum
+from cachi2.core.config import get_config
 from cachi2.core.errors import FetchError, PackageRejected, UnexpectedFormat, UnsupportedFeature
 from cachi2.core.models.input import Request
 from cachi2.core.models.output import Component, EnvironmentVariable, ProjectFile, RequestOutput
@@ -1496,15 +1497,14 @@ def _download_pypi_package(requirement, pip_deps_dir, pypi_url, pypi_auth=None):
     :raises FetchError: if PyPI query failed
     :raises PackageRejected: if sdists for the package is not found or yanked
     """
+    timeout = get_config().requests_timeout
     package = requirement.package
     version = requirement.version_specs[0][1]
 
     # See https://www.python.org/dev/peps/pep-0503/
     package_url = f"{pypi_url.rstrip('/')}/simple/{canonicalize_name(package)}/"
     try:
-        pypi_resp = pkg_requests_session.get(
-            package_url, auth=pypi_auth
-        )  # nosec request_without_timeout
+        pypi_resp = pkg_requests_session.get(package_url, auth=pypi_auth, timeout=timeout)
         pypi_resp.raise_for_status()
     except requests.RequestException as e:
         raise FetchError(f"PyPI query failed: {e}")
