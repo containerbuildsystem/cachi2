@@ -119,6 +119,9 @@ if the `vendor` directory exists and this config option is set to `True`, one of
 [vendoring flags](gomod.md#vendoring) must be used.
 * `goproxy_url` - sets the value of the GOPROXY variable that Cachi2 uses internally
 when downloading Go modules. See [Go environment variables](https://go.dev/ref/mod#environment-variables).
+* `requests_timeout` - a number (in seconds) for `requests.get()`'s 'timeout' parameter,
+  which sets an upper limit on how long `requests` can take to make a connection and/or send a response.
+  Larger numbers set longer timeouts.
 * `subprocess_timeout` - a number (in seconds) to set a timeout for commands executed by
   the `subprocess` module. Set a larger number to give the subprocess execution more time.
 

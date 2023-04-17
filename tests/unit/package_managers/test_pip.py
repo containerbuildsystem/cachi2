@@ -13,6 +13,7 @@ import requests
 from bs4 import ResultSet
 
 from cachi2.core.checksum import ChecksumInfo
+from cachi2.core.config import get_config
 from cachi2.core.errors import (
     Cachi2Error,
     FetchError,
@@ -2469,6 +2470,7 @@ class TestDownload:
         rooted_tmp_path,
     ):
         """Test downloading of a single PyPI package."""
+        timeout = get_config().requests_timeout
         mock_requirement = self.mock_requirement(
             package_name, "pypi", version_specs=[("==", "0.7")]
         )
@@ -2516,7 +2518,7 @@ class TestDownload:
             assert str(exc_info.value) == expect_error
 
         mock_get.assert_called_once_with(
-            "https://pypi-proxy.org/simple/aiowsgi/", auth=("user", "password")
+            "https://pypi-proxy.org/simple/aiowsgi/", auth=("user", "password"), timeout=timeout
         )
 
     def test_process_package_links(self):

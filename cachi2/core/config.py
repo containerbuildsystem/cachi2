@@ -18,6 +18,7 @@ class Config(BaseModel, extra="forbid"):
     gomod_download_max_tries: int = 5
     gomod_strict_vendor: bool = True
     subprocess_timeout: int = 3600
+    requests_timeout: int = 45
 
 
 def get_config() -> Config:

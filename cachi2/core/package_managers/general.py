@@ -3,6 +3,7 @@ import urllib
 
 import requests
 
+from cachi2.core.config import get_config
 from cachi2.core.errors import FetchError
 from cachi2.core.http_requests import SAFE_REQUEST_METHODS, get_requests_session
 
@@ -20,10 +21,11 @@ def download_binary_file(url, download_path, auth=None, insecure=False, chunk_si
     :param int chunk_size: Chunk size param for Response.iter_content()
     :raise FetchError: If download failed
     """
+    timeout = get_config().requests_timeout
     try:
         resp = pkg_requests_session.get(
-            url, stream=True, verify=not insecure, auth=auth
-        )  # nosec request_without_timeout
+            url, stream=True, verify=not insecure, auth=auth, timeout=timeout
+        )
         resp.raise_for_status()
     except requests.RequestException as e:
         raise FetchError(f"Could not download {url}: {e}")
