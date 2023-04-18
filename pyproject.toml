@@ -58,6 +58,7 @@ version_scheme = "post-release"
 
 [tool.mypy]
 plugins = ["pydantic.mypy"]
+disallow_untyped_decorators = true
 
 [[tool.mypy.overrides]]
 module = ["semver"]
