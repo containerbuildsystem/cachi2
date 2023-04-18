@@ -74,7 +74,7 @@ def test_pip_packages(
     tmp_path: Path,
     test_data_dir: Path,
     request: pytest.FixtureRequest,
-):
+) -> None:
     """
     Test fetched dependencies for pip.
 
@@ -127,7 +127,7 @@ def test_e2e_pip(
     tmp_path: Path,
     test_data_dir: Path,
     request: pytest.FixtureRequest,
-):
+) -> None:
     """
     End to end test for gomod.
 

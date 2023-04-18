@@ -721,7 +721,7 @@ def _get_golang_pseudo_version(
     return f"v{pseudo_semantic_version}{version_seperator}0.{commit_timestamp}-{commit_hash}"
 
 
-def _vet_local_deps(dependencies: List[dict]):
+def _vet_local_deps(dependencies: List[dict]) -> None:
     """Fail if any local dependency path is absolute or outside repository."""
     for dep in dependencies:
         version = dep["version"]
@@ -738,7 +738,7 @@ def _vet_local_deps(dependencies: List[dict]):
             )
 
 
-def _set_full_local_dep_relpaths(pkg_deps: List[dict], main_module_deps: List[dict]):
+def _set_full_local_dep_relpaths(pkg_deps: List[dict], main_module_deps: List[dict]) -> None:
     """
     Set full relative paths for all local go-package dependencies.
 

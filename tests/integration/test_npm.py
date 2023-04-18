@@ -51,7 +51,7 @@ def test_npm_smoketest(
     tmp_path: Path,
     test_data_dir: Path,
     request: pytest.FixtureRequest,
-):
+) -> None:
     """
     Smoketest for npm offline install development.
 

@@ -16,7 +16,7 @@ from cachi2.core.models.output import BuildConfig
         ("cachito.json", EnvFormat.json),
     ],
 )
-def test_format_based_on_suffix(filename: str, expect_format: EnvFormat):
+def test_format_based_on_suffix(filename: str, expect_format: EnvFormat) -> None:
     assert EnvFormat.based_on_suffix(Path(filename)) == expect_format
 
 
@@ -28,7 +28,7 @@ def test_format_based_on_suffix(filename: str, expect_format: EnvFormat):
         ("cachi2.yaml", "unsupported suffix: yaml"),
     ],
 )
-def test_cannot_determine_format(filename: str, expect_reason: str):
+def test_cannot_determine_format(filename: str, expect_reason: str) -> None:
     expect_error = f"Cannot determine envfile format, {expect_reason}"
     with pytest.raises(UnsupportedFeature, match=expect_error) as exc_info:
         EnvFormat.based_on_suffix(Path(filename))

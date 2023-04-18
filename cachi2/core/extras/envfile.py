@@ -15,7 +15,7 @@ class EnvFormat(str, Enum):
     sh = "env"
 
     @classmethod
-    def based_on_suffix(cls, filepath: Path):
+    def based_on_suffix(cls, filepath: Path) -> "EnvFormat":
         """Determine the EnvFormat from the filename."""
         suffix = filepath.suffix.removeprefix(".")
         try:

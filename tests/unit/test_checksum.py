@@ -78,7 +78,7 @@ def test_verify_checksum(
     expect_log_msg: str,
     tmp_path: Path,
     caplog: pytest.LogCaptureFixture,
-):
+) -> None:
     file = tmp_path.joinpath("spells.txt")
     file.write_text(FILE_CONTENT)
     caplog.set_level("DEBUG")
@@ -135,7 +135,7 @@ def test_verify_checksum_failure(
     expect_log_msgs: list[str],
     tmp_path: Path,
     caplog: pytest.LogCaptureFixture,
-):
+) -> None:
     file = tmp_path.joinpath("spells.txt")
     file.write_text(FILE_CONTENT)
     caplog.set_level("WARNING")

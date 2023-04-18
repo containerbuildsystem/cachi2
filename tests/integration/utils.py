@@ -183,7 +183,7 @@ def _load_json(file: Path) -> Dict:
         return json.load(json_file)
 
 
-def _safe_extract(tar: TarFile, path: str = ".", *, numeric_owner: bool = False):
+def _safe_extract(tar: TarFile, path: str = ".", *, numeric_owner: bool = False) -> None:
     """
     CVE-2007-4559 replacement for extract() or extractall().
 
@@ -322,7 +322,7 @@ def build_image_and_check_cmd(
     check_cmd: List,
     expected_cmd_output: str,
     cachi2_image: ContainerImage,
-):
+) -> None:
     """
     Build image and check that Cachi2 provided sources properly.
 
