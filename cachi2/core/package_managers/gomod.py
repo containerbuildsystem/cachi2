@@ -8,7 +8,19 @@ import tempfile
 from datetime import datetime
 from itertools import chain
 from pathlib import Path, PureWindowsPath
-from typing import Any, Dict, Iterable, Iterator, List, Literal, NoReturn, Optional, Tuple, Union
+from typing import (
+    Any,
+    Dict,
+    Iterable,
+    Iterator,
+    List,
+    Literal,
+    NamedTuple,
+    NoReturn,
+    Optional,
+    Tuple,
+    Union,
+)
 
 import backoff
 import git
@@ -37,7 +49,7 @@ GOMOD_INPUT_DOC = f"{GOMOD_DOC}#specifying-modules-to-process"
 VENDORING_DOC = f"{GOMOD_DOC}#vendoring"
 
 
-class _GolangModel(pydantic.BaseModel):
+class _ParsedModel(pydantic.BaseModel):
     """Attributes automatically get PascalCase aliases to make parsing Golang JSON easier.
 
     >>> class SomeModel(_GolangModel):
@@ -56,7 +68,7 @@ class _GolangModel(pydantic.BaseModel):
         allow_population_by_field_name = True
 
 
-class GoModule(_GolangModel):
+class ParsedModule(_ParsedModel):
     """A Go module as returned by the -json option of various commands (relevant fields only).
 
     See:
@@ -67,10 +79,10 @@ class GoModule(_GolangModel):
     path: str
     version: Optional[str] = None
     main: bool = False
-    replace: Optional["GoModule"] = None
+    replace: Optional["ParsedModule"] = None
 
 
-class GoPackage(_GolangModel):
+class ParsedPackage(_ParsedModel):
     """A Go package as returned by the -json option of go list (relevant fields only).
 
     See:
@@ -79,7 +91,169 @@ class GoPackage(_GolangModel):
 
     import_path: str
     standard: bool = False
-    module: Optional[GoModule]
+    module: Optional[ParsedModule]
+
+
+class Module(NamedTuple):
+    """A Go module with relevant data for the SBOM generation.
+
+    name: the resolved name for this module
+    original_name: module's name as written in go.mod, before any replacement
+    real_path: real path to locate the package on the Internet, which might differ from its name
+    version: the resolved version for this module
+    main: if this is the main module in the repository subpath that is being processed
+    """
+
+    name: str
+    original_name: str
+    real_path: str
+    version: str
+    main: bool = False
+
+    @property
+    def purl(self) -> str:
+        """Get the purl for this module."""
+        return f"pkg:golang/{self.real_path}@{self.version}?type=module"
+
+    def to_component(self) -> Component:
+        """Create a SBOM component for this module."""
+        return Component(name=self.name, version=self.version, purl=self.purl)
+
+
+class Package(NamedTuple):
+    """A Go package with relevant data for the SBOM generation.
+
+    relative_path: the package path relative to its parent module's name
+    module: parent module for this package
+    """
+
+    relative_path: Optional[str]
+    module: Module
+
+    @property
+    def name(self) -> str:
+        """Get the name for this package based on the parent module's name."""
+        if self.relative_path:
+            return f"{self.module.name}/{self.relative_path}"
+
+        return self.module.name
+
+    @property
+    def real_path(self) -> str:
+        """Get the real path to locate this package on the Internet."""
+        if self.relative_path:
+            return f"{self.module.real_path}/{self.relative_path}"
+
+        return self.module.real_path
+
+    @property
+    def purl(self) -> str:
+        """Get the purl for this package."""
+        return f"pkg:golang/{self.real_path}@{self.module.version}?type=package"
+
+    def to_component(self) -> Component:
+        """Create a SBOM component for this package."""
+        return Component(name=self.name, version=self.module.version, purl=self.purl)
+
+
+class StandardPackage(NamedTuple):
+    """A package from Go standard lib used in the SBOM generation.
+
+    Standard lib packages lack a parent module and, consequentially, a version.
+    """
+
+    name: str
+
+    @property
+    def purl(self) -> str:
+        """Get the purl for this package."""
+        return f"pkg:golang/{self.name}?type=package"
+
+    def to_component(self) -> Component:
+        """Create a SBOM component for this package."""
+        return Component(name=self.name, purl=self.purl)
+
+
+def _create_modules_from_parsed_data(
+    main_module: Module, main_module_dir: RootedPath, parsed_modules: Iterable[ParsedModule]
+) -> list[Module]:
+    def _create_module(module: ParsedModule) -> Module:
+        if not (replace := module.replace):
+            name = module.path
+            version = module.version or ""
+            original_name = name
+            real_path = name
+        elif replace.version:
+            # module/name v1.0.0 => replace/name v1.2.3
+            name = replace.path
+            version = replace.version
+            original_name = module.path
+            real_path = name
+        else:
+            # module/name v1.0.0 => ./local/path
+            name = module.path
+            resolved_replacement_path = main_module_dir.join_within_root(module.replace.path)
+            version = _get_golang_version(module.path, resolved_replacement_path)
+            real_path = _resolve_path_for_local_replacement(module)
+            original_name = name
+
+        return Module(name=name, version=version, original_name=original_name, real_path=real_path)
+
+    def _resolve_path_for_local_replacement(module: ParsedModule) -> str:
+        """Resolve all instances of "." and ".." for a local replacement."""
+        if not module.replace:
+            # Should not happen, this function will only be called for replaced modules
+            raise RuntimeError("Can't resolve path for a module that was not replaced")
+
+        path = f"{main_module.real_path}/{module.replace.path}"
+
+        platform_specific_path = os.path.normpath(path)
+        return Path(platform_specific_path).as_posix()
+
+    return [_create_module(module) for module in parsed_modules]
+
+
+def _create_packages_from_parsed_data(
+    modules: list[Module], parsed_packages: Iterable[ParsedPackage]
+) -> list[Union[Package, StandardPackage]]:
+    # in case of replacements, the packages still refer to their parent module by its original name
+    indexed_modules = {module.original_name: module for module in modules}
+
+    def _create_package(package: ParsedPackage) -> Union[Package, StandardPackage]:
+        if package.standard:
+            return StandardPackage(name=package.import_path)
+
+        if package.module is None:
+            module = _find_parent_module_by_name(package)
+        else:
+            module = indexed_modules[package.module.path]
+
+        relative_path = _resolve_package_relative_path(package, module)
+
+        return Package(relative_path=str(relative_path), module=module)
+
+    def _find_parent_module_by_name(package: ParsedPackage) -> Module:
+        """Return the longest module name that is contained in package's import_path."""
+        path = Path(package.import_path)
+
+        matched_name = max(
+            filter(path.is_relative_to, indexed_modules.keys()),
+            key=len,  # type: ignore
+            default=None,
+        )
+
+        if not matched_name:
+            # This should be impossible
+            raise RuntimeError("Package parent module was not found")
+
+        return indexed_modules[matched_name]
+
+    def _resolve_package_relative_path(package: ParsedPackage, module: Module) -> str:
+        """Return the path for a package relative to its parent module original name."""
+        relative_path = Path(package.import_path).relative_to(module.original_name)
+        return str(relative_path).removeprefix(".")
+
+    return [_create_package(package) for package in parsed_packages]
 
 
 def _run_gomod_cmd(cmd: Iterable[str], params: dict[str, Any]) -> str:
@@ -137,6 +311,8 @@ def fetch_gomod_source(request: Request) -> RequestOutput:
 
     components: list[Component] = []
 
+    repo_name = _get_repository_name(request.source_dir)
+
     with GoCacheTemporaryDirectory(prefix="cachito-") as tmp_dir:
         request.gomod_download_dir.path.mkdir(exist_ok=True, parents=True)
         for i, subpath in enumerate(subpaths):
@@ -144,33 +320,28 @@ def fetch_gomod_source(request: Request) -> RequestOutput:
 
             log.info(f'Fetching the gomod dependencies at the "{subpath}" directory')
 
-            gomod_source_path = request.source_dir.join_within_root(subpath)
+            main_module_dir = request.source_dir.join_within_root(subpath)
             try:
-                resolve_result = _resolve_gomod(gomod_source_path, request, Path(tmp_dir))
+                resolve_result = _resolve_gomod(main_module_dir, request, Path(tmp_dir))
             except GoModError:
                 log.error("Failed to fetch gomod dependencies")
                 raise
 
-            main_module, modules, packages = resolve_result
+            parsed_main_module, parsed_modules, parsed_packages = resolve_result
 
-            components.append(Component(name=main_module.path, version=main_module.version))
-
-            modules_names_and_versions = (_get_name_and_version(module) for module in modules)
-
-            components.extend(
-                Component(name=name_version[0], version=name_version[1])
-                for name_version in modules_names_and_versions
+            main_module = _create_main_module_from_parsed_data(
+                main_module_dir, repo_name, parsed_main_module
             )
 
-            for package in packages:
-                if package.standard:
-                    version = None
-                elif package.module:
-                    version = package.module.version
-                else:
-                    raise RuntimeError("Non-stdlib package does not have a parent module")
+            modules = [main_module]
+            modules.extend(
+                _create_modules_from_parsed_data(main_module, main_module_dir, parsed_modules)
+            )
 
-                components.append(Component(name=package.import_path, version=version))
+            packages = _create_packages_from_parsed_data(modules, parsed_packages)
+
+            components.extend(module.to_component() for module in modules)
+            components.extend(package.to_component() for package in packages)
 
         if "gomod-vendor-check" not in request.flags and "gomod-vendor" not in request.flags:
             tmp_download_cache_dir = Path(tmp_dir).joinpath(request.go_mod_cache_download_part)
@@ -193,6 +364,44 @@ def fetch_gomod_source(request: Request) -> RequestOutput:
         ],
         project_files=[],
     )
+
+
+def _create_main_module_from_parsed_data(
+    main_module_dir: RootedPath, repo_name: str, parsed_main_module: ParsedModule
+) -> Module:
+    resolved_subpath = main_module_dir.subpath_from_root
+
+    if str(resolved_subpath) == ".":
+        resolved_path = repo_name
+    else:
+        resolved_path = f"{repo_name}/{resolved_subpath}"
+
+    if not parsed_main_module.version:
+        # Should not happen, since the version is always resolved from the Git repo
+        raise RuntimeError(f"Version was not identified for main module at {resolved_subpath}")
+
+    return Module(
+        name=parsed_main_module.path,
+        original_name=parsed_main_module.path,
+        version=parsed_main_module.version,
+        real_path=resolved_path,
+    )
+
+
+def _get_repository_name(source_dir: RootedPath) -> str:
+    """Return the name resolved from the Git origin URL.
+
+    The name is a treated form of the URL, after stripping the scheme, user and .git extension.
+    """
+    repo = git.Repo(source_dir)
+    url = repo.remote().url
+
+    # strip scheme and ssh user
+    path = re.sub(r"^(https|ssh)?(:\/\/)?(git@)?", "", url)
+    # strip trailing .git
+    path = re.sub(r"\.git$", "", path)
+    # change colon from ssh urls into slash
+    return path.replace(":", "/")
 
 
 def _protect_against_symlinks(app_dir: RootedPath) -> None:
@@ -246,7 +455,7 @@ def _find_missing_gomod_files(source_path: RootedPath, subpaths: list[str]) -> l
 
 def _resolve_gomod(
     app_dir: RootedPath, request: Request, tmp_dir: Path
-) -> tuple[GoModule, Iterable[GoModule], Iterable[GoPackage]]:
+) -> tuple[ParsedModule, Iterable[ParsedModule], Iterable[ParsedPackage]]:
     """
     Resolve and fetch gomod dependencies for given app source archive.
 
@@ -300,7 +509,7 @@ def _resolve_gomod(
         log.info("Downloading the gomod dependencies")
         download_cmd = ["go", "mod", "download", "-json"]
         downloaded_modules = (
-            GoModule.parse_obj(obj)
+            ParsedModule.parse_obj(obj)
             for obj in load_json_stream(_run_download_cmd(download_cmd, run_params))
         )
 
@@ -313,10 +522,14 @@ def _resolve_gomod(
         go_list.extend(["-mod", "readonly"])
 
     main_module_name = _run_gomod_cmd([*go_list, "-m"], run_params).rstrip()
-    main_module_version = _get_golang_version(main_module_name, app_dir, update_tags=True)
-    main_module = GoModule(path=main_module_name, version=main_module_version, main=True)
+    main_module = ParsedModule(
+        path=main_module_name,
+        version=_get_golang_version(main_module_name, app_dir, update_tags=True),
+        main=True,
+        dir=str(app_dir),
+    )
 
-    def go_list_deps(pattern: Literal["./...", "all"]) -> Iterator[GoPackage]:
+    def go_list_deps(pattern: Literal["./...", "all"]) -> Iterator[ParsedPackage]:
         """Run go list -deps -json and return the parsed list of packages.
 
         The "./..." pattern returns the list of packages compiled into the final binary.
@@ -325,7 +538,7 @@ def _resolve_gomod(
         complete module list (roughly matching the list of downloaded modules).
         """
         cmd = [*go_list, "-deps", "-json=ImportPath,Module,Standard,Deps", pattern]
-        return map(GoPackage.parse_obj, load_json_stream(_run_gomod_cmd(cmd, run_params)))
+        return map(ParsedPackage.parse_obj, load_json_stream(_run_gomod_cmd(cmd, run_params)))
 
     package_modules = (
         module for pkg in go_list_deps("all") if (module := pkg.module) and not module.main
@@ -342,10 +555,10 @@ def _resolve_gomod(
 
 
 def _deduplicate_resolved_modules(
-    package_modules: Iterable[GoModule],
-    downloaded_modules: Iterable[GoModule],
-) -> Iterable[GoModule]:
-    def get_unique_key(module: GoModule) -> tuple[str, Optional[str]]:
+    package_modules: Iterable[ParsedModule],
+    downloaded_modules: Iterable[ParsedModule],
+) -> Iterable[ParsedModule]:
+    def get_unique_key(module: ParsedModule) -> tuple[str, Optional[str]]:
         if not (replace := module.replace):
             return module.path, module.version
         elif replace.version:
@@ -355,7 +568,7 @@ def _deduplicate_resolved_modules(
             # module/name v1.0.0 => ./local/path
             return module.path, replace.path
 
-    modules_by_name_and_version: dict[tuple[str, Optional[str]], GoModule] = {}
+    modules_by_name_and_version: dict[tuple[str, Optional[str]], ParsedModule] = {}
 
     # package_modules have the replace data, so they should take precedence in the deduplication
     for module in chain(package_modules, downloaded_modules):
@@ -365,7 +578,7 @@ def _deduplicate_resolved_modules(
     return modules_by_name_and_version.values()
 
 
-def _get_name_and_version(module: GoModule) -> tuple[str, str]:
+def _get_name_and_version(module: ParsedModule) -> tuple[str, str]:
     if not (replace := module.replace):
         name = module.path
         version = module.version
@@ -715,7 +928,7 @@ def _vet_local_deps(dependencies: List[dict]) -> None:
             )
 
 
-def _validate_local_replacements(modules: Iterable[GoModule], app_path: RootedPath) -> None:
+def _validate_local_replacements(modules: Iterable[ParsedModule], app_path: RootedPath) -> None:
     replaced_paths = [
         (module.path, module.replace.path)
         for module in modules
@@ -821,7 +1034,7 @@ def _get_semantic_version_from_tag(
     return semver.version.Version.parse(semantic_version)
 
 
-def _parse_vendor(module_dir: RootedPath) -> Iterable[GoModule]:
+def _parse_vendor(module_dir: RootedPath) -> Iterable[ParsedModule]:
     """Parse modules from vendor/modules.txt."""
     modules_txt = module_dir.join_within_root("vendor", "modules.txt")
     if not modules_txt.path.exists():
@@ -834,35 +1047,35 @@ def _parse_vendor(module_dir: RootedPath) -> Iterable[GoModule]:
         )
         raise UnexpectedFormat(f"vendor/modules.txt: {msg}", solution=solution)
 
-    def parse_module_line(line: str) -> GoModule:
+    def parse_module_line(line: str) -> ParsedModule:
         parts = line.removeprefix("# ").split()
         # name version
         if len(parts) == 2:
             name, version = parts
-            return GoModule(path=name, version=version)
+            return ParsedModule(path=name, version=version)
         # name => path
         if len(parts) == 3 and parts[1] == "=>":
             name, _, path = parts
-            return GoModule(path=name, replace=GoModule(path=path))
+            return ParsedModule(path=name, replace=ParsedModule(path=path))
         # name => new_name new_version
         if len(parts) == 4 and parts[1] == "=>":
             name, _, new_name, new_version = parts
-            return GoModule(path=name, replace=GoModule(path=new_name, version=new_version))
+            return ParsedModule(path=name, replace=ParsedModule(path=new_name, version=new_version))
         # name version => path
         if len(parts) == 4 and parts[2] == "=>":
             name, version, _, path = parts
-            return GoModule(path=name, version=version, replace=GoModule(path=path))
+            return ParsedModule(path=name, version=version, replace=ParsedModule(path=path))
         # name version => new_name new_version
         if len(parts) == 5 and parts[2] == "=>":
             name, version, _, new_name, new_version = parts
-            return GoModule(
+            return ParsedModule(
                 path=name,
                 version=version,
-                replace=GoModule(path=new_name, version=new_version),
+                replace=ParsedModule(path=new_name, version=new_version),
             )
         fail_for_unexpected_format(f"unexpected module line format: {line!r}")
 
-    modules: list[GoModule] = []
+    modules: list[ParsedModule] = []
     module_has_packages: list[bool] = []
 
     for line in modules_txt.path.read_text().splitlines():
@@ -881,7 +1094,7 @@ def _parse_vendor(module_dir: RootedPath) -> Iterable[GoModule]:
 
 def _vendor_deps(
     app_dir: RootedPath, can_make_changes: bool, run_params: dict[str, Any]
-) -> Iterable[GoModule]:
+) -> Iterable[ParsedModule]:
     """
     Vendor golang dependencies.
 

@@ -17,11 +17,17 @@ from cachi2.core.models.input import Flag, Request
 from cachi2.core.models.output import BuildConfig, Component, RequestOutput, Sbom
 from cachi2.core.package_managers import gomod
 from cachi2.core.package_managers.gomod import (
-    GoModule,
-    GoPackage,
+    Module,
+    Package,
+    ParsedModule,
+    ParsedPackage,
+    StandardPackage,
     _contains_package,
+    _create_modules_from_parsed_data,
+    _create_packages_from_parsed_data,
     _deduplicate_resolved_modules,
     _get_golang_version,
+    _get_repository_name,
     _match_parent_module,
     _parse_vendor,
     _path_to_subpackage,
@@ -76,12 +82,12 @@ def get_mocked_data(data_dir: Path, filepath: Union[str, Path]) -> str:
 
 def _parse_mocked_data(
     data_dir: Path, file_path: str
-) -> tuple[GoModule, list[GoModule], list[GoPackage]]:
+) -> tuple[ParsedModule, list[ParsedModule], list[ParsedPackage]]:
     mocked_data = json.loads(get_mocked_data(data_dir, file_path))
 
-    main_module = GoModule(**mocked_data["main_module"])
-    modules = [GoModule(**module) for module in mocked_data["modules"]]
-    packages = [GoPackage(**package) for package in mocked_data["packages"]]
+    main_module = ParsedModule(**mocked_data["main_module"])
+    modules = [ParsedModule(**module) for module in mocked_data["modules"]]
+    packages = [ParsedPackage(**package) for package in mocked_data["packages"]]
 
     return main_module, modules, packages
 
@@ -323,7 +329,7 @@ def test_resolve_gomod_no_deps(
     main_module, modules, packages = _resolve_gomod(module_path, gomod_request, tmp_path)
     packages_list = list(packages)
 
-    assert main_module == GoModule(
+    assert main_module == ParsedModule(
         path="github.com/release-engineering/retrodep/v2",
         version="v2.1.1",
         main=True,
@@ -331,9 +337,9 @@ def test_resolve_gomod_no_deps(
 
     assert not modules
     assert len(packages_list) == 1
-    assert packages_list[0] == GoPackage(
+    assert packages_list[0] == ParsedPackage(
         import_path="github.com/release-engineering/retrodep/v2",
-        module=GoModule(
+        module=ParsedModule(
             path="github.com/release-engineering/retrodep/v2",
             main=True,
         ),
@@ -363,6 +369,268 @@ def test_resolve_gomod_suspicious_symlinks(symlinked_file: str, gomod_request: R
 
     e = exc_info.value
     assert "Found a potentially harmful symlink" in e.friendly_msg()
+
+
+@mock.patch("cachi2.core.package_managers.gomod._get_golang_version")
+def test_create_modules_from_parsed_data(
+    mock_get_golang_version: mock.Mock, tmp_path: Path
+) -> None:
+    main_module_dir = RootedPath(tmp_path).join_within_root("target-module")
+    mock_get_golang_version.return_value = "v1.5.0"
+
+    main_module = Module(
+        name="github.com/my-org/my-repo/target-module",
+        version="v1.5.0",
+        original_name="github.com/my-org/my-repo/target-module",
+        real_path="github.com/my-org/my-repo/target-module",
+        main=True,
+    )
+
+    parsed_modules = [
+        # simple module
+        ParsedModule(
+            path="golang.org/a/standard-module",
+            version="v0.0.0-20190311183353-d8887717615a",
+        ),
+        # replaced module
+        ParsedModule(
+            path="github.com/a-neat-org/useful-module",
+            version="v1.0.0",
+            replace=ParsedModule(
+                path="github.com/another-org/useful-module",
+                version="v2.0.0",
+            ),
+        ),
+        # locally replaced module, child folder
+        ParsedModule(
+            path="github.com/some-org/this-other-module",
+            version="v0.0.1",
+            replace=ParsedModule(
+                path="./local-path",
+            ),
+        ),
+        # locally replaced module, sibling folder
+        ParsedModule(
+            path="github.com/some-org/yet-another-module",
+            version="v0.1.0",
+            replace=ParsedModule(
+                path="../sibling-path",
+            ),
+        ),
+    ]
+
+    expect_modules = [
+        Module(
+            name="golang.org/a/standard-module",
+            version="v0.0.0-20190311183353-d8887717615a",
+            original_name="golang.org/a/standard-module",
+            real_path="golang.org/a/standard-module",
+        ),
+        Module(
+            name="github.com/another-org/useful-module",
+            version="v2.0.0",
+            original_name="github.com/a-neat-org/useful-module",
+            real_path="github.com/another-org/useful-module",
+        ),
+        Module(
+            name="github.com/some-org/this-other-module",
+            version="v1.5.0",
+            original_name="github.com/some-org/this-other-module",
+            real_path="github.com/my-org/my-repo/target-module/local-path",
+        ),
+        Module(
+            name="github.com/some-org/yet-another-module",
+            version="v1.5.0",
+            original_name="github.com/some-org/yet-another-module",
+            real_path="github.com/my-org/my-repo/sibling-path",
+        ),
+    ]
+
+    modules = _create_modules_from_parsed_data(main_module, main_module_dir, parsed_modules)
+
+    assert modules == expect_modules
+
+
+def test_module_to_component() -> None:
+    expected_component = Component(
+        name="github.com/another-org/nice-repo",
+        version="v0.0.1",
+        purl="pkg:golang/github.com/another-org/nice-repo@v0.0.1?type=module",
+    )
+
+    component = Module(
+        name="github.com/another-org/nice-repo",
+        version="v0.0.1",
+        original_name="github.com/my-org/nice-repo",
+        real_path="github.com/another-org/nice-repo",
+    ).to_component()
+
+    assert component == expected_component
+
+
+def test_create_packages_from_parsed_data() -> None:
+    # modules as they'd be resolved from _create_modules_from_parsed_data
+    modules = [
+        Module(
+            name="github.com/my-org/my-repo",
+            version="v1.5.0",
+            original_name="github.com/my-org/my-repo",
+            real_path="github.com/my-org/my-repo",
+            main=True,
+        ),
+        Module(
+            name="github.com/my-org/my-repo/child-module",
+            version="v1.0.1",
+            original_name="github.com/my-org/my-repo/child-module",
+            real_path="github.com/my-org/my-repo/child-module",
+        ),
+        Module(
+            name="github.com/stretchr/testify",
+            version="v1.7.1",
+            original_name="github.com/stretchr/testify",
+            real_path="github.com/stretchr/testify",
+        ),
+        Module(
+            name="github.com/cachito-testing/retrodep/v2",
+            version="v2.0.0",
+            original_name="github.com/containerbuildsystem/retrodep/v2",
+            real_path="github.com/cachito-testing/retrodep/v2",
+        ),
+    ]
+
+    parsed_packages = [
+        # std pkg
+        ParsedPackage(
+            import_path="internal/cpu",
+            standard=True,
+        ),
+        # normal pkg
+        ParsedPackage(
+            import_path="github.com/stretchr/testify/assert",
+            module=ParsedModule(path="github.com/stretchr/testify", version="v1.7.1"),
+        ),
+        # main module package
+        ParsedPackage(
+            import_path="github.com/my-org/my-repo",
+            module=ParsedModule(path="github.com/my-org/my-repo", version="v1.5.0"),
+        ),
+        # package from a replaced module
+        ParsedPackage(
+            import_path="github.com/containerbuildsystem/retrodep/v2",
+            module=ParsedModule(
+                path="github.com/containerbuildsystem/retrodep/v2", version="v2.0.0"
+            ),
+        ),
+        # package from a child module, with module reference missing
+        ParsedPackage(
+            import_path="github.com/my-org/my-repo/child-module/child-pkg",
+        ),
+    ]
+
+    expect_packages = [
+        StandardPackage(name="internal/cpu"),
+        Package(
+            relative_path="assert",
+            module=Module(
+                name="github.com/stretchr/testify",
+                version="v1.7.1",
+                original_name="github.com/stretchr/testify",
+                real_path="github.com/stretchr/testify",
+            ),
+        ),
+        Package(
+            relative_path="",
+            module=Module(
+                name="github.com/my-org/my-repo",
+                version="v1.5.0",
+                original_name="github.com/my-org/my-repo",
+                real_path="github.com/my-org/my-repo",
+                main=True,
+            ),
+        ),
+        Package(
+            relative_path="",
+            module=Module(
+                name="github.com/cachito-testing/retrodep/v2",
+                version="v2.0.0",
+                original_name="github.com/containerbuildsystem/retrodep/v2",
+                real_path="github.com/cachito-testing/retrodep/v2",
+            ),
+        ),
+        Package(
+            relative_path="child-pkg",
+            module=Module(
+                name="github.com/my-org/my-repo/child-module",
+                version="v1.0.1",
+                original_name="github.com/my-org/my-repo/child-module",
+                real_path="github.com/my-org/my-repo/child-module",
+            ),
+        ),
+    ]
+
+    packages = _create_packages_from_parsed_data(modules, parsed_packages)
+
+    assert packages == expect_packages
+
+
+@pytest.mark.parametrize(
+    "package, expected_component",
+    (
+        # package is also the main module
+        (
+            Package(
+                relative_path="",
+                module=Module(
+                    name="github.com/my-org/some-repo",
+                    version="v0.0.3",
+                    original_name="github.com/my-org/some-repo",
+                    real_path="github.com/my-org/some-repo",
+                ),
+            ),
+            Component(
+                name="github.com/my-org/some-repo",
+                version="v0.0.3",
+                purl="pkg:golang/github.com/my-org/some-repo@v0.0.3?type=package",
+            ),
+        ),
+        # package is from a replaced module
+        (
+            Package(
+                relative_path="this-pkg",
+                module=Module(
+                    name="github.com/another-org/nice-repo",
+                    version="v0.0.1",
+                    original_name="github.com/my-org/nice-repo",
+                    real_path="github.com/another-org/nice-repo",
+                ),
+            ),
+            Component(
+                name="github.com/another-org/nice-repo/this-pkg",
+                version="v0.0.1",
+                purl="pkg:golang/github.com/another-org/nice-repo/this-pkg@v0.0.1?type=package",
+            ),
+        ),
+        # main module is from a forked repo
+        (
+            Package(
+                relative_path="this-pkg",
+                module=Module(
+                    name="github.com/my-org/nice-repo",
+                    version="v0.0.2",
+                    original_name="github.com/my-org/nice-repo",
+                    real_path="github.com/another-org/forked-repo",
+                ),
+            ),
+            Component(
+                name="github.com/my-org/nice-repo/this-pkg",
+                version="v0.0.2",
+                purl="pkg:golang/github.com/another-org/forked-repo/this-pkg@v0.0.2?type=package",
+            ),
+        ),
+    ),
+)
+def test_package_to_component(package: Package, expected_component: Component) -> None:
+    assert package.to_component() == expected_component
 
 
 @pytest.mark.parametrize(("go_mod_rc", "go_list_rc"), ((0, 1), (1, 0)))
@@ -404,19 +672,19 @@ def test_deduplicate_resolved_modules():
     # as reported by "go list -deps all"
     package_modules = [
         # local replacement
-        GoModule(
+        ParsedModule(
             path="github.com/my-org/local-replacement",
             version="v1.0.0",
-            replace=GoModule(path="./local-folder"),
+            replace=ParsedModule(path="./local-folder"),
         ),
         # dependency replacement
-        GoModule(
+        ParsedModule(
             path="github.com/my-org/my-dep",
             version="v2.0.0",
-            replace=GoModule(path="github.com/another-org/another-dep", version="v2.0.1"),
+            replace=ParsedModule(path="github.com/another-org/another-dep", version="v2.0.1"),
         ),
         # common dependency
-        GoModule(
+        ParsedModule(
             path="github.com/awesome-org/neat-dep",
             version="v2.0.1",
         ),
@@ -425,12 +693,12 @@ def test_deduplicate_resolved_modules():
     # as reported by "go mod download -json"
     downloaded_modules = [
         # duplicate of dependency replacement
-        GoModule(
+        ParsedModule(
             path="github.com/another-org/another-dep",
             version="v2.0.1",
         ),
         # duplicate of common dependency
-        GoModule(
+        ParsedModule(
             path="github.com/awesome-org/neat-dep",
             version="v2.0.1",
         ),
@@ -439,17 +707,17 @@ def test_deduplicate_resolved_modules():
     dedup_modules = _deduplicate_resolved_modules(package_modules, downloaded_modules)
 
     expect_dedup_modules = [
-        GoModule(
+        ParsedModule(
             path="github.com/my-org/local-replacement",
             version="v1.0.0",
-            replace=GoModule(path="./local-folder"),
+            replace=ParsedModule(path="./local-folder"),
         ),
-        GoModule(
+        ParsedModule(
             path="github.com/my-org/my-dep",
             version="v2.0.0",
-            replace=GoModule(path="github.com/another-org/another-dep", version="v2.0.1"),
+            replace=ParsedModule(path="github.com/another-org/another-dep", version="v2.0.1"),
         ),
-        GoModule(
+        ParsedModule(
             path="github.com/awesome-org/neat-dep",
             version="v2.0.1",
         ),
@@ -585,8 +853,12 @@ def test_validate_local_replacements(tmpdir):
     app_path = RootedPath(tmpdir).join_within_root("subpath")
 
     modules = [
-        GoModule(path="example.org/foo", version="v1.0.0", replace=GoModule(path="./another-foo")),
-        GoModule(path="example.org/foo", version="v1.0.0", replace=GoModule(path="../sibling-foo")),
+        ParsedModule(
+            path="example.org/foo", version="v1.0.0", replace=ParsedModule(path="./another-foo")
+        ),
+        ParsedModule(
+            path="example.org/foo", version="v1.0.0", replace=ParsedModule(path="../sibling-foo")
+        ),
     ]
 
     _validate_local_replacements(modules, app_path)
@@ -596,8 +868,8 @@ def test_invalid_local_replacements(tmpdir):
     app_path = RootedPath(tmpdir)
 
     modules = [
-        GoModule(
-            path="example.org/foo", version="v1.0.0", replace=GoModule(path="../outside-repo")
+        ParsedModule(
+            path="example.org/foo", version="v1.0.0", replace=ParsedModule(path="../outside-repo")
         ),
     ]
 
@@ -850,42 +1122,44 @@ def test_parse_vendor(rooted_tmp_path: RootedPath, data_dir: Path) -> None:
     modules_txt.path.parent.mkdir(parents=True)
     modules_txt.path.write_text(get_mocked_data(data_dir, "vendored/modules.txt"))
     expect_modules = [
-        GoModule(path="github.com/Azure/go-ansiterm", version="v0.0.0-20210617225240-d185dfc1b5a1"),
-        GoModule(path="github.com/Masterminds/semver", version="v1.4.2"),
-        GoModule(path="github.com/Microsoft/go-winio", version="v0.6.0"),
-        GoModule(
+        ParsedModule(
+            path="github.com/Azure/go-ansiterm", version="v0.0.0-20210617225240-d185dfc1b5a1"
+        ),
+        ParsedModule(path="github.com/Masterminds/semver", version="v1.4.2"),
+        ParsedModule(path="github.com/Microsoft/go-winio", version="v0.6.0"),
+        ParsedModule(
             path="github.com/cachito-testing/gomod-pandemonium/terminaltor",
             version="v0.0.0",
-            replace=GoModule(path="./terminaltor"),
+            replace=ParsedModule(path="./terminaltor"),
         ),
-        GoModule(
+        ParsedModule(
             path="github.com/cachito-testing/gomod-pandemonium/weird",
             version="v0.0.0",
-            replace=GoModule(path="./weird"),
+            replace=ParsedModule(path="./weird"),
         ),
-        GoModule(path="github.com/go-logr/logr", version="v1.2.3"),
-        GoModule(
+        ParsedModule(path="github.com/go-logr/logr", version="v1.2.3"),
+        ParsedModule(
             path="github.com/go-task/slim-sprig", version="v0.0.0-20230315185526-52ccab3ef572"
         ),
-        GoModule(path="github.com/google/go-cmp", version="v0.5.9"),
-        GoModule(path="github.com/google/pprof", version="v0.0.0-20210407192527-94a9f03dee38"),
-        GoModule(path="github.com/moby/term", version="v0.0.0-20221205130635-1aeaba878587"),
-        GoModule(path="github.com/onsi/ginkgo/v2", version="v2.9.2"),
-        GoModule(path="github.com/onsi/gomega", version="v1.27.4"),
-        GoModule(path="github.com/op/go-logging", version="v0.0.0-20160315200505-970db520ece7"),
-        GoModule(path="github.com/pkg/errors", version="v0.8.1"),
-        GoModule(
+        ParsedModule(path="github.com/google/go-cmp", version="v0.5.9"),
+        ParsedModule(path="github.com/google/pprof", version="v0.0.0-20210407192527-94a9f03dee38"),
+        ParsedModule(path="github.com/moby/term", version="v0.0.0-20221205130635-1aeaba878587"),
+        ParsedModule(path="github.com/onsi/ginkgo/v2", version="v2.9.2"),
+        ParsedModule(path="github.com/onsi/gomega", version="v1.27.4"),
+        ParsedModule(path="github.com/op/go-logging", version="v0.0.0-20160315200505-970db520ece7"),
+        ParsedModule(path="github.com/pkg/errors", version="v0.8.1"),
+        ParsedModule(
             path="github.com/release-engineering/retrodep/v2",
             version="v2.1.0",
-            replace=GoModule(path="github.com/cachito-testing/retrodep/v2", version="v2.1.1"),
+            replace=ParsedModule(path="github.com/cachito-testing/retrodep/v2", version="v2.1.1"),
         ),
-        GoModule(path="golang.org/x/mod", version="v0.9.0"),
-        GoModule(path="golang.org/x/net", version="v0.8.0"),
-        GoModule(path="golang.org/x/sys", version="v0.6.0"),
-        GoModule(path="golang.org/x/text", version="v0.8.0"),
-        GoModule(path="golang.org/x/tools", version="v0.7.0"),
-        GoModule(path="gopkg.in/yaml.v2", version="v2.2.2"),
-        GoModule(path="gopkg.in/yaml.v3", version="v3.0.1"),
+        ParsedModule(path="golang.org/x/mod", version="v0.9.0"),
+        ParsedModule(path="golang.org/x/net", version="v0.8.0"),
+        ParsedModule(path="golang.org/x/sys", version="v0.6.0"),
+        ParsedModule(path="golang.org/x/text", version="v0.8.0"),
+        ParsedModule(path="golang.org/x/tools", version="v0.7.0"),
+        ParsedModule(path="gopkg.in/yaml.v2", version="v2.2.2"),
+        ParsedModule(path="gopkg.in/yaml.v3", version="v3.0.1"),
     ]
     assert list(_parse_vendor(rooted_tmp_path)) == expect_modules
 
@@ -1102,6 +1376,8 @@ def test_missing_gomod_file(file_tree, tmp_path):
         ),
     ),
 )
+@mock.patch("cachi2.core.package_managers.gomod._create_main_module_from_parsed_data")
+@mock.patch("cachi2.core.package_managers.gomod._get_repository_name")
 @mock.patch("cachi2.core.package_managers.gomod._find_missing_gomod_files")
 @mock.patch("cachi2.core.package_managers.gomod._resolve_gomod")
 @mock.patch("cachi2.core.package_managers.gomod.RequestOutput")
@@ -1113,13 +1389,15 @@ def test_dep_replacements(
     mock_request_output,
     mock_resolve_gomod,
     mock_find_missing_gomod_files,
+    mock_get_repository_name,
+    mock_create_main_module_from_parsed_data,
     dep_replacements,
     gomod_request,
     raises_error,
 ):
     gomod_request.dep_replacements = dep_replacements
     mock_find_missing_gomod_files.return_value = []
-    mock_resolve_gomod.return_value = (GoModule(path=""), [], [])
+    mock_resolve_gomod.return_value = (ParsedModule(path=""), [], [])
 
     if raises_error:
         msg = "Dependency replacements are only supported for a single go module path."
@@ -1142,27 +1420,27 @@ def test_dep_replacements(
             [{"type": "gomod", "path": "."}],
             {
                 ".": (
-                    GoModule(
+                    ParsedModule(
                         path="github.com/my-org/my-repo",
-                        version="1.0.0",
+                        version="v1.0.0",
                     ),
                     [
-                        GoModule(
+                        ParsedModule(
                             path="golang.org/x/net",
                             version="v0.0.0-20190311183353-d8887717615a",
                         ),
                     ],
                     [
-                        GoPackage(
+                        ParsedPackage(
                             import_path="github.com/my-org/my-repo",
-                            module=GoModule(
+                            module=ParsedModule(
                                 path="github.com/my-org/my-repo",
-                                version="1.0.0",
+                                version="v1.0.0",
                             ),
                         ),
-                        GoPackage(
+                        ParsedPackage(
                             import_path="golang.org/x/net/http",
-                            module=GoModule(
+                            module=ParsedModule(
                                 path="golang.org/x/net",
                                 version="v0.0.0-20190311183353-d8887717615a",
                             ),
@@ -1171,40 +1449,64 @@ def test_dep_replacements(
                 ),
             },
             [
-                Component(name="github.com/my-org/my-repo", version="1.0.0"),
-                Component(name="golang.org/x/net", version="v0.0.0-20190311183353-d8887717615a"),
                 Component(
-                    name="golang.org/x/net/http", version="v0.0.0-20190311183353-d8887717615a"
+                    name="github.com/my-org/my-repo",
+                    purl="pkg:golang/github.com/my-org/my-repo@v1.0.0?type=module",
+                    version="v1.0.0",
+                ),
+                Component(
+                    name="golang.org/x/net",
+                    purl="pkg:golang/golang.org/x/net@v0.0.0-20190311183353-d8887717615a?type=module",
+                    version="v0.0.0-20190311183353-d8887717615a",
+                ),
+                Component(
+                    name="github.com/my-org/my-repo",
+                    purl="pkg:golang/github.com/my-org/my-repo@v1.0.0?type=package",
+                    version="v1.0.0",
+                ),
+                Component(
+                    name="golang.org/x/net/http",
+                    purl="pkg:golang/golang.org/x/net/http@v0.0.0-20190311183353-d8887717615a?type=package",
+                    version="v0.0.0-20190311183353-d8887717615a",
                 ),
             ],
         ),
         (
-            [{"type": "gomod", "path": "."}, {"type": "gomod", "path": "path"}],
+            [{"type": "gomod", "path": "."}, {"type": "gomod", "path": "./path"}],
             {
                 ".": (
-                    GoModule(
+                    ParsedModule(
                         path="github.com/my-org/my-repo",
-                        version="1.0.0",
+                        version="v1.0.0",
                     ),
                     [],
                     [],
                 ),
                 "path": (
-                    GoModule(
+                    ParsedModule(
                         path="github.com/my-org/my-repo/path",
-                        version="1.0.0",
+                        version="v1.0.0",
                     ),
                     [],
                     [],
                 ),
             },
             [
-                Component(name="github.com/my-org/my-repo", version="1.0.0"),
-                Component(name="github.com/my-org/my-repo/path", version="1.0.0"),
+                Component(
+                    name="github.com/my-org/my-repo",
+                    purl="pkg:golang/github.com/my-org/my-repo@v1.0.0?type=module",
+                    version="v1.0.0",
+                ),
+                Component(
+                    name="github.com/my-org/my-repo/path",
+                    purl="pkg:golang/github.com/my-org/my-repo/path@v1.0.0?type=module",
+                    version="v1.0.0",
+                ),
             ],
         ),
     ),
 )
+@mock.patch("cachi2.core.package_managers.gomod._get_repository_name")
 @mock.patch("cachi2.core.package_managers.gomod._find_missing_gomod_files")
 @mock.patch("cachi2.core.package_managers.gomod._resolve_gomod")
 @mock.patch("cachi2.core.package_managers.gomod.GoCacheTemporaryDirectory")
@@ -1212,6 +1514,7 @@ def test_fetch_gomod_source(
     mock_tmp_dir: mock.Mock,
     mock_resolve_gomod: mock.Mock,
     mock_find_missing_gomod_files: mock.Mock,
+    mock_get_repository_name: mock.Mock,
     gomod_request: Request,
     packages_output_by_path: dict[str, dict[str, Any]],
     expect_components: list[Component],
@@ -1227,6 +1530,7 @@ def test_fetch_gomod_source(
 
     mock_resolve_gomod.side_effect = resolve_gomod_mocked
     mock_find_missing_gomod_files.return_value = []
+    mock_get_repository_name.return_value = "github.com/my-org/my-repo"
 
     output = fetch_gomod_source(gomod_request)
 
@@ -1246,3 +1550,29 @@ def test_fetch_gomod_source(
         )
 
     assert output == expected_output
+
+
+@pytest.mark.parametrize(
+    "input_url",
+    (
+        "ssh://git@github.com:cachito-testing/gomod-pandemonium",
+        "https://github.com/cachito-testing/gomod-pandemonium",
+        "git@github.com:cachito-testing/gomod-pandemonium.git",
+    ),
+)
+@mock.patch("cachi2.core.package_managers.gomod.git.Repo")
+def test_get_repository_name(mock_git_repo, input_url):
+    expected_url = "github.com/cachito-testing/gomod-pandemonium"
+
+    def mock_remote():
+        mocked_origin = mock.Mock()
+        mocked_origin.url = input_url
+        return mocked_origin
+
+    mocked_repo = mock.Mock()
+    mocked_repo.remote.side_effect = mock_remote
+    mock_git_repo.return_value = mocked_repo
+
+    resolved_url = _get_repository_name(RootedPath("/my-folder/cloned-repo"))
+
+    assert resolved_url == expected_url
