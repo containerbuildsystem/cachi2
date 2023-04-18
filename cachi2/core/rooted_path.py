@@ -62,6 +62,11 @@ class RootedPath(PathLike[str]):
         """Get the current path, which is guaranteed to be at or below the root."""
         return self._path
 
+    @property
+    def subpath_from_root(self) -> Path:
+        """Get the path relative to the root."""
+        return self._path.relative_to(self._root)
+
     def __eq__(self, other: object) -> bool:
         # Note: __eq__ is implemented mainly for unit tests that do assert_called_with() or similar
         if not isinstance(other, RootedPath):

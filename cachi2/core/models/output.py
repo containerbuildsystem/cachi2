@@ -20,15 +20,17 @@ class Component(pydantic.BaseModel):
 
     name: str
     version: Optional[str]
-
+    purl: Optional[str]  # optional while it is not implemented for Pip
     type: Literal["library"] = "library"
 
-    # This will soon be replaced by the purl
     def key(self) -> str:
         """Uniquely identifies a package.
 
         Used mainly for sorting and deduplication.
         """
+        if self.purl:
+            return self.purl
+
         return f"{self.name}:{self.version}"
 
     @pydantic.validator("version")
