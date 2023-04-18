@@ -51,13 +51,13 @@ def mock_fetch_deps(
         mock_resolve_packages.assert_called_once_with(expect_request)
 
 
-def invoke_expecting_sucess(app, args: list[str]) -> typer.testing.Result:
+def invoke_expecting_sucess(app: typer.Typer, args: list[str]) -> typer.testing.Result:
     result = runner.invoke(app, args, catch_exceptions=False)
     assert result.exit_code == 0, result.output
     return result
 
 
-def invoke_expecting_invalid_usage(app, args: list[str]) -> typer.testing.Result:
+def invoke_expecting_invalid_usage(app: typer.Typer, args: list[str]) -> typer.testing.Result:
     result = runner.invoke(app, args)
     assert result.exit_code == 2, (
         f"expected exit_code=2, got exit_code={result.exit_code}\n"
@@ -88,7 +88,10 @@ class TestTopLevelOpts:
         "file, file_text",
         [
             ("config.yaml", "gomod_download_max_tries: 1000000"),
-            ("config.yaml", "gomod_download_max_tries: 1000000\ngomod_strict_vendor: True"),
+            (
+                "config.yaml",
+                "gomod_download_max_tries: 1000000\ngomod_strict_vendor: True",
+            ),
         ],
     )
     def test_config_file_option(
@@ -96,7 +99,7 @@ class TestTopLevelOpts:
         file: str,
         file_text: str,
         tmp_cwd: Path,
-    ):
+    ) -> None:
         tmp_cwd.joinpath(file).touch()
         tmp_cwd.joinpath(file).write_text(file_text)
 
@@ -147,8 +150,13 @@ class TestTopLevelOpts:
         ],
     )
     def test_config_file_option_invalid(
-        self, file_create: bool, file: str, file_text: str, error_expectation: str, tmp_cwd: Path
-    ):
+        self,
+        file_create: bool,
+        file: str,
+        file_text: str,
+        error_expectation: str,
+        tmp_cwd: Path,
+    ) -> None:
         if file_create:
             tmp_cwd.joinpath(file).touch()
             tmp_cwd.joinpath(file).write_text(file_text)
@@ -170,8 +178,8 @@ class TestTopLevelOpts:
         self,
         loglevel_args: list[str],
         expected_level: str,
-        tmp_cwd,
-    ):
+        tmp_cwd: Path,
+    ) -> None:
         args = [*loglevel_args, "fetch-deps", "gomod"]
 
         with mock_fetch_deps():
@@ -209,8 +217,12 @@ class TestFetchDeps:
         ],
     )
     def test_specify_paths(
-        self, path_args: list[str], expect_source: str, expect_output: str, tmp_cwd: Path
-    ):
+        self,
+        path_args: list[str],
+        expect_source: str,
+        expect_output: str,
+        tmp_cwd: Path,
+    ) -> None:
         tmp_cwd.joinpath("source", "dir").mkdir(parents=True, exist_ok=True)
 
         source_abspath = expect_source.format(cwd=tmp_cwd)
@@ -229,13 +241,25 @@ class TestFetchDeps:
     @pytest.mark.parametrize(
         "path_args, expect_error",
         [
-            (["--source=no-such-dir"], "'--source': Directory 'no-such-dir' does not exist"),
-            (["--source=/no-such-dir"], "'--source': Directory '/no-such-dir' does not exist"),
-            (["--source=not-a-directory"], "'--source': Directory 'not-a-directory' is a file"),
-            (["--output=not-a-directory"], "'--output': Directory 'not-a-directory' is a file"),
+            (
+                ["--source=no-such-dir"],
+                "'--source': Directory 'no-such-dir' does not exist",
+            ),
+            (
+                ["--source=/no-such-dir"],
+                "'--source': Directory '/no-such-dir' does not exist",
+            ),
+            (
+                ["--source=not-a-directory"],
+                "'--source': Directory 'not-a-directory' is a file",
+            ),
+            (
+                ["--output=not-a-directory"],
+                "'--output': Directory 'not-a-directory' is a file",
+            ),
         ],
     )
-    def test_invalid_paths(self, path_args: list[str], expect_error: str, tmp_cwd: Path):
+    def test_invalid_paths(self, path_args: list[str], expect_error: str, tmp_cwd: Path) -> None:
         tmp_cwd.joinpath("not-a-directory").touch()
 
         result = invoke_expecting_invalid_usage(app, ["fetch-deps", *path_args])
@@ -287,11 +311,16 @@ class TestFetchDeps:
                     ]}
                     """
                 ),
-                [{"type": "gomod", "path": "pkg_a"}, {"type": "gomod", "path": "pkg_b"}],
+                [
+                    {"type": "gomod", "path": "pkg_a"},
+                    {"type": "gomod", "path": "pkg_b"},
+                ],
             ),
         ],
     )
-    def test_specify_packages(self, package_arg: str, expect_packages: list[dict], tmp_cwd: Path):
+    def test_specify_packages(
+        self, package_arg: str, expect_packages: list[dict], tmp_cwd: Path
+    ) -> None:
         tmp_cwd.joinpath("pkg_a").mkdir(exist_ok=True)
         tmp_cwd.joinpath("pkg_b").mkdir(exist_ok=True)
 
@@ -442,7 +471,9 @@ class TestFetchDeps:
             ),
         ],
     )
-    def test_invalid_packages(self, package_arg: str, expect_error_lines: list[str], tmp_cwd: Path):
+    def test_invalid_packages(
+        self, package_arg: str, expect_error_lines: list[str], tmp_cwd: Path
+    ) -> None:
         tmp_cwd.joinpath("suspicious-symlink").symlink_to("..")
 
         result = invoke_expecting_invalid_usage(app, ["fetch-deps", package_arg])
@@ -455,9 +486,15 @@ class TestFetchDeps:
         [
             (["gomod"], {}),
             (["gomod", "--gomod-vendor"], {"gomod-vendor"}),
-            (['{"packages": [{"type":"gomod"}], "flags": ["gomod-vendor"]}'], {"gomod-vendor"}),
             (
-                ['{"packages": [{"type":"gomod"}], "flags": ["gomod-vendor"]}', "--gomod-vendor"],
+                ['{"packages": [{"type":"gomod"}], "flags": ["gomod-vendor"]}'],
+                {"gomod-vendor"},
+            ),
+            (
+                [
+                    '{"packages": [{"type":"gomod"}], "flags": ["gomod-vendor"]}',
+                    "--gomod-vendor",
+                ],
                 {"gomod-vendor"},
             ),
             (
@@ -468,7 +505,12 @@ class TestFetchDeps:
                     "--cgo-disable",
                     "--force-gomod-tidy",
                 ],
-                {"gomod-vendor", "gomod-vendor-check", "cgo-disable", "force-gomod-tidy"},
+                {
+                    "gomod-vendor",
+                    "gomod-vendor-check",
+                    "cgo-disable",
+                    "force-gomod-tidy",
+                },
             ),
             (
                 [
@@ -476,11 +518,18 @@ class TestFetchDeps:
                     "--gomod-vendor-check",
                     "--force-gomod-tidy",
                 ],
-                {"gomod-vendor", "gomod-vendor-check", "cgo-disable", "force-gomod-tidy"},
+                {
+                    "gomod-vendor",
+                    "gomod-vendor-check",
+                    "cgo-disable",
+                    "force-gomod-tidy",
+                },
             ),
         ],
     )
-    def test_specify_flags(self, cli_args: list[str], expect_flags: set[str], tmp_cwd):
+    def test_specify_flags(
+        self, cli_args: list[str], expect_flags: set[str], tmp_cwd: Path
+    ) -> None:
         expect_request = Request(
             source_dir=tmp_cwd / DEFAULT_SOURCE,
             output_dir=tmp_cwd / DEFAULT_OUTPUT,
@@ -520,7 +569,7 @@ class TestFetchDeps:
             ),
         ],
     )
-    def test_invalid_flags(self, cli_args: list[str], expect_error: str):
+    def test_invalid_flags(self, cli_args: list[str], expect_error: str) -> None:
         result = invoke_expecting_invalid_usage(app, ["fetch-deps", *cli_args])
         assert_pattern_in_output(expect_error, result.output)
 
@@ -537,7 +586,7 @@ class TestFetchDeps:
             ),
         ],
     )
-    def test_write_json_output(self, request_output: RequestOutput, tmp_cwd: Path):
+    def test_write_json_output(self, request_output: RequestOutput, tmp_cwd: Path) -> None:
         with mock_fetch_deps(output=request_output):
             invoke_expecting_sucess(app, ["fetch-deps", "gomod"])
 
@@ -596,7 +645,7 @@ class TestGenerateEnv:
         make_output: Callable[[Path], str],
         output_file: Optional[str],
         tmp_cwd_as_output_dir: Path,
-    ):
+    ) -> None:
         result = invoke_expecting_sucess(
             app, ["generate-env", str(tmp_cwd_as_output_dir), *extra_args]
         )
@@ -617,8 +666,12 @@ class TestGenerateEnv:
         ],
     )
     def test_generate_for_different_output_dir(
-        self, fmt: str, for_output_dir: str, expect_output_dir: str, tmp_cwd_as_output_dir: Path
-    ):
+        self,
+        fmt: str,
+        for_output_dir: str,
+        expect_output_dir: str,
+        tmp_cwd_as_output_dir: Path,
+    ) -> None:
         result = invoke_expecting_sucess(
             app,
             [
@@ -644,7 +697,7 @@ class TestGenerateEnv:
         result = invoke_expecting_invalid_usage(app, ["generate-env", ".", "-f", "sh"])
         assert "Invalid value for '-f' / '--format': 'sh' is not one of" in result.output
 
-    def test_unsupported_suffix(self, caplog: pytest.LogCaptureFixture):
+    def test_unsupported_suffix(self, caplog: pytest.LogCaptureFixture) -> None:
         result = invoke_expecting_invalid_usage(app, ["generate-env", ".", "-o", "env.yaml"])
 
         msg = "Cannot determine envfile format, unsupported suffix: yaml"
@@ -684,7 +737,7 @@ class TestInjectFiles:
         for_output_dir: Optional[str],
         tmp_cwd_as_output_dir: Path,
         caplog: pytest.LogCaptureFixture,
-    ):
+    ) -> None:
         tmp_path = tmp_cwd_as_output_dir
 
         if not for_output_dir:

@@ -10,6 +10,7 @@ from urllib.parse import urlparse
 import bs4
 import pytest
 import requests
+from bs4 import ResultSet
 
 from cachi2.core.checksum import ChecksumInfo
 from cachi2.core.errors import (
@@ -651,7 +652,7 @@ class TestSetupCFG:
         expect_error: Optional[Cachi2Error],
         rooted_tmp_path: RootedPath,
         caplog: pytest.LogCaptureFixture,
-    ):
+    ) -> None:
         """Test get_version() method with attr: directive."""
         self._test_version_with_file_tree(
             project_tree, expect_version, expect_logs, expect_error, rooted_tmp_path, caplog
@@ -819,7 +820,7 @@ class TestSetupCFG:
         expect_error: Optional[Cachi2Error],
         rooted_tmp_path: RootedPath,
         caplog: pytest.LogCaptureFixture,
-    ):
+    ) -> None:
         """Test get_version() method with attr: directive and options.package_dir."""
         self._test_version_with_file_tree(
             project_tree, expect_version, expect_logs, expect_error, rooted_tmp_path, caplog
@@ -1940,13 +1941,13 @@ class TestPipRequirementsFile:
         ),
     )
     def test_parsing_of_invalid_cases(
-        self, file_contents, expected_error: Union[str, Exception], tmpdir
-    ):
+        self, file_contents: str, expected_error: Union[str, Exception], tmp_path: Path
+    ) -> None:
         """Test the invalid use cases of requirements in a requirements file."""
-        requirements_file = tmpdir.join("requirements.txt")
-        requirements_file.write(file_contents)
+        requirements_file = tmp_path.joinpath("requirements.txt")
+        requirements_file.write_text(file_contents)
 
-        pip_requirements = pip.PipRequirementsFile(requirements_file.strpath)
+        pip_requirements = pip.PipRequirementsFile(str(requirements_file))
 
         expected_err_type = (
             type(expected_error) if isinstance(expected_error, Exception) else UnexpectedFormat
@@ -2398,7 +2399,7 @@ class TestDownload:
 
         return html
 
-    def mock_html_links(self, *anchors: str):
+    def mock_html_links(self, *anchors: str) -> ResultSet:
         """Convert <a href=.../> strings into BeautifulSoup <a href=.../> elements."""
         anchors_str = "\n".join(anchors)
         html = dedent(
@@ -3325,7 +3326,7 @@ def test_get_external_requirement_filepath(component_kind, url):
         "myapp-0.1.zip",
     ],
 )
-def test_check_metadata_from_sdist(sdist_filename: str, data_dir: Path):
+def test_check_metadata_from_sdist(sdist_filename: str, data_dir: Path) -> None:
     sdist_path = data_dir / sdist_filename
     pip._check_metadata_in_sdist(sdist_path)
 
@@ -3337,7 +3338,9 @@ def test_check_metadata_from_sdist(sdist_filename: str, data_dir: Path):
         "myapp-without-pkg-info.tar.Z",
     ],
 )
-def test_skip_check_on_tar_z(sdist_filename: str, data_dir: Path, caplog):
+def test_skip_check_on_tar_z(
+    sdist_filename: str, data_dir: Path, caplog: pytest.LogCaptureFixture
+) -> None:
     sdist_path = data_dir / sdist_filename
     pip._check_metadata_in_sdist(sdist_path)
     assert f"Skip checking metadata from compressed sdist {sdist_path.name}" in caplog.text
@@ -3351,7 +3354,9 @@ def test_skip_check_on_tar_z(sdist_filename: str, data_dir: Path, caplog):
         ["myapp-without-pkg-info.tar.gz", "not include metadata"],
     ],
 )
-def test_metadata_check_fails_from_sdist(sdist_filename: Path, expected_error: str, data_dir: Path):
+def test_metadata_check_fails_from_sdist(
+    sdist_filename: Path, expected_error: str, data_dir: Path
+) -> None:
     sdist_path = data_dir / sdist_filename
     with pytest.raises(PackageRejected, match=expected_error):
         pip._check_metadata_in_sdist(sdist_path)
@@ -3422,7 +3427,7 @@ def test_metadata_check_invalid_argument():
 )
 def test_replace_external_requirements(
     original_content: str, expect_replaced: Optional[str], rooted_tmp_path: RootedPath
-):
+) -> None:
     requirements_file = rooted_tmp_path.join_within_root("requirements.txt")
     requirements_file.path.write_text(original_content)
 
@@ -3457,7 +3462,7 @@ def test_fetch_pip_source(
     packages: list[dict[str, Any]],
     n_pip_packages: int,
     rooted_tmp_path: RootedPath,
-):
+) -> None:
     source_dir = rooted_tmp_path.re_root("source")
     output_dir = rooted_tmp_path.re_root("output")
     source_dir.path.mkdir()

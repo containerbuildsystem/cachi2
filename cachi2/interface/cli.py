@@ -37,7 +37,7 @@ def handle_errors(cmd: Callable[..., None]) -> Callable[..., None]:
         log.error("%s: %s", type(error).__name__, str(error).replace("\n", r"\n"))
 
     @functools.wraps(cmd)
-    def cmd_with_error_handling(*args, **kwargs) -> None:
+    def cmd_with_error_handling(*args: tuple[Any, ...], **kwargs: dict[str, Any]) -> None:
         try:
             cmd(*args, **kwargs)
         except Cachi2Error as e:
@@ -280,7 +280,7 @@ def generate_env(
         "--format",
         help="Specify format to use. Default json or based on output file name.",
     ),
-):
+) -> None:
     """Generate the environment variables needed to use the fetched dependencies."""
     fmt = fmt or (EnvFormat.based_on_suffix(output) if output else EnvFormat.json)
     for_output_dir = (for_output_dir or from_output_dir).resolve()

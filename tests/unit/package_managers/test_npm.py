@@ -346,7 +346,7 @@ def test_fetch_npm_source(
     npm_input_packages: dict[str, str],
     resolved_packages: dict[str, Any],
     request_output: dict[str, list[Any]],
-):
+) -> None:
     """Test fetch_npm_source with different Request inputs."""
     mock_resolve_npm.side_effect = resolved_packages
     output = fetch_npm_source(npm_request)
@@ -363,7 +363,7 @@ def test_fetch_npm_source(
 def test_resolve_npm_no_lock(
     mock_exists: mock.Mock,
     rooted_tmp_path: RootedPath,
-):
+) -> None:
     """Test resolve_npm where npm-shrinkwrap.json or package-lock.json do not exist."""
     mock_exists.return_value = False
     expected_error = (
@@ -603,7 +603,7 @@ def test_resolve_npm(
     rooted_tmp_path: RootedPath,
     package_lock_json: dict[str, Union[str, dict]],
     expected_output: dict[str, Any],
-):
+) -> None:
     """Test _resolve_npm with different package-lock.json inputs."""
     lockfile_path = rooted_tmp_path.path / "package-lock.json"
     with lockfile_path.open("w") as f:
@@ -616,7 +616,7 @@ def test_resolve_npm(
     assert pkg_info == expected_output
 
 
-def test_resolve_npm_unsupported_lockfileversion(rooted_tmp_path: RootedPath):
+def test_resolve_npm_unsupported_lockfileversion(rooted_tmp_path: RootedPath) -> None:
     """Test _resolve_npm with unsupported lockfileVersion."""
     package_lock_json = {
         "name": "foo",

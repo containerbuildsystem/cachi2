@@ -682,7 +682,12 @@ def test_match_parent_module(package_name, module_names, expect_parent_module):
         (["gomod-vendor", "gomod-vendor-check"], True, (True, False)),
     ],
 )
-def test_should_vendor_deps(flags, vendor_exists, expect_result, rooted_tmp_path: RootedPath):
+def test_should_vendor_deps(
+    flags: list[str],
+    vendor_exists: bool,
+    expect_result: tuple[bool, bool],
+    rooted_tmp_path: RootedPath,
+) -> None:
     if vendor_exists:
         rooted_tmp_path.join_within_root("vendor").path.mkdir()
 
@@ -698,7 +703,9 @@ def test_should_vendor_deps(flags, vendor_exists, expect_result, rooted_tmp_path
         (["gomod-vendor-check"], True, False),
     ],
 )
-def test_should_vendor_deps_strict(flags, vendor_exists, expect_error, rooted_tmp_path: RootedPath):
+def test_should_vendor_deps_strict(
+    flags: list[str], vendor_exists: bool, expect_error: bool, rooted_tmp_path: RootedPath
+) -> None:
     if vendor_exists:
         rooted_tmp_path.join_within_root("vendor").path.mkdir()
 
@@ -1113,7 +1120,9 @@ def test_fetch_gomod_source(
     expect_components: list[Component],
     env_variables: list[dict[str, Any]],
 ) -> None:
-    def resolve_gomod_mocked(app_dir: RootedPath, request: Request, tmp_dir: Path):
+    def resolve_gomod_mocked(
+        app_dir: RootedPath, request: Request, tmp_dir: Path
+    ) -> dict[str, Any]:
         # Find package output based on the path being processed
         return packages_output_by_path[
             app_dir.path.relative_to(gomod_request.source_dir).as_posix()

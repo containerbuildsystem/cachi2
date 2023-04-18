@@ -57,7 +57,7 @@ COMBINED_OUTPUT = RequestOutput.from_obj_list(
 )
 
 
-def test_resolve_packages(tmp_path: Path):
+def test_resolve_packages(tmp_path: Path) -> None:
     request = Request(
         source_dir=tmp_path,
         output_dir=tmp_path,

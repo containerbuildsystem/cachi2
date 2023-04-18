@@ -59,7 +59,7 @@ class TestPackageInput:
             ),
         ],
     )
-    def test_valid_packages(self, input_data: dict[str, Any], expect_data: dict[str, Any]):
+    def test_valid_packages(self, input_data: dict[str, Any], expect_data: dict[str, Any]) -> None:
         # doesn't pass type check: https://github.com/pydantic/pydantic/issues/1847
         package = pydantic.parse_obj_as(PackageInput, input_data)  # type: ignore
         assert package.dict() == expect_data
@@ -105,14 +105,14 @@ class TestPackageInput:
             ),
         ],
     )
-    def test_invalid_packages(self, input_data: dict[str, Any], expect_error: str):
+    def test_invalid_packages(self, input_data: dict[str, Any], expect_error: str) -> None:
         with pytest.raises(pydantic.ValidationError, match=expect_error):
             # doesn't pass type check: https://github.com/pydantic/pydantic/issues/1847
             pydantic.parse_obj_as(PackageInput, input_data)  # type: ignore
 
 
 class TestRequest:
-    def test_valid_request(self, tmp_path: Path):
+    def test_valid_request(self, tmp_path: Path) -> None:
         tmp_path.joinpath("subpath").mkdir(exist_ok=True)
 
         request = Request(
@@ -149,7 +149,7 @@ class TestRequest:
         assert isinstance(request.source_dir, RootedPath)
         assert isinstance(request.output_dir, RootedPath)
 
-    def test_packages_properties(self, tmp_path: Path):
+    def test_packages_properties(self, tmp_path: Path) -> None:
         packages = [{"type": "gomod"}, {"type": "npm"}, {"type": "pip"}]
         request = Request(source_dir=tmp_path, output_dir=tmp_path, packages=packages)
         assert request.gomod_packages == [GomodPackageInput(type="gomod")]
@@ -157,7 +157,7 @@ class TestRequest:
         assert request.pip_packages == [PipPackageInput(type="pip")]
 
     @pytest.mark.parametrize("which_path", ["source_dir", "output_dir"])
-    def test_path_not_absolute(self, which_path: str):
+    def test_path_not_absolute(self, which_path: str) -> None:
         input_data = {
             "source_dir": "/source",
             "output_dir": "/output",
@@ -168,7 +168,7 @@ class TestRequest:
         with pytest.raises(pydantic.ValidationError, match=expect_error):
             Request.parse_obj(input_data)
 
-    def test_conflicting_packages(self, tmp_path: Path):
+    def test_conflicting_packages(self, tmp_path: Path) -> None:
         expect_error = f"packages\n  conflict by {('pip', Path('.'))}"
         with pytest.raises(pydantic.ValidationError, match=re.escape(expect_error)):
             Request(
@@ -191,7 +191,7 @@ class TestRequest:
             ),
         ],
     )
-    def test_invalid_package_paths(self, path: str, expect_error: str, tmp_path: Path):
+    def test_invalid_package_paths(self, path: str, expect_error: str, tmp_path: Path) -> None:
         tmp_path.joinpath("suspicious-symlink").symlink_to("..")
         tmp_path.joinpath("not-a-dir").touch()
 

@@ -12,7 +12,7 @@ import zipfile
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
-from typing import IO, TYPE_CHECKING, Any, Iterable, Optional
+from typing import IO, TYPE_CHECKING, Any, Iterable, Iterator, Optional
 
 from cachi2.core.rooted_path import RootedPath
 
@@ -1856,12 +1856,12 @@ def _get_external_requirement_filepath(requirement: PipRequirement) -> Path:
     return filepath
 
 
-def _iter_zip_file(file_path: Path):
+def _iter_zip_file(file_path: Path) -> Iterator[str]:
     with zipfile.ZipFile(file_path, "r") as zf:
         yield from zf.namelist()
 
 
-def _iter_tar_file(file_path: Path):
+def _iter_tar_file(file_path: Path) -> Iterator[str]:
     with tarfile.open(file_path, "r") as tar:
         for member in tar:
             yield member.name
@@ -1880,7 +1880,7 @@ def _is_pkg_info_dir(path: str) -> bool:
     return len(parts) == 2 and parts[1] == "PKG-INFO"
 
 
-def _check_metadata_in_sdist(sdist_path: Path):
+def _check_metadata_in_sdist(sdist_path: Path) -> None:
     """Check if a downloaded sdist package has metadata.
 
     :param sdist_path: the path of a sdist package file.
