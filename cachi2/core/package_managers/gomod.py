@@ -1,4 +1,3 @@
-import functools
 import logging
 import os
 import re
@@ -7,13 +6,12 @@ import subprocess  # nosec
 import tempfile
 from datetime import datetime
 from itertools import chain
-from pathlib import Path, PureWindowsPath
+from pathlib import Path
 from typing import (
     Any,
     Dict,
     Iterable,
     Iterator,
-    List,
     Literal,
     NamedTuple,
     NoReturn,
@@ -592,25 +590,6 @@ def _deduplicate_resolved_modules(
     return modules_by_name_and_version.values()
 
 
-def _get_name_and_version(module: ParsedModule) -> tuple[str, str]:
-    if not (replace := module.replace):
-        name = module.path
-        version = module.version
-    elif replace.version:
-        # module/name v1.0.0 => replace/name v1.2.3
-        name = replace.path
-        version = replace.version
-    else:
-        # module/name v1.0.0 => ./local/path
-        name = module.path
-        version = replace.path
-    if not version:
-        # should be impossible for modules other than the main module
-        # (don't call this function on the main module)
-        raise RuntimeError(f"versionless module: {module}")
-    return name, version
-
-
 class GoCacheTemporaryDirectory(tempfile.TemporaryDirectory[str]):
     """
     A wrapper around the TemporaryDirectory context manager to also run `go clean -modcache`.
@@ -926,22 +905,6 @@ def _get_golang_pseudo_version(
     return f"v{pseudo_semantic_version}{version_seperator}0.{commit_timestamp}-{commit_hash}"
 
 
-def _vet_local_deps(dependencies: List[dict]) -> None:
-    """Fail if any local dependency path is absolute or outside repository."""
-    for dep in dependencies:
-        version = dep["version"]
-
-        if not version:
-            continue  # go stdlib
-        if version.startswith(".") and ".." in Path(version).parts:
-            raise UnsupportedFeature(f"Path to gomod dependency contains '..': {version}.")
-        elif version.startswith("/") or PureWindowsPath(version).root:
-            # This will disallow paths starting with '/', '\' or '<drive letter>:\'
-            raise UnsupportedFeature(
-                f"Absolute paths to gomod dependencies are not supported: {version}"
-            )
-
-
 def _validate_local_replacements(modules: Iterable[ParsedModule], app_path: RootedPath) -> None:
     replaced_paths = [
         (module.path, module.replace.path)
@@ -958,71 +921,6 @@ def _validate_local_replacements(modules: Iterable[ParsedModule], app_path: Root
                 "which falls outside of the repository root. Refusing to proceed."
             )
             raise
-
-
-def _set_full_local_dep_relpaths(pkg_deps: List[dict], main_module_deps: List[dict]) -> None:
-    """
-    Set full relative paths for all local go-package dependencies.
-
-    The path that you see in the go list -deps output points only to the module that contains
-    the package. To get the full path to the package, take the relative path from the module
-    to the package (based on the package name relative to the module name) and join it with the
-    module path.
-    """
-    locally_replaced_mod_names = [
-        module["name"] for module in main_module_deps if module["version"].startswith(".")
-    ]
-
-    for dep in pkg_deps:
-        dep_name = dep["name"]
-        dep_path = dep["version"]
-
-        if not dep_path or not dep_path.startswith("."):
-            continue
-
-        # The gomod module that contains this go-package dependency
-        dep_module_name = _match_parent_module(dep_name, locally_replaced_mod_names)
-        if dep_module_name is None:
-            # This should be impossible
-            raise RuntimeError(f"Could not find parent Go module for local dependency: {dep_name}")
-
-        path_from_module_to_pkg = _path_to_subpackage(dep_module_name, dep_name)
-        if path_from_module_to_pkg:
-            dep["version"] = os.path.join(dep_path, path_from_module_to_pkg)
-
-
-def _path_to_subpackage(parent_name: str, subpackage_name: str) -> str:
-    """
-    Get relative path from parent module/package to subpackage inside the parent.
-
-    If the subpackage and parent names are identical, returns empty string.
-    The subpackage name must start with the parent name.
-
-    :param parent_name: name of parent module or package
-    :param subpackage_name: name of subpackage inside the parent module/package
-    :return: relative path from parent to subpackage
-    :raises ValueError: if subpackage name does not start with parent name
-    """
-    if not _contains_package(parent_name, subpackage_name):
-        raise ValueError(f"Package {subpackage_name} does not belong to {parent_name}")
-    return subpackage_name[len(parent_name) :].lstrip("/")
-
-
-def _contains_package(parent_name: str, package_name: str) -> bool:
-    """
-    Check that parent module/package contains specified package.
-
-    :param parent_name: name of parent module or package
-    :param package_name: name of package to check
-    :return: True if package belongs to parent, False otherwise
-    """
-    if not package_name.startswith(parent_name):
-        return False
-    if len(package_name) > len(parent_name):
-        # Check that the subpackage is {parent_name}/* and not {parent_name}*/*
-        return package_name[len(parent_name)] == "/"
-    # At this point package_name == parent_name, every package contains itself
-    return True
 
 
 def _get_semantic_version_from_tag(
@@ -1138,25 +1036,6 @@ def _vendor_deps(
             docs=VENDORING_DOC,
         )
     return _parse_vendor(app_dir)
-
-
-def _match_parent_module(package_name: str, module_names: Iterable[str]) -> Optional[str]:
-    """
-    Find parent module for package in iterable of module names.
-
-    Picks the longest module name that matches the package name
-    (the package name must start with the module name).
-
-    :param package_name: name of package
-    :param module_names: iterable of module names
-    :return: longest matching module name or None (no module matches)
-    """
-    contains_this_package = functools.partial(_contains_package, package_name=package_name)
-    return max(
-        filter(contains_this_package, module_names),
-        key=len,  # type: ignore
-        default=None,
-    )
 
 
 def _vendor_changed(app_dir: RootedPath) -> bool:
