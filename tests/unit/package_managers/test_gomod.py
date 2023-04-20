@@ -22,23 +22,18 @@ from cachi2.core.package_managers.gomod import (
     ParsedModule,
     ParsedPackage,
     StandardPackage,
-    _contains_package,
     _create_modules_from_parsed_data,
     _create_packages_from_parsed_data,
     _deduplicate_resolved_modules,
     _get_golang_version,
     _get_repository_name,
-    _match_parent_module,
     _parse_vendor,
-    _path_to_subpackage,
     _resolve_gomod,
     _run_download_cmd,
-    _set_full_local_dep_relpaths,
     _should_vendor_deps,
     _validate_local_replacements,
     _vendor_changed,
     _vendor_deps,
-    _vet_local_deps,
     fetch_gomod_source,
 )
 from cachi2.core.rooted_path import PathOutsideRoot, RootedPath
@@ -877,164 +872,6 @@ def test_invalid_local_replacements(tmpdir):
 
     with pytest.raises(PathOutsideRoot, match=expect_error):
         _validate_local_replacements(modules, app_path)
-
-
-@pytest.mark.parametrize(
-    "platform_specific_path",
-    [
-        "/home/user/go/src/k8s.io/kubectl",
-        "\\Users\\user\\go\\src\\k8s.io\\kubectl",
-        "C:\\Users\\user\\go\\src\\k8s.io\\kubectl",
-    ],
-)
-def test_vet_local_deps_abspath(platform_specific_path):
-    dependencies = [{"name": "foo", "version": platform_specific_path}]
-
-    expect_error = re.escape(
-        f"Absolute paths to gomod dependencies are not supported: {platform_specific_path}"
-    )
-    with pytest.raises(UnsupportedFeature, match=expect_error):
-        _vet_local_deps(dependencies)
-
-
-@pytest.mark.parametrize("path", ["../local/path", "./local/../path"])
-def test_vet_local_deps_parent_dir(path):
-    dependencies = [{"name": "foo", "version": path}]
-
-    expect_error = re.escape(f"Path to gomod dependency contains '..': {path}.")
-    with pytest.raises(UnsupportedFeature, match=expect_error):
-        _vet_local_deps(dependencies)
-
-
-@pytest.mark.parametrize(
-    "main_module_deps, pkg_deps_pre, pkg_deps_post",
-    [
-        (
-            # module deps
-            [{"name": "example.org/foo", "version": "./src/foo"}],
-            # package deps pre
-            [{"name": "example.org/foo", "version": "./src/foo"}],
-            # package deps post (package name was the same as module name, no change)
-            [{"name": "example.org/foo", "version": "./src/foo"}],
-        ),
-        (
-            [{"name": "example.org/foo", "version": "./src/foo"}],
-            [{"name": "example.org/foo/bar", "version": "./src/foo"}],
-            # path is changed
-            [{"name": "example.org/foo/bar", "version": "./src/foo/bar"}],
-        ),
-        (
-            [{"name": "example.org/foo", "version": "./src/foo"}],
-            [
-                {"name": "example.org/foo/bar", "version": "./src/foo"},
-                {"name": "example.org/foo/bar/baz", "version": "./src/foo"},
-            ],
-            # both packages match, both paths are changed
-            [
-                {"name": "example.org/foo/bar", "version": "./src/foo/bar"},
-                {"name": "example.org/foo/bar/baz", "version": "./src/foo/bar/baz"},
-            ],
-        ),
-        (
-            [
-                {"name": "example.org/foo", "version": "./src/foo"},
-                {"name": "example.org/foo/bar", "version": "./src/bar"},
-            ],
-            [{"name": "example.org/foo/bar", "version": "./src/bar"}],
-            # longer match wins, no change
-            [{"name": "example.org/foo/bar", "version": "./src/bar"}],
-        ),
-        (
-            [
-                {"name": "example.org/foo", "version": "./src/foo"},
-                {"name": "example.org/foo/bar", "version": "./src/bar"},
-            ],
-            [{"name": "example.org/foo/bar/baz", "version": "./src/bar"}],
-            # longer match wins, path is changed
-            [{"name": "example.org/foo/bar/baz", "version": "./src/bar/baz"}],
-        ),
-        (
-            [
-                {"name": "example.org/foo", "version": "./src/foo"},
-                {"name": "example.org/foo/bar", "version": "v1.0.0"},
-            ],
-            [{"name": "example.org/foo/bar", "version": "./src/foo"}],
-            # longer match does not have a local replacement, shorter match used
-            # this can happen if replacement is only applied to a specific version of a module
-            [{"name": "example.org/foo/bar", "version": "./src/foo/bar"}],
-        ),
-        (
-            [{"name": "example.org/foo", "version": "./src/foo"}],
-            [{"name": "example.org/foo/bar", "version": "v1.0.0"}],
-            # Package does not have a local replacement, no change
-            [{"name": "example.org/foo/bar", "version": "v1.0.0"}],
-        ),
-    ],
-)
-def test_set_full_local_dep_relpaths(main_module_deps, pkg_deps_pre, pkg_deps_post):
-    _set_full_local_dep_relpaths(pkg_deps_pre, main_module_deps)
-    # pkg_deps_pre should be modified in place
-    assert pkg_deps_pre == pkg_deps_post
-
-
-def test_set_full_local_dep_relpaths_no_match():
-    pkg_deps = [{"name": "example.org/foo", "version": "./src/foo"}]
-    err_msg = "Could not find parent Go module for local dependency: example.org/foo"
-
-    with pytest.raises(RuntimeError, match=err_msg):
-        _set_full_local_dep_relpaths(pkg_deps, [])
-
-
-@pytest.mark.parametrize(
-    "parent_name, package_name, expect_result",
-    [
-        ("github.com/foo", "github.com/foo", True),
-        ("github.com/foo", "github.com/foo/bar", True),
-        ("github.com/foo", "github.com/bar", False),
-        ("github.com/foo", "github.com/foobar", False),
-        ("github.com/foo/bar", "github.com/foo", False),
-    ],
-)
-def test_contains_package(parent_name, package_name, expect_result):
-    assert _contains_package(parent_name, package_name) == expect_result
-
-
-@pytest.mark.parametrize(
-    "parent, subpackage, expect_path",
-    [
-        ("github.com/foo", "github.com/foo", ""),
-        ("github.com/foo", "github.com/foo/bar", "bar"),
-        ("github.com/foo", "github.com/foo/bar/baz", "bar/baz"),
-        ("github.com/foo/bar", "github.com/foo/bar/baz", "baz"),
-        ("github.com/foo", "github.com/foo/github.com/foo", "github.com/foo"),
-    ],
-)
-def test_path_to_subpackage(parent, subpackage, expect_path):
-    assert _path_to_subpackage(parent, subpackage) == expect_path
-
-
-def test_path_to_subpackage_not_a_subpackage():
-    with pytest.raises(ValueError, match="Package github.com/b does not belong to github.com/a"):
-        _path_to_subpackage("github.com/a", "github.com/b")
-
-
-@pytest.mark.parametrize(
-    "package_name, module_names, expect_parent_module",
-    [
-        ("github.com/foo/bar", ["github.com/foo/bar"], "github.com/foo/bar"),
-        ("github.com/foo/bar", [], None),
-        ("github.com/foo/bar", ["github.com/spam/eggs"], None),
-        ("github.com/foo/bar/baz", ["github.com/foo/bar"], "github.com/foo/bar"),
-        (
-            "github.com/foo/bar/baz",
-            ["github.com/foo/bar", "github.com/foo/bar/baz"],
-            "github.com/foo/bar/baz",
-        ),
-        ("github.com/foo/bar", {"github.com/foo/bar": 1}, "github.com/foo/bar"),
-    ],
-)
-def test_match_parent_module(package_name, module_names, expect_parent_module):
-    assert _match_parent_module(package_name, module_names) == expect_parent_module
 
 
 @pytest.mark.parametrize(
