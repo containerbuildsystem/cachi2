@@ -1,8 +1,10 @@
+import base64
 import hashlib
 import logging
 from collections import defaultdict
+from os import PathLike
 from pathlib import Path
-from typing import Iterable, NamedTuple, Optional
+from typing import Iterable, NamedTuple, Optional, Union
 
 from cachi2.core.errors import PackageRejected
 
@@ -18,6 +20,23 @@ class ChecksumInfo(NamedTuple):
     algorithm: str
     hexdigest: str
 
+    def to_sri(self) -> str:
+        """Return the Subresource Integrity representation of this ChecksumInfo.
+
+        https://developer.mozilla.org/en-US/docs/Web/Security/Subresource_Integrity
+
+        Note: npm and yarn use this format in their lockfiles.
+        """
+        bytes_sha = bytes.fromhex(self.hexdigest)
+        base64_sha = base64.b64encode(bytes_sha).decode("utf-8")
+        return f"{self.algorithm}-{base64_sha}"
+
+    @classmethod
+    def from_sri(cls, sri: str) -> "ChecksumInfo":
+        """Convert the input Subresource Integrity value to ChecksumInfo."""
+        algorithm, checksum = sri.split("-", 1)
+        return ChecksumInfo(algorithm, base64.b64decode(checksum).hex())
+
 
 class _MismatchInfo(NamedTuple):
     algorithm: str
@@ -25,7 +44,9 @@ class _MismatchInfo(NamedTuple):
 
 
 def must_match_any_checksum(
-    file_path: Path, expected_checksums: Iterable[ChecksumInfo], chunk_size: int = 10240
+    file_path: Union[str, PathLike[str]],
+    expected_checksums: Iterable[ChecksumInfo],
+    chunk_size: int = 10240,
 ) -> None:
     """Verify that the file matches at least one of the expected checksums.
 
@@ -40,7 +61,7 @@ def must_match_any_checksum(
     :raises PackageRejected: if none of the expected checksums matched the actual checksum
                              (for any of the supported algorithms)
     """
-    filename = file_path.name
+    filename = Path(file_path).name
     mismatches: list[_MismatchInfo] = []
 
     for algorithm, expected_digests in _group_by_algorithm(expected_checksums).items():
@@ -73,8 +94,8 @@ def _group_by_algorithm(checksums: Iterable[ChecksumInfo]) -> dict[str, set[str]
     return digests_by_algorithm
 
 
-def _get_hexdigest(file_path: Path, algorithm: str, chunk_size: int) -> str:
-    with file_path.open("rb") as f:
+def _get_hexdigest(file_path: Union[str, PathLike[str]], algorithm: str, chunk_size: int) -> str:
+    with open(file_path, "rb") as f:
         hasher = hashlib.new(algorithm)
         while chunk := f.read(chunk_size):
             hasher.update(chunk)
