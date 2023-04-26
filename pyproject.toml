@@ -19,6 +19,7 @@ dependencies = [
     "beautifulsoup4",
     "gitpython",
     "packaging",
+    "packageurl-python",
     "pydantic",
     "pyyaml",
     "requests",

@@ -27,6 +27,7 @@ import git
 import git.objects
 import pydantic
 import semver
+from packageurl import PackageURL
 
 from cachi2.core.config import get_config
 from cachi2.core.errors import (
@@ -113,7 +114,13 @@ class Module(NamedTuple):
     @property
     def purl(self) -> str:
         """Get the purl for this module."""
-        return f"pkg:golang/{self.real_path}@{self.version}?type=module"
+        purl = PackageURL(
+            type="golang",
+            name=self.real_path,
+            version=self.version,
+            qualifiers={"type": "module"},
+        )
+        return purl.to_string()
 
     def to_component(self) -> Component:
         """Create a SBOM component for this module."""
@@ -149,7 +156,13 @@ class Package(NamedTuple):
     @property
     def purl(self) -> str:
         """Get the purl for this package."""
-        return f"pkg:golang/{self.real_path}@{self.module.version}?type=package"
+        purl = PackageURL(
+            type="golang",
+            name=self.real_path,
+            version=self.module.version,
+            qualifiers={"type": "package"},
+        )
+        return purl.to_string()
 
     def to_component(self) -> Component:
         """Create a SBOM component for this package."""
@@ -167,7 +180,8 @@ class StandardPackage(NamedTuple):
     @property
     def purl(self) -> str:
         """Get the purl for this package."""
-        return f"pkg:golang/{self.name}?type=package"
+        purl = PackageURL(type="golang", name=self.name, qualifiers={"type": "package"})
+        return purl.to_string()
 
     def to_component(self) -> Component:
         """Create a SBOM component for this package."""
