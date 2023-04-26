@@ -3,649 +3,838 @@
   "components": [
     {
       "name": "bufio",
+      "purl": "pkg:golang/bufio?type=package",
       "type": "library"
     },
     {
       "name": "bytes",
+      "purl": "pkg:golang/bytes?type=package",
       "type": "library"
     },
     {
       "name": "compress/flate",
+      "purl": "pkg:golang/compress/flate?type=package",
       "type": "library"
     },
     {
       "name": "compress/gzip",
+      "purl": "pkg:golang/compress/gzip?type=package",
       "type": "library"
     },
     {
       "name": "container/list",
+      "purl": "pkg:golang/container/list?type=package",
       "type": "library"
     },
     {
       "name": "context",
+      "purl": "pkg:golang/context?type=package",
       "type": "library"
     },
     {
       "name": "crypto/aes",
+      "purl": "pkg:golang/crypto/aes?type=package",
       "type": "library"
     },
     {
       "name": "crypto/cipher",
+      "purl": "pkg:golang/crypto/cipher?type=package",
       "type": "library"
     },
     {
       "name": "crypto/des",
+      "purl": "pkg:golang/crypto/des?type=package",
       "type": "library"
     },
     {
       "name": "crypto/dsa",
+      "purl": "pkg:golang/crypto/dsa?type=package",
       "type": "library"
     },
     {
       "name": "crypto/ecdsa",
+      "purl": "pkg:golang/crypto/ecdsa?type=package",
       "type": "library"
     },
     {
       "name": "crypto/ed25519",
+      "purl": "pkg:golang/crypto/ed25519?type=package",
       "type": "library"
     },
     {
       "name": "crypto/elliptic",
+      "purl": "pkg:golang/crypto/elliptic?type=package",
       "type": "library"
     },
     {
       "name": "crypto/hmac",
+      "purl": "pkg:golang/crypto/hmac?type=package",
       "type": "library"
     },
     {
       "name": "crypto/internal/boring/bbig",
+      "purl": "pkg:golang/crypto/internal/boring/bbig?type=package",
       "type": "library"
     },
     {
       "name": "crypto/internal/boring/sig",
+      "purl": "pkg:golang/crypto/internal/boring/sig?type=package",
       "type": "library"
     },
     {
       "name": "crypto/internal/boring",
+      "purl": "pkg:golang/crypto/internal/boring?type=package",
       "type": "library"
     },
     {
       "name": "crypto/internal/edwards25519/field",
+      "purl": "pkg:golang/crypto/internal/edwards25519/field?type=package",
       "type": "library"
     },
     {
       "name": "crypto/internal/edwards25519",
+      "purl": "pkg:golang/crypto/internal/edwards25519?type=package",
       "type": "library"
     },
     {
       "name": "crypto/internal/nistec/fiat",
+      "purl": "pkg:golang/crypto/internal/nistec/fiat?type=package",
       "type": "library"
     },
     {
       "name": "crypto/internal/nistec",
+      "purl": "pkg:golang/crypto/internal/nistec?type=package",
       "type": "library"
     },
     {
       "name": "crypto/internal/randutil",
+      "purl": "pkg:golang/crypto/internal/randutil?type=package",
       "type": "library"
     },
     {
       "name": "crypto/internal/subtle",
+      "purl": "pkg:golang/crypto/internal/subtle?type=package",
       "type": "library"
     },
     {
       "name": "crypto/md5",
+      "purl": "pkg:golang/crypto/md5?type=package",
       "type": "library"
     },
     {
       "name": "crypto/rand",
+      "purl": "pkg:golang/crypto/rand?type=package",
       "type": "library"
     },
     {
       "name": "crypto/rc4",
+      "purl": "pkg:golang/crypto/rc4?type=package",
       "type": "library"
     },
     {
       "name": "crypto/rsa",
+      "purl": "pkg:golang/crypto/rsa?type=package",
       "type": "library"
     },
     {
       "name": "crypto/sha1",
+      "purl": "pkg:golang/crypto/sha1?type=package",
       "type": "library"
     },
     {
       "name": "crypto/sha256",
+      "purl": "pkg:golang/crypto/sha256?type=package",
       "type": "library"
     },
     {
       "name": "crypto/sha512",
+      "purl": "pkg:golang/crypto/sha512?type=package",
       "type": "library"
     },
     {
       "name": "crypto/subtle",
+      "purl": "pkg:golang/crypto/subtle?type=package",
       "type": "library"
     },
     {
       "name": "crypto/tls",
+      "purl": "pkg:golang/crypto/tls?type=package",
       "type": "library"
     },
     {
       "name": "crypto/x509/pkix",
+      "purl": "pkg:golang/crypto/x509/pkix?type=package",
       "type": "library"
     },
     {
       "name": "crypto/x509",
+      "purl": "pkg:golang/crypto/x509?type=package",
       "type": "library"
     },
     {
       "name": "crypto",
+      "purl": "pkg:golang/crypto?type=package",
       "type": "library"
     },
     {
       "name": "embed",
+      "purl": "pkg:golang/embed?type=package",
       "type": "library"
     },
     {
       "name": "encoding/asn1",
+      "purl": "pkg:golang/encoding/asn1?type=package",
       "type": "library"
     },
     {
       "name": "encoding/base64",
+      "purl": "pkg:golang/encoding/base64?type=package",
       "type": "library"
     },
     {
       "name": "encoding/binary",
+      "purl": "pkg:golang/encoding/binary?type=package",
       "type": "library"
     },
     {
       "name": "encoding/hex",
+      "purl": "pkg:golang/encoding/hex?type=package",
       "type": "library"
     },
     {
       "name": "encoding/json",
+      "purl": "pkg:golang/encoding/json?type=package",
       "type": "library"
     },
     {
       "name": "encoding/pem",
+      "purl": "pkg:golang/encoding/pem?type=package",
       "type": "library"
     },
     {
       "name": "encoding/xml",
+      "purl": "pkg:golang/encoding/xml?type=package",
       "type": "library"
     },
     {
       "name": "encoding",
+      "purl": "pkg:golang/encoding?type=package",
       "type": "library"
     },
     {
       "name": "errors",
+      "purl": "pkg:golang/errors?type=package",
       "type": "library"
     },
     {
       "name": "flag",
+      "purl": "pkg:golang/flag?type=package",
       "type": "library"
     },
     {
       "name": "fmt",
+      "purl": "pkg:golang/fmt?type=package",
       "type": "library"
     },
     {
       "name": "github.com/Masterminds/semver",
+      "purl": "pkg:golang/github.com/Masterminds/semver@v1.4.2?type=module",
       "type": "library",
       "version": "v1.4.2"
     },
     {
-      "name": "github.com/kr/pretty",
+      "name": "github.com/Masterminds/semver",
+      "purl": "pkg:golang/github.com/Masterminds/semver@v1.4.2?type=package",
       "type": "library",
-      "version": "v0.1.0"
-    },
-    {
-      "name": "github.com/op/go-logging",
-      "type": "library",
-      "version": "v0.0.0-20160315200505-970db520ece7"
-    },
-    {
-      "name": "github.com/pkg/errors",
-      "type": "library",
-      "version": "v0.8.1"
+      "version": "v1.4.2"
     },
     {
       "name": "github.com/release-engineering/retrodep/v2/retrodep/glide",
+      "purl": "pkg:golang/github.com/cachito-testing/retrodep/retrodep/glide@v2.1.2-0.20230109085255-c3496edd5d45?type=package",
       "type": "library",
       "version": "v2.1.2-0.20230109085255-c3496edd5d45"
     },
     {
       "name": "github.com/release-engineering/retrodep/v2/retrodep",
+      "purl": "pkg:golang/github.com/cachito-testing/retrodep/retrodep@v2.1.2-0.20230109085255-c3496edd5d45?type=package",
       "type": "library",
       "version": "v2.1.2-0.20230109085255-c3496edd5d45"
     },
     {
       "name": "github.com/release-engineering/retrodep/v2",
+      "purl": "pkg:golang/github.com/cachito-testing/retrodep@v2.1.2-0.20230109085255-c3496edd5d45?type=module",
       "type": "library",
       "version": "v2.1.2-0.20230109085255-c3496edd5d45"
     },
     {
+      "name": "github.com/release-engineering/retrodep/v2",
+      "purl": "pkg:golang/github.com/cachito-testing/retrodep@v2.1.2-0.20230109085255-c3496edd5d45?type=package",
+      "type": "library",
+      "version": "v2.1.2-0.20230109085255-c3496edd5d45"
+    },
+    {
+      "name": "github.com/kr/pretty",
+      "purl": "pkg:golang/github.com/kr/pretty@v0.1.0?type=module",
+      "type": "library",
+      "version": "v0.1.0"
+    },
+    {
+      "name": "github.com/op/go-logging",
+      "purl": "pkg:golang/github.com/op/go-logging@v0.0.0-20160315200505-970db520ece7?type=module",
+      "type": "library",
+      "version": "v0.0.0-20160315200505-970db520ece7"
+    },
+    {
+      "name": "github.com/op/go-logging",
+      "purl": "pkg:golang/github.com/op/go-logging@v0.0.0-20160315200505-970db520ece7?type=package",
+      "type": "library",
+      "version": "v0.0.0-20160315200505-970db520ece7"
+    },
+    {
+      "name": "github.com/pkg/errors",
+      "purl": "pkg:golang/github.com/pkg/errors@v0.8.1?type=module",
+      "type": "library",
+      "version": "v0.8.1"
+    },
+    {
+      "name": "github.com/pkg/errors",
+      "purl": "pkg:golang/github.com/pkg/errors@v0.8.1?type=package",
+      "type": "library",
+      "version": "v0.8.1"
+    },
+    {
       "name": "go/ast",
+      "purl": "pkg:golang/go/ast?type=package",
       "type": "library"
     },
     {
       "name": "go/build/constraint",
+      "purl": "pkg:golang/go/build/constraint?type=package",
       "type": "library"
     },
     {
       "name": "go/build",
+      "purl": "pkg:golang/go/build?type=package",
       "type": "library"
     },
     {
       "name": "go/doc/comment",
+      "purl": "pkg:golang/go/doc/comment?type=package",
       "type": "library"
     },
     {
       "name": "go/doc",
+      "purl": "pkg:golang/go/doc?type=package",
       "type": "library"
     },
     {
       "name": "go/internal/typeparams",
+      "purl": "pkg:golang/go/internal/typeparams?type=package",
       "type": "library"
     },
     {
       "name": "go/parser",
+      "purl": "pkg:golang/go/parser?type=package",
       "type": "library"
     },
     {
       "name": "go/scanner",
+      "purl": "pkg:golang/go/scanner?type=package",
       "type": "library"
     },
     {
       "name": "go/token",
+      "purl": "pkg:golang/go/token?type=package",
       "type": "library"
     },
     {
       "name": "golang.org/x/tools/go/vcs",
+      "purl": "pkg:golang/golang.org/x/tools/go/vcs@v0.0.0-20190325161752-5a8dccf5b48a?type=package",
       "type": "library",
       "version": "v0.0.0-20190325161752-5a8dccf5b48a"
     },
     {
       "name": "golang.org/x/tools",
+      "purl": "pkg:golang/golang.org/x/tools@v0.0.0-20190325161752-5a8dccf5b48a?type=module",
       "type": "library",
       "version": "v0.0.0-20190325161752-5a8dccf5b48a"
     },
     {
       "name": "gopkg.in/check.v1",
+      "purl": "pkg:golang/gopkg.in/check.v1@v1.0.0-20180628173108-788fd7840127?type=module",
       "type": "library",
       "version": "v1.0.0-20180628173108-788fd7840127"
     },
     {
       "name": "gopkg.in/yaml.v2",
+      "purl": "pkg:golang/gopkg.in/yaml.v2@v2.2.2?type=module",
+      "type": "library",
+      "version": "v2.2.2"
+    },
+    {
+      "name": "gopkg.in/yaml.v2",
+      "purl": "pkg:golang/gopkg.in/yaml.v2@v2.2.2?type=package",
       "type": "library",
       "version": "v2.2.2"
     },
     {
       "name": "hash/crc32",
+      "purl": "pkg:golang/hash/crc32?type=package",
       "type": "library"
     },
     {
       "name": "hash",
+      "purl": "pkg:golang/hash?type=package",
       "type": "library"
     },
     {
       "name": "internal/abi",
+      "purl": "pkg:golang/internal/abi?type=package",
       "type": "library"
     },
     {
       "name": "internal/buildcfg",
+      "purl": "pkg:golang/internal/buildcfg?type=package",
       "type": "library"
     },
     {
       "name": "internal/bytealg",
+      "purl": "pkg:golang/internal/bytealg?type=package",
       "type": "library"
     },
     {
       "name": "internal/cpu",
+      "purl": "pkg:golang/internal/cpu?type=package",
       "type": "library"
     },
     {
       "name": "internal/fmtsort",
+      "purl": "pkg:golang/internal/fmtsort?type=package",
       "type": "library"
     },
     {
       "name": "internal/goarch",
+      "purl": "pkg:golang/internal/goarch?type=package",
       "type": "library"
     },
     {
       "name": "internal/godebug",
+      "purl": "pkg:golang/internal/godebug?type=package",
       "type": "library"
     },
     {
       "name": "internal/goexperiment",
+      "purl": "pkg:golang/internal/goexperiment?type=package",
       "type": "library"
     },
     {
       "name": "internal/goos",
+      "purl": "pkg:golang/internal/goos?type=package",
       "type": "library"
     },
     {
       "name": "internal/goroot",
+      "purl": "pkg:golang/internal/goroot?type=package",
       "type": "library"
     },
     {
       "name": "internal/goversion",
+      "purl": "pkg:golang/internal/goversion?type=package",
       "type": "library"
     },
     {
       "name": "internal/intern",
+      "purl": "pkg:golang/internal/intern?type=package",
       "type": "library"
     },
     {
       "name": "internal/itoa",
+      "purl": "pkg:golang/internal/itoa?type=package",
       "type": "library"
     },
     {
       "name": "internal/lazyregexp",
+      "purl": "pkg:golang/internal/lazyregexp?type=package",
       "type": "library"
     },
     {
       "name": "internal/nettrace",
+      "purl": "pkg:golang/internal/nettrace?type=package",
       "type": "library"
     },
     {
       "name": "internal/oserror",
+      "purl": "pkg:golang/internal/oserror?type=package",
       "type": "library"
     },
     {
       "name": "internal/poll",
+      "purl": "pkg:golang/internal/poll?type=package",
       "type": "library"
     },
     {
       "name": "internal/race",
+      "purl": "pkg:golang/internal/race?type=package",
       "type": "library"
     },
     {
       "name": "internal/reflectlite",
+      "purl": "pkg:golang/internal/reflectlite?type=package",
       "type": "library"
     },
     {
       "name": "internal/safefilepath",
+      "purl": "pkg:golang/internal/safefilepath?type=package",
       "type": "library"
     },
     {
       "name": "internal/singleflight",
+      "purl": "pkg:golang/internal/singleflight?type=package",
       "type": "library"
     },
     {
       "name": "internal/syscall/execenv",
+      "purl": "pkg:golang/internal/syscall/execenv?type=package",
       "type": "library"
     },
     {
       "name": "internal/syscall/unix",
+      "purl": "pkg:golang/internal/syscall/unix?type=package",
       "type": "library"
     },
     {
       "name": "internal/testlog",
+      "purl": "pkg:golang/internal/testlog?type=package",
       "type": "library"
     },
     {
       "name": "internal/unsafeheader",
+      "purl": "pkg:golang/internal/unsafeheader?type=package",
       "type": "library"
     },
     {
       "name": "io/fs",
+      "purl": "pkg:golang/io/fs?type=package",
       "type": "library"
     },
     {
       "name": "io/ioutil",
+      "purl": "pkg:golang/io/ioutil?type=package",
       "type": "library"
     },
     {
       "name": "io",
+      "purl": "pkg:golang/io?type=package",
       "type": "library"
     },
     {
       "name": "log/syslog",
+      "purl": "pkg:golang/log/syslog?type=package",
       "type": "library"
     },
     {
       "name": "log",
+      "purl": "pkg:golang/log?type=package",
       "type": "library"
     },
     {
       "name": "math/big",
+      "purl": "pkg:golang/math/big?type=package",
       "type": "library"
     },
     {
       "name": "math/bits",
+      "purl": "pkg:golang/math/bits?type=package",
       "type": "library"
     },
     {
       "name": "math/rand",
+      "purl": "pkg:golang/math/rand?type=package",
       "type": "library"
     },
     {
       "name": "math",
+      "purl": "pkg:golang/math?type=package",
       "type": "library"
     },
     {
       "name": "mime/multipart",
+      "purl": "pkg:golang/mime/multipart?type=package",
       "type": "library"
     },
     {
       "name": "mime/quotedprintable",
+      "purl": "pkg:golang/mime/quotedprintable?type=package",
       "type": "library"
     },
     {
       "name": "mime",
+      "purl": "pkg:golang/mime?type=package",
       "type": "library"
     },
     {
       "name": "net/http/httptrace",
+      "purl": "pkg:golang/net/http/httptrace?type=package",
       "type": "library"
     },
     {
       "name": "net/http/internal/ascii",
+      "purl": "pkg:golang/net/http/internal/ascii?type=package",
       "type": "library"
     },
     {
       "name": "net/http/internal",
+      "purl": "pkg:golang/net/http/internal?type=package",
       "type": "library"
     },
     {
       "name": "net/http",
+      "purl": "pkg:golang/net/http?type=package",
       "type": "library"
     },
     {
       "name": "net/netip",
+      "purl": "pkg:golang/net/netip?type=package",
       "type": "library"
     },
     {
       "name": "net/textproto",
+      "purl": "pkg:golang/net/textproto?type=package",
       "type": "library"
     },
     {
       "name": "net/url",
+      "purl": "pkg:golang/net/url?type=package",
       "type": "library"
     },
     {
       "name": "net",
+      "purl": "pkg:golang/net?type=package",
       "type": "library"
     },
     {
       "name": "os/exec",
+      "purl": "pkg:golang/os/exec?type=package",
       "type": "library"
     },
     {
       "name": "os",
+      "purl": "pkg:golang/os?type=package",
       "type": "library"
     },
     {
       "name": "path/filepath",
+      "purl": "pkg:golang/path/filepath?type=package",
       "type": "library"
     },
     {
       "name": "path",
+      "purl": "pkg:golang/path?type=package",
       "type": "library"
     },
     {
       "name": "reflect",
+      "purl": "pkg:golang/reflect?type=package",
       "type": "library"
     },
     {
       "name": "regexp/syntax",
+      "purl": "pkg:golang/regexp/syntax?type=package",
       "type": "library"
     },
     {
       "name": "regexp",
+      "purl": "pkg:golang/regexp?type=package",
       "type": "library"
     },
     {
       "name": "runtime/cgo",
+      "purl": "pkg:golang/runtime/cgo?type=package",
       "type": "library"
     },
     {
       "name": "runtime/internal/atomic",
+      "purl": "pkg:golang/runtime/internal/atomic?type=package",
       "type": "library"
     },
     {
       "name": "runtime/internal/math",
+      "purl": "pkg:golang/runtime/internal/math?type=package",
       "type": "library"
     },
     {
       "name": "runtime/internal/sys",
+      "purl": "pkg:golang/runtime/internal/sys?type=package",
       "type": "library"
     },
     {
       "name": "runtime/internal/syscall",
+      "purl": "pkg:golang/runtime/internal/syscall?type=package",
       "type": "library"
     },
     {
       "name": "runtime",
+      "purl": "pkg:golang/runtime?type=package",
       "type": "library"
     },
     {
       "name": "sort",
+      "purl": "pkg:golang/sort?type=package",
       "type": "library"
     },
     {
       "name": "strconv",
+      "purl": "pkg:golang/strconv?type=package",
       "type": "library"
     },
     {
       "name": "strings",
+      "purl": "pkg:golang/strings?type=package",
       "type": "library"
     },
     {
       "name": "sync/atomic",
+      "purl": "pkg:golang/sync/atomic?type=package",
       "type": "library"
     },
     {
       "name": "sync",
+      "purl": "pkg:golang/sync?type=package",
       "type": "library"
     },
     {
       "name": "syscall",
+      "purl": "pkg:golang/syscall?type=package",
       "type": "library"
     },
     {
       "name": "text/template/parse",
+      "purl": "pkg:golang/text/template/parse?type=package",
       "type": "library"
     },
     {
       "name": "text/template",
+      "purl": "pkg:golang/text/template?type=package",
       "type": "library"
     },
     {
       "name": "time",
+      "purl": "pkg:golang/time?type=package",
       "type": "library"
     },
     {
       "name": "unicode/utf16",
+      "purl": "pkg:golang/unicode/utf16?type=package",
       "type": "library"
     },
     {
       "name": "unicode/utf8",
+      "purl": "pkg:golang/unicode/utf8?type=package",
       "type": "library"
     },
     {
       "name": "unicode",
+      "purl": "pkg:golang/unicode?type=package",
       "type": "library"
     },
     {
       "name": "unsafe",
+      "purl": "pkg:golang/unsafe?type=package",
       "type": "library"
     },
     {
       "name": "vendor/golang.org/x/crypto/chacha20",
+      "purl": "pkg:golang/vendor/golang.org/x/crypto/chacha20?type=package",
       "type": "library"
     },
     {
       "name": "vendor/golang.org/x/crypto/chacha20poly1305",
+      "purl": "pkg:golang/vendor/golang.org/x/crypto/chacha20poly1305?type=package",
       "type": "library"
     },
     {
       "name": "vendor/golang.org/x/crypto/cryptobyte/asn1",
+      "purl": "pkg:golang/vendor/golang.org/x/crypto/cryptobyte/asn1?type=package",
       "type": "library"
     },
     {
       "name": "vendor/golang.org/x/crypto/cryptobyte",
+      "purl": "pkg:golang/vendor/golang.org/x/crypto/cryptobyte?type=package",
       "type": "library"
     },
     {
       "name": "vendor/golang.org/x/crypto/curve25519/internal/field",
+      "purl": "pkg:golang/vendor/golang.org/x/crypto/curve25519/internal/field?type=package",
       "type": "library"
     },
     {
       "name": "vendor/golang.org/x/crypto/curve25519",
+      "purl": "pkg:golang/vendor/golang.org/x/crypto/curve25519?type=package",
       "type": "library"
     },
     {
       "name": "vendor/golang.org/x/crypto/hkdf",
+      "purl": "pkg:golang/vendor/golang.org/x/crypto/hkdf?type=package",
       "type": "library"
     },
     {
       "name": "vendor/golang.org/x/crypto/internal/poly1305",
+      "purl": "pkg:golang/vendor/golang.org/x/crypto/internal/poly1305?type=package",
       "type": "library"
     },
     {
       "name": "vendor/golang.org/x/crypto/internal/subtle",
+      "purl": "pkg:golang/vendor/golang.org/x/crypto/internal/subtle?type=package",
       "type": "library"
     },
     {
       "name": "vendor/golang.org/x/net/dns/dnsmessage",
+      "purl": "pkg:golang/vendor/golang.org/x/net/dns/dnsmessage?type=package",
       "type": "library"
     },
     {
       "name": "vendor/golang.org/x/net/http/httpguts",
+      "purl": "pkg:golang/vendor/golang.org/x/net/http/httpguts?type=package",
       "type": "library"
     },
     {
       "name": "vendor/golang.org/x/net/http/httpproxy",
+      "purl": "pkg:golang/vendor/golang.org/x/net/http/httpproxy?type=package",
       "type": "library"
     },
     {
       "name": "vendor/golang.org/x/net/http2/hpack",
+      "purl": "pkg:golang/vendor/golang.org/x/net/http2/hpack?type=package",
       "type": "library"
     },
     {
       "name": "vendor/golang.org/x/net/idna",
+      "purl": "pkg:golang/vendor/golang.org/x/net/idna?type=package",
       "type": "library"
     },
     {
       "name": "vendor/golang.org/x/sys/cpu",
+      "purl": "pkg:golang/vendor/golang.org/x/sys/cpu?type=package",
       "type": "library"
     },
     {
       "name": "vendor/golang.org/x/text/secure/bidirule",
+      "purl": "pkg:golang/vendor/golang.org/x/text/secure/bidirule?type=package",
       "type": "library"
     },
     {
       "name": "vendor/golang.org/x/text/transform",
+      "purl": "pkg:golang/vendor/golang.org/x/text/transform?type=package",
       "type": "library"
     },
     {
       "name": "vendor/golang.org/x/text/unicode/bidi",
+      "purl": "pkg:golang/vendor/golang.org/x/text/unicode/bidi?type=package",
       "type": "library"
     },
     {
       "name": "vendor/golang.org/x/text/unicode/norm",
+      "purl": "pkg:golang/vendor/golang.org/x/text/unicode/norm?type=package",
       "type": "library"
     }
   ],
