@@ -1,0 +1,94 @@
+apiVersion: tekton.dev/v1beta1
+kind: PipelineRun
+metadata:
+  name: cachi2-on-release
+  annotations:
+    pipelinesascode.tekton.dev/max-keep-runs: "3"
+    pipelinesascode.tekton.dev/on-event: "[push]"
+    pipelinesascode.tekton.dev/on-target-branch: "[refs/tags/*]"
+    pipelinesascode.tekton.dev/task: "[git-clone]"
+spec:
+  params:
+    - name: repo_url
+      value: "{{repo_url}}"
+    - name: revision
+      value: "{{revision}}"
+  pipelineSpec:
+    tasks:
+      - name: fetch-repository
+        taskRef:
+          name: git-clone
+        workspaces:
+          - name: output
+            workspace: workspace
+        params:
+          - name: depth
+            value: "0"
+          - name: url
+            value: $(params.repo_url)
+          - name: revision
+            value: $(params.revision)
+      - name: release
+        runAfter:
+          - fetch-repository
+        workspaces:
+          - name: output
+            workspace: workspace
+        taskSpec:
+          results:
+            - name: version
+          workspaces:
+            - name: output
+          steps:
+            - name: get-semver-tag
+              image: registry.access.redhat.com/ubi9/python-39
+              workingDir: $(workspaces.output.path)
+              env:
+              - name: WORKSPACE_OUTPUT_PATH
+                value: $(workspaces.output.path)
+              - name: PARAM_REVISION
+                value: $(params.revision)
+              script: |
+                #!/usr/bin/env bash
+                set -eufx
+                
+                git config --global --add safe.directory "${WORKSPACE_OUTPUT_PATH}"
+                git fetch --tag -v
+                version=$(git  --no-pager tag --points-at HEAD)
+                [[ -z ${version} ]] && {
+                    echo "No tag points at commit $PARAM_REVISION"
+                    exit 1
+                }
+
+                if [[ $version =~ ^([0-9])\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$  ]]; then
+                  echo "version: $version"
+                else
+                  echo "This tag is not proper semantic version form: $version"
+                  exit 1
+                fi
+
+                echo $version > $(results.version.path)
+
+            - name: push-semver-tag-to-image
+              image: registry.access.redhat.com/ubi9/skopeo
+              workingDir: $(workspaces.output.path)
+              env:
+              - name: PARAM_REVISION
+                value: $(params.revision)
+              script: |
+                #!/usr/bin/env bash
+                set -eufx
+                
+                version=$(cat $(results.version.path)) 
+                skopeo copy docker://quay.io/redhat-appstudio/cachi2:$PARAM_REVISION \
+                  docker://quay.io/redhat-appstudio/cachi2:$version
+
+  workspaces:
+    - name: workspace
+      volumeClaimTemplate:
+        spec:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 1Gi
