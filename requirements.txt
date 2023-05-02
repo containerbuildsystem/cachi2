@@ -209,9 +209,9 @@ soupsieve==2.4.1 \
     --hash=sha256:1c1bfee6819544a3447586c889157365a27e10d88cde3ad3da0cf0ddf646feb8 \
     --hash=sha256:89d12b2d5dfcd2c9e8c22326da9d9aa9cb3dfab0a83a024f05704076ee8d35ea
     # via beautifulsoup4
-typer==0.7.0 \
-    --hash=sha256:b5e704f4e48ec263de1c0b3a2387cd405a13767d2f907f44c1a08cbad96f606d \
-    --hash=sha256:ff797846578a9f2a201b53442aedeb543319466870fbe1c701eab66dd7681165
+typer==0.8.0 \
+    --hash=sha256:07dd96b7961d11da53be3f9b9cd0eb76f413d5ef06df7942cb2f85bd03dd2633 \
+    --hash=sha256:7442b3a4369c8352b8bb684d04558b278b80fa92ae5d5760eb42c2f27c71f044
     # via cachi2 (pyproject.toml)
 typing-extensions==4.5.0 \
     --hash=sha256:5cb5f4a79139d699607b3ef622a1dedafa84e115ab0024e0d9c044a9479ca7cb \
