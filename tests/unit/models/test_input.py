@@ -17,7 +17,7 @@ from cachi2.core.models.input import (
 from cachi2.core.rooted_path import RootedPath
 
 
-def test_parse_user_input():
+def test_parse_user_input() -> None:
     expect_error = re.compile(
         r"1 validation error for user input\n"
         r"type\n"
@@ -201,7 +201,7 @@ class TestRequest:
                 packages=[GomodPackageInput(type="gomod", path=path)],
             )
 
-    def test_invalid_flags(self):
+    def test_invalid_flags(self) -> None:
         expect_error = r"flags -> 0\n  unexpected value; permitted: .* given=no-such-flag"
         with pytest.raises(pydantic.ValidationError, match=expect_error):
             Request(
@@ -211,7 +211,7 @@ class TestRequest:
                 flags=["no-such-flag"],
             )
 
-    def test_empty_packages(self):
+    def test_empty_packages(self) -> None:
         expect_error = r"packages\n  at least one package must be defined, got an empty list"
         with pytest.raises(pydantic.ValidationError, match=expect_error):
             Request(

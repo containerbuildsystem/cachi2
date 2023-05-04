@@ -1,7 +1,10 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 import urllib
+from pathlib import Path
+from typing import Any, Optional, Union
 
 import requests
+from requests.auth import AuthBase
 
 from cachi2.core.config import get_config
 from cachi2.core.errors import FetchError
@@ -10,7 +13,13 @@ from cachi2.core.http_requests import SAFE_REQUEST_METHODS, get_requests_session
 pkg_requests_session = get_requests_session(retry_options={"allowed_methods": SAFE_REQUEST_METHODS})
 
 
-def download_binary_file(url, download_path, auth=None, insecure=False, chunk_size=8192):
+def download_binary_file(
+    url: str,
+    download_path: Union[str, Path],
+    auth: Optional[AuthBase] = None,
+    insecure: bool = False,
+    chunk_size: int = 8192,
+) -> None:
     """
     Download a binary file (such as a TAR archive) from a URL.
 
@@ -35,7 +44,7 @@ def download_binary_file(url, download_path, auth=None, insecure=False, chunk_si
             f.write(chunk)
 
 
-def extract_git_info(vcs_url):
+def extract_git_info(vcs_url: str) -> dict[str, Any]:
     """
     Extract important info from a VCS requirement URL.
 

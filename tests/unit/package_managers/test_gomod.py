@@ -40,7 +40,7 @@ from cachi2.core.rooted_path import PathOutsideRoot, RootedPath
 from tests.common_utils import write_file_tree
 
 
-def setup_module():
+def setup_module() -> None:
     """Re-enable logging that was disabled at some point in previous tests."""
     gomod.log.disabled = False
     gomod.log.setLevel("DEBUG")
@@ -663,7 +663,7 @@ def test_go_list_cmd_failure(
         _resolve_gomod(module_path, gomod_request, tmp_path)
 
 
-def test_deduplicate_resolved_modules():
+def test_deduplicate_resolved_modules() -> None:
     # as reported by "go list -deps all"
     package_modules = [
         # local replacement
@@ -844,7 +844,7 @@ def test_get_golang_version(
     assert version == expected
 
 
-def test_validate_local_replacements(tmpdir):
+def test_validate_local_replacements(tmpdir: Path) -> None:
     app_path = RootedPath(tmpdir).join_within_root("subpath")
 
     modules = [
@@ -859,7 +859,7 @@ def test_validate_local_replacements(tmpdir):
     _validate_local_replacements(modules, app_path)
 
 
-def test_invalid_local_replacements(tmpdir):
+def test_invalid_local_replacements(tmpdir: Path) -> None:
     app_path = RootedPath(tmpdir)
 
     modules = [
@@ -1125,7 +1125,13 @@ def test_vendor_changed(
 @mock.patch("cachi2.core.package_managers.gomod.get_config")
 @mock.patch("subprocess.run")
 @mock.patch("time.sleep")
-def test_run_download_cmd_success(mock_sleep, mock_run, mock_config, tries_needed, caplog):
+def test_run_download_cmd_success(
+    mock_sleep: Any,
+    mock_run: Any,
+    mock_config: Any,
+    tries_needed: int,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     mock_config.return_value.gomod_download_max_tries = 5
 
     failure = proc_mock(returncode=1, stdout="")
@@ -1144,7 +1150,9 @@ def test_run_download_cmd_success(mock_sleep, mock_run, mock_config, tries_neede
 @mock.patch("cachi2.core.package_managers.gomod.get_config")
 @mock.patch("subprocess.run")
 @mock.patch("time.sleep")
-def test_run_download_cmd_failure(mock_sleep, mock_run, mock_config, caplog):
+def test_run_download_cmd_failure(
+    mock_sleep: Any, mock_run: Any, mock_config: Any, caplog: pytest.LogCaptureFixture
+) -> None:
     mock_config.return_value.gomod_download_max_tries = 5
 
     failure = proc_mock(returncode=1, stdout="")
@@ -1175,7 +1183,7 @@ def test_run_download_cmd_failure(mock_sleep, mock_run, mock_config, caplog):
         {"foo": {}, "bar": {"go.mod": ""}},
     ),
 )
-def test_missing_gomod_file(file_tree, tmp_path):
+def test_missing_gomod_file(file_tree: dict[str, Any], tmp_path: Path) -> None:
     write_file_tree(file_tree, tmp_path, exist_ok=True)
 
     packages = [{"path": path, "type": "gomod"} for path, _ in file_tree.items()]
@@ -1340,10 +1348,10 @@ def test_fetch_gomod_source(
     ),
 )
 @mock.patch("cachi2.core.package_managers.gomod.git.Repo")
-def test_get_repository_name(mock_git_repo, input_url):
+def test_get_repository_name(mock_git_repo: Any, input_url: str) -> None:
     expected_url = "github.com/cachito-testing/gomod-pandemonium"
 
-    def mock_remote():
+    def mock_remote() -> Any:
         mocked_origin = mock.Mock()
         mocked_origin.url = input_url
         return mocked_origin

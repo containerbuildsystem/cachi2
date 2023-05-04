@@ -1,7 +1,9 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 import logging
+from typing import Optional
 
 import requests
+from requests import Session
 from urllib3.util.retry import Retry
 
 log = logging.getLogger(__name__)
@@ -22,7 +24,7 @@ DEFAULT_RETRY_OPTIONS = {
 }
 
 
-def get_requests_session(retry_options={}):
+def get_requests_session(retry_options: Optional[dict] = None) -> Session:
     """
     Create a requests session with retries.
 
@@ -30,6 +32,8 @@ def get_requests_session(retry_options={}):
     :return: the configured requests session
     :rtype: requests.Session
     """
+    if retry_options is None:
+        retry_options = {}
     session = requests.Session()
     retry_options = {**DEFAULT_RETRY_OPTIONS, **retry_options}
     adapter = requests.adapters.HTTPAdapter(max_retries=Retry(**retry_options))

@@ -10,7 +10,9 @@ from urllib.parse import urlparse
 import bs4
 import pytest
 import requests
+from _pytest.logging import LogCaptureFixture
 from bs4 import ResultSet
+from requests.auth import HTTPBasicAuth
 
 from cachi2.core.checksum import ChecksumInfo
 from cachi2.core.config import get_config
@@ -32,7 +34,7 @@ GIT_REF = "9a557920b2a6d4110f838506120904a6fda421a2"
 PKG_DIR = RootedPath("/foo/package_dir")
 
 
-def setup_module():
+def setup_module() -> None:
     """Re-enable logging that was disabled at some point in previous tests."""
     pip.log.disabled = False
     pip.log.setLevel(logging.DEBUG)
@@ -2099,13 +2101,17 @@ class TestPipRequirementsFile:
         ),
     )
     def test_parsing_of_valid_cases(
-        self, file_contents, expected_requirements, expected_global_options, tmpdir
-    ):
+        self,
+        file_contents: str,
+        expected_requirements: list[dict[str, str]],
+        expected_global_options: list[dict[str, str]],
+        tmp_path: Path,
+    ) -> None:
         """Test the various valid use cases of requirements in a requirements file."""
-        requirements_file = tmpdir.join("requirements.txt")
-        requirements_file.write(file_contents)
+        requirements_file = tmp_path.joinpath("requirements.txt")
+        requirements_file.write_text(file_contents)
 
-        pip_requirements = pip.PipRequirementsFile(requirements_file.strpath)
+        pip_requirements = pip.PipRequirementsFile(str(requirements_file))
 
         assert pip_requirements.options == expected_global_options
         assert len(pip_requirements.requirements) == len(expected_requirements)
@@ -2178,7 +2184,7 @@ class TestPipRequirementsFile:
         with pytest.raises(expected_err_type, match=str(expected_error)):
             pip_requirements.requirements
 
-    def test_corner_cases_when_parsing_single_line(self):
+    def test_corner_cases_when_parsing_single_line(self) -> None:
         """Test scenarios in PipRequirement that cannot be triggered via PipRequirementsFile."""
         # Empty lines are ignored
         assert pip.PipRequirement.from_line("     ", []) is None
@@ -2186,12 +2192,12 @@ class TestPipRequirementsFile:
         with pytest.raises(RuntimeError, match="Didn't expect to find multiple requirements in:"):
             pip.PipRequirement.from_line("aiowsgi==0.7 \nasn1crypto==1.3.0", [])
 
-    def test_replace_requirements(self, tmpdir):
+    def test_replace_requirements(self, tmp_path: Path) -> None:
         """Test generating a new requirements file with replacements."""
-        original_file_path = tmpdir.join("original-requirements.txt")
-        new_file_path = tmpdir.join("new-requirements.txt")
+        original_file_path = tmp_path.joinpath("original-requirements.txt")
+        new_file_path = tmp_path.joinpath("new-requirements.txt")
 
-        original_file_path.write(
+        original_file_path.write_text(
             dedent(
                 """\
                 https://github.com/quay/appr/archive/58c88.tar.gz#egg=cnr_server --hash=sha256:123
@@ -2225,7 +2231,7 @@ class TestPipRequirementsFile:
             """
         )
 
-        expected_attr_changes = {
+        expected_attr_changes: dict[str, dict[str, Any]] = {
             "cnr_server": {
                 "download_line": "cnr_server @ https://cachito/nexus/58c88.tar.gz#egg=cnr_server",
                 "url": "https://cachito/nexus/58c88.tar.gz#egg=cnr_server",
@@ -2247,7 +2253,7 @@ class TestPipRequirementsFile:
             },
         }
 
-        pip_requirements = pip.PipRequirementsFile(original_file_path.strpath)
+        pip_requirements = pip.PipRequirementsFile(str(original_file_path))
 
         new_requirements = []
         for pip_requirement in pip_requirements.requirements:
@@ -2262,11 +2268,11 @@ class TestPipRequirementsFile:
 
         assert new_file.generate_file_content() == expected_new_file
 
-        with open(new_file_path.strpath, "w") as f:
+        with open(new_file_path, "w") as f:
             new_file.write(f)
 
         # Parse the newly generated requirements file to ensure it's parsed correctly.
-        new_pip_requirements = pip.PipRequirementsFile(new_file_path.strpath)
+        new_pip_requirements = pip.PipRequirementsFile(str(new_file_path))
 
         assert new_pip_requirements.options == pip_requirements.options
         for new_pip_requirement, pip_requirement in zip(
@@ -2280,10 +2286,10 @@ class TestPipRequirementsFile:
                     getattr(new_pip_requirement, attr) == expected_value
                 ), f"unexpected {attr!r} value for package {pip_requirement.raw_package!r}"
 
-    def test_write_requirements_file(self, tmpdir):
+    def test_write_requirements_file(self, tmp_path: Path) -> None:
         """Test PipRequirementsFile.write method."""
-        original_file_path = tmpdir.join("original-requirements.txt")
-        new_file_path = tmpdir.join("test-requirements.txt")
+        original_file_path = tmp_path.joinpath("original-requirements.txt")
+        new_file_path = tmp_path.joinpath("test-requirements.txt")
 
         content = dedent(
             """\
@@ -2293,16 +2299,16 @@ class TestPipRequirementsFile:
             """
         )
 
-        original_file_path.write(content)
+        original_file_path.write_text(content)
         assert original_file_path.exists()
-        pip_requirements = pip.PipRequirementsFile(original_file_path.strpath)
+        pip_requirements = pip.PipRequirementsFile(str(original_file_path))
         assert pip_requirements.requirements
         assert pip_requirements.options
 
-        with open(new_file_path.strpath, "w") as f:
+        with open(new_file_path, "w") as f:
             pip_requirements.write(f)
 
-        with open(new_file_path.strpath) as f:
+        with open(new_file_path) as f:
             assert f.read() == content
 
     @pytest.mark.parametrize(
@@ -2383,7 +2389,9 @@ class TestPipRequirementsFile:
             ),
         ),
     )
-    def test_pip_requirement_to_str(self, requirement_line, requirement_options, expected_str_line):
+    def test_pip_requirement_to_str(
+        self, requirement_line: str, requirement_options: list[str], expected_str_line: str
+    ) -> None:
         """Test PipRequirement.__str__ method."""
         assert (
             str(pip.PipRequirement.from_line(requirement_line, requirement_options))
@@ -2555,11 +2563,11 @@ class TestPipRequirementsFile:
     )
     def test_pip_requirement_copy(
         self,
-        requirement_line,
-        requirement_options,
-        new_values,
-        expected_changes,
-    ):
+        requirement_line: str,
+        requirement_options: list[str],
+        new_values: dict[str, str],
+        expected_changes: dict[str, str],
+    ) -> None:
         """Test PipRequirement.copy method."""
         original_requirement = pip.PipRequirement.from_line(requirement_line, requirement_options)
         new_requirement = original_requirement.copy(**new_values)
@@ -2569,7 +2577,7 @@ class TestPipRequirementsFile:
 
         self._assert_pip_requirement(new_requirement, expected_changes)
 
-    def test_invalid_kind_for_url(self):
+    def test_invalid_kind_for_url(self) -> None:
         """Test extracting URL from a requirement that does not have one."""
         requirement = pip.PipRequirement()
         requirement.download_line = "aiowsgi==0.7"
@@ -2578,7 +2586,7 @@ class TestPipRequirementsFile:
         with pytest.raises(ValueError, match="Cannot extract URL from pypi requirement"):
             _ = requirement.url
 
-    def _assert_pip_requirement(self, pip_requirement, expected_requirement):
+    def _assert_pip_requirement(self, pip_requirement: Any, expected_requirement: Any) -> None:
         for attr, default_value in self.PIP_REQUIREMENT_ATTRS.items():
             expected_requirement.setdefault(attr, default_value)
 
@@ -2597,7 +2605,7 @@ class TestPipRequirementsFile:
 class TestDownload:
     """Tests for dependency downloading."""
 
-    def mock_pypi_response(self, sdist_exists, sdist_not_yanked):
+    def mock_pypi_response(self, sdist_exists: bool, sdist_not_yanked: bool) -> str:
         """Mock a PyPI HTML response from the /simple/<project> endpoint."""
         egg_filename = "aiowsgi-0.7.egg"
         tar_filename = "aiowsgi-0.7.tar.gz"
@@ -2633,20 +2641,22 @@ class TestDownload:
         )
         return bs4.BeautifulSoup(html, "html.parser").find_all("a")
 
-    def mock_requirements_file(self, requirements=None, options=None):
+    def mock_requirements_file(
+        self, requirements: Optional[list] = None, options: Optional[list] = None
+    ) -> Any:
         """Mock a requirements.txt file."""
         return mock.Mock(requirements=requirements or [], options=options or [])
 
     def mock_requirement(
         self,
-        package,
-        kind,
-        version_specs=None,
-        download_line=None,
-        hashes=None,
-        qualifiers=None,
-        url=None,
-    ):
+        package: Any,
+        kind: Any,
+        version_specs: Any = None,
+        download_line: Any = None,
+        hashes: Any = None,
+        qualifiers: Any = None,
+        url: Any = None,
+    ) -> Any:
         """Mock a requirements.txt item. By default should pass validation."""
         if url is None and kind == "vcs":
             url = f"git+https://github.com/example@{GIT_REF}"
@@ -2682,14 +2692,14 @@ class TestDownload:
     @mock.patch("cachi2.core.package_managers.pip.download_binary_file")
     def test_download_pypi_package(
         self,
-        mock_download_file,
-        mock_get,
-        pypi_query_success,
-        sdist_exists,
-        sdist_not_yanked,
-        package_name,
-        rooted_tmp_path,
-    ):
+        mock_download_file: Any,
+        mock_get: Any,
+        pypi_query_success: bool,
+        sdist_exists: bool,
+        sdist_not_yanked: bool,
+        package_name: str,
+        rooted_tmp_path: RootedPath,
+    ) -> None:
         """Test downloading of a single PyPI package."""
         timeout = get_config().requests_timeout
         mock_requirement = self.mock_requirement(
@@ -2716,7 +2726,10 @@ class TestDownload:
 
         if expect_error is None:
             download_info = pip._download_pypi_package(
-                mock_requirement, rooted_tmp_path, "https://pypi-proxy.org/", ("user", "password")
+                mock_requirement,
+                rooted_tmp_path,
+                "https://pypi-proxy.org/",
+                HTTPBasicAuth("user", "password"),
             )
             assert download_info == {
                 "package": "aiowsgi",
@@ -2726,7 +2739,7 @@ class TestDownload:
 
             absolute_file_url = "https://pypi-proxy.org/packages/aiowsgi-0.7.tar.gz"
             mock_download_file.assert_called_once_with(
-                absolute_file_url, download_info["path"], auth=("user", "password")
+                absolute_file_url, download_info["path"], auth=HTTPBasicAuth("user", "password")
             )
         else:
             with pytest.raises((PackageRejected, FetchError)) as exc_info:
@@ -2734,15 +2747,17 @@ class TestDownload:
                     mock_requirement,
                     rooted_tmp_path,
                     "https://pypi-proxy.org",
-                    ("user", "password"),
+                    HTTPBasicAuth("user", "password"),
                 )
             assert str(exc_info.value) == expect_error
 
         mock_get.assert_called_once_with(
-            "https://pypi-proxy.org/simple/aiowsgi/", auth=("user", "password"), timeout=timeout
+            "https://pypi-proxy.org/simple/aiowsgi/",
+            auth=HTTPBasicAuth("user", "password"),
+            timeout=timeout,
         )
 
-    def test_process_package_links(self):
+    def test_process_package_links(self) -> None:
         """Test processing of package links."""
         links = self.mock_html_links(
             '<a href="../foo-1.0.tar.gz">foo-1.0.tar.gz</a>',
@@ -2778,11 +2793,11 @@ class TestDownload:
     @pytest.mark.parametrize("actual_name_is_canonical", [True, False])
     def test_process_package_links_noncanonical_name(
         self,
-        canonical_name,
-        noncanonical_name,
-        requested_name_is_canonical,
-        actual_name_is_canonical,
-    ):
+        canonical_name: str,
+        noncanonical_name: str,
+        requested_name_is_canonical: bool,
+        actual_name_is_canonical: bool,
+    ) -> None:
         """Test that canonical names match non-canonical names."""
         if requested_name_is_canonical:
             requested_name = canonical_name
@@ -2824,11 +2839,11 @@ class TestDownload:
     @pytest.mark.parametrize("actual_version_is_canonical", [True, False])
     def test_process_package_links_noncanonical_version(
         self,
-        canonical_version,
-        noncanonical_version,
-        requested_version_is_canonical,
-        actual_version_is_canonical,
-    ):
+        canonical_version: str,
+        noncanonical_version: str,
+        requested_version_is_canonical: bool,
+        actual_version_is_canonical: bool,
+    ) -> None:
         """Test that canonical names match non-canonical names."""
         if requested_version_is_canonical:
             requested_version = canonical_version
@@ -2854,7 +2869,7 @@ class TestDownload:
             }
         ]
 
-    def test_process_package_links_not_sdist(self):
+    def test_process_package_links_not_sdist(self) -> None:
         """Test that links for files that are not sdists are ignored."""
         links = self.mock_html_links(
             '<a href="../foo-1.0.whl">foo-1.0.whl</a>',
@@ -2863,14 +2878,14 @@ class TestDownload:
         assert pip._process_package_links(links, "foo", "1.0") == []
 
     @pytest.mark.parametrize("requested_version", ["2.0", "1.0.a1", "1.0.post1", "1.0.dev1"])
-    def test_process_package_links_wrong_version(self, requested_version):
+    def test_process_package_links_wrong_version(self, requested_version: str) -> None:
         """Test that links for files with different version are ignored."""
         links = self.mock_html_links(
             '<a href="../foo-1.0.tar.gz">foo-1.0.tar.gz</a>',
         )
         assert pip._process_package_links(links, "foo", requested_version) == []
 
-    def test_sdist_sorting(self):
+    def test_sdist_sorting(self) -> None:
         """Test that sdist preference key can be used for sorting in the expected order."""
         # Original order is descending by preference
         sdists = [
@@ -2896,9 +2911,9 @@ class TestDownload:
     @mock.patch("cachi2.core.package_managers.pip.clone_as_tarball")
     def test_download_vcs_package(
         self,
-        mock_clone_as_tarball,
-        rooted_tmp_path,
-    ):
+        mock_clone_as_tarball: Any,
+        rooted_tmp_path: RootedPath,
+    ) -> None:
         """Test downloading of a single VCS package."""
         vcs_url = f"git+https://github.com/spam/eggs@{GIT_REF}"
 
@@ -2942,13 +2957,13 @@ class TestDownload:
     @mock.patch("cachi2.core.package_managers.pip.download_binary_file")
     def test_download_url_package(
         self,
-        mock_download_file,
-        hash_as_qualifier,
-        host_in_url,
-        trusted_hosts,
-        host_is_trusted,
-        rooted_tmp_path,
-    ):
+        mock_download_file: Any,
+        hash_as_qualifier: bool,
+        host_in_url: bool,
+        trusted_hosts: list[str],
+        host_is_trusted: bool,
+        rooted_tmp_path: RootedPath,
+    ) -> None:
         """Test downloading of a single URL package."""
         # Add the #cachito_package fragment to make sure the .tar.gz extension
         # will be found even if the URL does not end with it
@@ -2999,12 +3014,12 @@ class TestDownload:
             ),
         ],
     )
-    def test_add_cachito_hash_to_url(self, original_url, url_with_hash):
+    def test_add_cachito_hash_to_url(self, original_url: str, url_with_hash: str) -> None:
         """Test adding the #cachito_hash fragment to URLs."""
         hsh = "sha256:abcdef"
         assert pip._add_cachito_hash_to_url(urlparse(original_url), hsh) == url_with_hash
 
-    def test_ignored_and_rejected_options(self, caplog):
+    def test_ignored_and_rejected_options(self, caplog: LogCaptureFixture) -> None:
         """
         Test ignored and rejected options.
 
@@ -3042,7 +3057,7 @@ class TestDownload:
             [("==", "1"), ("==", "1")],  # Probably no reason to handle this?
         ],
     )
-    def test_pypi_dep_not_pinned(self, version_specs):
+    def test_pypi_dep_not_pinned(self, version_specs: list[str]) -> None:
         """Test that unpinned PyPI deps cause a PackageRejected error."""
         req = self.mock_requirement("foo", "pypi", version_specs=version_specs)
         req_file = self.mock_requirements_file(requirements=[req])
@@ -3064,7 +3079,7 @@ class TestDownload:
             f"git+https://github.com/spam/eggs#@{GIT_REF}",
         ],
     )
-    def test_vcs_dep_no_git_ref(self, url):
+    def test_vcs_dep_no_git_ref(self, url: str) -> None:
         """Test that VCS deps with no git ref cause a PackageRejected error."""
         req = self.mock_requirement("eggs", "vcs", url=url, download_line=f"eggs @ {url}")
         req_file = self.mock_requirements_file(requirements=[req])
@@ -3076,7 +3091,7 @@ class TestDownload:
         assert str(exc_info.value) == msg
 
     @pytest.mark.parametrize("scheme", ["svn", "svn+https"])
-    def test_vcs_dep_not_git(self, scheme):
+    def test_vcs_dep_not_git(self, scheme: str) -> None:
         """Test that VCS deps not from git cause an UnsupportedFeature error."""
         url = f"{scheme}://example.org/spam/eggs"
         req = self.mock_requirement("eggs", "vcs", url=url, download_line=f"eggs @ {url}")
@@ -3096,7 +3111,9 @@ class TestDownload:
             (["sha256:123456"], "sha256:abcdef", 2),  # 1x --hash, #cachito_hash
         ],
     )
-    def test_url_dep_invalid_hash_count(self, hashes, cachito_hash, total):
+    def test_url_dep_invalid_hash_count(
+        self, hashes: list[str], cachito_hash: Optional[str], total: int
+    ) -> None:
         """Test that if URL requirement specifies 0 or more than 1 hash, validation fails."""
         if cachito_hash:
             qualifiers = {"cachito_hash": cachito_hash}
@@ -3126,7 +3143,7 @@ class TestDownload:
             "http://example.org/file?filename=file.tar.gz",
         ],
     )
-    def test_url_dep_unknown_file_ext(self, url):
+    def test_url_dep_unknown_file_ext(self, url: str) -> None:
         """Test that missing / unknown file extension in URL causes a validation error."""
         req = self.mock_requirement("foo", "url", url=url, download_line=f"foo @ {url}")
         req_file = self.mock_requirements_file(requirements=[req])
@@ -3144,8 +3161,12 @@ class TestDownload:
     )
     @pytest.mark.parametrize("requirement_kind", ["pypi", "vcs"])
     def test_requirement_missing_hash(
-        self, global_require_hash, local_hash, requirement_kind, caplog
-    ):
+        self,
+        global_require_hash: bool,
+        local_hash: bool,
+        requirement_kind: str,
+        caplog: LogCaptureFixture,
+    ) -> None:
         """Test that missing hashes cause a validation error."""
         if global_require_hash:
             options = ["--require-hashes"]
@@ -3178,7 +3199,7 @@ class TestDownload:
         "requirement_kind, hash_in_url",
         [("pypi", False), ("vcs", False), ("url", True), ("url", False)],
     )
-    def test_malformed_hash(self, requirement_kind, hash_in_url):
+    def test_malformed_hash(self, requirement_kind: str, hash_in_url: bool) -> None:
         """Test that invalid hash specifiers cause a validation error."""
         if hash_in_url:
             hashes = []
@@ -3205,16 +3226,16 @@ class TestDownload:
     @mock.patch("cachi2.core.package_managers.pip._check_metadata_in_sdist")
     def test_download_dependencies(
         self,
-        check_metadata_in_sdist,
-        mock_match_checksum,
-        mock_url_download,
-        mock_vcs_download,
-        mock_pypi_download,
-        use_hashes,
-        trusted_hosts,
-        rooted_tmp_path,
-        caplog,
-    ):
+        check_metadata_in_sdist: Any,
+        mock_match_checksum: Any,
+        mock_url_download: Any,
+        mock_vcs_download: Any,
+        mock_pypi_download: Any,
+        use_hashes: bool,
+        trusted_hosts: list[str],
+        rooted_tmp_path: RootedPath,
+        caplog: LogCaptureFixture,
+    ) -> None:
         """
         Test dependency downloading.
 
@@ -3287,9 +3308,9 @@ class TestDownload:
         # <call>
         downloads = pip._download_dependencies(rooted_tmp_path, req_file)
         assert downloads == [
-            {**pypi_info, "kind": "pypi"},
-            {**vcs_info, "kind": "vcs"},
-            {**url_info, "kind": "url"},
+            pypi_info | {"kind": "pypi"},
+            vcs_info | {"kind": "vcs"},
+            url_info | {"kind": "url"},
         ]
         assert pip_deps.path.is_dir()
         # </call>
@@ -3348,7 +3369,7 @@ class TestDownload:
         # </check basic logging output>
 
     @mock.patch("cachi2.core.package_managers.pip.must_match_any_checksum")
-    def test_checksum_verification(self, mock_match_checksum):
+    def test_checksum_verification(self, mock_match_checksum: Any) -> None:
         """Test helper function for checksum verification."""
         path = Path("/foo/bar.tar.gz")
         hashes = [
@@ -3524,7 +3545,7 @@ def test_resolve_pip(
         ["url", "https://files.cachito.rocks/mypkg.tar.gz"],
     ),
 )
-def test_get_external_requirement_filepath(component_kind, url):
+def test_get_external_requirement_filepath(component_kind: str, url: str) -> None:
     requirement = mock.Mock(
         kind=component_kind, url=url, package="package", hashes=["sha256:noRealHash"]
     )
@@ -3585,7 +3606,7 @@ def test_metadata_check_fails_from_sdist(
         pip._check_metadata_in_sdist(sdist_path)
 
 
-def test_metadata_check_invalid_argument():
+def test_metadata_check_invalid_argument() -> None:
     with pytest.raises(ValueError, match="Cannot check metadata"):
         pip._check_metadata_in_sdist(Path("myapp-0.2.tar.ZZZ"))
 

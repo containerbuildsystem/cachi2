@@ -1,8 +1,11 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
+from pathlib import Path
+from typing import Any, Optional
 from unittest import mock
 
 import pytest
 import requests
+from requests.auth import AuthBase, HTTPBasicAuth
 
 from cachi2.core.config import get_config
 from cachi2.core.errors import FetchError
@@ -12,11 +15,13 @@ from cachi2.core.package_managers.general import download_binary_file, pkg_reque
 GIT_REF = "9a557920b2a6d4110f838506120904a6fda421a2"
 
 
-@pytest.mark.parametrize("auth", [None, ("user", "password")])
+@pytest.mark.parametrize("auth", [None, HTTPBasicAuth("user", "password")])
 @pytest.mark.parametrize("insecure", [True, False])
 @pytest.mark.parametrize("chunk_size", [1024, 2048])
 @mock.patch.object(pkg_requests_session, "get")
-def test_download_binary_file(mock_get, auth, insecure, chunk_size, tmpdir):
+def test_download_binary_file(
+    mock_get: Any, auth: Optional[AuthBase], insecure: bool, chunk_size: int, tmp_path: Path
+) -> None:
     timeout = get_config().requests_timeout
     url = "http://example.org/example.tar.gz"
     content = b"file content"
@@ -24,18 +29,18 @@ def test_download_binary_file(mock_get, auth, insecure, chunk_size, tmpdir):
     mock_response = mock_get.return_value
     mock_response.iter_content.return_value = [content]
 
-    download_path = tmpdir.join("example.tar.gz")
+    download_path = tmp_path.joinpath("example.tar.gz")
     download_binary_file(
-        url, download_path.strpath, auth=auth, insecure=insecure, chunk_size=chunk_size
+        url, str(download_path), auth=auth, insecure=insecure, chunk_size=chunk_size
     )
 
-    assert download_path.read_binary() == content
+    assert download_path.read_bytes() == content
     mock_get.assert_called_with(url, stream=True, verify=not insecure, auth=auth, timeout=timeout)
     mock_response.iter_content.assert_called_with(chunk_size=chunk_size)
 
 
 @mock.patch.object(pkg_requests_session, "get")
-def test_download_binary_file_failed(mock_get):
+def test_download_binary_file_failed(mock_get: Any) -> None:
     mock_get.side_effect = [requests.RequestException("Something went wrong")]
 
     expected = "Could not download http://example.org/example.tar.gz: Something went wrong"
@@ -116,7 +121,7 @@ def test_download_binary_file_failed(mock_get):
         ),
     ],
 )
-def test_extract_git_info(url, nonstandard_info):
+def test_extract_git_info(url: str, nonstandard_info: Any) -> None:
     """Test extraction of git info from VCS URL."""
     info = {
         "url": "https://github.com/monty/python",

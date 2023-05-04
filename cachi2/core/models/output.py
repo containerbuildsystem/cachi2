@@ -157,7 +157,7 @@ class RequestOutput(pydantic.BaseModel):
     sbom: Sbom
 
     @classmethod
-    def empty(cls):
+    def empty(cls) -> "RequestOutput":
         """Return an empty RequestOutput."""
         return cls(sbom=Sbom(), build_config=BuildConfig())
 

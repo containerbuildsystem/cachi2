@@ -130,7 +130,7 @@ class TestPackage:
         assert package.version == expected_version
         assert package.resolved_url == expected_resolved_url
 
-    def test_eq(self):
+    def test_eq(self) -> None:
         assert Package("foo", "", {}) == Package("foo", "", {})
         assert Package("foo", "", {}) != Package("bar", "", {})
         assert 1 != Package("foo", "", {})
