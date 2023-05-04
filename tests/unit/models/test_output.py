@@ -1,5 +1,6 @@
 from pathlib import Path
 from textwrap import dedent
+from typing import Any
 
 import pydantic
 import pytest
@@ -52,7 +53,9 @@ class TestComponent:
             ),
         ],
     )
-    def test_construct_from_package_dict(self, input_data, expected_data):
+    def test_construct_from_package_dict(
+        self, input_data: dict[str, str], expected_data: Component
+    ) -> None:
         component = Component.from_package_dict(input_data)
         assert component == expected_data
 
@@ -69,13 +72,13 @@ class TestComponent:
             ),
         ],
     )
-    def test_invalid_components(self, input_data, expect_error):
+    def test_invalid_components(self, input_data: dict[str, str], expect_error: str) -> None:
         with pytest.raises(pydantic.ValidationError, match=expect_error):
             Component(**input_data)
 
 
 class TestSbom:
-    def test_sort_and_dedupe_components(self):
+    def test_sort_and_dedupe_components(self) -> None:
         sbom = Sbom(
             components=[
                 {"name": "github.com/org/B", "version": "v1.0.0"},
@@ -98,7 +101,7 @@ class TestSbom:
 
 
 class TestProjectFile:
-    def test_resolve_content(self):
+    def test_resolve_content(self) -> None:
         template = dedent(
             """
             no placeholders
@@ -122,7 +125,7 @@ class TestProjectFile:
 
 
 class TestBuildConfig:
-    def test_conflicting_env_vars(self):
+    def test_conflicting_env_vars(self) -> None:
         expect_error = (
             "conflict by GOSUMDB: "
             "name='GOSUMDB' value='on' kind='literal' "
@@ -137,7 +140,7 @@ class TestBuildConfig:
                 project_files=[],
             )
 
-    def test_sort_and_dedupe_env_vars(self):
+    def test_sort_and_dedupe_env_vars(self) -> None:
         build_config = BuildConfig(
             environment_variables=[
                 {"name": "B", "value": "y", "kind": "literal"},
@@ -151,7 +154,7 @@ class TestBuildConfig:
             EnvironmentVariable(name="B", value="y", kind="literal"),
         ]
 
-    def test_conflicting_project_files(self):
+    def test_conflicting_project_files(self) -> None:
         expect_error = "conflict by /some/path:"
         with pytest.raises(pydantic.ValidationError, match=expect_error):
             BuildConfig(
@@ -162,7 +165,7 @@ class TestBuildConfig:
                 ],
             )
 
-    def test_sort_and_dedupe_project_files(self):
+    def test_sort_and_dedupe_project_files(self) -> None:
         build_config = BuildConfig(
             environment_variables=[],
             project_files=[
@@ -206,6 +209,8 @@ class TestRequestOutput:
             ),
         ],
     )
-    def test_create_from_obj_lists(self, input_data, expected_data):
+    def test_create_from_obj_lists(
+        self, input_data: dict[str, Any], expected_data: RequestOutput
+    ) -> None:
         request_output = RequestOutput.from_obj_list(**input_data)
         assert request_output == expected_data

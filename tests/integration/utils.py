@@ -42,10 +42,10 @@ class ContainerImage:
         """Initialize ContainerImage object with associated repository."""
         self.repository = repository
 
-    def __enter__(self):
+    def __enter__(self) -> "ContainerImage":
         return self
 
-    def pull_image(self):
+    def pull_image(self) -> None:
         cmd = ["podman", "pull", self.repository]
         output, exit_code = run_cmd(cmd)
         if exit_code != 0:
@@ -56,7 +56,7 @@ class ContainerImage:
         image_cmd = ["podman", "run", "--rm", "-v", f"{tmpdir}:{tmpdir}:z", self.repository] + cmd
         return run_cmd(image_cmd)
 
-    def __exit__(self, exc_type, exc_value, exc_traceback):
+    def __exit__(self, exc_type: Any, exc_value: Any, exc_traceback: Any) -> None:
         image_cmd = ["podman", "rmi", "--force", self.repository]
         (output, exit_code) = run_cmd(image_cmd)
         if exit_code != 0:

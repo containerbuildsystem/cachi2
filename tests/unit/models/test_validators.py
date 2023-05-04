@@ -1,3 +1,5 @@
+from typing import Any
+
 import pytest
 
 from cachi2.core.models.validators import unique, unique_sorted
@@ -14,7 +16,7 @@ def unique_by(x: dict) -> int:
     return x["a"]
 
 
-def test_make_unique():
+def test_make_unique() -> None:
     orig_data = DATA_WITH_DUPES.copy()
 
     assert unique(DATA_WITH_DUPES, by=unique_by) == [
@@ -29,7 +31,7 @@ def test_make_unique():
     assert DATA_WITH_DUPES == orig_data
 
 
-def test_check_unique():
+def test_check_unique() -> None:
     assert unique(DATA_WIHOUT_DUPES, by=unique_by, dedupe=False) == DATA_WIHOUT_DUPES
     assert unique_sorted(DATA_WIHOUT_DUPES, by=unique_by, dedupe=False) == [
         {"a": 1, "b": 1},
@@ -37,8 +39,8 @@ def test_check_unique():
     ]
 
 
-def test_uniqueness_conflicts():
-    def assert_raises(fn, data, dedupe):
+def test_uniqueness_conflicts() -> None:
+    def assert_raises(fn: Any, data: Any, dedupe: Any) -> None:
         with pytest.raises(ValueError):
             fn(data, by=unique_by, dedupe=dedupe)
 

@@ -11,8 +11,9 @@ import urllib
 import zipfile
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from os import PathLike
 from pathlib import Path
-from typing import IO, TYPE_CHECKING, Any, Iterable, Iterator, Optional
+from typing import IO, TYPE_CHECKING, Any, Iterable, Iterator, Optional, Union, no_type_check
 
 import tomli
 
@@ -25,6 +26,7 @@ import bs4
 import pkg_resources
 import requests
 from packaging.utils import canonicalize_name, canonicalize_version
+from requests.auth import AuthBase
 
 from cachi2.core.checksum import ChecksumInfo, must_match_any_checksum
 from cachi2.core.config import get_config
@@ -42,8 +44,6 @@ log = logging.getLogger(__name__)
 
 DEFAULT_BUILD_REQUIREMENTS_FILE = "requirements-build.txt"
 DEFAULT_REQUIREMENTS_FILE = "requirements.txt"
-
-NOTHING = object()  # A None replacement for cases where the distinction is needed
 
 # Check that the path component of a URL ends with a full-length git ref
 GIT_REF_IN_PATH = re.compile(r"@[a-fA-F0-9]{40}$")
@@ -833,24 +833,25 @@ class PipRequirementsFile:
     # options apply to all the requirements.
     REQUIREMENT_OPTIONS = {"-e", "--editable", "--hash"}
 
-    def __init__(self, file_path):
+    def __init__(self, file_path: Union[str, PathLike[str]]) -> None:
         """Initialize a PipRequirementsFile.
 
         :param str | PathLike[str] file_path: the full path to the requirements file
         """
         self.file_path = file_path
-        self.__parsed = NOTHING
 
     @classmethod
-    def from_requirements_and_options(cls, requirements, options):
+    def from_requirements_and_options(
+        cls, requirements: list["PipRequirement"], options: list[str]
+    ) -> "PipRequirementsFile":
         """Create a new PipRequirementsFile instance from given parameters.
 
         :param list requirements: list of PipRequirement instances
         :param list options: list of strings of global options
         :return: new instance of PipRequirementsFile
         """
-        new_instance = cls(None)
-        new_instance.__parsed = {"requirements": list(requirements), "options": list(options)}
+        new_instance = cls("")
+        new_instance._parsed = {"requirements": list(requirements), "options": list(options)}
         return new_instance
 
     def write(self, file_obj: IO[str]) -> None:
@@ -869,43 +870,40 @@ class PipRequirementsFile:
         return fileobj.getvalue()
 
     @property
-    def requirements(self):
+    def requirements(self) -> list["PipRequirement"]:
         """Return a list of PipRequirement objects."""
         return self._parsed["requirements"]
 
     @property
-    def options(self):
+    def options(self) -> list[str]:
         """Return a list of options."""
         return self._parsed["options"]
 
-    @property
-    def _parsed(self):
+    @functools.cached_property
+    def _parsed(self) -> dict[str, Any]:
         """Return the parsed requirements file.
 
         :return: a dict with the keys ``requirements`` and ``options``
         """
-        if self.__parsed is NOTHING:
-            parsed = {"requirements": [], "options": []}
+        parsed: dict[str, list[str]] = {"requirements": [], "options": []}
 
-            for line in self._read_lines():
-                (
-                    global_options,
-                    requirement_options,
-                    requirement_line,
-                ) = self._split_options_and_requirement(line)
-                if global_options:
-                    parsed["options"].extend(global_options)
+        for line in self._read_lines():
+            (
+                global_options,
+                requirement_options,
+                requirement_line,
+            ) = self._split_options_and_requirement(line)
+            if global_options:
+                parsed["options"].extend(global_options)
 
-                if requirement_line:
-                    parsed["requirements"].append(
-                        PipRequirement.from_line(requirement_line, requirement_options)
-                    )
+            if requirement_line:
+                parsed["requirements"].append(
+                    PipRequirement.from_line(requirement_line, requirement_options)
+                )
 
-            self.__parsed = parsed
+        return parsed
 
-        return self.__parsed
-
-    def _read_lines(self):
+    def _read_lines(self) -> Iterator[str]:
         """Read and yield the lines from the requirements file.
 
         Lines ending in the line continuation character are joined with the next line.
@@ -929,7 +927,7 @@ class PipRequirementsFile:
         if buffered_line:
             yield "".join(buffered_line)
 
-    def _split_options_and_requirement(self, line):
+    def _split_options_and_requirement(self, line: str) -> tuple[list[str], list[str], str]:
         """Split global and requirement options from the requirement line.
 
         :param str line: requirement line from the requirements file
@@ -937,14 +935,14 @@ class PipRequirementsFile:
             second item a list of requirement options, and the last item a str of the
             requirement without any options.
         """
-        global_options = []
-        requirement_options = []
+        global_options: list[str] = []
+        requirement_options: list[str] = []
         requirement = []
 
         # Indicates the option must be followed by a value
         _require_value = False
         # Reference to either global_options or requirement_options list
-        _context_options = None
+        _context_options = []
 
         for part in line.split():
             if _require_value:
@@ -1022,28 +1020,28 @@ class PipRequirement:
     # package name, e.g. "name @ https://..."
     HAS_NAME_IN_DIRECT_ACCESS_REQUIREMENT = re.compile(r"@.+://")
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize a PipRequirement."""
         # The package name after it has been processed by setuptools, e.g. "_" are replaced
         # with "-"
-        self.package = None
+        self.package: str = ""
         # The package name as defined in the requirement line
-        self.raw_package = None
-        self.extras = []
-        self.version_specs = []
-        self.environment_marker = None
-        self.hashes = []
-        self.qualifiers = {}
+        self.raw_package: str = ""
+        self.extras: list[str] = []
+        self.version_specs: list[str] = []
+        self.environment_marker: str = ""
+        self.hashes: list[str] = []
+        self.qualifiers: dict[str, Any] = {}
 
-        self.kind = None
-        self.download_line = None
+        self.kind: str = ""
+        self.download_line: str = ""
 
-        self.options = []
+        self.options: list[str] = []
 
-        self._url = None
+        self._url: Any = None
 
     @property
-    def url(self):
+    def url(self) -> str:
         """Extract the URL from the download line of a VCS or URL requirement."""
         if self._url is None:
             if self.kind not in ("url", "vcs"):
@@ -1054,7 +1052,7 @@ class PipRequirement:
 
         return self._url
 
-    def __str__(self):
+    def __str__(self) -> str:
         """Return the string representation of the PipRequirement."""
         line = []
         line.extend(self.options)
@@ -1062,7 +1060,9 @@ class PipRequirement:
         line.extend(f"--hash={h}" for h in self.hashes)
         return " ".join(line)
 
-    def copy(self, url=None, hashes=None):
+    def copy(
+        self, url: Optional[str] = None, hashes: Optional[list[str]] = None
+    ) -> "PipRequirement":
         """Duplicate this instance of PipRequirement.
 
         :param str url: set a new direct access URL for the requirement. If provided, the
@@ -1115,8 +1115,9 @@ class PipRequirement:
 
         return requirement
 
+    @no_type_check
     @classmethod
-    def from_line(cls, line, options):
+    def from_line(cls, line: str, options: list[str]) -> "PipRequirement":
         """Create an instance of PipRequirement from the given requirement and its options.
 
         Only ``url`` and ``vcs`` direct access requirements are supported. ``file`` is not.
@@ -1177,7 +1178,7 @@ class PipRequirement:
         return requirement
 
     @classmethod
-    def _assess_direct_access_requirement(cls, line):
+    def _assess_direct_access_requirement(cls, line: str) -> tuple[Optional[str], bool]:
         """Determine if the line contains a direct access requirement.
 
         :param str line: the requirement line
@@ -1208,7 +1209,7 @@ class PipRequirement:
         return direct_access_kind, True
 
     @classmethod
-    def _adjust_direct_access_requirement(cls, line):
+    def _adjust_direct_access_requirement(cls, line: str) -> tuple[str, dict[str, str]]:
         """Modify the requirement line so it can be parsed by pkg_resources and extract qualifiers.
 
         :param str line: a direct access requirement line
@@ -1259,7 +1260,7 @@ class PipRequirement:
         return " ".join(requirement_parts), qualifiers
 
     @classmethod
-    def _split_hashes_from_options(cls, options):
+    def _split_hashes_from_options(cls, options: list[str]) -> tuple[list[str], list[str]]:
         """Separate the --hash options from the given options.
 
         :param list options: requirement options
@@ -1348,7 +1349,7 @@ def _download_dependencies(
     return downloads
 
 
-def _process_options(options):
+def _process_options(options: list[str]) -> dict[str, Any]:
     """
     Process global options from a requirements.txt file.
 
@@ -1430,7 +1431,7 @@ def _process_options(options):
     }
 
 
-def _validate_requirements(requirements):
+def _validate_requirements(requirements: list[PipRequirement]) -> None:
     """
     Validate that all requirements meet Cachi2 expectations.
 
@@ -1499,7 +1500,7 @@ def _validate_requirements(requirements):
                 raise PackageRejected(msg, solution=None)
 
 
-def _validate_provided_hashes(requirements, require_hashes):
+def _validate_provided_hashes(requirements: list[PipRequirement], require_hashes: bool) -> None:
     """
     Validate that hashes are not missing and follow the "algorithm:digest" format.
 
@@ -1530,7 +1531,12 @@ def _validate_provided_hashes(requirements, require_hashes):
                 raise PackageRejected(msg, solution=None)
 
 
-def _download_pypi_package(requirement, pip_deps_dir, pypi_url, pypi_auth=None):
+def _download_pypi_package(
+    requirement: PipRequirement,
+    pip_deps_dir: RootedPath,
+    pypi_url: str,
+    pypi_auth: Optional[AuthBase] = None,
+) -> dict[str, Any]:
     """
     Download the sdist (source distribution) of a PyPI package.
 
@@ -1606,7 +1612,7 @@ def _download_pypi_package(requirement, pip_deps_dir, pypi_url, pypi_auth=None):
     }
 
 
-def _process_package_links(links, name, version):
+def _process_package_links(links: Iterable, name: str, version: str) -> list[dict[str, Any]]:
     """
     Process links to Python packages.
 
@@ -1655,7 +1661,7 @@ def _process_package_links(links, name, version):
     return sdists
 
 
-def _sdist_preference(sdist_pkg):
+def _sdist_preference(sdist_pkg: dict[str, Any]) -> tuple[int, int]:
     """
     Compute preference for a sdist package, can be used to sort in ascending order.
 
@@ -1679,7 +1685,7 @@ def _sdist_preference(sdist_pkg):
     return yanked_pref, filetype_pref
 
 
-def _download_vcs_package(requirement, pip_deps_dir):
+def _download_vcs_package(requirement: PipRequirement, pip_deps_dir: RootedPath) -> dict[str, Any]:
     """
     Fetch the source for a Python package from VCS (only git is supported).
 
@@ -1702,7 +1708,9 @@ def _download_vcs_package(requirement, pip_deps_dir):
     }
 
 
-def _download_url_package(requirement, pip_deps_dir, trusted_hosts):
+def _download_url_package(
+    requirement: PipRequirement, pip_deps_dir: RootedPath, trusted_hosts: set[str]
+) -> dict[str, Any]:
     """
     Download a Python package from a URL.
 
@@ -1743,7 +1751,7 @@ def _download_url_package(requirement, pip_deps_dir, trusted_hosts):
     }
 
 
-def _add_cachito_hash_to_url(parsed_url, hash_spec):
+def _add_cachito_hash_to_url(parsed_url: urllib.parse.ParseResult, hash_spec: str) -> str:
     """
     Add the #cachito_hash fragment to URL.
 

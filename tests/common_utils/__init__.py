@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Union
 
 
-def assert_directories_equal(dir_a, dir_b):
+def assert_directories_equal(dir_a: str, dir_b: str) -> None:
     """
     Check recursively directories have equal content.
 

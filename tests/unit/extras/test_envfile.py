@@ -43,7 +43,7 @@ def test_cannot_determine_format(filename: str, expect_reason: str) -> None:
     assert exc_info.value.friendly_msg() == expect_friendly_msg
 
 
-def test_generate_env_as_json():
+def test_generate_env_as_json() -> None:
     env_vars = [
         {"name": "GOCACHE", "value": "deps/gomod", "kind": "path"},
         {"name": "GOSUMDB", "value": "off", "kind": "literal"},
@@ -58,7 +58,7 @@ def test_generate_env_as_json():
     assert content == expect_content
 
 
-def test_generate_env_as_env():
+def test_generate_env_as_env() -> None:
     env_vars = [
         {"name": "GOCACHE", "value": "deps/gomod", "kind": "path"},
         {"name": "GOSUMDB", "value": "off", "kind": "literal"},

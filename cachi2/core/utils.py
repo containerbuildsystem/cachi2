@@ -2,14 +2,14 @@ import json
 import logging
 import re
 import subprocess  # nosec
-from typing import Iterator
+from typing import Any, Iterator
 
 from cachi2.core.config import get_config
 
 log = logging.getLogger(__name__)
 
 
-def run_cmd(cmd, params):
+def run_cmd(cmd: Any, params: dict) -> str:
     """
     Run the given command with provided parameters.
 

@@ -5,7 +5,7 @@ import re
 from contextlib import contextmanager
 from pathlib import Path
 from textwrap import dedent
-from typing import Callable, Iterator, Optional, Union
+from typing import Any, Callable, Iterator, Optional, Union
 from unittest import mock
 
 import pytest
@@ -77,7 +77,7 @@ def assert_pattern_in_output(pattern: Union[str, re.Pattern], output: str) -> No
 
 
 class TestTopLevelOpts:
-    def test_version_option(self):
+    def test_version_option(self) -> None:
         expect_version = importlib.metadata.version("cachi2")
         result = invoke_expecting_sucess(app, ["--version"])
         lines = result.output.splitlines()
@@ -113,7 +113,7 @@ class TestTopLevelOpts:
             project_files=[],
         )
 
-        def side_effect(whatever):
+        def side_effect(whatever: Any) -> RequestOutput:
             config = config_file.get_config()
 
             load_text = yaml.safe_load(file_text)
@@ -189,7 +189,7 @@ class TestTopLevelOpts:
         loglevel_name = logging.getLevelName(loglevel)
         assert loglevel_name == expected_level
 
-    def test_unknown_loglevel(self, tmp_cwd):
+    def test_unknown_loglevel(self, tmp_cwd: Path) -> None:
         args = ["--log-level=unknown", "fetch-deps", "gomod"]
         result = invoke_expecting_invalid_usage(app, args)
         assert "Invalid value for '--log-level': 'unknown' is not one of" in result.output
@@ -265,7 +265,7 @@ class TestFetchDeps:
         result = invoke_expecting_invalid_usage(app, ["fetch-deps", *path_args])
         assert expect_error in result.output
 
-    def test_no_packages(self):
+    def test_no_packages(self) -> None:
         result = invoke_expecting_invalid_usage(app, ["fetch-deps"])
         assert "Missing argument 'PKG'" in result.output
 
@@ -692,7 +692,7 @@ class TestGenerateEnv:
 
         assert result.stdout == expect_output
 
-    def test_invalid_format(self):
+    def test_invalid_format(self) -> None:
         # Note: .sh is a recognized suffix, but the --format option accepts only 'json' and 'env'
         result = invoke_expecting_invalid_usage(app, ["generate-env", ".", "-f", "sh"])
         assert "Invalid value for '-f' / '--format': 'sh' is not one of" in result.output

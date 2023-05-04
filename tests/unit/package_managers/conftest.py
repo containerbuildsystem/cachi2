@@ -2,6 +2,7 @@ import copy
 import os
 import tempfile
 from pathlib import Path
+from typing import Any, Generator, Optional, Union
 
 import git
 import pytest
@@ -10,7 +11,7 @@ from cachi2.core.rooted_path import RootedPath
 
 
 @pytest.fixture()
-def sample_deps():
+def sample_deps() -> list[dict[str, Optional[str]]]:
     return [
         {
             "name": "github.com/Masterminds/semver",
@@ -100,7 +101,7 @@ def sample_deps():
 
 
 @pytest.fixture()
-def sample_deps_replace(sample_deps):
+def sample_deps_replace(sample_deps: list[dict[str, Any]]) -> list[dict[str, Any]]:
     # Use a copy in case a test uses both this fixture and the sample_deps fixture
     sample_deps_with_replace = copy.deepcopy(sample_deps)
     sample_deps_with_replace[5]["replaces"] = {
@@ -112,7 +113,7 @@ def sample_deps_replace(sample_deps):
 
 
 @pytest.fixture()
-def sample_deps_replace_new_name(sample_deps):
+def sample_deps_replace_new_name(sample_deps: list[dict[str, Any]]) -> list[dict[str, Any]]:
     # Use a copy in case a test uses both this fixture and the sample_deps fixture
     sample_deps_with_replace = copy.deepcopy(sample_deps)
     sample_deps_with_replace[5] = {
@@ -129,7 +130,7 @@ def sample_deps_replace_new_name(sample_deps):
 
 
 @pytest.fixture()
-def sample_package():
+def sample_package() -> dict[str, str]:
     return {
         "name": "github.com/release-engineering/retrodep/v2",
         "type": "gomod",
@@ -138,7 +139,7 @@ def sample_package():
 
 
 @pytest.fixture()
-def sample_pkg_deps_without_replace():
+def sample_pkg_deps_without_replace() -> list[dict[str, Optional[str]]]:
     return [
         {"name": "fmt", "type": "go-package", "version": None},
         {
@@ -172,7 +173,7 @@ def sample_pkg_deps_without_replace():
 
 
 @pytest.fixture()
-def sample_pkg_lvl_pkg():
+def sample_pkg_lvl_pkg() -> dict[str, str]:
     return {
         "name": "github.com/release-engineering/retrodep/v2",
         "type": "go-package",
@@ -181,7 +182,7 @@ def sample_pkg_lvl_pkg():
 
 
 @pytest.fixture()
-def fake_repo():
+def fake_repo() -> Generator[tuple[Union[str, bytes], Union[str, bytes]], Any, None]:
     """
     Create a fake git repository representing a remote resource to be fetched.
 
@@ -204,7 +205,7 @@ def fake_repo():
 
 
 @pytest.fixture()
-def env_variables():
+def env_variables() -> list[dict[str, str]]:
     return [
         {"name": "GOCACHE", "value": "deps/gomod", "kind": "path"},
         {"name": "GOMODCACHE", "value": "deps/gomod/pkg/mod", "kind": "path"},

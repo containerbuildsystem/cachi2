@@ -7,6 +7,7 @@ import tempfile
 from datetime import datetime
 from itertools import chain
 from pathlib import Path
+from types import TracebackType
 from typing import (
     Any,
     Dict,
@@ -17,6 +18,7 @@ from typing import (
     NoReturn,
     Optional,
     Tuple,
+    Type,
     Union,
 )
 
@@ -575,7 +577,12 @@ class GoCacheTemporaryDirectory(tempfile.TemporaryDirectory[str]):
     `go clean -modcache` before the default clean up behavior is run.
     """
 
-    def __exit__(self, exc, value, tb):
+    def __exit__(
+        self,
+        exc: Optional[Type[BaseException]],
+        value: Optional[BaseException],
+        tb: Optional[TracebackType],
+    ) -> None:
         """Clean up the temporary directory by first cleaning up the Go cache."""
         try:
             env = {"GOPATH": self.name, "GOCACHE": self.name}
