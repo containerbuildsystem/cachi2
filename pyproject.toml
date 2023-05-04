@@ -1,54 +1,57 @@
 [build-system]
-requires = ["setuptools", "setuptools-scm"]
 build-backend = "setuptools.build_meta"
+requires = [
+  "setuptools",
+  "setuptools-scm",
+]
 
 [project]
 name = "cachi2"
-dynamic = ["version"]
 license = {text = "GPLv3+"}
-classifiers = [
-    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
-    "Programming Language :: Python :: 3 :: Only",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
-]
 requires-python = ">=3.9"
-dependencies = [
-    "backoff",
-    "beautifulsoup4",
-    "gitpython",
-    "packaging",
-    "packageurl-python",
-    "pydantic",
-    "pyyaml",
-    "requests",
-    "semver",
-    "setuptools",
-    "tomli",
-    "typer",
+classifiers = [
+  "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
 ]
-
+dynamic = [
+  "version",
+]
+dependencies = [
+  "backoff",
+  "beautifulsoup4",
+  "gitpython",
+  "packageurl-python",
+  "packaging",
+  "pydantic",
+  "pyyaml",
+  "requests",
+  "semver",
+  "setuptools",
+  "tomli",
+  "typer",
+]
 [project.optional-dependencies]
 dev = [
-    "bandit",
-    "black",
-    "click",
-    "flake8",
-    "flake8-docstrings",
-    "isort[colors]",
-    "mypy",
-    "typing-extensions",
+  "bandit",
+  "black",
+  "click",
+  "flake8",
+  "flake8-docstrings",
+  "isort[colors]",
+  "mypy",
+  "typing-extensions",
 ]
 test = [
-    "GitPython",
-    "jsonschema",
-    "pytest",
-    "pytest-cov",
-    "pytest-env",
-    "pyyaml",
+  "GitPython",
+  "jsonschema",
+  "pytest",
+  "pytest-cov",
+  "pytest-env",
+  "pyyaml",
 ]
-
 [project.scripts]
 cachi2 = "cachi2.interface.cli:app"
 
@@ -58,6 +61,13 @@ packages = ["cachi2"]
 [tool.setuptools_scm]
 version_scheme = "post-release"
 
+[tool.black]
+line-length = 100
+
+[tool.isort]
+profile = "black"
+line_length = 100
+
 [tool.mypy]
 plugins = ["pydantic.mypy"]
 disallow_incomplete_defs = true
@@ -66,10 +76,3 @@ disallow_untyped_decorators = true
 [[tool.mypy.overrides]]
 module = ["semver"]
 ignore_missing_imports = true
-
-[tool.black]
-line-length = 100
-
-[tool.isort]
-profile = "black"
-line_length = 100
