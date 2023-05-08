@@ -1,0 +1,1 @@
+from cachi2.core.package_managers.gomod.resolver import fetch_gomod_source

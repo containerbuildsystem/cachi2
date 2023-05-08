@@ -15,26 +15,30 @@ import pytest
 from cachi2.core.errors import GoModError, PackageRejected, UnexpectedFormat, UnsupportedFeature
 from cachi2.core.models.input import Flag, Request
 from cachi2.core.models.output import BuildConfig, Component, RequestOutput, Sbom
-from cachi2.core.package_managers import gomod
-from cachi2.core.package_managers.gomod import (
-    Module,
-    Package,
+from cachi2.core.package_managers.gomod import parser
+from cachi2.core.package_managers.gomod.parser import (
     ParsedModule,
     ParsedPackage,
-    StandardPackage,
-    _create_modules_from_parsed_data,
-    _create_packages_from_parsed_data,
+    resolve_gomod,
     _deduplicate_resolved_modules,
-    _get_golang_version,
-    _get_repository_name,
     _parse_vendor,
-    _resolve_gomod,
     _run_download_cmd,
     _should_vendor_deps,
     _validate_local_replacements,
     _vendor_changed,
     _vendor_deps,
+)
+from cachi2.core.package_managers.gomod.resolver import (
+    Module,
+    Package,
+    StandardPackage,
     fetch_gomod_source,
+    _create_modules_from_parsed_data,
+    _create_packages_from_parsed_data,
+    _get_repository_name,
+)
+from cachi2.core.package_managers.gomod.version import (
+    get_golang_version
 )
 from cachi2.core.rooted_path import PathOutsideRoot, RootedPath
 from tests.common_utils import write_file_tree
@@ -42,8 +46,8 @@ from tests.common_utils import write_file_tree
 
 def setup_module():
     """Re-enable logging that was disabled at some point in previous tests."""
-    gomod.log.disabled = False
-    gomod.log.setLevel("DEBUG")
+    parser.log.disabled = False
+    parser.log.setLevel("DEBUG")
 
 
 @pytest.fixture
@@ -89,8 +93,8 @@ def _parse_mocked_data(
 
 @pytest.mark.parametrize("cgo_disable", [False, True])
 @pytest.mark.parametrize("force_gomod_tidy", [False, True])
-@mock.patch("cachi2.core.package_managers.gomod._get_golang_version")
-@mock.patch("cachi2.core.package_managers.gomod._validate_local_replacements")
+@mock.patch("cachi2.core.package_managers.gomod.parser.get_golang_version")
+@mock.patch("cachi2.core.package_managers.gomod.parser._validate_local_replacements")
 @mock.patch("subprocess.run")
 def test_resolve_gomod(
     mock_run: mock.Mock,
@@ -148,7 +152,7 @@ def test_resolve_gomod(
 
     module_dir = gomod_request.source_dir.join_within_root("path/to/module")
 
-    main_module, modules, packages = _resolve_gomod(module_dir, gomod_request, tmp_path)
+    main_module, modules, packages = resolve_gomod(module_dir, gomod_request, tmp_path)
 
     if force_gomod_tidy:
         assert mock_run.call_args_list[1][0][0] == ("go", "mod", "tidy")
@@ -185,8 +189,8 @@ def test_resolve_gomod(
 
 
 @pytest.mark.parametrize("force_gomod_tidy", [False, True])
-@mock.patch("cachi2.core.package_managers.gomod._get_golang_version")
-@mock.patch("cachi2.core.package_managers.gomod._validate_local_replacements")
+@mock.patch("cachi2.core.package_managers.gomod.parser.get_golang_version")
+@mock.patch("cachi2.core.package_managers.gomod.parser._validate_local_replacements")
 @mock.patch("subprocess.run")
 def test_resolve_gomod_vendor_dependencies(
     mock_run: mock.Mock,
@@ -239,7 +243,7 @@ def test_resolve_gomod_vendor_dependencies(
         get_mocked_data(data_dir, "vendored/modules.txt")
     )
 
-    main_module, modules, packages = _resolve_gomod(module_dir, gomod_request, tmp_path)
+    main_module, modules, packages = resolve_gomod(module_dir, gomod_request, tmp_path)
 
     assert mock_run.call_args_list[0][0][0] == ("go", "mod", "vendor")
     # when vendoring, go list should be called without -mod readonly
@@ -266,11 +270,11 @@ def test_resolve_gomod_vendor_without_flag(tmp_path: Path, gomod_request: Reques
         "vendored dependencies."
     )
     with pytest.raises(PackageRejected, match=expected_error):
-        _resolve_gomod(module_dir, gomod_request, tmp_path)
+        resolve_gomod(module_dir, gomod_request, tmp_path)
 
 
 @pytest.mark.parametrize("force_gomod_tidy", [False, True])
-@mock.patch("cachi2.core.package_managers.gomod._get_golang_version")
+@mock.patch("cachi2.core.package_managers.gomod.parser.get_golang_version")
 @mock.patch("subprocess.run")
 def test_resolve_gomod_no_deps(
     mock_run: mock.Mock,
@@ -321,7 +325,7 @@ def test_resolve_gomod_no_deps(
         gomod_request.flags = frozenset({"force-gomod-tidy"})
 
     module_path = gomod_request.source_dir.join_within_root("path/to/module")
-    main_module, modules, packages = _resolve_gomod(module_path, gomod_request, tmp_path)
+    main_module, modules, packages = resolve_gomod(module_path, gomod_request, tmp_path)
     packages_list = list(packages)
 
     assert main_module == ParsedModule(
@@ -360,13 +364,13 @@ def test_resolve_gomod_suspicious_symlinks(symlinked_file: str, gomod_request: R
 
     expect_err_msg = re.escape(f"Joining path '{symlinked_file}' to '{app_dir}'")
     with pytest.raises(PathOutsideRoot, match=expect_err_msg) as exc_info:
-        _resolve_gomod(app_dir, gomod_request, tmp_path)
+        resolve_gomod(app_dir, gomod_request, tmp_path)
 
     e = exc_info.value
     assert "Found a potentially harmful symlink" in e.friendly_msg()
 
 
-@mock.patch("cachi2.core.package_managers.gomod._get_golang_version")
+@mock.patch("cachi2.core.package_managers.gomod.resolver.get_golang_version")
 def test_create_modules_from_parsed_data(
     mock_get_golang_version: mock.Mock, tmp_path: Path
 ) -> None:
@@ -629,7 +633,7 @@ def test_package_to_component(package: Package, expected_component: Component) -
 
 
 @pytest.mark.parametrize(("go_mod_rc", "go_list_rc"), ((0, 1), (1, 0)))
-@mock.patch("cachi2.core.package_managers.gomod.get_config")
+@mock.patch("cachi2.core.package_managers.gomod.parser.get_config")
 @mock.patch("subprocess.run")
 def test_go_list_cmd_failure(
     mock_run: mock.Mock,
@@ -660,7 +664,7 @@ def test_go_list_cmd_failure(
         expect_error += ". Cachi2 tried the go mod download -json command 1 times"
 
     with pytest.raises(GoModError, match=expect_error):
-        _resolve_gomod(module_path, gomod_request, tmp_path)
+        resolve_gomod(module_path, gomod_request, tmp_path)
 
 
 def test_deduplicate_resolved_modules():
@@ -840,7 +844,7 @@ def test_get_golang_version(
     if subpath:
         module_dir = module_dir.join_within_root(subpath)
 
-    version = _get_golang_version(module_name, module_dir, ref)
+    version = get_golang_version(module_name, module_dir, ref)
     assert version == expected
 
 
@@ -928,8 +932,8 @@ def test_should_vendor_deps_strict(
 
 @pytest.mark.parametrize("can_make_changes", [True, False])
 @pytest.mark.parametrize("vendor_changed", [True, False])
-@mock.patch("cachi2.core.package_managers.gomod._run_download_cmd")
-@mock.patch("cachi2.core.package_managers.gomod._vendor_changed")
+@mock.patch("cachi2.core.package_managers.gomod.parser._run_download_cmd")
+@mock.patch("cachi2.core.package_managers.gomod.parser._vendor_changed")
 def test_vendor_deps(
     mock_vendor_changed: mock.Mock,
     mock_run_cmd: mock.Mock,
@@ -1122,7 +1126,7 @@ def test_vendor_changed(
 
 
 @pytest.mark.parametrize("tries_needed", [1, 2, 3, 4, 5])
-@mock.patch("cachi2.core.package_managers.gomod.get_config")
+@mock.patch("cachi2.core.package_managers.gomod.parser.get_config")
 @mock.patch("subprocess.run")
 @mock.patch("time.sleep")
 def test_run_download_cmd_success(mock_sleep, mock_run, mock_config, tries_needed, caplog):
@@ -1141,7 +1145,7 @@ def test_run_download_cmd_success(mock_sleep, mock_run, mock_config, tries_neede
         assert f"Backing off run_go(...) for {wait:.1f}s" in caplog.text
 
 
-@mock.patch("cachi2.core.package_managers.gomod.get_config")
+@mock.patch("cachi2.core.package_managers.gomod.parser.get_config")
 @mock.patch("subprocess.run")
 @mock.patch("time.sleep")
 def test_run_download_cmd_failure(mock_sleep, mock_run, mock_config, caplog):
@@ -1213,13 +1217,13 @@ def test_missing_gomod_file(file_tree, tmp_path):
         ),
     ),
 )
-@mock.patch("cachi2.core.package_managers.gomod._create_main_module_from_parsed_data")
-@mock.patch("cachi2.core.package_managers.gomod._get_repository_name")
-@mock.patch("cachi2.core.package_managers.gomod._find_missing_gomod_files")
-@mock.patch("cachi2.core.package_managers.gomod._resolve_gomod")
-@mock.patch("cachi2.core.package_managers.gomod.RequestOutput")
-@mock.patch("cachi2.core.package_managers.gomod.Component")
-@mock.patch("cachi2.core.package_managers.gomod.GoCacheTemporaryDirectory")
+@mock.patch("cachi2.core.package_managers.gomod.resolver._create_main_module_from_parsed_data")
+@mock.patch("cachi2.core.package_managers.gomod.resolver._get_repository_name")
+@mock.patch("cachi2.core.package_managers.gomod.resolver._find_missing_gomod_files")
+@mock.patch("cachi2.core.package_managers.gomod.resolver.resolve_gomod")
+@mock.patch("cachi2.core.package_managers.gomod.resolver.RequestOutput")
+@mock.patch("cachi2.core.package_managers.gomod.resolver.Component")
+@mock.patch("cachi2.core.package_managers.gomod.resolver.GoCacheTemporaryDirectory")
 def test_dep_replacements(
     mock_tmp_dir,
     mock_component,
@@ -1343,10 +1347,10 @@ def test_dep_replacements(
         ),
     ),
 )
-@mock.patch("cachi2.core.package_managers.gomod._get_repository_name")
-@mock.patch("cachi2.core.package_managers.gomod._find_missing_gomod_files")
-@mock.patch("cachi2.core.package_managers.gomod._resolve_gomod")
-@mock.patch("cachi2.core.package_managers.gomod.GoCacheTemporaryDirectory")
+@mock.patch("cachi2.core.package_managers.gomod.resolver._get_repository_name")
+@mock.patch("cachi2.core.package_managers.gomod.resolver._find_missing_gomod_files")
+@mock.patch("cachi2.core.package_managers.gomod.resolver.resolve_gomod")
+@mock.patch("cachi2.core.package_managers.gomod.resolver.GoCacheTemporaryDirectory")
 def test_fetch_gomod_source(
     mock_tmp_dir: mock.Mock,
     mock_resolve_gomod: mock.Mock,
@@ -1397,7 +1401,7 @@ def test_fetch_gomod_source(
         "git@github.com:cachito-testing/gomod-pandemonium.git",
     ),
 )
-@mock.patch("cachi2.core.package_managers.gomod.git.Repo")
+@mock.patch("cachi2.core.package_managers.gomod.resolver.git.Repo")
 def test_get_repository_name(mock_git_repo, input_url):
     expected_url = "github.com/cachito-testing/gomod-pandemonium"
 
