@@ -113,7 +113,6 @@ class Request(pydantic.BaseModel):
     output_dir: RootedPath
     packages: list[PackageInput]
     flags: frozenset[Flag] = frozenset()
-    dep_replacements: tuple[dict, ...] = ()  # TODO: do we want dep replacements at all?
 
     @pydantic.validator("packages")
     def _unique_packages(cls, packages: list[PackageInput]) -> list[PackageInput]:

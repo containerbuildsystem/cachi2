@@ -28,13 +28,7 @@ import semver
 from packageurl import PackageURL
 
 from cachi2.core.config import get_config
-from cachi2.core.errors import (
-    FetchError,
-    GoModError,
-    PackageRejected,
-    UnexpectedFormat,
-    UnsupportedFeature,
-)
+from cachi2.core.errors import FetchError, GoModError, PackageRejected, UnexpectedFormat
 from cachi2.core.models.input import Request
 from cachi2.core.models.output import Component, EnvironmentVariable, RequestOutput
 from cachi2.core.rooted_path import PathOutsideRoot, RootedPath
@@ -284,8 +278,6 @@ def fetch_gomod_source(request: Request) -> RequestOutput:
 
     :param request: the request to process
     :raises PackageRejected: if a file is not present for the gomod package manager
-    :raises UnsupportedFeature: if dependency replacements are provided for
-        a non-single go module path
     :raises GoModError: if failed to fetch gomod dependencies
     """
     version_output = run_cmd(["go", "version"], {})
@@ -306,12 +298,6 @@ def fetch_gomod_source(request: Request) -> RequestOutput:
             f"The go.mod file must be present for the Go module(s) at: {invalid_files_print}",
             solution="Please double-check that you have specified correct paths to your Go modules",
             docs=GOMOD_INPUT_DOC,
-        )
-
-    if len(subpaths) > 1 and request.dep_replacements:
-        raise UnsupportedFeature(
-            "Dependency replacements are only supported for a single go module path.",
-            solution="Dependency replacements are deprecated! Please don't use them.",
         )
 
     env_vars = {
@@ -500,16 +486,6 @@ def _resolve_gomod(
 
     run_params = {"env": env, "cwd": app_dir}
 
-    for dep_replacement in request.dep_replacements:
-        name = dep_replacement["name"]
-        new_name = dep_replacement.get("new_name", name)
-        version = dep_replacement["version"]
-        log.info("Applying the gomod replacement %s => %s@%s", name, new_name, version)
-        _run_gomod_cmd(
-            ("go", "mod", "edit", "-replace", f"{name}={new_name}@{version}"),
-            run_params,
-        )
-
     # Vendor dependencies if the gomod-vendor flag is set
     flags = request.flags
     should_vendor, can_make_changes = _should_vendor_deps(
@@ -525,7 +501,7 @@ def _resolve_gomod(
             for obj in load_json_stream(_run_download_cmd(download_cmd, run_params))
         )
 
-    if "force-gomod-tidy" in flags or request.dep_replacements:
+    if "force-gomod-tidy" in flags:
         _run_gomod_cmd(("go", "mod", "tidy"), run_params)
 
     go_list = ["go", "list", "-e"]
