@@ -14,6 +14,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import IO, TYPE_CHECKING, Any, Iterable, Iterator, Optional
 
+import tomli
+
 from cachi2.core.rooted_path import RootedPath
 
 if TYPE_CHECKING:
@@ -119,19 +121,24 @@ def _get_pip_metadata(package_dir: RootedPath) -> tuple[str, str]:
     name = None
     version = None
 
+    pyproject_toml = PyProjectTOML(package_dir)
     setup_py = SetupPY(package_dir)
     setup_cfg = SetupCFG(package_dir)
 
-    if setup_py.exists():
-        log.info("Extracting metadata from setup.py")
-        name = setup_py.get_name()
-        version = setup_py.get_version()
-    else:
-        log.warning(
-            "No setup.py found in directory %s, package is likely not pip compatible", package_dir
-        )
+    if pyproject_toml.exists():
+        log.info("Extracting metadata from pyproject.toml")
+        if pyproject_toml.check_dynamic_version():
+            log.warning("Parsing dynamic metadata from pyproject.toml is not supported")
 
-    if not (name and version) and setup_cfg.exists():
+        name = pyproject_toml.get_name()
+        version = pyproject_toml.get_version()
+
+    if None in (name, version) and setup_py.exists():
+        log.info("Filling in missing metadata from setup.py")
+        name = name or setup_py.get_name()
+        version = version or setup_py.get_version()
+
+    if None in (name, version) and setup_cfg.exists():
         log.info("Filling in missing metadata from setup.cfg")
         name = name or setup_cfg.get_name()
         version = version or setup_cfg.get_version()
@@ -235,6 +242,53 @@ class SetupFile(ABC):
     @abstractmethod
     def get_version(self) -> Optional[str]:
         """Attempt to determine the package version. Should only be called if file exists."""
+
+
+class PyProjectTOML(SetupFile):
+    """Extract project name and version from a pyproject.toml file."""
+
+    def __init__(self, top_dir: RootedPath) -> None:
+        """
+        Initialize a PyProjectTOML.
+
+        :param top_dir: Path to root of project directory
+        """
+        super().__init__(top_dir, "pyproject.toml")
+
+    def get_name(self) -> Optional[str]:
+        """Get project name if present."""
+        try:
+            return self._parsed_toml["project"]["name"]
+        except KeyError:
+            log.warning("No project.name in pyproject.toml")
+            return None
+
+    def get_version(self) -> Optional[str]:
+        """Get project version if present."""
+        try:
+            return self._parsed_toml["project"]["version"]
+        except KeyError:
+            log.warning("No project.version in pyproject.toml")
+            return None
+
+    def check_dynamic_version(self) -> bool:
+        """Check if project version is set dynamically."""
+        try:
+            dynamic_properties = self._parsed_toml["project"]["dynamic"]
+            return "version" in dynamic_properties
+        except KeyError:
+            return False
+
+    @functools.cached_property
+    def _parsed_toml(self) -> dict[str, Any]:
+        try:
+            with open(self._setup_file, "rb") as f:
+                log.debug("Parsing pyproject.toml at %r", str(self._setup_file))
+                data = tomli.load(f)
+                return data
+        except tomli.TOMLDecodeError as e:
+            log.error("Failed to parse pyproject.toml: %s", e)
+            return {}
 
 
 class SetupCFG(SetupFile):
