@@ -266,7 +266,7 @@ support hashes for git dependencies. Please use https urls instead.*
 
 Cachi2 looks for the name and version of your project in the following project files:
 
-* [pyproject.toml](#pyprojecttoml-pep-621-metadata) (not supported yet!)
+* [pyproject.toml](#pyprojecttoml-pep-621-metadata)
 * [setup.cfg](#setupcfg)
 * [setup.py](#setuppy)
 
@@ -274,9 +274,7 @@ If Cachi2 fails to resolve the necessary metadata, it will refuse to process the
 
 ### pyproject.toml: [PEP 621 metadata](https://packaging.python.org/en/latest/specifications/declaring-project-metadata/)
 
-**⚠ We don't support this yet, sorry!**
-
-To-be-supported cases:
+Supported cases:
 
 ```toml
 [project]

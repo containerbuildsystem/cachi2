@@ -25,6 +25,7 @@ dependencies = [
     "requests",
     "semver",
     "setuptools",
+    "tomli",
     "typer",
 ]
 

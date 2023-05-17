@@ -43,6 +43,9 @@ def rooted_tmp_path(tmp_path: Path) -> RootedPath:
     return RootedPath(tmp_path)
 
 
+@pytest.mark.parametrize("toml_exists", [True, False])
+@pytest.mark.parametrize("toml_name", ["name_in_pyproject_toml", None])
+@pytest.mark.parametrize("toml_version", ["version_in_pyproject_toml", None])
 @pytest.mark.parametrize("py_exists", [True, False])
 @pytest.mark.parametrize("py_name", ["name_in_setup_py", None])
 @pytest.mark.parametrize("py_version", ["version_in_setup_py", None])
@@ -51,9 +54,14 @@ def rooted_tmp_path(tmp_path: Path) -> RootedPath:
 @pytest.mark.parametrize("cfg_version", ["version_in_setup_cfg", None])
 @mock.patch("cachi2.core.package_managers.pip.SetupCFG")
 @mock.patch("cachi2.core.package_managers.pip.SetupPY")
+@mock.patch("cachi2.core.package_managers.pip.PyProjectTOML")
 def test_get_pip_metadata(
+    mock_pyproject_toml: mock.Mock,
     mock_setup_py: mock.Mock,
     mock_setup_cfg: mock.Mock,
+    toml_exists: bool,
+    toml_name: Optional[str],
+    toml_version: Optional[str],
     py_exists: bool,
     py_name: Optional[str],
     py_version: Optional[str],
@@ -65,14 +73,22 @@ def test_get_pip_metadata(
     """
     Test get_pip_metadata() function.
 
-    More thorough tests of setup.py and setup.cfg handling are in their respective classes.
+    More thorough tests of pyproject.toml, setup.py and setup.cfg handling are in their respective classes.
     """
+    if not toml_exists:
+        toml_name = None
+        toml_version = None
     if not py_exists:
         py_name = None
         py_version = None
     if not cfg_exists:
         cfg_name = None
         cfg_version = None
+
+    pyproject_toml = mock_pyproject_toml.return_value
+    pyproject_toml.exists.return_value = toml_exists
+    pyproject_toml.get_name.return_value = toml_name
+    pyproject_toml.get_version.return_value = toml_version
 
     setup_py = mock_setup_py.return_value
     setup_py.exists.return_value = py_exists
@@ -84,8 +100,8 @@ def test_get_pip_metadata(
     setup_cfg.get_name.return_value = cfg_name
     setup_cfg.get_version.return_value = cfg_version
 
-    expect_name = py_name or cfg_name
-    expect_version = py_version or cfg_version
+    expect_name = toml_name or py_name or cfg_name
+    expect_version = toml_version or py_version or cfg_version
 
     if expect_name and expect_version:
         name, version = pip._get_pip_metadata(PKG_DIR)
@@ -105,27 +121,232 @@ def test_get_pip_metadata(
 
         assert str(exc_info.value) == f"Could not resolve package metadata: {missing}"
 
-    assert setup_py.get_name.called == py_exists
-    assert setup_py.get_version.called == py_exists
+    assert pyproject_toml.get_name.called == toml_exists
+    assert pyproject_toml.get_version.called == toml_exists
 
-    assert setup_cfg.get_name.called == (py_name is None and cfg_exists)
-    assert setup_cfg.get_version.called == (py_version is None and cfg_exists)
+    find_name_in_setup_py = toml_name is None and py_exists
+    find_version_in_setup_py = toml_version is None and py_exists
+    find_name_in_setup_cfg = toml_name is None and py_name is None and cfg_exists
+    find_version_in_setup_cfg = toml_version is None and py_version is None and cfg_exists
 
-    if py_exists:
-        assert "Extracting metadata from setup.py" in caplog.text
-    else:
-        assert (
-            f"No setup.py found in directory {PKG_DIR}, package is likely not pip compatible"
-            in caplog.text
-        )
+    assert setup_py.get_name.called == find_name_in_setup_py
+    assert setup_py.get_version.called == find_version_in_setup_py
 
-    if not (py_name and py_version) and cfg_exists:
+    assert setup_cfg.get_name.called == find_name_in_setup_cfg
+    assert setup_cfg.get_version.called == find_version_in_setup_cfg
+
+    if toml_exists:
+        assert "Extracting metadata from pyproject.toml" in caplog.text
+
+    if find_name_in_setup_py or find_version_in_setup_py:
+        assert "Filling in missing metadata from setup.py" in caplog.text
+
+    if find_name_in_setup_cfg or find_version_in_setup_cfg:
         assert "Filling in missing metadata from setup.cfg" in caplog.text
 
     if expect_name:
         assert f"Resolved package name: '{expect_name}'" in caplog.text
     if expect_version:
         assert f"Resolved package version: '{expect_version}'" in caplog.text
+
+
+class TestPyprojectTOML:
+    """PyProjectTOML tests."""
+
+    @pytest.mark.parametrize("exists", [True, False])
+    def test_exists(self, exists: bool, rooted_tmp_path: RootedPath) -> None:
+        if exists:
+            rooted_tmp_path.join_within_root("pyproject.toml").path.write_text("")
+
+        pyproject_toml = pip.PyProjectTOML(rooted_tmp_path)
+        assert pyproject_toml.exists() == exists
+
+    def _assert_has_logs(
+        self, expect_logs: list[str], tmpdir: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        for log in expect_logs:
+            assert log.format(tmpdir=tmpdir) in caplog.text
+
+    @pytest.mark.parametrize(
+        "toml_content, expect_logs",
+        [
+            (
+                dedent(
+                    """\
+                [project]
+                name = "my-package"
+                dynamic = ["version", "readme"]
+                description = "A short description of the package."
+                license = "MIT"
+                """
+                ),
+                [
+                    "Parsing pyproject.toml at '{tmpdir}/pyproject.toml'",
+                ],
+            )
+        ],
+    )
+    def test_check_dynamic_version(
+        self,
+        toml_content: str,
+        expect_logs: list[str],
+        rooted_tmp_path: RootedPath,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """Test check_dynamic_version() method."""
+        pyproject_toml = rooted_tmp_path.join_within_root("pyproject.toml")
+        pyproject_toml.path.write_text(toml_content)
+
+        assert pip.PyProjectTOML(rooted_tmp_path).check_dynamic_version()
+        self._assert_has_logs(expect_logs, rooted_tmp_path.path, caplog)
+
+    @pytest.mark.parametrize(
+        "toml_content, expect_name, expect_logs",
+        [
+            (
+                "",
+                None,
+                [
+                    "Parsing pyproject.toml at '{tmpdir}/pyproject.toml'",
+                    "No project.name in pyproject.toml",
+                ],
+            ),
+            (
+                dedent(
+                    """\
+                    [project]
+                    name
+                    version = "0.1.0"
+                    description = "A short description of the package."
+                    license = "MIT"
+                    """
+                ),
+                None,
+                [
+                    "Parsing pyproject.toml at '{tmpdir}/pyproject.toml'",
+                    "Failed to parse pyproject.toml: ",
+                ],
+            ),
+            (
+                dedent(
+                    """\
+                    [project]
+                    name = "my-package"
+                    version = "0.1.0"
+                    description = "A short description of the package."
+                    license = "MIT"
+                    """
+                ),
+                "my-package",
+                [
+                    "Parsing pyproject.toml at '{tmpdir}/pyproject.toml'",
+                ],
+            ),
+            (
+                dedent(
+                    """\
+                    [project]
+                    version = "0.1.0"
+                    description = "A short description of the package."
+                    license = "MIT"
+                    """
+                ),
+                None,
+                [
+                    "Parsing pyproject.toml at '{tmpdir}/pyproject.toml'",
+                    "No project.name in pyproject.toml",
+                ],
+            ),
+        ],
+    )
+    def test_get_name(
+        self,
+        toml_content: str,
+        expect_name: Optional[str],
+        expect_logs: list[str],
+        rooted_tmp_path: RootedPath,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """Test get_name() method."""
+        pyproject_toml = rooted_tmp_path.join_within_root("pyproject.toml")
+        pyproject_toml.path.write_text(toml_content)
+
+        assert pip.PyProjectTOML(rooted_tmp_path).get_name() == expect_name
+        self._assert_has_logs(expect_logs, rooted_tmp_path.path, caplog)
+
+    @pytest.mark.parametrize(
+        "toml_content, expect_version, expect_logs",
+        [
+            (
+                "",
+                None,
+                [
+                    "Parsing pyproject.toml at '{tmpdir}/pyproject.toml'",
+                    "No project.version in pyproject.toml",
+                ],
+            ),
+            (
+                dedent(
+                    """\
+                    [project]
+                    name = "my-package"
+                    version = 0.1.0
+                    description = "A short description of the package."
+                    license = "MIT"
+                    """
+                ),
+                None,
+                [
+                    "Parsing pyproject.toml at '{tmpdir}/pyproject.toml'",
+                    "Failed to parse pyproject.toml: ",
+                ],
+            ),
+            (
+                dedent(
+                    """\
+                    [project]
+                    name = "my-package"
+                    version = "0.1.0"
+                    description = "A short description of the package."
+                    license = "MIT"
+                    """
+                ),
+                "0.1.0",
+                [
+                    "Parsing pyproject.toml at '{tmpdir}/pyproject.toml'",
+                ],
+            ),
+            (
+                dedent(
+                    """\
+                    [project]
+                    name = "my-package"
+                    description = "A short description of the package."
+                    license = "MIT"
+                    """
+                ),
+                None,
+                [
+                    "Parsing pyproject.toml at '{tmpdir}/pyproject.toml'",
+                    "No project.version in pyproject.toml",
+                ],
+            ),
+        ],
+    )
+    def test_get_version(
+        self,
+        toml_content: str,
+        expect_version: Optional[str],
+        expect_logs: list[str],
+        rooted_tmp_path: RootedPath,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """Test get_version() method."""
+        pyproject_toml = rooted_tmp_path.join_within_root("pyproject.toml")
+        pyproject_toml.path.write_text(toml_content)
+
+        assert pip.PyProjectTOML(rooted_tmp_path).get_version() == expect_version
+        self._assert_has_logs(expect_logs, rooted_tmp_path.path, caplog)
 
 
 class TestSetupCFG:
