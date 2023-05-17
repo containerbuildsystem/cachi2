@@ -144,7 +144,6 @@ class TestRequest:
                 PipPackageInput(type="pip", requirements_build_files=[]),
             ],
             "flags": frozenset(),
-            "dep_replacements": (),
         }
         assert isinstance(request.source_dir, RootedPath)
         assert isinstance(request.output_dir, RootedPath)
