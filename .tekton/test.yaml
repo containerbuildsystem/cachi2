@@ -1,0 +1,54 @@
+---
+apiVersion: tekton.dev/v1beta1
+kind: PipelineRun
+metadata:
+  name: cachi2-acmiel-test
+  annotations:
+    build.appstudio.redhat.com/commit_sha: "{{revision}}"
+    build.appstudio.redhat.com/pull_request_number: "{{pull_request_number}}"
+    build.appstudio.redhat.com/target_branch: "{{target_branch}}"
+    pipelinesascode.tekton.dev/max-keep-runs: "1"
+    pipelinesascode.tekton.dev/on-event: "[pull_request]"
+    pipelinesascode.tekton.dev/on-target-branch: "[main]"
+spec:
+  pipelineSpec:
+    tasks:
+      - name: test
+        workspaces:
+          - name: workspace
+            workspace: workspace
+        taskSpec:
+          workspaces:
+            - name: workspace
+          steps:
+            - name: test
+              image: registry.access.redhat.com/ubi9/python-39
+              script: |
+                #!/usr/bin/env bash
+                set -o errexit -o nounset -o pipefail -o xtrace
+
+                cd /tmp
+                python -m venv venv
+                source venv/bin/activate
+                pip install 'cachi2 @ git+https://github.com/chmeliik/cachi2@wheelios'
+
+                cd $(workspaces.workspace.path)
+                df -h ..
+                df -h .
+
+                echo 'torch==2.0.1' > requirements.txt
+                echo 'setup(name="foo", version="0.1.0")' > setup.py
+
+                cachi2 --log-level=debug fetch-deps pip || true
+
+                ls -lh cachi2-output/deps/pip
+                df -h .
+  workspaces:
+    - name: workspace
+      volumeClaimTemplate:
+        spec:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 1Gi
