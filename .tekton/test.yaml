@@ -21,28 +21,51 @@ spec:
           workspaces:
             - name: workspace
           steps:
-            - name: test
+            #- name: test
+            #  image: registry.access.redhat.com/ubi9/python-39
+            #  script: |
+            #    #!/usr/bin/env bash
+            #    set -o errexit -o nounset -o pipefail -o xtrace
+
+            #    cd /tmp
+            #    python -m venv venv
+            #    source venv/bin/activate
+            #    pip install 'cachi2 @ git+https://github.com/chmeliik/cachi2@wheelios'
+
+            #    cd $(workspaces.workspace.path)
+            #    df -h ..
+            #    df -h .
+
+            #    echo 'torch==2.0.1' > requirements.txt
+            #    echo 'setup(name="foo", version="0.1.0")' > setup.py
+
+            #    cachi2 --log-level=debug fetch-deps pip || true
+
+            #    ls -lh cachi2-output/deps/pip
+            #    df -h .
+            - name: test2
               image: registry.access.redhat.com/ubi9/python-39
+              workingDir: $(workspaces.workspace.path)
               script: |
                 #!/usr/bin/env bash
                 set -o errexit -o nounset -o pipefail -o xtrace
 
-                cd /tmp
-                python -m venv venv
+                git clone https://github.com/chmeliik/wheelios.git
+                cd wheelios
+
+                make venv
+                make submodules
+
                 source venv/bin/activate
-                pip install 'cachi2 @ git+https://github.com/chmeliik/cachi2@wheelios'
 
-                cd $(workspaces.workspace.path)
-                df -h ..
-                df -h .
+                time ./prefetch.sh repos/atomic-reactor-wheels
+                time ./prefetch.sh repos/atomic-reactor-sdists
 
-                echo 'torch==2.0.1' > requirements.txt
-                echo 'setup(name="foo", version="0.1.0")' > setup.py
+                time ./prefetch.sh repos/cachi2-wheels
+                time ./prefetch.sh repos/cachi2-sdists
 
-                cachi2 --log-level=debug fetch-deps pip || true
-
-                ls -lh cachi2-output/deps/pip
-                df -h .
+                time ./prefetch.sh repos/dashdotdb-wheels
+                time ./prefetch.sh repos/dashdotdb-sdists
   workspaces:
     - name: workspace
       volumeClaimTemplate:
@@ -51,4 +74,4 @@ spec:
             - ReadWriteOnce
           resources:
             requests:
-              storage: 100Gi
+              storage: 10Gi
