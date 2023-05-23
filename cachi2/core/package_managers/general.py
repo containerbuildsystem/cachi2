@@ -1,16 +1,28 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-import urllib
+import asyncio
+import logging
+import types
+from os import PathLike
 from pathlib import Path
-from typing import Any, Optional, Union
+from typing import Any, Dict, Optional, Set, Union
+from urllib.parse import urlparse
 
+import aiohttp
+import aiohttp_retry
 import requests
 from requests.auth import AuthBase
 
 from cachi2.core.config import get_config
 from cachi2.core.errors import FetchError
-from cachi2.core.http_requests import SAFE_REQUEST_METHODS, get_requests_session
+from cachi2.core.http_requests import (
+    DEFAULT_RETRY_OPTIONS,
+    SAFE_REQUEST_METHODS,
+    get_requests_session,
+)
 
 pkg_requests_session = get_requests_session(retry_options={"allowed_methods": SAFE_REQUEST_METHODS})
+
+log = logging.getLogger(__name__)
 
 
 def download_binary_file(
@@ -44,6 +56,93 @@ def download_binary_file(
             f.write(chunk)
 
 
+async def _async_download_binary_file(
+    session: aiohttp_retry.RetryClient,
+    url: str,
+    download_path: Union[str, PathLike[str]],
+    auth: Optional[aiohttp.BasicAuth] = None,
+    chunk_size: int = 8192,
+) -> None:
+    """
+    Download a binary file (such as a TAR archive) from a URL using asyncio.
+
+    :param aiohttp_retry.RetryClient session: Aiohttp interface for making HTTP requests.
+    :param str url: URL for file download
+    :param str download_path: File path location
+    :param aiohttp.BasicAuth auth: Authentication for the URL
+    :param int chunk_size: Chunk size param for Response.content.read()
+    :raise FetchError: If download failed
+    """
+    try:
+        async with session.get(url, auth=auth, raise_for_status=True) as resp:
+            with open(download_path, "wb") as f:
+                while True:
+                    chunk = await resp.content.read(chunk_size)
+                    if not chunk:
+                        break
+                    f.write(chunk)
+
+    except Exception as exception:
+        log.error(f"Unsuccessful download: {url}")
+        # "from None" since we have the exception context in the logs
+        raise FetchError(
+            (f"exception_name: {exception.__class__.__name__}, " f"details: {exception}")
+        ) from None
+
+    log.debug(f"Download completed - {url}")
+
+
+async def async_download_files(
+    files_to_download: Dict[str, Union[str, PathLike[str]]],
+    concurrency_limit: int,
+) -> None:
+    """Asynchronous function to download files.
+
+    :param files_to_download: Dict of files to download with file paths
+    :param concurrency_limit: Max number of concurrent tasks (downloads).
+    """
+
+    async def on_request_start(
+        session: aiohttp.ClientSession,
+        trace_config_ctx: types.SimpleNamespace,
+        params: aiohttp.TraceRequestStartParams,
+    ) -> None:
+        current_attempt = trace_config_ctx.trace_request_ctx["current_attempt"]
+        if current_attempt > 1:
+            file_name = params.url.path.split("/")[-1]
+            log.debug(f"Attempt {current_attempt}/{retry_options.attempts} - {file_name}")
+
+    trace_config = aiohttp.TraceConfig()
+    trace_config.on_request_start.append(on_request_start)
+    num_attempts: int = int(DEFAULT_RETRY_OPTIONS["total"])
+    retry_options = aiohttp_retry.JitterRetry(attempts=num_attempts, retry_all_server_errors=True)
+    retry_client = aiohttp_retry.RetryClient(
+        retry_options=retry_options, trace_configs=[trace_config]
+    )
+
+    async with retry_client as session:
+        tasks: Set[asyncio.Task] = set()
+
+        for url, download_path in files_to_download.items():
+            if len(tasks) >= concurrency_limit:
+                # Wait for some download to finish before adding a new one
+                done, tasks = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+                # Check for exceptions
+                try:
+                    await asyncio.gather(*done)
+                except FetchError:
+                    # Close retry_client if any request fails (other tasks can be running,
+                    # if a task is closed with the client open, an Warning is raised).
+                    await retry_client.close()
+                    for t in tasks:
+                        t.cancel()
+                    raise
+
+            tasks.add(asyncio.create_task(_async_download_binary_file(session, url, download_path)))
+
+        await asyncio.gather(*tasks)
+
+
 def extract_git_info(vcs_url: str) -> dict[str, Any]:
     """
     Extract important info from a VCS requirement URL.
@@ -65,7 +164,7 @@ def extract_git_info(vcs_url: str) -> dict[str, Any]:
     if vcs_url.startswith("git+"):
         vcs_url = vcs_url[len("git+") :]
 
-    url = urllib.parse.urlparse(vcs_url)
+    url = urlparse(vcs_url)
 
     ref = url.path[-40:]  # Take the last 40 characters (the git ref)
     clean_path = url.path[:-41]  # Drop the last 41 characters ('@' + git ref)
