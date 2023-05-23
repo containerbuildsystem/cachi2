@@ -1,12 +1,18 @@
+import asyncio
 import json
 import logging
+import os
 from pathlib import Path
-from typing import Any, Iterator, TypedDict
+from typing import Any, Dict, Iterator, Optional, TypedDict
+from urllib.parse import urlparse
 
-from cachi2.core.errors import PackageRejected, UnsupportedFeature
+from cachi2.core.checksum import ChecksumInfo, must_match_any_checksum
+from cachi2.core.errors import PackageRejected, UnexpectedFormat, UnsupportedFeature
 from cachi2.core.models.input import Request
 from cachi2.core.models.output import Component, ProjectFile, RequestOutput
+from cachi2.core.package_managers.general import async_download_files
 from cachi2.core.rooted_path import RootedPath
+from cachi2.core.scm import clone_as_tarball
 
 log = logging.getLogger(__name__)
 
@@ -17,6 +23,7 @@ class ResolvedNpmPackage(TypedDict):
     package: dict[str, str]
     dependencies: list[dict[str, str]]
     package_lock_file: ProjectFile
+    dependencies_to_download: Dict[str, Dict[str, Any]]
 
 
 class Package:
@@ -33,6 +40,11 @@ class Package:
         self.name = name
         self.path = path
         self._package_dict = package_dict
+
+    @property
+    def integrity(self) -> Optional[str]:
+        """Get the package integrity."""
+        return self._package_dict.get("integrity")
 
     @property
     def version(self) -> str:
@@ -173,6 +185,189 @@ class PackageLock:
         packages = self._dependencies if self.lockfile_version == 1 else self._packages
         return [{"name": package.name, "version": package.version} for package in packages]
 
+    def get_dependencies_to_download(self) -> Dict[str, Dict[str, Optional[str]]]:
+        """Return a Dict of URL dependencies to download."""
+        packages = self._dependencies if self.lockfile_version == 1 else self._packages
+        return {
+            package.resolved_url: {
+                "version": package.version,
+                "name": package.name,
+                "integrity": package.integrity,
+            }
+            for package in packages
+            if "file:" not in package.resolved_url
+        }
+
+
+def _update_vcs_url_with_full_hostname(vcs: str) -> str:
+    """Update VCS URL with full hostname.
+
+    Transform github:kevva/is-positive#97edff6
+    into git+ssh://github.com/kevva/is-positive.git#97edff6
+
+    :param vcs: VCS URL to be modified with full hostname and file extension
+    :return: Updated VCS URL
+    """
+    host, _, path = vcs.partition(":")
+    namespace_repo, _, ref = path.partition("#")
+    suffix_domain = "org" if host == "bitbucket" else "com"
+
+    vcs = f"git+ssh://{host}.{suffix_domain}/{namespace_repo}.git"
+    if ref:
+        vcs = f"{vcs}#{ref}"
+    return vcs
+
+
+def _extract_git_info_npm(vcs_url: str) -> Dict[str, str]:
+    """
+    Extract important info from a VCS requirement URL.
+
+    Given a URL such as git+ssh://user@host/namespace/repo.git#9e164b970
+
+    this function will extract:
+    - the "clean" URL: ssh://user@host/namespace/repo.git
+    - the git ref: 9e164b970
+
+    The clean URL and ref can be passed straight to scm.Git to fetch the repo.
+    The host, namespace and repo will be used to construct the file path under deps/npm.
+
+    :param vcs_url: The URL of a VCS requirement, must be valid (have git ref in path)
+    :return: Dict with url, ref, host, namespace and repo keys
+    """
+    # If scheme is git+protocol://, keep only protocol://
+    # Do this before parsing URL, otherwise urllib may not extract URL params
+    if vcs_url.startswith("git+"):
+        vcs_url = vcs_url[len("git+") :]
+
+    clean_url, _, ref = vcs_url.partition("#")
+
+    url = urlparse(clean_url)
+    namespace_repo = url.path.strip("/")
+    if namespace_repo.endswith(".git"):
+        namespace_repo = namespace_repo[: -len(".git")]
+
+    # Everything up to the last '/' is namespace, the rest is repo
+    namespace, _, repo = namespace_repo.partition("/")
+
+    vcs_url_info = {
+        "url": clean_url,
+        "ref": ref.lower(),
+        "namespace": namespace,
+        "repo": repo,
+    }
+
+    for key, value in vcs_url_info.items():
+        if not value:
+            raise UnexpectedFormat(f"{vcs_url} is not valid VCS url. {key} is missing.")
+
+    if url.hostname:
+        vcs_url_info["host"] = url.hostname
+    else:
+        raise UnexpectedFormat(f"{vcs_url} is not valid VCS url. Host is missing.")
+
+    return vcs_url_info
+
+
+def _clone_repo_pack_archive(
+    vcs: str,
+    download_dir: RootedPath,
+) -> RootedPath:
+    """
+    Clone a repository and pack its content as tar.
+
+    :param url: URL for file download
+    :param download_dir: Output folder where dependencies will be downloaded
+    :raise FetchError: If download failed
+    """
+    info = _extract_git_info_npm(vcs)
+    download_path = download_dir.join_within_root(
+        info["host"],  # host
+        info["namespace"],
+        info["repo"],
+        f'{info["repo"]}-external-gitcommit-{info["ref"]}.tgz',
+    )
+
+    # Create missing directories
+    directory = os.path.dirname(download_path)
+    os.makedirs(directory, exist_ok=True)
+    clone_as_tarball(info["url"], info["ref"], download_path.path)
+
+    return download_path
+
+
+def _get_npm_dependencies(
+    download_dir: RootedPath, deps_to_download: Dict[str, Dict[str, str]]
+) -> Dict[str, RootedPath]:
+    """
+    Download npm dependencies.
+
+    Receives the destination directory (download_dir)
+    and the dependencies to be downloaded (deps_to_download).
+
+    :param download_dir: Destination directory path where deps will be downloaded
+    :param deps_to_download: Dict of dependencies to be downloaded.
+    :return: Dictionary of Resolved URL dependencies with downloaded paths
+    """
+    files_to_download: dict[str, dict[str, Any]] = {}
+    download_paths = {}
+    for url, info in deps_to_download.items():
+        if url.startswith("github:") or url.startswith("gitlab:") or url.startswith("bitbucket:"):
+            url = _update_vcs_url_with_full_hostname(url)
+
+        if url.startswith("git+"):
+            # Git source
+            download_paths[url] = _clone_repo_pack_archive(url, download_dir)
+        else:
+            if "registry.npmjs.org" == urlparse(url).hostname:
+                # Tar archive from npm registry
+                archive_name = f'{info["name"]}-{info["version"]}.tgz'.removeprefix("@").replace(
+                    "/", "-"
+                )
+                download_paths[url] = download_dir.join_within_root(archive_name)
+            else:
+                # Tar archive
+                if info["integrity"]:
+                    algorithm, digest = ChecksumInfo.from_sri(info["integrity"])
+                else:
+                    raise PackageRejected(
+                        f"{info['name']} is missing integrity checksum. It is mandatory"
+                        f"for https dependencies.",
+                        solution="Please double-check provided package-lock.json that"
+                        " your dependencies specify integrity. Try to "
+                        "rerun `npm install` on your repository.",
+                    )
+                download_paths[url] = download_dir.join_within_root(
+                    f"external-{info['name']}",
+                    f"{info['name']}-external-{algorithm}-{digest}.tgz",
+                )
+
+                # Create missing directories
+                directory = os.path.dirname(download_paths[url])
+                os.makedirs(directory, exist_ok=True)
+
+            files_to_download[url] = {
+                "download_path": download_paths[url],
+                "integrity": info["integrity"],
+            }
+
+    # Asynchronously download tar files
+    asyncio.run(
+        async_download_files(
+            {url: item["download_path"] for (url, item) in files_to_download.items()}, 5
+        )
+    )
+
+    # Check integrity of downloaded packages
+    for url, item in files_to_download.items():
+        if item["integrity"]:
+            must_match_any_checksum(
+                item["download_path"], [ChecksumInfo.from_sri(str(item["integrity"]))]
+            )
+        else:
+            log.warning("Missing integrity for %s, integrity check skipped.", url)
+
+    return download_paths
+
 
 def fetch_npm_source(request: Request) -> RequestOutput:
     """Resolve and fetch npm dependencies for the given request.
@@ -191,6 +386,13 @@ def fetch_npm_source(request: Request) -> RequestOutput:
 
         for dependency in info["dependencies"]:
             components.append(Component.from_package_dict(dependency))
+
+        npm_deps_dir = request.output_dir.join_within_root("deps", "npm")
+        npm_deps_dir.path.mkdir(parents=True, exist_ok=True)
+
+        # Download dependencies via resolved URLs and return download_paths for updating
+        # package-lock.json with local file paths
+        _get_npm_dependencies(npm_deps_dir, info["dependencies_to_download"])
 
     return RequestOutput.from_obj_list(
         components=components,
@@ -229,4 +431,5 @@ def _resolve_npm(pkg_path: RootedPath) -> ResolvedNpmPackage:
         "package": package_lock.main_package,
         "dependencies": package_lock.get_sbom_components(),
         "package_lock_file": package_lock.get_project_file(),
+        "dependencies_to_download": package_lock.get_dependencies_to_download(),
     }

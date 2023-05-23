@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 import logging
-from typing import Optional
+from typing import Any, Dict, Optional
 
 import requests
 from requests import Session
@@ -15,7 +15,7 @@ ALL_REQUEST_METHODS = frozenset(
 )
 # The set includes only methods which don't modify state of the service.
 SAFE_REQUEST_METHODS = frozenset({"GET", "HEAD", "OPTIONS", "TRACE"})
-DEFAULT_RETRY_OPTIONS = {
+DEFAULT_RETRY_OPTIONS: Dict[str, Any] = {
     "total": 5,
     "read": 5,
     "connect": 5,
