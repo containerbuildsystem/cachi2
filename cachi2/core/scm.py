@@ -85,32 +85,43 @@ def clone_as_tarball(url: str, ref: str, to_path: Path) -> None:
     :param ref: the revision to check out
     :param to_path: create the tarball at this path
     """
+    list_url = [url]
+    # Fallback to `https` if cloning source via ssh fails
+    if "ssh://" in url:
+        list_url.append(url.replace("ssh://", "https://"))
+
     with tempfile.TemporaryDirectory(prefix="cachito-") as temp_dir:
-        log.debug("Cloning the Git repository from %s", url)
-        try:
-            repo = Repo.clone_from(
-                url,
-                temp_dir,
-                no_checkout=True,
-                filter="blob:none",
-                # Don't allow git to prompt for a username if we don't have access
-                env={"GIT_TERMINAL_PROMPT": "0"},
-            )
-        except Exception as ex:
-            log.exception(
-                "Failed cloning the Git repository from %s, ref: %s, exception: %s",
-                url,
-                ref,
-                type(ex).__name__,
-            )
-            raise FetchError("Failed cloning the Git repository")
+        for url in list_url:
+            log.debug("Cloning the Git repository from %s", url)
+            try:
+                repo = Repo.clone_from(
+                    url,
+                    temp_dir,
+                    no_checkout=True,
+                    filter="blob:none",
+                    # Don't allow git to prompt for a username if we don't have access
+                    env={"GIT_TERMINAL_PROMPT": "0"},
+                )
+            except Exception as ex:
+                log.warning(
+                    "Failed cloning the Git repository from %s, ref: %s, exception: %s, exception-msg: %s",
+                    url,
+                    ref,
+                    type(ex).__name__,
+                    str(ex),
+                )
+                continue
 
-        _reset_git_head(repo, ref)
+            _reset_git_head(repo, ref)
 
-        with tarfile.open(to_path, mode="w:gz") as archive:
-            # GitPython wrongly annotates working_dir as Optional, it cannot be None
-            assert repo.working_dir is not None  # nosec assert_used
-            archive.add(repo.working_dir, "app")
+            with tarfile.open(to_path, mode="w:gz") as archive:
+                # GitPython wrongly annotates working_dir as Optional, it cannot be None
+                assert repo.working_dir is not None  # nosec assert_used
+                archive.add(repo.working_dir, "app")
+
+            return
+
+    raise FetchError("Failed cloning the Git repository")
 
 
 def _reset_git_head(repo: Repo, ref: str) -> None:
