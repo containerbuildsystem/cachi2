@@ -150,7 +150,7 @@ def _calculate_files_checksums_in_dir(root_dir: Path) -> Dict:
 
 def _get_git_commit_from_tarball(tarball: Path) -> str:
     with TarFile.open(tarball, "r:gz") as tarfile:
-        extract_path = str(tarball).replace(".tar.gz", "")
+        extract_path = str(tarball).replace(".tar.gz", "").replace(".tgz", "")
         _safe_extract(tarfile, extract_path)
 
     repo = Repo(path=f"{extract_path}/app")
