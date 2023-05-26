@@ -145,3 +145,45 @@ def test_verify_checksum_failure(
 
     expect_messages = [f"spells.txt: {msg}" for msg in expect_log_msgs]
     assert caplog.messages == expect_messages
+
+
+@pytest.mark.parametrize(
+    "checksum, algorithm, expected",
+    [
+        (
+            (
+                "325f07861e0ab888d90606b1074fde956fd3954dcc4c6e418dbff9d8aa8342b5507481408832bfaac"
+                "8e48f344dc650c8df0f8182c0271ed9fa233aa32c329839"
+            ),
+            "sha512",
+            (
+                "sha512-Ml8Hhh4KuIjZBgaxB0/elW/TlU3MTG5Bjb/52KqDQrVQdIFAiDK/qsjkjzRNxlDI3w+BgsAnHt"
+                "n6IzqjLDKYOQ=="
+            ),
+        ),
+        ("a" * 40, "sha1", "sha1-qqqqqqqqqqqqqqqqqqqqqqqqqqo="),
+    ],
+)
+def test_convert_hex_checksum_to_sri(checksum: str, algorithm: str, expected: str) -> None:
+    assert ChecksumInfo(algorithm, checksum).to_sri() == expected
+
+
+@pytest.mark.parametrize(
+    "integrity, algorithm, expected",
+    [
+        (
+            (
+                "sha512-Ml8Hhh4KuIjZBgaxB0/elW/TlU3MTG5Bjb/52KqDQrVQdIFAiDK/qsjkjzRNxlDI3w+BgsAnHtn6Izqj"
+                "LDKYOQ=="
+            ),
+            "sha512",
+            (
+                "325f07861e0ab888d90606b1074fde956fd3954dcc4c6e418dbff9d8aa8342b5507481408832bfaac8e48f344"
+                "dc650c8df0f8182c0271ed9fa233aa32c329839"
+            ),
+        ),
+    ],
+)
+def test_convert_sri_to_hex_checksum(integrity: str, algorithm: str, expected: str) -> None:
+    rv = ChecksumInfo.from_sri(integrity)
+    assert rv.hexdigest == expected

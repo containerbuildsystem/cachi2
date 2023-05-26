@@ -1,13 +1,21 @@
 import json
-from typing import Any, Union
+from typing import Any, Dict, Union
 from unittest import mock
 
 import pytest
 
-from cachi2.core.errors import PackageRejected, UnsupportedFeature
+from cachi2.core.errors import PackageRejected, UnexpectedFormat, UnsupportedFeature
 from cachi2.core.models.input import Request
 from cachi2.core.models.output import Component, ProjectFile, RequestOutput
-from cachi2.core.package_managers.npm import Package, PackageLock, _resolve_npm, fetch_npm_source
+from cachi2.core.package_managers.npm import (
+    Package,
+    PackageLock,
+    _clone_repo_pack_archive,
+    _extract_git_info_npm,
+    _resolve_npm,
+    _update_vcs_url_with_full_hostname,
+    fetch_npm_source,
+)
 from cachi2.core.rooted_path import RootedPath
 
 
@@ -291,6 +299,7 @@ class TestPackageLock:
                 {
                     "package": {"name": "foo", "version": "1.0.0"},
                     "dependencies": [{"name": "bar", "version": "2.0.0"}],
+                    "dependencies_to_download": {},
                     "package_lock_file": ProjectFile(abspath="/some/path", template="some text"),
                 },
             ],
@@ -312,11 +321,13 @@ class TestPackageLock:
                 {
                     "package": {"name": "foo", "version": "1.0.0"},
                     "dependencies": [{"name": "bar", "version": "2.0.0"}],
+                    "dependencies_to_download": {},
                     "package_lock_file": ProjectFile(abspath="/some/path", template="some text"),
                 },
                 {
                     "package": {"name": "spam", "version": "3.0.0"},
                     "dependencies": [{"name": "eggs", "version": "4.0.0"}],
+                    "dependencies_to_download": {},
                     "package_lock_file": ProjectFile(
                         abspath="/some/other/path", template="some other text"
                     ),
@@ -386,12 +397,20 @@ def test_resolve_npm_no_lock(
                     "bar": {
                         "version": "2.0.0",
                         "resolved": "https://some.registry.org/bar/-/bar-2.0.0.tgz",
+                        "integrity": "sha512-JCB8C6SnDoQf",
                     },
                 },
             },
             {
                 "package": {"name": "foo", "version": "1.0.0"},
                 "dependencies": [{"name": "bar", "version": "2.0.0"}],
+                "dependencies_to_download": {
+                    "https://some.registry.org/bar/-/bar-2.0.0.tgz": {
+                        "integrity": "sha512-JCB8C6SnDoQf",
+                        "name": "bar",
+                        "version": "2.0.0",
+                    },
+                },
             },
             id="npm_v1_lockfile",
         ),
@@ -404,10 +423,12 @@ def test_resolve_npm_no_lock(
                     "bar": {
                         "version": "2.0.0",
                         "resolved": "https://some.registry.org/bar/-/bar-2.0.0.tgz",
+                        "integrity": "sha512-JCB8C6SnDoQf",
                         "dependencies": {
-                            "baz": {
+                            "bar": {
                                 "version": "3.0.0",
-                                "resolved": "https://some.registry.org/baz/-/baz-3.0.0.tgz",
+                                "resolved": "https://some.registry.org/bar/-/bar-3.0.0.tgz",
+                                "integrity": "sha512-YOLOYOLO",
                             },
                         },
                     },
@@ -417,8 +438,20 @@ def test_resolve_npm_no_lock(
                 "package": {"name": "foo", "version": "1.0.0"},
                 "dependencies": [
                     {"name": "bar", "version": "2.0.0"},
-                    {"name": "baz", "version": "3.0.0"},
+                    {"name": "bar", "version": "3.0.0"},
                 ],
+                "dependencies_to_download": {
+                    "https://some.registry.org/bar/-/bar-2.0.0.tgz": {
+                        "integrity": "sha512-JCB8C6SnDoQf",
+                        "name": "bar",
+                        "version": "2.0.0",
+                    },
+                    "https://some.registry.org/bar/-/bar-3.0.0.tgz": {
+                        "integrity": "sha512-YOLOYOLO",
+                        "name": "bar",
+                        "version": "3.0.0",
+                    },
+                },
             },
             id="npm_v1_lockfile_nested_deps",
         ),
@@ -430,6 +463,7 @@ def test_resolve_npm_no_lock(
                 "dependencies": {
                     "bar": {
                         "version": "https://foohub.org/bar/-/bar-2.0.0.tgz",
+                        "integrity": "sha512-JCB8C6SnDoQf",
                     },
                     "baz": {
                         "version": "file:baz",
@@ -442,6 +476,13 @@ def test_resolve_npm_no_lock(
                     {"name": "bar", "version": "https://foohub.org/bar/-/bar-2.0.0.tgz"},
                     {"name": "baz", "version": "file:baz"},
                 ],
+                "dependencies_to_download": {
+                    "https://foohub.org/bar/-/bar-2.0.0.tgz": {
+                        "integrity": "sha512-JCB8C6SnDoQf",
+                        "name": "bar",
+                        "version": "https://foohub.org/bar/-/bar-2.0.0.tgz",
+                    },
+                },
             },
             id="npm_v1_lockfile_non_registry_deps",
         ),
@@ -459,18 +500,27 @@ def test_resolve_npm_no_lock(
                     "node_modules/bar": {
                         "version": "2.0.0",
                         "resolved": "https://some.registry.org/bar/-/bar-2.0.0.tgz",
+                        "integrity": "sha512-JCB8C6SnDoQf",
                     },
                 },
                 "dependencies": {
                     "bar": {
                         "version": "2.0.0",
                         "resolved": "https://some.registry.org/bar/-/bar-2.0.0.tgz",
+                        "integrity": "sha512-JCB8C6SnDoQf",
                     },
                 },
             },
             {
                 "package": {"name": "foo", "version": "1.0.0"},
                 "dependencies": [{"name": "bar", "version": "2.0.0"}],
+                "dependencies_to_download": {
+                    "https://some.registry.org/bar/-/bar-2.0.0.tgz": {
+                        "integrity": "sha512-JCB8C6SnDoQf",
+                        "name": "bar",
+                        "version": "2.0.0",
+                    },
+                },
             },
             id="npm_v2_lockfile",
         ),
@@ -488,16 +538,19 @@ def test_resolve_npm_no_lock(
                     "node_modules/bar": {
                         "version": "2.0.0",
                         "resolved": "https://some.registry.org/bar/-/bar-2.0.0.tgz",
+                        "integrity": "sha512-JCB8C6SnDoQf",
                     },
                     "node_modules/bar/node_modules/baz": {
                         "version": "3.0.0",
                         "resolved": "https://some.registry.org/baz/-/baz-3.0.0.tgz",
+                        "integrity": "sha512-YOLOYOLO",
                     },
                 },
                 "dependencies": {
                     "bar": {
                         "version": "2.0.0",
                         "resolved": "https://some.registry.org/bar/-/bar-2.0.0.tgz",
+                        "integrity": "sha512-JCB8C6SnDoQf",
                         "dependencies": {
                             "baz": {
                                 "version": "3.0.0",
@@ -513,6 +566,18 @@ def test_resolve_npm_no_lock(
                     {"name": "bar", "version": "2.0.0"},
                     {"name": "baz", "version": "3.0.0"},
                 ],
+                "dependencies_to_download": {
+                    "https://some.registry.org/bar/-/bar-2.0.0.tgz": {
+                        "integrity": "sha512-JCB8C6SnDoQf",
+                        "name": "bar",
+                        "version": "2.0.0",
+                    },
+                    "https://some.registry.org/baz/-/baz-3.0.0.tgz": {
+                        "integrity": "sha512-YOLOYOLO",
+                        "name": "baz",
+                        "version": "3.0.0",
+                    },
+                },
             },
             id="npm_v2_lockfile_nested_deps",
         ),
@@ -542,6 +607,7 @@ def test_resolve_npm_no_lock(
             {
                 "package": {"name": "foo", "version": "1.0.0"},
                 "dependencies": [{"name": "not-bar", "version": "2.0.0"}],
+                "dependencies_to_download": {},
             },
             id="npm_v2_lockfile_workspace",
         ),
@@ -559,18 +625,27 @@ def test_resolve_npm_no_lock(
                     "node_modules/@bar/baz": {
                         "version": "2.0.0",
                         "resolved": "https://some.registry.org/@bar/baz/-/baz-2.0.0.tgz",
+                        "integrity": "sha512-JCB8C6SnDoQf",
                     },
                 },
                 "dependencies": {
                     "@bar/baz": {
                         "version": "2.0.0",
                         "resolved": "https://some.registry.org/@bar/baz/-/baz-2.0.0.tgz",
+                        "integrity": "sha512-JCB8C6SnDoQf",
                     },
                 },
             },
             {
                 "package": {"name": "foo", "version": "1.0.0"},
                 "dependencies": [{"name": "@bar/baz", "version": "2.0.0"}],
+                "dependencies_to_download": {
+                    "https://some.registry.org/@bar/baz/-/baz-2.0.0.tgz": {
+                        "integrity": "sha512-JCB8C6SnDoQf",
+                        "name": "@bar/baz",
+                        "version": "2.0.0",
+                    }
+                },
             },
             id="npm_v2_lockfile_grouped_deps",
         ),
@@ -588,12 +663,20 @@ def test_resolve_npm_no_lock(
                     "node_modules/bar": {
                         "version": "2.0.0",
                         "resolved": "https://some.registry.org/bar/-/bar-2.0.0.tgz",
+                        "integrity": "sha512-JCB8C6SnDoQf",
                     },
                 },
             },
             {
                 "package": {"name": "foo", "version": "1.0.0"},
                 "dependencies": [{"name": "bar", "version": "2.0.0"}],
+                "dependencies_to_download": {
+                    "https://some.registry.org/bar/-/bar-2.0.0.tgz": {
+                        "integrity": "sha512-JCB8C6SnDoQf",
+                        "name": "bar",
+                        "version": "2.0.0",
+                    }
+                },
             },
             id="npm_v3_lockfile",
         ),
@@ -630,3 +713,68 @@ def test_resolve_npm_unsupported_lockfileversion(rooted_tmp_path: RootedPath) ->
     expected_error = f"lockfileVersion {package_lock_json['lockfileVersion']} from {lockfile_path} is not supported"
     with pytest.raises(UnsupportedFeature, match=expected_error):
         _resolve_npm(rooted_tmp_path)
+
+
+@pytest.mark.parametrize(
+    "vcs, expected",
+    [
+        (
+            (
+                "git+ssh://git@bitbucket.org/cachi-testing/cachi2-without-deps.git#9e164b97043a2d91bbeb992f6cc68a3d1015086a"
+            ),
+            {
+                "url": "ssh://git@bitbucket.org/cachi-testing/cachi2-without-deps.git",
+                "ref": "9e164b97043a2d91bbeb992f6cc68a3d1015086a",
+                "host": "bitbucket.org",
+                "namespace": "cachi-testing",
+                "repo": "cachi2-without-deps",
+            },
+        ),
+    ],
+)
+def test_extract_git_info_npm(vcs: str, expected: Dict[str, str]) -> None:
+    assert _extract_git_info_npm(vcs) == expected
+
+
+def test_extract_git_info_with_missing_ref() -> None:
+    vcs = "git+ssh://git@bitbucket.org/cachi-testing/cachi2-without-deps.git"
+    expected_error = (
+        "ssh://git@bitbucket.org/cachi-testing/cachi2-without-deps.git "
+        "is not valid VCS url. ref is missing."
+    )
+    with pytest.raises(UnexpectedFormat, match=expected_error):
+        _extract_git_info_npm(vcs)
+
+
+@pytest.mark.parametrize(
+    "vcs, expected",
+    [
+        ("github:kevva/is-positive#97edff6", "git+ssh://github.com/kevva/is-positive.git#97edff6"),
+        ("github:kevva/is-positive", "git+ssh://github.com/kevva/is-positive.git"),
+        (
+            "bitbucket:cachi-testing/cachi2-without-deps#9e164b9",
+            "git+ssh://bitbucket.org/cachi-testing/cachi2-without-deps.git#9e164b9",
+        ),
+        ("gitlab:foo/bar#YOLO", "git+ssh://gitlab.com/foo/bar.git#YOLO"),
+    ],
+)
+def test_update_vcs_url_with_full_hostname(vcs: str, expected: str) -> None:
+    assert _update_vcs_url_with_full_hostname(vcs) == expected
+
+
+@mock.patch("cachi2.core.package_managers.npm.clone_as_tarball")
+def test_clone_repo_pack_archive(
+    mock_clone_as_tarball: mock.Mock, rooted_tmp_path: RootedPath
+) -> None:
+    vcs = "git+ssh://bitbucket.org/cachi-testing/cachi2-without-deps.git#9e164b9"
+    download_path = _clone_repo_pack_archive(vcs, rooted_tmp_path)
+    expected_path = rooted_tmp_path.join_within_root(
+        "bitbucket.org",
+        "cachi-testing",
+        "cachi2-without-deps",
+        "cachi2-without-deps-external-gitcommit-9e164b9.tgz",
+    )
+    assert download_path.path.parent.is_dir()
+    mock_clone_as_tarball.assert_called_once_with(
+        "ssh://bitbucket.org/cachi-testing/cachi2-without-deps.git", "9e164b9", expected_path.path
+    )
