@@ -1,36 +1,40 @@
 # Usage
 
-Examples:
+This document is split into two general sections. The first goes through the general process of prefetching
+dependencies and injecting relevant configuration and content for building an application in a hermetic environment.
+The second section goes through each of these steps for the supported package managers.
 
-* For [Go modules](#example-go-modules) (most complete explanation)
-* For [pip](#example-pip)
+* [General Process](#general-process)
+  * [pre-fetch dependencies](#pre-fetch-dependencies)
+  * [generate environment variables](#generate-environment-variables)
+  * [inject project files](#inject-project-files)
+  * [building the artifact](#Building-the-artifact-with-the-pre-fetched-dependencies)
+    * set the environment variables ([Containerfile example](#write-the-dockerfile-or-containerfile))
+    * run the build ([container build example](#build-the-container))
+* [Usage Examples](#usage-examples)
+  * [Example with Go modules](#example-go-modules) (most complete explanation)
+  * [Example with pip](#example-pip)
 
-General process:
+## General Process
 
-1. [pre-fetch dependencies](#pre-fetch-dependencies)
-2. [generate environment variables](#generate-environment-variables)
-3. [inject project files](#inject-project-files)
-4. set the environment variables ([Containerfile example](#write-the-dockerfile-or-containerfile))
-5. run the build ([container build example](#build-the-container))
+A hermetic build environment is one that is fully encapsulated and isolated from outside inflences. When a build is
+run within a build platform, this encapsulation can guarantee that the platform has a complete picture of all
+dependencies needed for the build. One class of hermetic build implementations is to restrict external network access
+during the build itself, requiring that all dependencies are declared and pre-fetched before the build occurs.
 
-## Example: Go modules
-
-Let's show Cachi2 usage by building the glorious [fzf](https://github.com/junegunn/fzf) CLI tool hermetically. To follow
-along, clone the repository to your local disk.
-
-```shell
-git clone https://github.com/junegunn/fzf --branch=0.34.0
-```
-
-The best way to run `cachi2` is via the [container image](../README.md#container-image).
+In order to support this class of hermetic builds, not only does Cachi2 need to prefetch the dependencies, however,
+but some build flows will need additional changes whether that is to the build process (i.e. leveraging defined 
+[environment variables](#generate-environment-variables) or using Cachi2 to [inject project files](#inject-project-files))
 
 ### Pre-fetch dependencies
 
+The first step in creating hermetic builds is to fetch the dependencies for one of the [supported package managers](../README.md#package-managers).
+
 ```shell
 cachi2 fetch-deps \
-  --source ./fzf \
+  --source ./foo \
   --output ./cachi2-output \
-  '{"path": ".", "type": "gomod"}'
+  '{"path": ".", "type": "<supported package manager>"}'
 ```
 
 * `--source` - the path to a *git repository* on the local disk
@@ -38,39 +42,39 @@ cachi2 fetch-deps \
 * `{JSON}`   - specifies a *package* (a directory) within the repository to process
 
 Note that Cachi2 does not auto-detect which package managers your project uses. You need to tell Cachi2 what to process
-when calling fetch-deps. In the example above, the package is a go module located at the root of the fzf repo,
+when calling fetch-deps. In the example above, the package path is located at the root of the foo repo,
 hence the relative path is `.`.
 
 The main parameter (PKG) can handle different types of definitions:
 
-* simple: `gomod`, same as `{"path": ".", "type": "gomod"}`
-* JSON object: `{"path": "subpath/to/other/module", "type": "gomod"}`
-* JSON array: `[{"path": ".", "type": "gomod"}, {"path": "subpath/to/other/module", "type": "gomod"}]`
+* simple: `<package manager>`, same as `{"path": ".", "type": "<package manager>"}`
+* JSON object: `{"path": "subpath/to/other/module", "type": "<package manager>"}`
+* JSON array: `[{"path": ".", "type": "<package manager>"}, {"path": "subpath/to/other/module", "type": "<package manager>"}]`
 * JSON object with flags:
-`{"packages": [{"path": ".", "type": "gomod"}], "flags": ["gomod-vendor"]}`
+`{"packages": [{"path": ".", "type": "<package manager>"}], "flags": ["gomod-vendor"]}`
 
 See also `cachi2 fetch-deps --help`.
 
+Using the JSON array object, multiple package managers can be used to resolve dependencies in the same repository.
+
+*⚠ While Cachi2 does not intentionally modify the source repository unless the output and source paths are the same,
+some package managers may add missing data like checksums as dependency data is resolved. If this occurs from a clean
+git tree then the tree has the possibility to become dirty.*
+
 ### Generate environment variables
+
+Once the dependencies have been cached, the build process needs to be made aware of the dependencies. Some package
+managers need to be informed of of cache customizations by environment variables.
+
+In order to simplify this process, Cachi2 provides a helper command to generate the environment variables in an
+easy-to-use format. The example above uses the "env" format which generates a simple shell script that `export`s
+the required variables (properly shell quoted when necessary). You can `source` this file to set the variables.
 
 ```shell
 cachi2 generate-env ./cachi2-output -o ./cachi2.env --for-output-dir /tmp/cachi2-output
 ```
 
-```shell
-$ cat cachi2.env
-export GOCACHE=/tmp/cachi2-output/deps/gomod
-export GOMODCACHE=/tmp/cachi2-output/deps/gomod/pkg/mod
-export GOPATH=/tmp/cachi2-output/deps/gomod
-export GOSUMDB=off
-```
-
-To make use of the pre-fetched dependencies, you need to tell your package manager where to find them. This often
-involves setting environment variables, for example to point to a cache directory.
-
-Cachi2 provides a helper command to generate the environment variables in an easy-to-use format. The example above
-uses the "env" format which generates a simple shell script that `export`s the required variables (properly shell quoted
-when necessary). You can `source` this file to set the variables.
+* `-o` - the output path for the generated environment file
 
 Don't worry about the `--for-output-dir` option yet - and about the fact that the directory does not exist - it has to
 do with the target path where we will mount the output directory [during the build](#build-the-container).
@@ -79,42 +83,55 @@ See also `cachi2 generate-env --help`.
 
 ### Inject project files
 
-```shell
-cachi2 inject-files ./cachi2-output --for-output-dir /tmp/cachi2-output
-```
-
-*⚠ Cachi2 may overwrite existing files. Please make sure you have no un-committed changes (that you are not prepared to
-lose) when calling inject-files.*
-
-For some package managers, to use the pre-fetched dependencies you may need to create a configuration file or edit
-a lockfile (or some other file in your project directory).
+While some package managers only need an environment file to be informed of the cache locations, others may need to
+create a configuration file or edit a lockfile (or some other file in your project directory).
 
 Before starting your build, call `cachi2 inject-files` to automatically make the necessary changes in your repo (based
 on data in the fetch-deps output directory). Please do not change the absolute path to the repo between the calls to
 fetch-deps and inject-files; if it's not at the same path, the inject-files command won't find it.
 
+```shell
+cachi2 inject-files ./cachi2-output --for-output-dir /tmp/cachi2-output
+```
+
 The `--for-output-dir` option has the same meaning as the one used when generating environment variables.
 
+*⚠ Cachi2 may overwrite existing files. Please make sure you have no un-committed changes (that you are not prepared to
+lose) when calling inject-files.*
+
+*⚠ Cachi2 may change files if required by the package manager. This means that the git status will become dirty if
+it was previously clean. If any scripting depends on the cleanliness of a git repository, it should either be changed
+to handle the dirty status or the changes should be temporarily stashed by wrapping in
+`git stash && <command> git stash pop` according to the suitability of the context.*
+
+### Building the Artifact with the Pre-fetched dependencies
+
+After the pre-fetch and the above steps to inform the package manager(s) of the cache have been completed, it all
+needs to be wired up into a build. The primary use case for building these is within a Dockerfile or Containerfile
+but the same principals can be applied to other build strategies.
+
 ### Write the Dockerfile (or Containerfile)
+
+Since any injected dependencies are change in the source itself, those changes should already be made by the
+package manager. Therefore, only the environment variables need to be loaded by the build process by `source`ing
+the generated file.
+
+Outside of this additional `source` directive in any relevant `RUN` command, the rest of a container build can
+remain unchanged.
 
 ```dockerfile
 FROM golang:1.19.2-alpine3.16 AS build
 
-COPY ./fzf /src/fzf
-WORKDIR /src/fzf
+COPY ./foo /src/foo
+WORKDIR /src/foo
 
 RUN source /tmp/cachi2.env && \
-    go build -o /fzf
+    make build
 
 FROM registry.access.redhat.com/ubi9/ubi-minimal:9.0.0
 
-COPY --from=build /fzf /usr/bin/fzf
-
-CMD ls | fzf
+COPY --from=build /foo /usr/bin/foo
 ```
-
-The part where we `source` the environment file is Cachi2-specific - the rest of the container build is business as
-usual for a golang project. See the next section if you are wondering how the file will get there.
 
 ⚠ The `source`d environment variables do not persist to the next RUN instruction. The sourcing of the file and the
 package manager command(s) need to be in the same instruction. If the build needs more than one command and you would
@@ -132,15 +149,21 @@ RUN source /tmp/cachi2.env && go build -o /bar cmd/bar
 
 ### Build the container
 
+Now that the Dockerfile or Container file is configured, the next step is to build the container itself. Since
+more than just the source code context is needed to build the container, we also need to make sure that there
+are appropriate volumes mounted for the Cachi2 output as well as the Cachi2 environment variable that is being
+`source`d within the build. Since all dependencies are cached, we can confidently restrict the network from the
+container build as well!
+
 ```shell
 podman build . \
   --volume "$(realpath ./cachi2-output)":/tmp/cachi2-output:Z \
   --volume "$(realpath ./cachi2.env)":/tmp/cachi2.env:Z \
   --network none \
-  --tag fzf
+  --tag foo
 
 # test that it worked
-podman run --rm -ti fzf
+podman run --rm -ti foo
 ```
 
 We use the `--volume` option to mount Cachi2 resources into the container build - the output directory at
@@ -153,12 +176,106 @@ and [injecting the project files](#inject-project-files)? The absolute path to .
 (probably) not /tmp/cachi2-output. That is why we had to tell the generate-env command what the path inside the
 container is eventually going to be.
 
-As for the network-isolation part, we solve it by using the `--network=none` option. Note that this option only works
+In order to run the build with network isolation, use the `--network=none` option. Note that this option only works
 if your podman/buildah version contains the fix for [buildah#4227](https://github.com/containers/buildah/issues/4227)
 (buildah >= 1.28). In older versions, a workaround could be to manually create an internal network (but you'll need root
 privileges): `sudo podman network create --internal isolated-network; sudo podman build --network isolated-network ...`.
 
-## Example: pip
+## Usage Examples
+
+Now that we are familiar with the overall process, we will go through an example for each of the supported package
+managers.
+
+### Example: Go modules
+
+Let's show Cachi2 usage by building the glorious [fzf](https://github.com/junegunn/fzf) CLI tool hermetically. To follow
+along, clone the repository to your local disk.
+
+```shell
+git clone https://github.com/junegunn/fzf --branch=0.34.0
+```
+
+The best way to run `cachi2` is via the [container image](../README.md#container-image).
+
+#### Pre-fetch dependencies
+
+In order to pre-fetch the dependencies, we will pass the source and output directories as well as the path for the
+`gomod` package manager to be able to find the `go.mod` file.
+
+See [the gomod documentation](gomod.md) for more details about running Cachi2 for pre-fetching gomod dependencies.
+
+```shell
+cachi2 fetch-deps \
+  --source ./fzf \
+  --output ./cachi2-output \
+  '{"path": ".", "type": "gomod"}'
+```
+
+#### Generate environment variables
+
+Next, we need to generate the environment file so that the `go build` command can find the cached dependencies
+
+```shell
+cachi2 generate-env ./cachi2-output -o ./cachi2.env --for-output-dir /tmp/cachi2-output
+```
+
+We can see the variables needed by the compiler:
+
+```shell
+$ cat cachi2.env
+export GOCACHE=/tmp/cachi2-output/deps/gomod
+export GOMODCACHE=/tmp/cachi2-output/deps/gomod/pkg/mod
+export GOPATH=/tmp/cachi2-output/deps/gomod
+export GOSUMDB=off
+```
+
+#### Inject project files
+
+While the `gomod` package manager does not _currently_ need to modify any content in the source directory to inject the
+dependencies, the `inject-files` command should be run to ensure that the operation is performed if this step
+becomes a requirement in the future.
+
+```shell
+cachi2 inject-files ./cachi2-output --for-output-dir /tmp/cachi2-output
+```
+
+#### Write the Dockerfile (or Containerfile)
+
+As mentioned in the steps above, the only change that needs to be made in the Dockerfile or Containerfile is to
+source the environment file before building the binary.
+
+```dockerfile
+FROM golang:1.19.2-alpine3.16 AS build
+
+COPY ./fzf /src/fzf
+WORKDIR /src/fzf
+
+RUN source /tmp/cachi2.env && \
+    go build -o /fzf
+
+FROM registry.access.redhat.com/ubi9/ubi-minimal:9.0.0
+
+COPY --from=build /fzf /usr/bin/fzf
+
+CMD ls | fzf
+```
+
+#### Build the container
+
+Finally, we can build and test the container to ensure that we have successfully built the binary.
+
+```shell
+podman build . \
+  --volume "$(realpath ./cachi2-output)":/tmp/cachi2-output:Z \
+  --volume "$(realpath ./cachi2.env)":/tmp/cachi2.env:Z \
+  --network none \
+  --tag fzf
+
+# test that it worked
+podman run --rm -ti fzf
+```
+
+### Example: pip
 
 Let's build [atomic-reactor](https://github.com/containerbuildsystem/atomic-reactor). Atomic-reactor already builds
 with Cachito (Cachi2's spiritual ancestor), which makes it a rare example of a Python project that meets Cachi2's
@@ -170,7 +287,13 @@ Get the repo if you want to try for yourself:
 git clone https://github.com/containerbuildsystem/atomic-reactor --branch=4.4.0
 ```
 
-### Pre-fetch dependencies (pip)
+#### Pre-fetch dependencies (pip)
+
+The steps for pre-fetching the dependencies is similar to before, but this time we will use the `pip` package
+manager type. The default behavior path of `.` is assumed. Additional parameters are also configured to point
+Cachi2 at the various requirements files that are needed to fully resolve dependencies.
+
+See [the pip documentation](pip.md) for more details about running Cachi2 for pre-fetching pip dependencies.
 
 ```shell
 cachi2 fetch-deps --source ./atomic-reactor '{
@@ -180,13 +303,15 @@ cachi2 fetch-deps --source ./atomic-reactor '{
 }'
 ```
 
-Details: [pre-fetch dependencies](#pre-fetch-dependencies)
+#### Generate environment variables (pip)
 
-### Generate environment variables (pip)
+Next, we need to generate the environment file so that the `pip install` command can find the cached dependencies
 
 ```shell
 cachi2 generate-env ./cachi2-output -o ./cachi2.env --for-output-dir /tmp/cachi2-output
 ```
+
+We can see the variables needed by the package manager:
 
 ```shell
 $ cat cachi2.env
@@ -194,16 +319,17 @@ export PIP_FIND_LINKS=/tmp/cachi2-output/deps/pip
 export PIP_NO_INDEX=true
 ```
 
-Details: [generate environment variables](#generate-environment-variables)
+#### Inject project files (pip)
 
-### Inject project files (pip)
+In order to be able to install pip dependencies in a hermetic environment, we need to perform the injection to
+change the remote dependencies to instead point to the local file system.
 
 ```shell
 $ cachi2 inject-files ./cachi2-output --for-output-dir /tmp/cachi2-output
 2023-01-26 16:41:09,990 INFO Overwriting /tmp/test/atomic-reactor/requirements.txt
 ```
 
-The relevant part of the diff:
+We can look at the `git diff` to see what the package remapping looks like. As an example,
 
 ```diff
 diff --git a/requirements.txt b/requirements.txt
@@ -212,13 +338,11 @@ diff --git a/requirements.txt b/requirements.txt
 +osbs-client @ file:///tmp/cachi2-output/deps/pip/github.com/containerbuildsystem/osbs-client/osbs-client-external-gitcommit-8d7d7fadff38c8367796e6ac0b3516b65483db24.tar.gz
 ```
 
-Details: [inject project files](#inject-project-files)
+#### Build the base image (pip)
 
-### Build the base image (pip)
-
-For this example, we will split the build into two parts - a base image and the final application image. In the base
-image build, we will cheat a bit and install "devel" libraries from RPMs. That means we won't be able to use network
-isolation (need to download the RPMs).
+For this example, we will split the build into two parts - a base image and the final application image. Since there
+is no way to install RPMs in a hermetic environment, we will create the base image with its required "devel" libraries
+from RPMs in one image and then use that image for our hermetic python build.
 
 If your project doesn't need to compile as many C packages as atomic-reactor, you may be able to find a base image that
 already contains everything you need.
@@ -244,16 +368,19 @@ RUN dnf -y install \
     dnf clean all
 ```
 
-Build the image:
+This container build might be what we are familiar with already as we are not using Cachi2 or enforcing network
+isolation.
 
 ```shell
 podman build . -f Containerfile.baseimage --tag atomic-reactor-base-image:latest
 ```
 
-### Build the application image (pip)
+#### Build the application image (pip)
 
 We will base the final application image on our custom base image. The base image build installed all the RPMs we will
-need, so the final phase can use network isolation again 🎉.
+need, so the final phase can use network isolation again 🎉. In order to support the network isolated build, we need
+to remember to `source` the environment file in the step that executes `pip install`. Remember, the source code in
+`/src/atomic-reactor` has also been changed so that the dependencies are pointing to the cached versions.
 
 Containerfile:
 
@@ -276,7 +403,7 @@ RUN source /tmp/cachi2.env && \
 CMD ["python3.8", "-m", "atomic_reactor.cli.main", "--help"]
 ```
 
-Build the image:
+We can then build the image as before while mounting the required Cachi2 data!
 
 ```shell
 podman build . \
@@ -285,5 +412,3 @@ podman build . \
   --network none \
   --tag atomic-reactor
 ```
-
-Details: [write the Containerfile](#write-the-dockerfile-or-containerfile), [build the container](#build-the-container)
