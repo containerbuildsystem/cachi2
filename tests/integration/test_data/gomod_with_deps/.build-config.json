@@ -14,11 +14,6 @@
       "kind": "path",
       "name": "GOPATH",
       "value": "deps/gomod"
-    },
-    {
-      "kind": "literal",
-      "name": "GOSUMDB",
-      "value": "off"
     }
   ],
   "project_files": []

@@ -113,13 +113,13 @@ class TestBuildConfig:
         expect_error = (
             "conflict by GOSUMDB: "
             "name='GOSUMDB' value='on' kind='literal' "
-            "X name='GOSUMDB' value='off' kind='literal'"
+            "X name='GOSUMDB' value='sum.golang.org' kind='literal'"
         )
         with pytest.raises(pydantic.ValidationError, match=expect_error):
             BuildConfig(
                 environment_variables=[
                     {"name": "GOSUMDB", "value": "on", "kind": "literal"},
-                    {"name": "GOSUMDB", "value": "off", "kind": "literal"},
+                    {"name": "GOSUMDB", "value": "sum.golang.org", "kind": "literal"},
                 ],
                 project_files=[],
             )
