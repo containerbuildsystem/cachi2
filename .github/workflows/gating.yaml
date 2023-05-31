@@ -112,7 +112,7 @@ jobs:
     steps:
       - name: Install required packages
         run: |
-          dnf install -y python python-pip buildah git podman
+          dnf install -y python python-pip git podman
           python -m pip install --upgrade pip
           pip install tox tox-gh-actions
 
@@ -122,17 +122,12 @@ jobs:
           fetch-depth: 0
 
       - name: Build Cachi2 image
-        uses: redhat-actions/buildah-build@v2
-        with:
-          image: cachi2
-          tags: ${{ github.sha }}
-          arch: amd64
-          containerfiles: |
-            ./Containerfile
+        run: |
+          podman build -t cachi2:${{ github.sha }} .
 
       - name: Check image created and Cachi2 version
         run: |
-          buildah images | grep 'cachi2'
+          podman images | grep 'cachi2'
           podman run -t cachi2:${{ github.sha }} --version
 
       - name: Run integration tests on built image
