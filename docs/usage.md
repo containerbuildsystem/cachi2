@@ -228,7 +228,6 @@ $ cat cachi2.env
 export GOCACHE=/tmp/cachi2-output/deps/gomod
 export GOMODCACHE=/tmp/cachi2-output/deps/gomod/pkg/mod
 export GOPATH=/tmp/cachi2-output/deps/gomod
-export GOSUMDB=off
 ```
 
 #### Inject project files

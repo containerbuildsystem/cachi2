@@ -210,7 +210,6 @@ def env_variables() -> list[dict[str, str]]:
         {"name": "GOCACHE", "value": "deps/gomod", "kind": "path"},
         {"name": "GOMODCACHE", "value": "deps/gomod/pkg/mod", "kind": "path"},
         {"name": "GOPATH", "value": "deps/gomod", "kind": "path"},
-        {"name": "GOSUMDB", "value": "off", "kind": "literal"},
     ]
 
 

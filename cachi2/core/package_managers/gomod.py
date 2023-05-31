@@ -472,6 +472,7 @@ def _resolve_gomod(
         "GOCACHE": tmp_dir,
         "PATH": os.environ.get("PATH", ""),
         "GOMODCACHE": "{}/pkg/mod".format(tmp_dir),
+        "GOSUMDB": "sum.golang.org",
     }
 
     if config.goproxy_url:
