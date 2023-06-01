@@ -4,6 +4,7 @@ from unittest import mock
 
 import pytest
 
+from cachi2.core.checksum import ChecksumInfo
 from cachi2.core.errors import PackageRejected, UnexpectedFormat, UnsupportedFeature
 from cachi2.core.models.input import Request
 from cachi2.core.models.output import Component, ProjectFile, RequestOutput
@@ -12,6 +13,7 @@ from cachi2.core.package_managers.npm import (
     PackageLock,
     _clone_repo_pack_archive,
     _extract_git_info_npm,
+    _get_npm_dependencies,
     _resolve_npm,
     _update_vcs_url_with_full_hostname,
     fetch_npm_source,
@@ -778,3 +780,84 @@ def test_clone_repo_pack_archive(
     mock_clone_as_tarball.assert_called_once_with(
         "ssh://bitbucket.org/cachi-testing/cachi2-without-deps.git", "9e164b9", expected_path.path
     )
+
+
+@pytest.mark.parametrize(
+    "deps_to_download, expected_download_subpaths",
+    [
+        (
+            {
+                "https://github.com/cachito-testing/ms-1.0.0.tgz": {
+                    "name": "ms",
+                    "version": "1.0.0",
+                    "integrity": "sha512-YOLO1111==",
+                },
+                # Test handling package with the same name but different version and integrity
+                "https://github.com/cachito-testing/ms-2.0.0.tgz": {
+                    "name": "ms",
+                    "version": "2.0.0",
+                    "integrity": "sha512-YOLO2222==",
+                },
+                "https://registry.npmjs.org/@types/react-dom/-/react-dom-18.0.11.tgz": {
+                    "name": "react-dom",
+                    "version": "18.0.11",
+                    "integrity": "sha512-YOLO00000==",
+                },
+                "git+ssh://git@bitbucket.org/cachi-testing/cachi2-without-deps-second.git#09992d418fc44a2895b7a9ff27c4e32d6f74a982": {
+                    "version": "2.0.0",
+                    "name": "cachi2-without-deps-second",
+                },
+                # Test short representation of git reference
+                "git+ssh://git@github.com/kevva/is-positive.git#97edff6f": {
+                    "integrity": "sha512-8ND1j3y9YOLO==",
+                    "name": "is-positive",
+                },
+                # The name of the package is different from the repo name, we expect the result archive to have the repo name in it
+                "git+ssh://git@gitlab.foo.bar.com/osbs/cachito-tests.git#c300503": {
+                    "integrity": "sha512-FOOOOOOOOOYOLO==",
+                    "name": "gitlab-cachi2-npm-without-deps-second",
+                },
+            },
+            {
+                "https://github.com/cachito-testing/ms-1.0.0.tgz": "external-ms/ms-external-sha256-YOLO1111.tgz",
+                "https://github.com/cachito-testing/ms-2.0.0.tgz": "external-ms/ms-external-sha256-YOLO2222.tgz",
+                "git+ssh://git@bitbucket.org/cachi-testing/cachi2-without-deps-second.git#09992d418fc44a2895b7a9ff27c4e32d6f74a982": "bitbucket.org/cachi-testing/cachi2-without-deps-second/cachi2-without-deps-second-external-gitcommit-09992d418fc44a2895b7a9ff27c4e32d6f74a982.tgz",
+                "https://registry.npmjs.org/@types/react-dom/-/react-dom-18.0.11.tgz": "react-dom-18.0.11.tgz",
+                "git+ssh://git@github.com/kevva/is-positive.git#97edff6f": "github.com/kevva/is-positive/is-positive-external-gitcommit-97edff6f.tgz",
+                "git+ssh://git@gitlab.foo.bar.com/osbs/cachito-tests.git#c300503": "gitlab.foo.bar.com/osbs/cachito-tests/cachito-tests-external-gitcommit-c300503.tgz",
+            },
+        ),
+    ],
+)
+@mock.patch("cachi2.core.package_managers.npm.async_download_files")
+@mock.patch("cachi2.core.package_managers.npm.must_match_any_checksum")
+@mock.patch("cachi2.core.checksum.ChecksumInfo.from_sri")
+@mock.patch("cachi2.core.package_managers.npm.clone_as_tarball")
+def test_get_npm_dependencies(
+    mock_clone_as_tarball: mock.Mock,
+    mock_from_sri: mock.Mock,
+    mock_must_match_any_checksum: mock.Mock,
+    mock_async_download_files: mock.Mock,
+    rooted_tmp_path: RootedPath,
+    deps_to_download: Dict[str, Dict[str, str]],
+    expected_download_subpaths: Dict[str, str],
+) -> None:
+    def args_based_return_checksum(integrity: str) -> ChecksumInfo:
+        if integrity == "sha512-YOLO1111==":
+            return ChecksumInfo("sha256", "YOLO1111")
+        elif integrity == "sha512-YOLO2222==":
+            return ChecksumInfo("sha256", "YOLO2222")
+        else:
+            return ChecksumInfo("sha256", "YOLO")
+
+    mock_from_sri.side_effect = args_based_return_checksum
+    mock_must_match_any_checksum.return_value = None
+    mock_clone_as_tarball.return_value = None
+    mock_async_download_files.return_value = None
+
+    download_paths = _get_npm_dependencies(rooted_tmp_path, deps_to_download)
+    expected_download_paths = {}
+    for url, subpath in expected_download_subpaths.items():
+        expected_download_paths[url] = rooted_tmp_path.join_within_root(subpath)
+
+    assert download_paths == expected_download_paths
