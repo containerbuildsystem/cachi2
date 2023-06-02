@@ -1342,22 +1342,22 @@ def test_fetch_gomod_source(
 @pytest.mark.parametrize(
     "input_url",
     (
-        "ssh://git@github.com:cachito-testing/gomod-pandemonium",
+        "ssh://github.com/cachito-testing/gomod-pandemonium",
+        "ssh://username@github.com/cachito-testing/gomod-pandemonium",
+        "github.com:cachito-testing/gomod-pandemonium.git",
+        "username@github.com:cachito-testing/gomod-pandemonium.git/",
         "https://github.com/cachito-testing/gomod-pandemonium",
-        "git@github.com:cachito-testing/gomod-pandemonium.git",
+        "https://github.com/cachito-testing/gomod-pandemonium.git",
+        "https://github.com/cachito-testing/gomod-pandemonium.git/",
     ),
 )
-@mock.patch("cachi2.core.package_managers.gomod.git.Repo")
+@mock.patch("cachi2.core.scm.Repo")
 def test_get_repository_name(mock_git_repo: Any, input_url: str) -> None:
     expected_url = "github.com/cachito-testing/gomod-pandemonium"
 
-    def mock_remote() -> Any:
-        mocked_origin = mock.Mock()
-        mocked_origin.url = input_url
-        return mocked_origin
-
     mocked_repo = mock.Mock()
-    mocked_repo.remote.side_effect = mock_remote
+    mocked_repo.remote.return_value.url = input_url
+    mocked_repo.head.commit.hexsha = "f" * 40
     mock_git_repo.return_value = mocked_repo
 
     resolved_url = _get_repository_name(RootedPath("/my-folder/cloned-repo"))

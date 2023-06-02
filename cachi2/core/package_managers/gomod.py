@@ -34,6 +34,7 @@ from cachi2.core.errors import FetchError, GoModError, PackageRejected, Unexpect
 from cachi2.core.models.input import Request
 from cachi2.core.models.output import Component, EnvironmentVariable, RequestOutput
 from cachi2.core.rooted_path import PathOutsideRoot, RootedPath
+from cachi2.core.scm import get_repo_id
 from cachi2.core.utils import load_json_stream, run_cmd
 
 log = logging.getLogger(__name__)
@@ -393,15 +394,8 @@ def _get_repository_name(source_dir: RootedPath) -> str:
 
     The name is a treated form of the URL, after stripping the scheme, user and .git extension.
     """
-    repo = git.Repo(source_dir)
-    url = repo.remote().url
-
-    # strip scheme and ssh user
-    path = re.sub(r"^(https|ssh)?(:\/\/)?(git@)?", "", url)
-    # strip trailing .git
-    path = re.sub(r"\.git$", "", path)
-    # change colon from ssh urls into slash
-    return path.replace(":", "/")
+    url = get_repo_id(source_dir).parsed_origin_url
+    return f"{url.hostname}{url.path.rstrip('/').removesuffix('.git')}"
 
 
 def _protect_against_symlinks(app_dir: RootedPath) -> None:
