@@ -1,14 +1,61 @@
 import filecmp
 import tarfile
 from pathlib import Path
+from typing import Union
+from urllib.parse import urlsplit
 
 import pytest
 from git.repo import Repo
 
-from cachi2.core.errors import FetchError
-from cachi2.core.scm import clone_as_tarball
+from cachi2.core.errors import FetchError, UnsupportedFeature
+from cachi2.core.scm import clone_as_tarball, get_repo_id
 
 INITIAL_COMMIT = "78510c591e2be635b010a52a7048b562bad855a3"
+
+
+class TestRepoID:
+    @pytest.mark.parametrize(
+        "repo_url, expect_result",
+        [
+            # scp-style
+            ("git.host.com:some/path", "ssh://git.host.com/some/path"),
+            ("git.host.com:/some/path", "ssh://git.host.com/some/path"),
+            ("user@git.host.com:some/path", "ssh://user@git.host.com/some/path"),
+            # no-op
+            ("ssh://user@git.host.com/some/path", "ssh://user@git.host.com/some/path"),
+            ("https://git.host.com/some/path", "https://git.host.com/some/path"),
+            # unsupported
+            (
+                "./foo:bar",
+                UnsupportedFeature("Could not canonicalize repository origin url: ./foo:bar"),
+            ),
+            (
+                "/foo",
+                UnsupportedFeature("Could not canonicalize repository origin url: /foo"),
+            ),
+        ],
+    )
+    def test_get_repo_id(
+        self, repo_url: str, expect_result: Union[str, Exception], golang_repo_path: Path
+    ) -> None:
+        Repo(golang_repo_path).create_remote("origin", repo_url)
+        expect_commit_id = "4a481f0bae82adef3ea6eae3d167af6e74499cb2"
+
+        if isinstance(expect_result, str):
+            repo_id = get_repo_id(golang_repo_path)
+            assert repo_id.origin_url == expect_result
+            assert repo_id.parsed_origin_url == urlsplit(expect_result)
+            assert repo_id.commit_id == expect_commit_id
+        else:
+            with pytest.raises(type(expect_result), match=str(expect_result)):
+                get_repo_id(golang_repo_path)
+
+    def test_get_repo_id_no_origin(self, golang_repo_path: Path) -> None:
+        with pytest.raises(
+            UnsupportedFeature,
+            match="cannot process repositories that don't have an 'origin' remote",
+        ):
+            get_repo_id(golang_repo_path)
 
 
 def test_clone_as_tarball(golang_repo_path: Path, tmp_path: Path) -> None:

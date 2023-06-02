@@ -1,14 +1,72 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 import logging
+import re
 import tarfile
 import tempfile
+import urllib.parse
+from os import PathLike
 from pathlib import Path
+from typing import NamedTuple, Union
 
-import git
+from git.repo import Repo
 
-from cachi2.core.errors import FetchError
+from cachi2.core.errors import FetchError, UnsupportedFeature
 
 log = logging.getLogger(__name__)
+
+
+class RepoID(NamedTuple):
+    """The properties which uniquely identify a repository at a specific commit."""
+
+    origin_url: str
+    commit_id: str
+
+    @property
+    def parsed_origin_url(self) -> urllib.parse.SplitResult:
+        """Get the url as a urllib.parse.SplitResult."""
+        return urllib.parse.urlsplit(self.origin_url)
+
+
+def get_repo_id(repo: Union[str, PathLike[str], Repo]) -> RepoID:
+    """Get the RepoID for a git.Repo object or a git directory.
+
+    If the remote url is an scp-style [user@]host:path, convert it into ssh://[user@]host/path.
+
+    See `man git-clone` (GIT URLS) for some of the url formats that git supports.
+    """
+    if isinstance(repo, (str, PathLike)):
+        repo = Repo(repo)
+
+    try:
+        origin = repo.remote("origin")
+    except ValueError:
+        raise UnsupportedFeature(
+            "Cachi2 cannot process repositories that don't have an 'origin' remote",
+            solution=(
+                "Repositories cloned via git clone should always have one.\n"
+                "Otherwise, please `git remote add origin` with a url that reflects the origin."
+            ),
+        )
+
+    url = _canonicalize_origin_url(origin.url)
+    commit_id = repo.head.commit.hexsha
+    return RepoID(url, commit_id)
+
+
+def _canonicalize_origin_url(url: str) -> str:
+    if "://" in url:
+        return url
+    # scp-style is "only recognized if there are no slashes before the first colon"
+    elif re.match("^[^/]*:", url):
+        parts = url.split("@", 1)
+        # replace the ':' in the host:path part with a '/'
+        # and strip leading '/' from the path, if any
+        parts[-1] = re.sub(r":/*", "/", parts[-1], 1)
+        return "ssh://" + "@".join(parts)
+    else:
+        raise UnsupportedFeature(
+            f"Could not canonicalize repository origin url: {url}", solution=None
+        )
 
 
 def clone_as_tarball(url: str, ref: str, to_path: Path) -> None:
@@ -23,7 +81,7 @@ def clone_as_tarball(url: str, ref: str, to_path: Path) -> None:
     with tempfile.TemporaryDirectory(prefix="cachito-") as temp_dir:
         log.debug("Cloning the Git repository from %s", url)
         try:
-            repo = git.repo.Repo.clone_from(
+            repo = Repo.clone_from(
                 url,
                 temp_dir,
                 no_checkout=True,
@@ -48,7 +106,7 @@ def clone_as_tarball(url: str, ref: str, to_path: Path) -> None:
             archive.add(repo.working_dir, "app")
 
 
-def _reset_git_head(repo: git.repo.Repo, ref: str) -> None:
+def _reset_git_head(repo: Repo, ref: str) -> None:
     try:
         repo.head.reference = repo.commit(ref)  # type: ignore # 'reference' is a weird property
         repo.head.reset(index=True, working_tree=True)
