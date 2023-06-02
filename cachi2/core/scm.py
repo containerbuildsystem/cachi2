@@ -26,6 +26,13 @@ class RepoID(NamedTuple):
         """Get the url as a urllib.parse.SplitResult."""
         return urllib.parse.urlsplit(self.origin_url)
 
+    def as_vcs_url_qualifier(self) -> str:
+        """Turn this RepoID into a 'vcs_url' qualifier as defined by the purl spec.
+
+        See https://github.com/package-url/purl-spec/blob/master/PURL-SPECIFICATION.rst#known-qualifiers-keyvalue-pairs
+        """
+        return f"git+{self.origin_url}@{self.commit_id}"
+
 
 def get_repo_id(repo: Union[str, PathLike[str], Repo]) -> RepoID:
     """Get the RepoID for a git.Repo object or a git directory.

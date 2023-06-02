@@ -8,7 +8,7 @@ import pytest
 from git.repo import Repo
 
 from cachi2.core.errors import FetchError, UnsupportedFeature
-from cachi2.core.scm import clone_as_tarball, get_repo_id
+from cachi2.core.scm import RepoID, clone_as_tarball, get_repo_id
 
 INITIAL_COMMIT = "78510c591e2be635b010a52a7048b562bad855a3"
 
@@ -56,6 +56,12 @@ class TestRepoID:
             match="cannot process repositories that don't have an 'origin' remote",
         ):
             get_repo_id(golang_repo_path)
+
+    def test_as_vcs_url_qualifier(self) -> None:
+        origin_url = "ssh://git@github.com/foo/bar.git"
+        commit_id = "abcdef1234"
+        expect_vcs_url = "git+ssh://git@github.com/foo/bar.git@abcdef1234"
+        assert RepoID(origin_url, commit_id).as_vcs_url_qualifier() == expect_vcs_url
 
 
 def test_clone_as_tarball(golang_repo_path: Path, tmp_path: Path) -> None:
