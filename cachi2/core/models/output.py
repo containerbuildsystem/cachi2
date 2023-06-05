@@ -58,7 +58,11 @@ class Component(pydantic.BaseModel):
 
         A Cachi2 package has extra fields which are unnecessary and can cause validation errors.
         """
-        return Component(name=package.get("name", None), version=package.get("version", None))
+        return Component(
+            name=package.get("name", None),
+            version=package.get("version", None),
+            purl=package.get("purl", None),
+        )
 
 
 class Sbom(pydantic.BaseModel):

@@ -1,10 +1,13 @@
 import asyncio
+import functools
 import json
 import logging
-import os
+import os.path
 from pathlib import Path
 from typing import Any, Dict, Iterator, Optional, TypedDict
 from urllib.parse import urlparse
+
+from packageurl import PackageURL
 
 from cachi2.core.checksum import ChecksumInfo, must_match_any_checksum
 from cachi2.core.config import get_config
@@ -13,7 +16,7 @@ from cachi2.core.models.input import Request
 from cachi2.core.models.output import Component, ProjectFile, RequestOutput
 from cachi2.core.package_managers.general import async_download_files
 from cachi2.core.rooted_path import RootedPath
-from cachi2.core.scm import clone_as_tarball
+from cachi2.core.scm import RepoID, clone_as_tarball, get_repo_id
 
 log = logging.getLogger(__name__)
 
@@ -59,6 +62,18 @@ class Package:
         https://docs.npmjs.com/cli/v7/configuring-npm/package-lock-json#packages
         """
         return self._package_dict["version"]
+
+    @property
+    def semver_version(self) -> Optional[str]:
+        """Get the semver version, if available.
+
+        For v1/v2 `dependencies`, the semver version is only available for registry dependencies.
+
+        For v2+ `packages`, the semver version is always available.
+        """
+        if self.path or "resolved" in self._package_dict:
+            return self._package_dict["version"]
+        return None
 
     @property
     def resolved_url(self) -> str:
@@ -112,10 +127,10 @@ class PackageLock:
         """Get the lockfileVersion from package-lock.json data."""
         return self._lockfile_data["lockfileVersion"]
 
-    @property
-    def main_package(self) -> dict[str, str]:
-        """Return a dict with sbom component data for the main package."""
-        return {"name": self._lockfile_data["name"], "version": self._lockfile_data["version"]}
+    @functools.cached_property
+    def _purlifier(self) -> "_Purlifier":
+        pkg_path = self._lockfile_path.join_within_root("..")
+        return _Purlifier(pkg_path)
 
     @classmethod
     def from_file(cls, lockfile_path: RootedPath) -> "PackageLock":
@@ -181,10 +196,27 @@ class PackageLock:
 
         return list(get_dependencies_iter(self._lockfile_data.get("dependencies", {})))
 
+    def get_main_package(self) -> dict[str, str]:
+        """Return a dict with sbom component data for the main package."""
+        name = self._lockfile_data["name"]
+        version = self._lockfile_data["version"]
+        purl = self._purlifier.get_purl(name, version, "file:.")
+        return {"name": name, "version": version, "purl": purl.to_string()}
+
     def get_sbom_components(self) -> list[dict[str, str]]:
         """Return a list of dicts with sbom component data."""
         packages = self._dependencies if self.lockfile_version == 1 else self._packages
-        return [{"name": package.name, "version": package.version} for package in packages]
+
+        def to_component(package: Package) -> dict[str, str]:
+            name = package.name
+            version = package.semver_version
+            purl = self._purlifier.get_purl(name, version, package.resolved_url)
+            if version:
+                return {"name": name, "version": version, "purl": purl.to_string()}
+            else:
+                return {"name": name, "purl": purl.to_string()}
+
+        return list(map(to_component, packages))
 
     def get_dependencies_to_download(self) -> Dict[str, Dict[str, Optional[str]]]:
         """Return a Dict of URL dependencies to download."""
@@ -198,6 +230,58 @@ class PackageLock:
             for package in packages
             if "file:" not in package.resolved_url
         }
+
+
+class _Purlifier:
+    """Generates purls for npm packages."""
+
+    def __init__(self, pkg_path: RootedPath) -> None:
+        """Init a purlifier for the package at pkg_path."""
+        self._pkg_path = pkg_path
+
+    @functools.cached_property
+    def _repo_id(self) -> RepoID:
+        return get_repo_id(self._pkg_path.root)
+
+    def get_purl(self, name: str, version: Optional[str], resolved_url: str) -> PackageURL:
+        """Get the purl for an npm package.
+
+        https://github.com/package-url/purl-spec/blob/master/PURL-TYPES.rst#npm
+        """
+        qualifiers: Optional[dict[str, str]] = None
+        subpath: Optional[str] = None
+
+        url = urlparse(resolved_url)
+        if url.scheme in ("github", "gitlab", "bitbucket"):
+            # TODO normalize
+            pass
+
+        if url.hostname == "registry.npmjs.org":
+            pass
+        elif url.scheme in ("http", "https"):
+            # TODO checksum, unless we add those to Component.hashes instead
+            qualifiers = {"download_url": resolved_url}
+        elif url.scheme == "git" or url.scheme.startswith("git+"):
+            origin_url = url._replace(scheme=url.scheme.removeprefix("git+"), fragment="").geturl()
+            repo_id = RepoID(origin_url=origin_url, commit_id=url.fragment)
+            qualifiers = {"vcs_url": repo_id.as_vcs_url_qualifier()}
+        elif url.scheme == "file":
+            qualifiers = {"vcs_url": self._repo_id.as_vcs_url_qualifier()}
+            subpath_from_root = self._pkg_path.join_within_root(url.path).subpath_from_root
+            if subpath_from_root != Path():
+                subpath = subpath_from_root.as_posix()
+        else:
+            raise UnsupportedFeature(
+                f"Cannot generate purl for npm dependency resolved from {resolved_url}"
+            )
+
+        return PackageURL(
+            type="npm",
+            name=name.lower(),
+            version=version,
+            qualifiers=qualifiers,
+            subpath=subpath,
+        )
 
 
 def _update_vcs_url_with_full_hostname(vcs: str) -> str:
@@ -430,7 +514,7 @@ def _resolve_npm(pkg_path: RootedPath) -> ResolvedNpmPackage:
     package_lock = PackageLock.from_file(package_lock_path)
 
     return {
-        "package": package_lock.main_package,
+        "package": package_lock.get_main_package(),
         "dependencies": package_lock.get_sbom_components(),
         "package_lock_file": package_lock.get_project_file(),
         "dependencies_to_download": package_lock.get_dependencies_to_download(),

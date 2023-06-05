@@ -3,391 +3,469 @@
   "components": [
     {
       "name": "@types/prop-types",
+      "purl": "pkg:npm/%40types/prop-types@15.7.5",
       "type": "library",
       "version": "15.7.5"
     },
     {
       "name": "@types/react-dom",
+      "purl": "pkg:npm/%40types/react-dom@18.0.11",
       "type": "library",
       "version": "18.0.11"
     },
     {
       "name": "@types/react",
+      "purl": "pkg:npm/%40types/react@18.0.35",
       "type": "library",
       "version": "18.0.35"
     },
     {
       "name": "@types/scheduler",
+      "purl": "pkg:npm/%40types/scheduler@0.16.3",
       "type": "library",
       "version": "0.16.3"
     },
     {
       "name": "abbrev",
+      "purl": "pkg:npm/abbrev@2.0.0",
       "type": "library",
       "version": "2.0.0"
     },
     {
       "name": "accepts",
+      "purl": "pkg:npm/accepts@1.3.8",
       "type": "library",
       "version": "1.3.8"
     },
     {
       "name": "array-flatten",
+      "purl": "pkg:npm/array-flatten@1.1.1",
       "type": "library",
       "version": "1.1.1"
     },
     {
       "name": "bar",
+      "purl": "pkg:npm/bar@1.0.0?vcs_url=git%2Bhttps://github.com/cachito-testing/npm-cachi2-smoketest.git%40f229b5b9c9085dabf71622cc1204c5deef97fbe8#bar",
       "type": "library",
       "version": "1.0.0"
     },
     {
       "name": "bitbucket-cachi2-npm-without-deps-second",
+      "purl": "pkg:npm/bitbucket-cachi2-npm-without-deps-second@2.0.0?vcs_url=git%2Bssh://git%40bitbucket.org/cachi-testing/cachi2-without-deps-second.git%4009992d418fc44a2895b7a9ff27c4e32d6f74a982",
       "type": "library",
       "version": "2.0.0"
     },
     {
       "name": "bitbucket-cachi2-npm-without-deps",
+      "purl": "pkg:npm/bitbucket-cachi2-npm-without-deps@1.0.0?vcs_url=git%2Bssh://git%40bitbucket.org/cachi-testing/cachi2-without-deps.git%409e164b97043a2d91bbeb992f6cc68a3d1015086a",
       "type": "library",
       "version": "1.0.0"
     },
     {
       "name": "body-parser",
+      "purl": "pkg:npm/body-parser@1.20.1",
       "type": "library",
       "version": "1.20.1"
     },
     {
       "name": "bytes",
+      "purl": "pkg:npm/bytes@3.1.2",
       "type": "library",
       "version": "3.1.2"
     },
     {
       "name": "cachito-npm-without-deps",
+      "purl": "pkg:npm/cachito-npm-without-deps@1.0.0?download_url=https://github.com/cachito-testing/cachito-npm-without-deps/raw/tarball/cachito-npm-without-deps-1.0.0.tgz",
       "type": "library",
       "version": "1.0.0"
     },
     {
       "name": "call-bind",
+      "purl": "pkg:npm/call-bind@1.0.2",
       "type": "library",
       "version": "1.0.2"
     },
     {
       "name": "classnames",
+      "purl": "pkg:npm/classnames@2.3.2",
       "type": "library",
       "version": "2.3.2"
     },
     {
       "name": "colors",
+      "purl": "pkg:npm/colors@1.4.0",
       "type": "library",
       "version": "1.4.0"
     },
     {
       "name": "content-disposition",
+      "purl": "pkg:npm/content-disposition@0.5.4",
       "type": "library",
       "version": "0.5.4"
     },
     {
       "name": "content-type",
+      "purl": "pkg:npm/content-type@1.0.5",
       "type": "library",
       "version": "1.0.5"
     },
     {
       "name": "cookie-signature",
+      "purl": "pkg:npm/cookie-signature@1.0.6",
       "type": "library",
       "version": "1.0.6"
     },
     {
       "name": "cookie",
+      "purl": "pkg:npm/cookie@0.5.0",
       "type": "library",
       "version": "0.5.0"
     },
     {
       "name": "csstype",
+      "purl": "pkg:npm/csstype@3.1.2",
       "type": "library",
       "version": "3.1.2"
     },
     {
       "name": "dateformat",
+      "purl": "pkg:npm/dateformat@5.0.3",
       "type": "library",
       "version": "5.0.3"
     },
     {
       "name": "debug",
+      "purl": "pkg:npm/debug@2.6.9",
       "type": "library",
       "version": "2.6.9"
     },
     {
       "name": "depd",
+      "purl": "pkg:npm/depd@2.0.0",
       "type": "library",
       "version": "2.0.0"
     },
     {
       "name": "destroy",
+      "purl": "pkg:npm/destroy@1.2.0",
       "type": "library",
       "version": "1.2.0"
     },
     {
       "name": "ee-first",
+      "purl": "pkg:npm/ee-first@1.1.1",
       "type": "library",
       "version": "1.1.1"
     },
     {
       "name": "eggs",
+      "purl": "pkg:npm/eggs@1.0.0?vcs_url=git%2Bhttps://github.com/cachito-testing/npm-cachi2-smoketest.git%40f229b5b9c9085dabf71622cc1204c5deef97fbe8#eggs-packages/eggs",
       "type": "library",
       "version": "1.0.0"
     },
     {
       "name": "encodeurl",
+      "purl": "pkg:npm/encodeurl@1.0.2",
       "type": "library",
       "version": "1.0.2"
     },
     {
       "name": "escape-html",
+      "purl": "pkg:npm/escape-html@1.0.3",
       "type": "library",
       "version": "1.0.3"
     },
     {
       "name": "etag",
+      "purl": "pkg:npm/etag@1.8.1",
       "type": "library",
       "version": "1.8.1"
     },
     {
       "name": "express",
+      "purl": "pkg:npm/express@4.18.2",
       "type": "library",
       "version": "4.18.2"
     },
     {
       "name": "finalhandler",
+      "purl": "pkg:npm/finalhandler@1.2.0",
       "type": "library",
       "version": "1.2.0"
     },
     {
       "name": "foo",
+      "purl": "pkg:npm/foo@1.0.0?vcs_url=git%2Bhttps://github.com/cachito-testing/npm-cachi2-smoketest.git%40f229b5b9c9085dabf71622cc1204c5deef97fbe8#foo",
       "type": "library",
       "version": "1.0.0"
     },
     {
       "name": "forwarded",
+      "purl": "pkg:npm/forwarded@0.2.0",
       "type": "library",
       "version": "0.2.0"
     },
     {
       "name": "fresh",
+      "purl": "pkg:npm/fresh@0.5.2",
       "type": "library",
       "version": "0.5.2"
     },
     {
       "name": "function-bind",
+      "purl": "pkg:npm/function-bind@1.1.1",
       "type": "library",
       "version": "1.1.1"
     },
     {
       "name": "get-intrinsic",
+      "purl": "pkg:npm/get-intrinsic@1.2.0",
       "type": "library",
       "version": "1.2.0"
     },
     {
       "name": "has-symbols",
+      "purl": "pkg:npm/has-symbols@1.0.3",
       "type": "library",
       "version": "1.0.3"
     },
     {
       "name": "has",
+      "purl": "pkg:npm/has@1.0.3",
       "type": "library",
       "version": "1.0.3"
     },
     {
       "name": "http-errors",
+      "purl": "pkg:npm/http-errors@2.0.0",
       "type": "library",
       "version": "2.0.0"
     },
     {
       "name": "iconv-lite",
+      "purl": "pkg:npm/iconv-lite@0.4.24",
       "type": "library",
       "version": "0.4.24"
     },
     {
       "name": "inherits",
+      "purl": "pkg:npm/inherits@2.0.4",
       "type": "library",
       "version": "2.0.4"
     },
     {
       "name": "ipaddr.js",
+      "purl": "pkg:npm/ipaddr.js@1.9.1",
       "type": "library",
       "version": "1.9.1"
     },
     {
       "name": "is-positive",
+      "purl": "pkg:npm/is-positive@3.1.0?vcs_url=git%2Bssh://git%40github.com/kevva/is-positive.git%4097edff6f525f192a3f83cea1944765f769ae2678",
       "type": "library",
       "version": "3.1.0"
     },
     {
       "name": "media-typer",
+      "purl": "pkg:npm/media-typer@0.3.0",
       "type": "library",
       "version": "0.3.0"
     },
     {
       "name": "merge-descriptors",
+      "purl": "pkg:npm/merge-descriptors@1.0.1",
       "type": "library",
       "version": "1.0.1"
     },
     {
       "name": "methods",
+      "purl": "pkg:npm/methods@1.1.2",
       "type": "library",
       "version": "1.1.2"
     },
     {
       "name": "mime-db",
+      "purl": "pkg:npm/mime-db@1.52.0",
       "type": "library",
       "version": "1.52.0"
     },
     {
       "name": "mime-types",
+      "purl": "pkg:npm/mime-types@2.1.35",
       "type": "library",
       "version": "2.1.35"
     },
     {
       "name": "mime",
+      "purl": "pkg:npm/mime@1.6.0",
       "type": "library",
       "version": "1.6.0"
     },
     {
       "name": "ms",
+      "purl": "pkg:npm/ms@2.0.0",
       "type": "library",
       "version": "2.0.0"
     },
     {
       "name": "ms",
+      "purl": "pkg:npm/ms@2.1.3",
       "type": "library",
       "version": "2.1.3"
     },
     {
       "name": "negotiator",
+      "purl": "pkg:npm/negotiator@0.6.3",
       "type": "library",
       "version": "0.6.3"
     },
     {
       "name": "not-baz",
+      "purl": "pkg:npm/not-baz@1.0.0?vcs_url=git%2Bhttps://github.com/cachito-testing/npm-cachi2-smoketest.git%40f229b5b9c9085dabf71622cc1204c5deef97fbe8#baz",
       "type": "library",
       "version": "1.0.0"
     },
     {
       "name": "npm_test",
+      "purl": "pkg:npm/npm_test@1.1.0?vcs_url=git%2Bhttps://github.com/cachito-testing/npm-cachi2-smoketest.git%40f229b5b9c9085dabf71622cc1204c5deef97fbe8",
       "type": "library",
       "version": "1.1.0"
     },
     {
       "name": "object-inspect",
+      "purl": "pkg:npm/object-inspect@1.12.3",
       "type": "library",
       "version": "1.12.3"
     },
     {
       "name": "on-finished",
+      "purl": "pkg:npm/on-finished@2.4.1",
       "type": "library",
       "version": "2.4.1"
     },
     {
       "name": "parseurl",
+      "purl": "pkg:npm/parseurl@1.3.3",
       "type": "library",
       "version": "1.3.3"
     },
     {
       "name": "path-to-regexp",
+      "purl": "pkg:npm/path-to-regexp@0.1.7",
       "type": "library",
       "version": "0.1.7"
     },
     {
       "name": "proxy-addr",
+      "purl": "pkg:npm/proxy-addr@2.0.7",
       "type": "library",
       "version": "2.0.7"
     },
     {
       "name": "qs",
+      "purl": "pkg:npm/qs@6.11.0",
       "type": "library",
       "version": "6.11.0"
     },
     {
       "name": "range-parser",
+      "purl": "pkg:npm/range-parser@1.2.1",
       "type": "library",
       "version": "1.2.1"
     },
     {
       "name": "raw-body",
+      "purl": "pkg:npm/raw-body@2.5.1",
       "type": "library",
       "version": "2.5.1"
     },
     {
       "name": "safe-buffer",
+      "purl": "pkg:npm/safe-buffer@5.2.1",
       "type": "library",
       "version": "5.2.1"
     },
     {
       "name": "safer-buffer",
+      "purl": "pkg:npm/safer-buffer@2.1.2",
       "type": "library",
       "version": "2.1.2"
     },
     {
       "name": "sax",
+      "purl": "pkg:npm/sax@0.1.1",
       "type": "library",
       "version": "0.1.1"
     },
     {
       "name": "send",
+      "purl": "pkg:npm/send@0.18.0",
       "type": "library",
       "version": "0.18.0"
     },
     {
       "name": "serve-static",
+      "purl": "pkg:npm/serve-static@1.15.0",
       "type": "library",
       "version": "1.15.0"
     },
     {
       "name": "setprototypeof",
+      "purl": "pkg:npm/setprototypeof@1.2.0",
       "type": "library",
       "version": "1.2.0"
     },
     {
       "name": "side-channel",
+      "purl": "pkg:npm/side-channel@1.0.4",
       "type": "library",
       "version": "1.0.4"
     },
     {
       "name": "spam",
+      "purl": "pkg:npm/spam@1.0.0?vcs_url=git%2Bhttps://github.com/cachito-testing/npm-cachi2-smoketest.git%40f229b5b9c9085dabf71622cc1204c5deef97fbe8#spam-packages/spam",
       "type": "library",
       "version": "1.0.0"
     },
     {
       "name": "statuses",
+      "purl": "pkg:npm/statuses@2.0.1",
       "type": "library",
       "version": "2.0.1"
     },
     {
       "name": "toidentifier",
+      "purl": "pkg:npm/toidentifier@1.0.1",
       "type": "library",
       "version": "1.0.1"
     },
     {
       "name": "type-is",
+      "purl": "pkg:npm/type-is@1.6.18",
       "type": "library",
       "version": "1.6.18"
     },
     {
       "name": "unpipe",
+      "purl": "pkg:npm/unpipe@1.0.0",
       "type": "library",
       "version": "1.0.0"
     },
     {
       "name": "utils-merge",
+      "purl": "pkg:npm/utils-merge@1.0.1",
       "type": "library",
       "version": "1.0.1"
     },
     {
       "name": "uuid",
+      "purl": "pkg:npm/uuid@9.0.0",
       "type": "library",
       "version": "9.0.0"
     },
     {
       "name": "vary",
+      "purl": "pkg:npm/vary@1.1.2",
       "type": "library",
       "version": "1.1.2"
     }
