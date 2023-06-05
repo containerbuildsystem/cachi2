@@ -1,5 +1,5 @@
 import json
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, Iterator, List, Union
 from unittest import mock
 
 import pytest
@@ -19,6 +19,10 @@ from cachi2.core.package_managers.npm import (
     fetch_npm_source,
 )
 from cachi2.core.rooted_path import RootedPath
+from cachi2.core.scm import RepoID
+
+MOCK_REPO_ID = RepoID("https://github.com/foolish/bar.git", "abcdef1234")
+MOCK_REPO_VCS_URL = "git%2Bhttps://github.com/foolish/bar.git%40abcdef1234"
 
 
 @pytest.fixture
@@ -33,6 +37,13 @@ def npm_request(rooted_tmp_path: RootedPath, npm_input_packages: list[dict[str, 
         output_dir=rooted_tmp_path.join_within_root("output"),
         packages=npm_input_packages,
     )
+
+
+@pytest.fixture
+def mock_get_repo_id() -> Iterator[mock.Mock]:
+    with mock.patch("cachi2.core.package_managers.npm.get_repo_id") as mocked_get_repo_id:
+        mocked_get_repo_id.return_value = MOCK_REPO_ID
+        yield mocked_get_repo_id
 
 
 class TestPackage:
@@ -258,26 +269,8 @@ class TestPackageLock:
         package_lock = PackageLock(rooted_tmp_path, lockfile_data)
         assert package_lock._packages == expected_packages
 
-    @pytest.mark.parametrize(
-        "lockfile_version, expected_components",
-        [
-            (
-                1,
-                [
-                    {"name": "bar", "version": "2.0.0"},
-                ],
-            ),
-            (
-                2,
-                [
-                    {"name": "foo", "version": "1.0.0"},
-                ],
-            ),
-        ],
-    )
-    def test_get_sbom_components(
-        self, lockfile_version: int, expected_components: list[dict[str, str]]
-    ) -> None:
+    @pytest.mark.parametrize("lockfile_version", [1, 2])
+    def test_get_sbom_components(self, lockfile_version: int) -> None:
         mock_package_lock = mock.Mock()
         mock_package_lock.get_sbom_components = PackageLock.get_sbom_components
         mock_package_lock.lockfile_version = lockfile_version
@@ -289,7 +282,11 @@ class TestPackageLock:
         ]
 
         components = mock_package_lock.get_sbom_components(mock_package_lock)
-        assert components == expected_components
+        names = {component["name"] for component in components}
+        if lockfile_version == 1:
+            assert names == {"bar"}
+        else:
+            assert names == {"foo"}
 
 
 @pytest.mark.parametrize(
@@ -299,8 +296,10 @@ class TestPackageLock:
             [{"type": "npm", "path": "."}],
             [
                 {
-                    "package": {"name": "foo", "version": "1.0.0"},
-                    "dependencies": [{"name": "bar", "version": "2.0.0"}],
+                    "package": {"name": "foo", "version": "1.0.0", "purl": "pkg:npm/foo@1.0.0"},
+                    "dependencies": [
+                        {"name": "bar", "version": "2.0.0", "purl": "pkg:npm/bar@2.0.0"}
+                    ],
                     "dependencies_to_download": {
                         "https://some.registry.org/bar/-/bar-2.0.0.tgz": {
                             "integrity": "sha512-JCB8C6SnDoQf",
@@ -313,8 +312,8 @@ class TestPackageLock:
             ],
             {
                 "components": [
-                    Component(name="foo", version="1.0.0"),
-                    Component(name="bar", version="2.0.0"),
+                    Component(name="foo", version="1.0.0", purl="pkg:npm/foo@1.0.0"),
+                    Component(name="bar", version="2.0.0", purl="pkg:npm/bar@2.0.0"),
                 ],
                 "environment_variables": [],
                 "project_files": [
@@ -327,8 +326,10 @@ class TestPackageLock:
             [{"type": "npm", "path": "."}, {"type": "npm", "path": "path"}],
             [
                 {
-                    "package": {"name": "foo", "version": "1.0.0"},
-                    "dependencies": [{"name": "bar", "version": "2.0.0"}],
+                    "package": {"name": "foo", "version": "1.0.0", "purl": "pkg:npm/foo@1.0.0"},
+                    "dependencies": [
+                        {"name": "bar", "version": "2.0.0", "purl": "pkg:npm/bar@2.0.0"}
+                    ],
                     "dependencies_to_download": {
                         "https://some.registry.org/bar/-/bar-2.0.0.tgz": {
                             "integrity": "sha512-JCB8C6SnDoQf",
@@ -339,8 +340,10 @@ class TestPackageLock:
                     "package_lock_file": ProjectFile(abspath="/some/path", template="some text"),
                 },
                 {
-                    "package": {"name": "spam", "version": "3.0.0"},
-                    "dependencies": [{"name": "eggs", "version": "4.0.0"}],
+                    "package": {"name": "spam", "version": "3.0.0", "purl": "pkg:npm/spam@3.0.0"},
+                    "dependencies": [
+                        {"name": "eggs", "version": "4.0.0", "purl": "pkg:npm/eggs@4.0.0"}
+                    ],
                     "dependencies_to_download": {
                         "https://some.registry.org/eggs/-/eggs-1.0.0.tgz": {
                             "integrity": "sha512-JCB8C6SnDoQfYOLOO",
@@ -355,10 +358,10 @@ class TestPackageLock:
             ],
             {
                 "components": [
-                    Component(name="foo", version="1.0.0"),
-                    Component(name="bar", version="2.0.0"),
-                    Component(name="spam", version="3.0.0"),
-                    Component(name="eggs", version="4.0.0"),
+                    Component(name="foo", version="1.0.0", purl="pkg:npm/foo@1.0.0"),
+                    Component(name="bar", version="2.0.0", purl="pkg:npm/bar@2.0.0"),
+                    Component(name="spam", version="3.0.0", purl="pkg:npm/spam@3.0.0"),
+                    Component(name="eggs", version="4.0.0", purl="pkg:npm/eggs@4.0.0"),
                 ],
                 "environment_variables": [],
                 "project_files": [
@@ -427,16 +430,26 @@ def test_resolve_npm_no_lock(
                 "dependencies": {
                     "bar": {
                         "version": "2.0.0",
-                        "resolved": "https://some.registry.org/bar/-/bar-2.0.0.tgz",
+                        "resolved": "https://registry.npmjs.org/bar/-/bar-2.0.0.tgz",
                         "integrity": "sha512-JCB8C6SnDoQf",
                     },
                 },
             },
             {
-                "package": {"name": "foo", "version": "1.0.0"},
-                "dependencies": [{"name": "bar", "version": "2.0.0"}],
+                "package": {
+                    "name": "foo",
+                    "version": "1.0.0",
+                    "purl": f"pkg:npm/foo@1.0.0?vcs_url={MOCK_REPO_VCS_URL}",
+                },
+                "dependencies": [
+                    {
+                        "name": "bar",
+                        "version": "2.0.0",
+                        "purl": "pkg:npm/bar@2.0.0",
+                    }
+                ],
                 "dependencies_to_download": {
-                    "https://some.registry.org/bar/-/bar-2.0.0.tgz": {
+                    "https://registry.npmjs.org/bar/-/bar-2.0.0.tgz": {
                         "integrity": "sha512-JCB8C6SnDoQf",
                         "name": "bar",
                         "version": "2.0.0",
@@ -453,12 +466,12 @@ def test_resolve_npm_no_lock(
                 "dependencies": {
                     "bar": {
                         "version": "2.0.0",
-                        "resolved": "https://some.registry.org/bar/-/bar-2.0.0.tgz",
+                        "resolved": "https://registry.npmjs.org/bar/-/bar-2.0.0.tgz",
                         "integrity": "sha512-JCB8C6SnDoQf",
                         "dependencies": {
                             "bar": {
                                 "version": "3.0.0",
-                                "resolved": "https://some.registry.org/bar/-/bar-3.0.0.tgz",
+                                "resolved": "https://registry.npmjs.org/bar/-/bar-3.0.0.tgz",
                                 "integrity": "sha512-YOLOYOLO",
                             },
                         },
@@ -466,18 +479,30 @@ def test_resolve_npm_no_lock(
                 },
             },
             {
-                "package": {"name": "foo", "version": "1.0.0"},
+                "package": {
+                    "name": "foo",
+                    "version": "1.0.0",
+                    "purl": f"pkg:npm/foo@1.0.0?vcs_url={MOCK_REPO_VCS_URL}",
+                },
                 "dependencies": [
-                    {"name": "bar", "version": "2.0.0"},
-                    {"name": "bar", "version": "3.0.0"},
+                    {
+                        "name": "bar",
+                        "version": "2.0.0",
+                        "purl": "pkg:npm/bar@2.0.0",
+                    },
+                    {
+                        "name": "bar",
+                        "version": "3.0.0",
+                        "purl": "pkg:npm/bar@3.0.0",
+                    },
                 ],
                 "dependencies_to_download": {
-                    "https://some.registry.org/bar/-/bar-2.0.0.tgz": {
+                    "https://registry.npmjs.org/bar/-/bar-2.0.0.tgz": {
                         "integrity": "sha512-JCB8C6SnDoQf",
                         "name": "bar",
                         "version": "2.0.0",
                     },
-                    "https://some.registry.org/bar/-/bar-3.0.0.tgz": {
+                    "https://registry.npmjs.org/bar/-/bar-3.0.0.tgz": {
                         "integrity": "sha512-YOLOYOLO",
                         "name": "bar",
                         "version": "3.0.0",
@@ -502,10 +527,20 @@ def test_resolve_npm_no_lock(
                 },
             },
             {
-                "package": {"name": "foo", "version": "1.0.0"},
+                "package": {
+                    "name": "foo",
+                    "version": "1.0.0",
+                    "purl": f"pkg:npm/foo@1.0.0?vcs_url={MOCK_REPO_VCS_URL}",
+                },
                 "dependencies": [
-                    {"name": "bar", "version": "https://foohub.org/bar/-/bar-2.0.0.tgz"},
-                    {"name": "baz", "version": "file:baz"},
+                    {
+                        "name": "bar",
+                        "purl": "pkg:npm/bar?download_url=https://foohub.org/bar/-/bar-2.0.0.tgz",
+                    },
+                    {
+                        "name": "baz",
+                        "purl": f"pkg:npm/baz?vcs_url={MOCK_REPO_VCS_URL}#baz",
+                    },
                 ],
                 "dependencies_to_download": {
                     "https://foohub.org/bar/-/bar-2.0.0.tgz": {
@@ -530,23 +565,33 @@ def test_resolve_npm_no_lock(
                     },
                     "node_modules/bar": {
                         "version": "2.0.0",
-                        "resolved": "https://some.registry.org/bar/-/bar-2.0.0.tgz",
+                        "resolved": "https://registry.npmjs.org/bar/-/bar-2.0.0.tgz",
                         "integrity": "sha512-JCB8C6SnDoQf",
                     },
                 },
                 "dependencies": {
                     "bar": {
                         "version": "2.0.0",
-                        "resolved": "https://some.registry.org/bar/-/bar-2.0.0.tgz",
+                        "resolved": "https://registry.npmjs.org/bar/-/bar-2.0.0.tgz",
                         "integrity": "sha512-JCB8C6SnDoQf",
                     },
                 },
             },
             {
-                "package": {"name": "foo", "version": "1.0.0"},
-                "dependencies": [{"name": "bar", "version": "2.0.0"}],
+                "package": {
+                    "name": "foo",
+                    "version": "1.0.0",
+                    "purl": f"pkg:npm/foo@1.0.0?vcs_url={MOCK_REPO_VCS_URL}",
+                },
+                "dependencies": [
+                    {
+                        "name": "bar",
+                        "version": "2.0.0",
+                        "purl": "pkg:npm/bar@2.0.0",
+                    }
+                ],
                 "dependencies_to_download": {
-                    "https://some.registry.org/bar/-/bar-2.0.0.tgz": {
+                    "https://registry.npmjs.org/bar/-/bar-2.0.0.tgz": {
                         "integrity": "sha512-JCB8C6SnDoQf",
                         "name": "bar",
                         "version": "2.0.0",
@@ -568,42 +613,54 @@ def test_resolve_npm_no_lock(
                     },
                     "node_modules/bar": {
                         "version": "2.0.0",
-                        "resolved": "https://some.registry.org/bar/-/bar-2.0.0.tgz",
+                        "resolved": "https://registry.npmjs.org/bar/-/bar-2.0.0.tgz",
                         "integrity": "sha512-JCB8C6SnDoQf",
                     },
                     "node_modules/bar/node_modules/baz": {
                         "version": "3.0.0",
-                        "resolved": "https://some.registry.org/baz/-/baz-3.0.0.tgz",
+                        "resolved": "https://registry.npmjs.org/baz/-/baz-3.0.0.tgz",
                         "integrity": "sha512-YOLOYOLO",
                     },
                 },
                 "dependencies": {
                     "bar": {
                         "version": "2.0.0",
-                        "resolved": "https://some.registry.org/bar/-/bar-2.0.0.tgz",
+                        "resolved": "https://registry.npmjs.org/bar/-/bar-2.0.0.tgz",
                         "integrity": "sha512-JCB8C6SnDoQf",
                         "dependencies": {
                             "baz": {
                                 "version": "3.0.0",
-                                "resolved": "https://some.registry.org/baz/-/baz-3.0.0.tgz",
+                                "resolved": "https://registry.npmjs.org/baz/-/baz-3.0.0.tgz",
                             },
                         },
                     },
                 },
             },
             {
-                "package": {"name": "foo", "version": "1.0.0"},
+                "package": {
+                    "name": "foo",
+                    "version": "1.0.0",
+                    "purl": f"pkg:npm/foo@1.0.0?vcs_url={MOCK_REPO_VCS_URL}",
+                },
                 "dependencies": [
-                    {"name": "bar", "version": "2.0.0"},
-                    {"name": "baz", "version": "3.0.0"},
+                    {
+                        "name": "bar",
+                        "version": "2.0.0",
+                        "purl": "pkg:npm/bar@2.0.0",
+                    },
+                    {
+                        "name": "baz",
+                        "version": "3.0.0",
+                        "purl": "pkg:npm/baz@3.0.0",
+                    },
                 ],
                 "dependencies_to_download": {
-                    "https://some.registry.org/bar/-/bar-2.0.0.tgz": {
+                    "https://registry.npmjs.org/bar/-/bar-2.0.0.tgz": {
                         "integrity": "sha512-JCB8C6SnDoQf",
                         "name": "bar",
                         "version": "2.0.0",
                     },
-                    "https://some.registry.org/baz/-/baz-3.0.0.tgz": {
+                    "https://registry.npmjs.org/baz/-/baz-3.0.0.tgz": {
                         "integrity": "sha512-YOLOYOLO",
                         "name": "baz",
                         "version": "3.0.0",
@@ -636,8 +693,18 @@ def test_resolve_npm_no_lock(
                 },
             },
             {
-                "package": {"name": "foo", "version": "1.0.0"},
-                "dependencies": [{"name": "not-bar", "version": "2.0.0"}],
+                "package": {
+                    "name": "foo",
+                    "version": "1.0.0",
+                    "purl": f"pkg:npm/foo@1.0.0?vcs_url={MOCK_REPO_VCS_URL}",
+                },
+                "dependencies": [
+                    {
+                        "name": "not-bar",
+                        "version": "2.0.0",
+                        "purl": f"pkg:npm/not-bar@2.0.0?vcs_url={MOCK_REPO_VCS_URL}#bar",
+                    }
+                ],
                 "dependencies_to_download": {},
             },
             id="npm_v2_lockfile_workspace",
@@ -655,23 +722,33 @@ def test_resolve_npm_no_lock(
                     },
                     "node_modules/@bar/baz": {
                         "version": "2.0.0",
-                        "resolved": "https://some.registry.org/@bar/baz/-/baz-2.0.0.tgz",
+                        "resolved": "https://registry.npmjs.org/@bar/baz/-/baz-2.0.0.tgz",
                         "integrity": "sha512-JCB8C6SnDoQf",
                     },
                 },
                 "dependencies": {
                     "@bar/baz": {
                         "version": "2.0.0",
-                        "resolved": "https://some.registry.org/@bar/baz/-/baz-2.0.0.tgz",
+                        "resolved": "https://registry.npmjs.org/@bar/baz/-/baz-2.0.0.tgz",
                         "integrity": "sha512-JCB8C6SnDoQf",
                     },
                 },
             },
             {
-                "package": {"name": "foo", "version": "1.0.0"},
-                "dependencies": [{"name": "@bar/baz", "version": "2.0.0"}],
+                "package": {
+                    "name": "foo",
+                    "version": "1.0.0",
+                    "purl": f"pkg:npm/foo@1.0.0?vcs_url={MOCK_REPO_VCS_URL}",
+                },
+                "dependencies": [
+                    {
+                        "name": "@bar/baz",
+                        "version": "2.0.0",
+                        "purl": "pkg:npm/%40bar/baz@2.0.0",
+                    }
+                ],
                 "dependencies_to_download": {
-                    "https://some.registry.org/@bar/baz/-/baz-2.0.0.tgz": {
+                    "https://registry.npmjs.org/@bar/baz/-/baz-2.0.0.tgz": {
                         "integrity": "sha512-JCB8C6SnDoQf",
                         "name": "@bar/baz",
                         "version": "2.0.0",
@@ -693,16 +770,26 @@ def test_resolve_npm_no_lock(
                     },
                     "node_modules/bar": {
                         "version": "2.0.0",
-                        "resolved": "https://some.registry.org/bar/-/bar-2.0.0.tgz",
+                        "resolved": "https://registry.npmjs.org/bar/-/bar-2.0.0.tgz",
                         "integrity": "sha512-JCB8C6SnDoQf",
                     },
                 },
             },
             {
-                "package": {"name": "foo", "version": "1.0.0"},
-                "dependencies": [{"name": "bar", "version": "2.0.0"}],
+                "package": {
+                    "name": "foo",
+                    "version": "1.0.0",
+                    "purl": f"pkg:npm/foo@1.0.0?vcs_url={MOCK_REPO_VCS_URL}",
+                },
+                "dependencies": [
+                    {
+                        "name": "bar",
+                        "version": "2.0.0",
+                        "purl": "pkg:npm/bar@2.0.0",
+                    }
+                ],
                 "dependencies_to_download": {
-                    "https://some.registry.org/bar/-/bar-2.0.0.tgz": {
+                    "https://registry.npmjs.org/bar/-/bar-2.0.0.tgz": {
                         "integrity": "sha512-JCB8C6SnDoQf",
                         "name": "bar",
                         "version": "2.0.0",
@@ -717,6 +804,7 @@ def test_resolve_npm(
     rooted_tmp_path: RootedPath,
     package_lock_json: dict[str, Union[str, dict]],
     expected_output: dict[str, Any],
+    mock_get_repo_id: mock.Mock,
 ) -> None:
     """Test _resolve_npm with different package-lock.json inputs."""
     lockfile_path = rooted_tmp_path.path / "package-lock.json"
@@ -728,6 +816,7 @@ def test_resolve_npm(
         abspath=lockfile_path.resolve(), template=json.dumps(package_lock_json, indent=2) + "\n"
     )
     assert pkg_info == expected_output
+    mock_get_repo_id.assert_called_once_with(rooted_tmp_path.root)
 
 
 def test_resolve_npm_unsupported_lockfileversion(rooted_tmp_path: RootedPath) -> None:
