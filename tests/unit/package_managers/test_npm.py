@@ -1,8 +1,10 @@
 import json
-from typing import Any, Dict, Iterator, List, Union
+import urllib.parse
+from typing import Any, Dict, Iterator, List, Optional, Union
 from unittest import mock
 
 import pytest
+from packageurl import PackageURL
 
 from cachi2.core.checksum import ChecksumInfo
 from cachi2.core.errors import PackageRejected, UnexpectedFormat, UnsupportedFeature
@@ -14,6 +16,7 @@ from cachi2.core.package_managers.npm import (
     _clone_repo_pack_archive,
     _extract_git_info_npm,
     _get_npm_dependencies,
+    _Purlifier,
     _resolve_npm,
     _update_vcs_url_with_full_hostname,
     fetch_npm_source,
@@ -289,6 +292,131 @@ class TestPackageLock:
             assert names == {"foo"}
 
 
+def urlq(url: str) -> str:
+    return urllib.parse.quote(url, safe=":/")
+
+
+class TestPurlifier:
+    @pytest.mark.parametrize(
+        "pkg_data, expect_purl",
+        [
+            (
+                ("registry-dep", "1.0.0", "https://registry.npmjs.org/registry-dep-1.0.0.tgz"),
+                "pkg:npm/registry-dep@1.0.0",
+            ),
+            (
+                (
+                    "@scoped/registry-dep",
+                    "2.0.0",
+                    "https://registry.npmjs.org/registry-dep-2.0.0.tgz",
+                ),
+                "pkg:npm/%40scoped/registry-dep@2.0.0",
+            ),
+            (
+                ("https-dep", None, "https://host.org/https-dep-1.0.0.tar.gz"),
+                "pkg:npm/https-dep?download_url=https://host.org/https-dep-1.0.0.tar.gz",
+            ),
+            (
+                ("https-dep", "1.0.0", "https://host.org/https-dep-1.0.0.tar.gz"),
+                "pkg:npm/https-dep@1.0.0?download_url=https://host.org/https-dep-1.0.0.tar.gz",
+            ),
+            (
+                ("http-dep", None, "http://host.org/http-dep-1.0.0.tar.gz"),
+                "pkg:npm/http-dep?download_url=http://host.org/http-dep-1.0.0.tar.gz",
+            ),
+            (
+                ("http-dep", "1.0.0", "http://host.org/http-dep-1.0.0.tar.gz"),
+                "pkg:npm/http-dep@1.0.0?download_url=http://host.org/http-dep-1.0.0.tar.gz",
+            ),
+            (
+                ("git-dep", None, "git://github.com/org/git-dep.git#deadbeef"),
+                f"pkg:npm/git-dep?vcs_url={urlq('git+git://github.com/org/git-dep.git@deadbeef')}",
+            ),
+            (
+                ("git-dep", "1.0.0", "git://github.com/org/git-dep.git#deadbeef"),
+                f"pkg:npm/git-dep@1.0.0?vcs_url={urlq('git+git://github.com/org/git-dep.git@deadbeef')}",
+            ),
+            (
+                ("gitplus-dep", None, "git+https://github.com/org/git-dep.git#deadbeef"),
+                f"pkg:npm/gitplus-dep?vcs_url={urlq('git+https://github.com/org/git-dep.git@deadbeef')}",
+            ),
+        ],
+    )
+    def test_get_purl_for_remote_package(
+        self,
+        pkg_data: tuple[str, Optional[str], str],
+        expect_purl: str,
+        rooted_tmp_path: RootedPath,
+    ) -> None:
+        purl = _Purlifier(rooted_tmp_path).get_purl(*pkg_data)
+        assert purl.to_string() == expect_purl
+
+    @pytest.mark.parametrize(
+        "main_pkg_subpath, pkg_data, expect_purl",
+        [
+            (
+                ".",
+                ("main-pkg", None, "file:."),
+                f"pkg:npm/main-pkg?vcs_url={MOCK_REPO_VCS_URL}",
+            ),
+            (
+                "subpath",
+                ("main-pkg", None, "file:."),
+                f"pkg:npm/main-pkg?vcs_url={MOCK_REPO_VCS_URL}#subpath",
+            ),
+            (
+                ".",
+                ("main-pkg", "1.0.0", "file:."),
+                f"pkg:npm/main-pkg@1.0.0?vcs_url={MOCK_REPO_VCS_URL}",
+            ),
+            (
+                "subpath",
+                ("main-pkg", "2.0.0", "file:."),
+                f"pkg:npm/main-pkg@2.0.0?vcs_url={MOCK_REPO_VCS_URL}#subpath",
+            ),
+            (
+                ".",
+                ("file-dep", "1.0.0", "file:packages/foo"),
+                f"pkg:npm/file-dep@1.0.0?vcs_url={MOCK_REPO_VCS_URL}#packages/foo",
+            ),
+            (
+                "subpath",
+                ("file-dep", "1.0.0", "file:packages/foo"),
+                f"pkg:npm/file-dep@1.0.0?vcs_url={MOCK_REPO_VCS_URL}#subpath/packages/foo",
+            ),
+            (
+                "subpath",
+                ("parent-is-file-dep", "1.0.0", "file:.."),
+                f"pkg:npm/parent-is-file-dep@1.0.0?vcs_url={MOCK_REPO_VCS_URL}",
+            ),
+            (
+                "subpath",
+                ("nephew-is-file-dep", "1.0.0", "file:../packages/foo"),
+                f"pkg:npm/nephew-is-file-dep@1.0.0?vcs_url={MOCK_REPO_VCS_URL}#packages/foo",
+            ),
+        ],
+    )
+    def test_get_purl_for_local_package(
+        self,
+        main_pkg_subpath: str,
+        pkg_data: tuple[str, Optional[str], str],
+        expect_purl: PackageURL,
+        rooted_tmp_path: RootedPath,
+        mock_get_repo_id: mock.Mock,
+    ) -> None:
+        pkg_path = rooted_tmp_path.join_within_root(main_pkg_subpath)
+        purl = _Purlifier(pkg_path).get_purl(*pkg_data)
+        assert purl.to_string() == expect_purl
+        mock_get_repo_id.assert_called_once_with(rooted_tmp_path.root)
+
+    def test_get_purl_unsupported_scheme(self) -> None:
+        with pytest.raises(
+            UnsupportedFeature,
+            match="Cannot generate purl for npm dependency resolved from codeberg:foo/bar#deadbeef",
+        ):
+            _Purlifier(RootedPath("/foo")).get_purl("foo", None, "codeberg:foo/bar#deadbeef")
+
+
 @pytest.mark.parametrize(
     "npm_input_packages, resolved_packages, request_output",
     [
@@ -420,9 +548,10 @@ def test_resolve_npm_no_lock(
 
 
 @pytest.mark.parametrize(
-    "package_lock_json, expected_output",
+    "main_pkg_subpath, package_lock_json, expected_output",
     [
         pytest.param(
+            ".",
             {
                 "name": "foo",
                 "version": "1.0.0",
@@ -459,6 +588,7 @@ def test_resolve_npm_no_lock(
             id="npm_v1_lockfile",
         ),
         pytest.param(
+            ".",
             {
                 "name": "foo",
                 "version": "1.0.0",
@@ -512,6 +642,7 @@ def test_resolve_npm_no_lock(
             id="npm_v1_lockfile_nested_deps",
         ),
         pytest.param(
+            ".",
             {
                 "name": "foo",
                 "version": "1.0.0",
@@ -523,6 +654,9 @@ def test_resolve_npm_no_lock(
                     },
                     "baz": {
                         "version": "file:baz",
+                    },
+                    "spam": {
+                        "version": "git+ssh://git@github.com/spam/spam.git#deadbeef",
                     },
                 },
             },
@@ -541,6 +675,10 @@ def test_resolve_npm_no_lock(
                         "name": "baz",
                         "purl": f"pkg:npm/baz?vcs_url={MOCK_REPO_VCS_URL}#baz",
                     },
+                    {
+                        "name": "spam",
+                        "purl": f"pkg:npm/spam?vcs_url={urlq('git+ssh://git@github.com/spam/spam.git@deadbeef')}",
+                    },
                 ],
                 "dependencies_to_download": {
                     "https://foohub.org/bar/-/bar-2.0.0.tgz": {
@@ -548,11 +686,45 @@ def test_resolve_npm_no_lock(
                         "name": "bar",
                         "version": "https://foohub.org/bar/-/bar-2.0.0.tgz",
                     },
+                    "git+ssh://git@github.com/spam/spam.git#deadbeef": {
+                        "integrity": None,
+                        "name": "spam",
+                        "version": "git+ssh://git@github.com/spam/spam.git#deadbeef",
+                    },
                 },
             },
             id="npm_v1_lockfile_non_registry_deps",
         ),
         pytest.param(
+            "subpath",
+            {
+                "name": "foo",
+                "version": "1.0.0",
+                "lockfileVersion": 1,
+                "dependencies": {
+                    "baz": {
+                        "version": "file:baz",
+                    },
+                },
+            },
+            {
+                "package": {
+                    "name": "foo",
+                    "version": "1.0.0",
+                    "purl": f"pkg:npm/foo@1.0.0?vcs_url={MOCK_REPO_VCS_URL}#subpath",
+                },
+                "dependencies": [
+                    {
+                        "name": "baz",
+                        "purl": f"pkg:npm/baz?vcs_url={MOCK_REPO_VCS_URL}#subpath/baz",
+                    },
+                ],
+                "dependencies_to_download": {},
+            },
+            id="npm_v1_at_subpath_with_file_dep",
+        ),
+        pytest.param(
+            ".",
             {
                 "name": "foo",
                 "version": "1.0.0",
@@ -601,6 +773,7 @@ def test_resolve_npm_no_lock(
             id="npm_v2_lockfile",
         ),
         pytest.param(
+            ".",
             {
                 "name": "foo",
                 "version": "1.0.0",
@@ -670,6 +843,7 @@ def test_resolve_npm_no_lock(
             id="npm_v2_lockfile_nested_deps",
         ),
         pytest.param(
+            ".",
             {
                 "name": "foo",
                 "version": "1.0.0",
@@ -710,6 +884,112 @@ def test_resolve_npm_no_lock(
             id="npm_v2_lockfile_workspace",
         ),
         pytest.param(
+            "subpath",
+            {
+                "name": "foo",
+                "version": "1.0.0",
+                "lockfileVersion": 2,
+                "packages": {
+                    "": {
+                        "name": "foo",
+                        "version": "1.0.0",
+                        "workspaces": ["bar"],
+                    },
+                    "bar": {
+                        "name": "not-bar",
+                        "version": "2.0.0",
+                    },
+                    "node_modules/not-bar": {"resolved": "bar", "link": True},
+                },
+                "dependencies": {
+                    "not-bar": {
+                        "version": "file:bar",
+                    },
+                },
+            },
+            {
+                "package": {
+                    "name": "foo",
+                    "version": "1.0.0",
+                    "purl": f"pkg:npm/foo@1.0.0?vcs_url={MOCK_REPO_VCS_URL}#subpath",
+                },
+                "dependencies": [
+                    {
+                        "name": "not-bar",
+                        "version": "2.0.0",
+                        "purl": f"pkg:npm/not-bar@2.0.0?vcs_url={MOCK_REPO_VCS_URL}#subpath/bar",
+                    }
+                ],
+                "dependencies_to_download": {},
+            },
+            id="npm_v2_at_subpath_with_workspace",
+        ),
+        pytest.param(
+            ".",
+            {
+                "name": "foo",
+                "version": "1.0.0",
+                "lockfileVersion": 2,
+                "packages": {
+                    "": {
+                        "name": "foo",
+                        "version": "1.0.0",
+                    },
+                    "node_modules/bar": {
+                        "version": "2.0.0",
+                        "resolved": "https://foohub.org/bar/-/bar-2.0.0.tgz",
+                        "integrity": "sha512-JCB8C6SnDoQf",
+                    },
+                    "node_modules/spam": {
+                        "version": "3.0.0",
+                        "resolved": "git+ssh://git@github.com/spam/spam.git#deadbeef",
+                    },
+                },
+                "dependencies": {
+                    "bar": {
+                        "version": "https://foohub.org/bar/-/bar-2.0.0.tgz",
+                        "integrity": "sha512-JCB8C6SnDoQf",
+                    },
+                    "spam": {
+                        "version": "git+ssh://git@github.com/spam/spam.git#deadbeef",
+                    },
+                },
+            },
+            {
+                "package": {
+                    "name": "foo",
+                    "version": "1.0.0",
+                    "purl": f"pkg:npm/foo@1.0.0?vcs_url={MOCK_REPO_VCS_URL}",
+                },
+                "dependencies": [
+                    {
+                        "name": "bar",
+                        "version": "2.0.0",
+                        "purl": "pkg:npm/bar@2.0.0?download_url=https://foohub.org/bar/-/bar-2.0.0.tgz",
+                    },
+                    {
+                        "name": "spam",
+                        "version": "3.0.0",
+                        "purl": f"pkg:npm/spam@3.0.0?vcs_url={urlq('git+ssh://git@github.com/spam/spam.git@deadbeef')}",
+                    },
+                ],
+                "dependencies_to_download": {
+                    "https://foohub.org/bar/-/bar-2.0.0.tgz": {
+                        "integrity": "sha512-JCB8C6SnDoQf",
+                        "name": "bar",
+                        "version": "2.0.0",
+                    },
+                    "git+ssh://git@github.com/spam/spam.git#deadbeef": {
+                        "integrity": None,
+                        "name": "spam",
+                        "version": "3.0.0",
+                    },
+                },
+            },
+            id="npm_v2_lockfile_non_registry_deps",
+        ),
+        pytest.param(
+            ".",
             {
                 "name": "foo",
                 "version": "1.0.0",
@@ -758,6 +1038,7 @@ def test_resolve_npm_no_lock(
             id="npm_v2_lockfile_grouped_deps",
         ),
         pytest.param(
+            ".",
             {
                 "name": "foo",
                 "version": "1.0.0",
@@ -802,16 +1083,20 @@ def test_resolve_npm_no_lock(
 )
 def test_resolve_npm(
     rooted_tmp_path: RootedPath,
+    main_pkg_subpath: str,
     package_lock_json: dict[str, Union[str, dict]],
     expected_output: dict[str, Any],
     mock_get_repo_id: mock.Mock,
 ) -> None:
     """Test _resolve_npm with different package-lock.json inputs."""
-    lockfile_path = rooted_tmp_path.path / "package-lock.json"
+    pkg_dir = rooted_tmp_path.join_within_root(main_pkg_subpath)
+    pkg_dir.path.mkdir(exist_ok=True)
+
+    lockfile_path = pkg_dir.join_within_root("package-lock.json").path
     with lockfile_path.open("w") as f:
         json.dump(package_lock_json, f)
 
-    pkg_info = _resolve_npm(rooted_tmp_path)
+    pkg_info = _resolve_npm(pkg_dir)
     expected_output["package_lock_file"] = ProjectFile(
         abspath=lockfile_path.resolve(), template=json.dumps(package_lock_json, indent=2) + "\n"
     )
