@@ -1,5 +1,5 @@
 import json
-from typing import Any, Dict, Union
+from typing import Any, Dict, List, Union
 from unittest import mock
 
 import pytest
@@ -301,7 +301,13 @@ class TestPackageLock:
                 {
                     "package": {"name": "foo", "version": "1.0.0"},
                     "dependencies": [{"name": "bar", "version": "2.0.0"}],
-                    "dependencies_to_download": {},
+                    "dependencies_to_download": {
+                        "https://some.registry.org/bar/-/bar-2.0.0.tgz": {
+                            "integrity": "sha512-JCB8C6SnDoQf",
+                            "name": "bar",
+                            "version": "2.0.0",
+                        }
+                    },
                     "package_lock_file": ProjectFile(abspath="/some/path", template="some text"),
                 },
             ],
@@ -323,13 +329,25 @@ class TestPackageLock:
                 {
                     "package": {"name": "foo", "version": "1.0.0"},
                     "dependencies": [{"name": "bar", "version": "2.0.0"}],
-                    "dependencies_to_download": {},
+                    "dependencies_to_download": {
+                        "https://some.registry.org/bar/-/bar-2.0.0.tgz": {
+                            "integrity": "sha512-JCB8C6SnDoQf",
+                            "name": "bar",
+                            "version": "2.0.0",
+                        }
+                    },
                     "package_lock_file": ProjectFile(abspath="/some/path", template="some text"),
                 },
                 {
                     "package": {"name": "spam", "version": "3.0.0"},
                     "dependencies": [{"name": "eggs", "version": "4.0.0"}],
-                    "dependencies_to_download": {},
+                    "dependencies_to_download": {
+                        "https://some.registry.org/eggs/-/eggs-1.0.0.tgz": {
+                            "integrity": "sha512-JCB8C6SnDoQfYOLOO",
+                            "name": "eggs",
+                            "version": "1.0.0",
+                        }
+                    },
                     "package_lock_file": ProjectFile(
                         abspath="/some/other/path", template="some other text"
                     ),
@@ -353,16 +371,27 @@ class TestPackageLock:
     ],
 )
 @mock.patch("cachi2.core.package_managers.npm._resolve_npm")
+@mock.patch("cachi2.core.package_managers.npm._get_npm_dependencies")
 def test_fetch_npm_source(
+    mock_get_npm_dependencies: mock.Mock,
     mock_resolve_npm: mock.Mock,
     npm_request: Request,
     npm_input_packages: dict[str, str],
-    resolved_packages: dict[str, Any],
+    resolved_packages: List[dict[str, Any]],
     request_output: dict[str, list[Any]],
 ) -> None:
     """Test fetch_npm_source with different Request inputs."""
     mock_resolve_npm.side_effect = resolved_packages
     output = fetch_npm_source(npm_request)
+    calls = []
+    for r in resolved_packages:
+        calls.append(
+            mock.call(
+                npm_request.output_dir.join_within_root("deps", "npm"),
+                r["dependencies_to_download"],
+            )
+        )
+    mock_get_npm_dependencies.assert_has_calls(calls)
     expected_output = RequestOutput.from_obj_list(
         components=request_output["components"],
         environment_variables=request_output["environment_variables"],
