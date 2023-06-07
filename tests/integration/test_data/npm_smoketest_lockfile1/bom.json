@@ -72,7 +72,7 @@
     },
     {
       "name": "cachito-npm-without-deps",
-      "purl": "pkg:npm/cachito-npm-without-deps?download_url=https://github.com/cachito-testing/cachito-npm-without-deps/raw/tarball/cachito-npm-without-deps-1.0.0.tgz",
+      "purl": "pkg:npm/cachito-npm-without-deps?checksum=sha512:43e71f90ad5f9eb349ab18a283f8954994def373962ddc61b866bdea4d48249e67913c6b84dca1e8c519e981ca1fcc62b438292104a88ee9ed72db76a41efede&download_url=https://github.com/cachito-testing/cachito-npm-without-deps/raw/tarball/cachito-npm-without-deps-1.0.0.tgz",
       "type": "library"
     },
     {
