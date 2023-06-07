@@ -313,6 +313,14 @@ class TestPurlifier:
                 "pkg:npm/%40scoped/registry-dep@2.0.0",
             ),
             (
+                (
+                    "sus-registry-dep",
+                    "1.0.0",
+                    "https://registry.yarnpkg.com/sus-registry-dep-1.0.0.tgz",
+                ),
+                "pkg:npm/sus-registry-dep@1.0.0",
+            ),
+            (
                 ("https-dep", None, "https://host.org/https-dep-1.0.0.tar.gz"),
                 "pkg:npm/https-dep?download_url=https://host.org/https-dep-1.0.0.tar.gz",
             ),
@@ -1243,9 +1251,14 @@ def test_clone_repo_pack_archive(
                     "integrity": "sha512-YOLO2222==",
                 },
                 "https://registry.npmjs.org/@types/react-dom/-/react-dom-18.0.11.tgz": {
-                    "name": "react-dom",
+                    "name": "@types/react-dom",
                     "version": "18.0.11",
                     "integrity": "sha512-YOLO00000==",
+                },
+                "https://registry.yarnpkg.com/abbrev/-/abbrev-2.0.0.tgz": {
+                    "name": "abbrev",
+                    "version": "2.0.0",
+                    "integrity": "sha512-YOLO33333==",
                 },
                 "git+ssh://git@bitbucket.org/cachi-testing/cachi2-without-deps-second.git#09992d418fc44a2895b7a9ff27c4e32d6f74a982": {
                     "version": "2.0.0",
@@ -1266,7 +1279,8 @@ def test_clone_repo_pack_archive(
                 "https://github.com/cachito-testing/ms-1.0.0.tgz": "external-ms/ms-external-sha256-YOLO1111.tgz",
                 "https://github.com/cachito-testing/ms-2.0.0.tgz": "external-ms/ms-external-sha256-YOLO2222.tgz",
                 "git+ssh://git@bitbucket.org/cachi-testing/cachi2-without-deps-second.git#09992d418fc44a2895b7a9ff27c4e32d6f74a982": "bitbucket.org/cachi-testing/cachi2-without-deps-second/cachi2-without-deps-second-external-gitcommit-09992d418fc44a2895b7a9ff27c4e32d6f74a982.tgz",
-                "https://registry.npmjs.org/@types/react-dom/-/react-dom-18.0.11.tgz": "react-dom-18.0.11.tgz",
+                "https://registry.npmjs.org/@types/react-dom/-/react-dom-18.0.11.tgz": "types-react-dom-18.0.11.tgz",
+                "https://registry.yarnpkg.com/abbrev/-/abbrev-2.0.0.tgz": "abbrev-2.0.0.tgz",
                 "git+ssh://git@github.com/kevva/is-positive.git#97edff6f": "github.com/kevva/is-positive/is-positive-external-gitcommit-97edff6f.tgz",
                 "git+ssh://git@gitlab.foo.bar.com/osbs/cachito-tests.git#c300503": "gitlab.foo.bar.com/osbs/cachito-tests/cachito-tests-external-gitcommit-c300503.tgz",
             },
