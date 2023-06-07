@@ -7,6 +7,7 @@ from typing import Any, Dict, Iterator, Optional, TypedDict
 from urllib.parse import urlparse
 
 from cachi2.core.checksum import ChecksumInfo, must_match_any_checksum
+from cachi2.core.config import get_config
 from cachi2.core.errors import PackageRejected, UnexpectedFormat, UnsupportedFeature
 from cachi2.core.models.input import Request
 from cachi2.core.models.output import Component, ProjectFile, RequestOutput
@@ -353,7 +354,8 @@ def _get_npm_dependencies(
     # Asynchronously download tar files
     asyncio.run(
         async_download_files(
-            {url: item["download_path"] for (url, item) in files_to_download.items()}, 5
+            {url: item["download_path"] for (url, item) in files_to_download.items()},
+            get_config().concurrency_limit,
         )
     )
 
