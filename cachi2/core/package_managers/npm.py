@@ -20,6 +20,12 @@ from cachi2.core.scm import RepoID, clone_as_tarball, get_repo_id
 
 log = logging.getLogger(__name__)
 
+# Known CNAMEs for the official npm registry server.
+# In rare cases, package-lock.json may contain resolved urls with the yarn CNAME.
+# This most likely happens when converting a yarn.lock to package-lock.json
+# ("importing" one with npm or "exporting" with yarn).
+NPM_REGISTRY_CNAMES = ("registry.npmjs.org", "registry.yarnpkg.com")
+
 
 class ResolvedNpmPackage(TypedDict):
     """Contains all of the data for a resolved npm package."""
@@ -258,7 +264,7 @@ class _Purlifier:
             resolved_url = _update_vcs_url_with_full_hostname(resolved_url)
             url = urlparse(resolved_url)
 
-        if url.hostname == "registry.npmjs.org":
+        if url.hostname in NPM_REGISTRY_CNAMES:
             pass
         elif url.scheme in ("http", "https"):
             qualifiers = {"download_url": resolved_url}
@@ -407,7 +413,7 @@ def _get_npm_dependencies(
             # Git source
             download_paths[url] = _clone_repo_pack_archive(url, download_dir)
         else:
-            if "registry.npmjs.org" == urlparse(url).hostname:
+            if urlparse(url).hostname in NPM_REGISTRY_CNAMES:
                 # Tar archive from npm registry
                 archive_name = f'{info["name"]}-{info["version"]}.tgz'.removeprefix("@").replace(
                     "/", "-"
