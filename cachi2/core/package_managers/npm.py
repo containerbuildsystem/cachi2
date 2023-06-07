@@ -200,7 +200,7 @@ class PackageLock:
         """Return a dict with sbom component data for the main package."""
         name = self._lockfile_data["name"]
         version = self._lockfile_data["version"]
-        purl = self._purlifier.get_purl(name, version, "file:.")
+        purl = self._purlifier.get_purl(name, version, "file:.", integrity=None)
         return {"name": name, "version": version, "purl": purl.to_string()}
 
     def get_sbom_components(self) -> list[dict[str, str]]:
@@ -210,7 +210,7 @@ class PackageLock:
         def to_component(package: Package) -> dict[str, str]:
             name = package.name
             version = package.semver_version
-            purl = self._purlifier.get_purl(name, version, package.resolved_url)
+            purl = self._purlifier.get_purl(name, version, package.resolved_url, package.integrity)
             if version:
                 return {"name": name, "version": version, "purl": purl.to_string()}
             else:
@@ -243,7 +243,9 @@ class _Purlifier:
     def _repo_id(self) -> RepoID:
         return get_repo_id(self._pkg_path.root)
 
-    def get_purl(self, name: str, version: Optional[str], resolved_url: str) -> PackageURL:
+    def get_purl(
+        self, name: str, version: Optional[str], resolved_url: str, integrity: Optional[str]
+    ) -> PackageURL:
         """Get the purl for an npm package.
 
         https://github.com/package-url/purl-spec/blob/master/PURL-TYPES.rst#npm
@@ -259,8 +261,10 @@ class _Purlifier:
         if url.hostname == "registry.npmjs.org":
             pass
         elif url.scheme in ("http", "https"):
-            # TODO checksum, unless we add those to Component.hashes instead
             qualifiers = {"download_url": resolved_url}
+            if integrity:
+                algorithm, digest = ChecksumInfo.from_sri(integrity)
+                qualifiers["checksum"] = f"{algorithm}:{digest}"
         elif url.scheme == "git" or url.scheme.startswith("git+"):
             origin_url = url._replace(scheme=url.scheme.removeprefix("git+"), fragment="").geturl()
             repo_id = RepoID(origin_url=origin_url, commit_id=url.fragment)

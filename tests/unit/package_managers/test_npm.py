@@ -348,7 +348,7 @@ class TestPurlifier:
         expect_purl: str,
         rooted_tmp_path: RootedPath,
     ) -> None:
-        purl = _Purlifier(rooted_tmp_path).get_purl(*pkg_data)
+        purl = _Purlifier(rooted_tmp_path).get_purl(*pkg_data, integrity=None)
         assert purl.to_string() == expect_purl
 
     @pytest.mark.parametrize(
@@ -405,16 +405,42 @@ class TestPurlifier:
         mock_get_repo_id: mock.Mock,
     ) -> None:
         pkg_path = rooted_tmp_path.join_within_root(main_pkg_subpath)
-        purl = _Purlifier(pkg_path).get_purl(*pkg_data)
+        purl = _Purlifier(pkg_path).get_purl(*pkg_data, integrity=None)
         assert purl.to_string() == expect_purl
         mock_get_repo_id.assert_called_once_with(rooted_tmp_path.root)
+
+    @pytest.mark.parametrize(
+        "resolved_url, integrity, expect_checksum_qualifier",
+        [
+            # integrity ignored for registry deps
+            ("https://registry.npmjs.org/registry-dep-1.0.0.tgz", "sha512-3q2+7w==", None),
+            # as well as git deps, if they somehow have it
+            ("git+https://github.com/foo/bar.git#deeadbeef", "sha512-3q2+7w==", None),
+            # and file deps
+            ("file:foo.tar.gz", "sha512-3q2+7w==", None),
+            # checksum qualifier added for http(s) deps
+            ("https://foohub.com/foo.tar.gz", "sha512-3q2+7w==", "sha512:deadbeef"),
+            # unless integrity is missing
+            ("https://foohub.com/foo.tar.gz", None, None),
+        ],
+    )
+    def test_get_purl_integrity_handling(
+        self,
+        resolved_url: str,
+        integrity: Optional[str],
+        expect_checksum_qualifier: Optional[str],
+        mock_get_repo_id: mock.Mock,
+    ) -> None:
+        purl = _Purlifier(RootedPath("/foo")).get_purl("foo", None, resolved_url, integrity)
+        assert isinstance(purl.qualifiers, dict)
+        assert purl.qualifiers.get("checksum") == expect_checksum_qualifier
 
     def test_get_purl_unsupported_scheme(self) -> None:
         with pytest.raises(
             UnsupportedFeature,
             match="Cannot generate purl for npm dependency resolved from codeberg:foo/bar#deadbeef",
         ):
-            _Purlifier(RootedPath("/foo")).get_purl("foo", None, "codeberg:foo/bar#deadbeef")
+            _Purlifier(RootedPath("/foo")).get_purl("foo", None, "codeberg:foo/bar#deadbeef", None)
 
 
 @pytest.mark.parametrize(
@@ -669,7 +695,7 @@ def test_resolve_npm_no_lock(
                 "dependencies": [
                     {
                         "name": "bar",
-                        "purl": "pkg:npm/bar?download_url=https://foohub.org/bar/-/bar-2.0.0.tgz",
+                        "purl": "pkg:npm/bar?checksum=sha512:24207c0ba4a70e841f&download_url=https://foohub.org/bar/-/bar-2.0.0.tgz",
                     },
                     {
                         "name": "baz",
@@ -965,7 +991,7 @@ def test_resolve_npm_no_lock(
                     {
                         "name": "bar",
                         "version": "2.0.0",
-                        "purl": "pkg:npm/bar@2.0.0?download_url=https://foohub.org/bar/-/bar-2.0.0.tgz",
+                        "purl": "pkg:npm/bar@2.0.0?checksum=sha512:24207c0ba4a70e841f&download_url=https://foohub.org/bar/-/bar-2.0.0.tgz",
                     },
                     {
                         "name": "spam",
