@@ -340,6 +340,18 @@ class TestPurlifier:
                 ("gitplus-dep", None, "git+https://github.com/org/git-dep.git#deadbeef"),
                 f"pkg:npm/gitplus-dep?vcs_url={urlq('git+https://github.com/org/git-dep.git@deadbeef')}",
             ),
+            (
+                ("github-dep", None, "github:org/git-dep#deadbeef"),
+                f"pkg:npm/github-dep?vcs_url={urlq('git+ssh://git@github.com/org/git-dep.git@deadbeef')}",
+            ),
+            (
+                ("gitlab-dep", None, "gitlab:org/git-dep#deadbeef"),
+                f"pkg:npm/gitlab-dep?vcs_url={urlq('git+ssh://git@gitlab.com/org/git-dep.git@deadbeef')}",
+            ),
+            (
+                ("bitbucket-dep", None, "bitbucket:org/git-dep#deadbeef"),
+                f"pkg:npm/bitbucket-dep?vcs_url={urlq('git+ssh://git@bitbucket.org/org/git-dep.git@deadbeef')}",
+            ),
         ],
     )
     def test_get_purl_for_remote_package(
@@ -1180,13 +1192,16 @@ def test_extract_git_info_with_missing_ref() -> None:
 @pytest.mark.parametrize(
     "vcs, expected",
     [
-        ("github:kevva/is-positive#97edff6", "git+ssh://github.com/kevva/is-positive.git#97edff6"),
-        ("github:kevva/is-positive", "git+ssh://github.com/kevva/is-positive.git"),
+        (
+            "github:kevva/is-positive#97edff6",
+            "git+ssh://git@github.com/kevva/is-positive.git#97edff6",
+        ),
+        ("github:kevva/is-positive", "git+ssh://git@github.com/kevva/is-positive.git"),
         (
             "bitbucket:cachi-testing/cachi2-without-deps#9e164b9",
-            "git+ssh://bitbucket.org/cachi-testing/cachi2-without-deps.git#9e164b9",
+            "git+ssh://git@bitbucket.org/cachi-testing/cachi2-without-deps.git#9e164b9",
         ),
-        ("gitlab:foo/bar#YOLO", "git+ssh://gitlab.com/foo/bar.git#YOLO"),
+        ("gitlab:foo/bar#YOLO", "git+ssh://git@gitlab.com/foo/bar.git#YOLO"),
     ],
 )
 def test_update_vcs_url_with_full_hostname(vcs: str, expected: str) -> None:
