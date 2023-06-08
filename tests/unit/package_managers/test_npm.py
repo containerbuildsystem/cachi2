@@ -11,6 +11,7 @@ from cachi2.core.errors import PackageRejected, UnexpectedFormat, UnsupportedFea
 from cachi2.core.models.input import Request
 from cachi2.core.models.output import Component, ProjectFile, RequestOutput
 from cachi2.core.package_managers.npm import (
+    NormalizedUrl,
     Package,
     PackageLock,
     _clone_repo_pack_archive,
@@ -454,13 +455,6 @@ class TestPurlifier:
         purl = _Purlifier(RootedPath("/foo")).get_purl("foo", None, resolved_url, integrity)
         assert isinstance(purl.qualifiers, dict)
         assert purl.qualifiers.get("checksum") == expect_checksum_qualifier
-
-    def test_get_purl_unsupported_scheme(self) -> None:
-        with pytest.raises(
-            UnsupportedFeature,
-            match="Cannot generate purl for npm dependency resolved from codeberg:foo/bar#deadbeef",
-        ):
-            _Purlifier(RootedPath("/foo")).get_purl("foo", None, "codeberg:foo/bar#deadbeef", None)
 
 
 @pytest.mark.parametrize(
@@ -1183,12 +1177,12 @@ def test_resolve_npm_unsupported_lockfileversion(rooted_tmp_path: RootedPath) ->
         ),
     ],
 )
-def test_extract_git_info_npm(vcs: str, expected: Dict[str, str]) -> None:
+def test_extract_git_info_npm(vcs: NormalizedUrl, expected: Dict[str, str]) -> None:
     assert _extract_git_info_npm(vcs) == expected
 
 
 def test_extract_git_info_with_missing_ref() -> None:
-    vcs = "git+ssh://git@bitbucket.org/cachi-testing/cachi2-without-deps.git"
+    vcs = NormalizedUrl("git+ssh://git@bitbucket.org/cachi-testing/cachi2-without-deps.git")
     expected_error = (
         "ssh://git@bitbucket.org/cachi-testing/cachi2-without-deps.git "
         "is not valid VCS url. ref is missing."
@@ -1220,7 +1214,7 @@ def test_update_vcs_url_with_full_hostname(vcs: str, expected: str) -> None:
 def test_clone_repo_pack_archive(
     mock_clone_as_tarball: mock.Mock, rooted_tmp_path: RootedPath
 ) -> None:
-    vcs = "git+ssh://bitbucket.org/cachi-testing/cachi2-without-deps.git#9e164b9"
+    vcs = NormalizedUrl("git+ssh://bitbucket.org/cachi-testing/cachi2-without-deps.git#9e164b9")
     download_path = _clone_repo_pack_archive(vcs, rooted_tmp_path)
     expected_path = rooted_tmp_path.join_within_root(
         "bitbucket.org",

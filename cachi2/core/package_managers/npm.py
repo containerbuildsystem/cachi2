@@ -4,7 +4,7 @@ import json
 import logging
 import os.path
 from pathlib import Path
-from typing import Any, Dict, Iterator, Optional, TypedDict
+from typing import Any, Dict, Iterator, Literal, NewType, Optional, TypedDict
 from urllib.parse import urlparse
 
 from packageurl import PackageURL
@@ -259,31 +259,26 @@ class _Purlifier:
         qualifiers: Optional[dict[str, str]] = None
         subpath: Optional[str] = None
 
-        url = urlparse(resolved_url)
-        if url.scheme in ("github", "gitlab", "bitbucket"):
-            resolved_url = _update_vcs_url_with_full_hostname(resolved_url)
-            url = urlparse(resolved_url)
+        resolved_url = _normalize_resolved_url(resolved_url)
+        dep_type = _classify_resolved_url(resolved_url)
 
-        if url.hostname in NPM_REGISTRY_CNAMES:
+        if dep_type == "registry":
             pass
-        elif url.scheme in ("http", "https"):
+        elif dep_type == "git":
+            info = _extract_git_info_npm(resolved_url)
+            repo_id = RepoID(origin_url=info["url"], commit_id=info["ref"])
+            qualifiers = {"vcs_url": repo_id.as_vcs_url_qualifier()}
+        elif dep_type == "file":
+            qualifiers = {"vcs_url": self._repo_id.as_vcs_url_qualifier()}
+            path = urlparse(resolved_url).path
+            subpath_from_root = self._pkg_path.join_within_root(path).subpath_from_root
+            if subpath_from_root != Path():
+                subpath = subpath_from_root.as_posix()
+        else:  # dep_type == "https"
             qualifiers = {"download_url": resolved_url}
             if integrity:
                 algorithm, digest = ChecksumInfo.from_sri(integrity)
                 qualifiers["checksum"] = f"{algorithm}:{digest}"
-        elif url.scheme == "git" or url.scheme.startswith("git+"):
-            origin_url = url._replace(scheme=url.scheme.removeprefix("git+"), fragment="").geturl()
-            repo_id = RepoID(origin_url=origin_url, commit_id=url.fragment)
-            qualifiers = {"vcs_url": repo_id.as_vcs_url_qualifier()}
-        elif url.scheme == "file":
-            qualifiers = {"vcs_url": self._repo_id.as_vcs_url_qualifier()}
-            subpath_from_root = self._pkg_path.join_within_root(url.path).subpath_from_root
-            if subpath_from_root != Path():
-                subpath = subpath_from_root.as_posix()
-        else:
-            raise UnsupportedFeature(
-                f"Cannot generate purl for npm dependency resolved from {resolved_url}"
-            )
 
         return PackageURL(
             type="npm",
@@ -292,6 +287,28 @@ class _Purlifier:
             qualifiers=qualifiers,
             subpath=subpath,
         )
+
+
+NormalizedUrl = NewType("NormalizedUrl", str)
+
+
+def _normalize_resolved_url(resolved_url: str) -> NormalizedUrl:
+    if resolved_url.startswith(("github:", "gitlab:", "bitbucket:")):
+        resolved_url = _update_vcs_url_with_full_hostname(resolved_url)
+    return NormalizedUrl(resolved_url)
+
+
+def _classify_resolved_url(
+    resolved_url: NormalizedUrl,
+) -> Literal["registry", "git", "file", "https"]:
+    url = urlparse(resolved_url)
+    if url.hostname in NPM_REGISTRY_CNAMES:
+        return "registry"
+    if url.scheme == "git" or url.scheme.startswith("git+"):
+        return "git"
+    if url.scheme == "file":
+        return "file"
+    return "https"
 
 
 def _update_vcs_url_with_full_hostname(vcs: str) -> str:
@@ -313,7 +330,7 @@ def _update_vcs_url_with_full_hostname(vcs: str) -> str:
     return vcs
 
 
-def _extract_git_info_npm(vcs_url: str) -> Dict[str, str]:
+def _extract_git_info_npm(vcs_url: NormalizedUrl) -> Dict[str, str]:
     """
     Extract important info from a VCS requirement URL.
 
@@ -329,17 +346,12 @@ def _extract_git_info_npm(vcs_url: str) -> Dict[str, str]:
     :param vcs_url: The URL of a VCS requirement, must be valid (have git ref in path)
     :return: Dict with url, ref, host, namespace and repo keys
     """
-    # If scheme is git+protocol://, keep only protocol://
-    # Do this before parsing URL, otherwise urllib may not extract URL params
-    if vcs_url.startswith("git+"):
-        vcs_url = vcs_url[len("git+") :]
-
     clean_url, _, ref = vcs_url.partition("#")
+    # if scheme is git+protocol://, keep only protocol://
+    clean_url = clean_url.removeprefix("git+")
 
     url = urlparse(clean_url)
-    namespace_repo = url.path.strip("/")
-    if namespace_repo.endswith(".git"):
-        namespace_repo = namespace_repo[: -len(".git")]
+    namespace_repo = url.path.strip("/").removesuffix(".git")
 
     # Everything up to the last '/' is namespace, the rest is repo
     namespace, _, repo = namespace_repo.partition("/")
@@ -364,7 +376,7 @@ def _extract_git_info_npm(vcs_url: str) -> Dict[str, str]:
 
 
 def _clone_repo_pack_archive(
-    vcs: str,
+    vcs: NormalizedUrl,
     download_dir: RootedPath,
 ) -> RootedPath:
     """
@@ -392,7 +404,7 @@ def _clone_repo_pack_archive(
 
 def _get_npm_dependencies(
     download_dir: RootedPath, deps_to_download: Dict[str, Dict[str, str]]
-) -> Dict[str, RootedPath]:
+) -> Dict[NormalizedUrl, RootedPath]:
     """
     Download npm dependencies.
 
@@ -406,21 +418,20 @@ def _get_npm_dependencies(
     files_to_download: dict[str, dict[str, Any]] = {}
     download_paths = {}
     for url, info in deps_to_download.items():
-        if url.startswith("github:") or url.startswith("gitlab:") or url.startswith("bitbucket:"):
-            url = _update_vcs_url_with_full_hostname(url)
+        url = _normalize_resolved_url(url)
+        dep_type = _classify_resolved_url(url)
 
-        if url.startswith("git+"):
-            # Git source
+        if dep_type == "file":
+            continue
+        elif dep_type == "git":
             download_paths[url] = _clone_repo_pack_archive(url, download_dir)
         else:
-            if urlparse(url).hostname in NPM_REGISTRY_CNAMES:
-                # Tar archive from npm registry
+            if dep_type == "registry":
                 archive_name = f'{info["name"]}-{info["version"]}.tgz'.removeprefix("@").replace(
                     "/", "-"
                 )
                 download_paths[url] = download_dir.join_within_root(archive_name)
-            else:
-                # Tar archive
+            else:  # dep_type == "https"
                 if info["integrity"]:
                     algorithm, digest = ChecksumInfo.from_sri(info["integrity"])
                 else:
