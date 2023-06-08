@@ -255,8 +255,8 @@ class _Purlifier:
 
         url = urlparse(resolved_url)
         if url.scheme in ("github", "gitlab", "bitbucket"):
-            # TODO normalize
-            pass
+            resolved_url = _update_vcs_url_with_full_hostname(resolved_url)
+            url = urlparse(resolved_url)
 
         if url.hostname == "registry.npmjs.org":
             pass
@@ -301,7 +301,7 @@ def _update_vcs_url_with_full_hostname(vcs: str) -> str:
     namespace_repo, _, ref = path.partition("#")
     suffix_domain = "org" if host == "bitbucket" else "com"
 
-    vcs = f"git+ssh://{host}.{suffix_domain}/{namespace_repo}.git"
+    vcs = f"git+ssh://git@{host}.{suffix_domain}/{namespace_repo}.git"
     if ref:
         vcs = f"{vcs}#{ref}"
     return vcs
