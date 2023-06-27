@@ -3530,8 +3530,20 @@ def test_resolve_pip(
     expected = {
         "package": {"name": "foo", "version": "1.0", "type": "pip"},
         "dependencies": [
-            {"name": "bar", "version": "2.1", "type": "pip", "dev": False},
-            {"name": "baz", "version": "0.0.5", "type": "pip", "dev": True},
+            {
+                "name": "bar",
+                "version": "2.1",
+                "type": "pip",
+                "dev": False,
+                "kind": "pypi",
+            },
+            {
+                "name": "baz",
+                "version": "0.0.5",
+                "type": "pip",
+                "dev": True,
+                "kind": "pypi",
+            },
         ],
         "requirements": [req_file, build_req_file],
     }
@@ -3698,11 +3710,13 @@ def test_replace_external_requirements(
         ),
     ],
 )
+@mock.patch("cachi2.core.scm.Repo")
 @mock.patch("cachi2.core.package_managers.pip._replace_external_requirements")
 @mock.patch("cachi2.core.package_managers.pip._resolve_pip")
 def test_fetch_pip_source(
     mock_resolve_pip: mock.Mock,
     mock_replace_requirements: mock.Mock,
+    mock_git_repo: mock.Mock,
     packages: list[dict[str, Any]],
     n_pip_packages: int,
     rooted_tmp_path: RootedPath,
@@ -3717,16 +3731,40 @@ def test_fetch_pip_source(
     resolved_a = {
         "package": {"name": "foo", "version": "1.0", "type": "pip"},
         "dependencies": [
-            {"name": "bar", "version": "https://x.org/bar.zip", "type": "pip", "dev": False},
-            {"name": "baz", "version": "0.0.5", "type": "pip", "dev": True},
+            {
+                "name": "bar",
+                "version": "https://x.org/bar.zip#cachito_hash=sha256:aaaaaaaaaa",
+                "type": "pip",
+                "dev": False,
+                "kind": "url",
+            },
+            {
+                "name": "baz",
+                "version": "0.0.5",
+                "type": "pip",
+                "dev": True,
+                "kind": "pypi",
+            },
         ],
         "requirements": ["/package_a/requirements.txt", "/package_a/requirements-build.txt"],
     }
     resolved_b = {
         "package": {"name": "spam", "version": "2.1", "type": "pip"},
         "dependencies": [
-            {"name": "ham", "version": "3.2", "type": "pip", "dev": False},
-            {"name": "eggs", "version": "https://x.org/eggs.zip", "type": "pip", "dev": False},
+            {
+                "name": "ham",
+                "version": "3.2",
+                "type": "pip",
+                "dev": False,
+                "kind": "pypi",
+            },
+            {
+                "name": "eggs",
+                "version": "https://x.org/eggs.zip#cachito_hash=sha256:aaaaaaaaaa",
+                "type": "pip",
+                "dev": False,
+                "kind": "url",
+            },
         ],
         "requirements": ["/package_b/requirements.txt"],
     }
@@ -3743,6 +3781,11 @@ def test_fetch_pip_source(
     mock_resolve_pip.side_effect = [resolved_a, resolved_b]
     mock_replace_requirements.side_effect = [replaced_file_a, None, replaced_file_b]
 
+    mocked_repo = mock.Mock()
+    mocked_repo.remote.return_value.url = "https://github.com/my-org/my-repo"
+    mocked_repo.head.commit.hexsha = "f" * 40
+    mock_git_repo.return_value = mocked_repo
+
     output = pip.fetch_pip_source(request)
 
     expect_package_a = {
@@ -3750,9 +3793,24 @@ def test_fetch_pip_source(
         "version": "1.0",
         "type": "pip",
         "path": Path("."),
+        "purl": f"pkg:pypi/foo@1.0?vcs_url=git%2Bhttps://github.com/my-org/my-repo%40{'f'*40}",
         "dependencies": [
-            {"name": "bar", "version": "https://x.org/bar.zip", "type": "pip", "dev": False},
-            {"name": "baz", "version": "0.0.5", "type": "pip", "dev": True},
+            {
+                "name": "bar",
+                "version": None,
+                "type": "pip",
+                "dev": False,
+                "kind": "url",
+                "purl": "pkg:pypi/bar?checksum=sha256:aaaaaaaaaa&download_url=https://x.org/bar.zip",
+            },
+            {
+                "name": "baz",
+                "version": "0.0.5",
+                "type": "pip",
+                "dev": True,
+                "kind": "pypi",
+                "purl": "pkg:pypi/baz@0.0.5",
+            },
         ],
     }
     expect_package_b = {
@@ -3760,9 +3818,24 @@ def test_fetch_pip_source(
         "version": "2.1",
         "type": "pip",
         "path": Path("foo"),
+        "purl": f"pkg:pypi/spam@2.1?vcs_url=git%2Bhttps://github.com/my-org/my-repo%40{'f'*40}#foo",
         "dependencies": [
-            {"name": "eggs", "version": "https://x.org/eggs.zip", "type": "pip", "dev": False},
-            {"name": "ham", "version": "3.2", "type": "pip", "dev": False},
+            {
+                "name": "eggs",
+                "version": None,
+                "type": "pip",
+                "dev": False,
+                "kind": "url",
+                "purl": "pkg:pypi/eggs?checksum=sha256:aaaaaaaaaa&download_url=https://x.org/eggs.zip",
+            },
+            {
+                "name": "ham",
+                "version": "3.2",
+                "type": "pip",
+                "dev": False,
+                "kind": "pypi",
+                "purl": "pkg:pypi/ham@3.2",
+            },
         ],
     }
 
@@ -3802,3 +3875,103 @@ def test_fetch_pip_source(
     if n_pip_packages >= 2:
         mock_resolve_pip.assert_any_call(source_dir.join_within_root("foo"), output_dir, None, [])
         mock_replace_requirements.assert_any_call("/package_b/requirements.txt")
+
+
+@pytest.mark.parametrize(
+    "dependency, expected_purl",
+    [
+        (
+            {
+                "name": "pypi_package",
+                "version": "1.0.0",
+                "type": "pip",
+                "dev": False,
+                "kind": "pypi",
+            },
+            "pkg:pypi/pypi-package@1.0.0",
+        ),
+        (
+            {
+                "name": "git_dependency",
+                "version": f"git+https://github.com/my-org/git_dependency@{'a'*40}",
+                "type": "pip",
+                "dev": False,
+                "kind": "vcs",
+            },
+            f"pkg:pypi/git-dependency?vcs_url=git%2Bhttps://github.com/my-org/git_dependency%40{'a'*40}",
+        ),
+        (
+            {
+                "name": "Git_dependency",
+                "version": f"git+file:///github.com/my-org/git_dependency@{'a'*40}",
+                "type": "pip",
+                "dev": False,
+                "kind": "vcs",
+            },
+            f"pkg:pypi/git-dependency?vcs_url=git%2Bfile:///github.com/my-org/git_dependency%40{'a'*40}",
+        ),
+        (
+            {
+                "name": "git_dependency",
+                "version": f"git+ssh://git@github.com/my-org/git_dependency@{'a'*40}",
+                "type": "pip",
+                "dev": False,
+                "kind": "vcs",
+            },
+            f"pkg:pypi/git-dependency?vcs_url=git%2Bssh://git%40github.com/my-org/git_dependency%40{'a'*40}",
+        ),
+        (
+            {
+                "name": "git_dependency",
+                "version": f"git+https://github.com/my-org/git_dependency@{'a'*40}",
+                "type": "pip",
+                "dev": False,
+                "kind": "vcs",
+            },
+            f"pkg:pypi/git-dependency?vcs_url=git%2Bhttps://github.com/my-org/git_dependency%40{'a'*40}",
+        ),
+        (
+            {
+                "name": "https_dependency",
+                "version": f"https://github.com/my-org/https_dependency/{'a'*40}/file.tar.gz#egg=https_dependency&cachito_hash=sha256:de526c1",
+                "type": "pip",
+                "dev": False,
+                "kind": "url",
+            },
+            f"pkg:pypi/https-dependency?checksum=sha256:de526c1&download_url=https://github.com/my-org/https_dependency/{'a'*40}/file.tar.gz",
+        ),
+    ],
+)
+def test_generate_purl_dependencies(dependency: dict[str, Any], expected_purl: str) -> None:
+    purl = pip._generate_purl_dependency(dependency)
+
+    assert purl == expected_purl
+
+
+@pytest.mark.parametrize(
+    "subpath, expected_purl",
+    [
+        (
+            ".",
+            f"pkg:pypi/foo@1.0.0?vcs_url=git%2Bssh://git%40github.com/my-org/my-repo%40{'f'*40}",
+        ),
+        (
+            "path/to/package",
+            f"pkg:pypi/foo@1.0.0?vcs_url=git%2Bssh://git%40github.com/my-org/my-repo%40{'f'*40}#path/to/package",
+        ),
+    ],
+)
+@mock.patch("cachi2.core.scm.Repo")
+def test_generate_purl_main_package(
+    mock_git_repo: Any, subpath: Path, expected_purl: str, rooted_tmp_path: RootedPath
+) -> None:
+    package = {"name": "foo", "version": "1.0.0", "type": "pip"}
+
+    mocked_repo = mock.Mock()
+    mocked_repo.remote.return_value.url = "ssh://git@github.com/my-org/my-repo"
+    mocked_repo.head.commit.hexsha = "f" * 40
+    mock_git_repo.return_value = mocked_repo
+
+    purl = pip._generate_purl_main_package(package, rooted_tmp_path.join_within_root(subpath))
+
+    assert purl == expected_purl
