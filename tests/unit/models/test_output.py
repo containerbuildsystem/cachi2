@@ -35,22 +35,6 @@ class TestComponent:
                 },
                 Component(name="mypkg", version="1.0.0"),
             ),
-            (
-                {"name": "mypkg", "version": "git+https://github.com/myorg/mydep.git"},
-                Component(name="mypkg"),
-            ),
-            (
-                {"name": "mypkg", "version": "https://github.com/myorg/mydep.git"},
-                Component(name="mypkg"),
-            ),
-            (
-                {"name": "mypkg", "version": "./a/replacement/module"},
-                Component(name="mypkg"),
-            ),
-            (
-                {"name": "mypkg", "version": "file:mypkg"},
-                Component(name="mypkg"),
-            ),
         ],
     )
     def test_construct_from_package_dict(

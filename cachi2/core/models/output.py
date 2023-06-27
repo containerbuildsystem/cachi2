@@ -1,5 +1,4 @@
 import logging
-import re
 import string
 from pathlib import Path
 from typing import Any, Literal, Optional
@@ -32,25 +31,6 @@ class Component(pydantic.BaseModel):
             return self.purl
 
         return f"{self.name}:{self.version}"
-
-    @pydantic.validator("version")
-    def _valid_semver(cls, version: Optional[str]) -> Optional[str]:
-        """Ignore invalid versions.
-
-        For now, versions for the following types of dependencies will be ignored:
-            * Direct files (starting with http|https)
-            * VCS dependencies (starting with git+)
-            * Gomod local replacements (starting with ./)
-
-        This behavior is meant to be temporary, proper version output should be handled at package
-        manager level.
-        """
-        regex = re.compile(r"^(git\+|https?://|\./|file:).*$")
-
-        if version is None or regex.match(version):
-            return None
-
-        return version
 
     @classmethod
     def from_package_dict(cls, package: dict[str, Any]) -> "Component":
