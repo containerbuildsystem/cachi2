@@ -16,8 +16,10 @@ from pathlib import Path
 from typing import IO, TYPE_CHECKING, Any, Iterable, Iterator, Optional, Union, no_type_check
 
 import tomli
+from packageurl import PackageURL
 
 from cachi2.core.rooted_path import RootedPath
+from cachi2.core.scm import get_repo_id
 
 if TYPE_CHECKING:
     from typing_extensions import TypeGuard
@@ -81,17 +83,22 @@ def fetch_pip_source(request: Request) -> RequestOutput:
         ]
 
     for package in request.pip_packages:
+        path_within_root = request.source_dir.join_within_root(package.path)
         info = _resolve_pip(
-            request.source_dir.join_within_root(package.path),
+            path_within_root,
             request.output_dir,
             package.requirements_files,
             package.requirements_build_files,
         )
-
-        components.append(Component.from_package_dict(info["package"]))
+        purl = _generate_purl_main_package(info["package"], path_within_root)
+        components.append(
+            Component(name=info["package"]["name"], version=info["package"]["version"], purl=purl)
+        )
 
         for dependency in info["dependencies"]:
-            components.append(Component.from_package_dict(dependency))
+            purl = _generate_purl_dependency(dependency)
+            version = dependency["version"] if dependency["kind"] == "pypi" else None
+            components.append(Component(name=dependency["name"], version=version, purl=purl))
 
         replaced_requirements_files = map(_replace_external_requirements, info["requirements"])
         project_files.extend(filter(None, replaced_requirements_files))
@@ -101,6 +108,60 @@ def fetch_pip_source(request: Request) -> RequestOutput:
         environment_variables=environment_variables,
         project_files=project_files,
     )
+
+
+def _generate_purl_main_package(package: dict[str, Any], package_path: RootedPath) -> str:
+    """Get the purl for this package."""
+    type = "pypi"
+    name = package["name"]
+    version = package["version"]
+    url = get_repo_id(package_path.root).as_vcs_url_qualifier()
+    qualifiers = {"vcs_url": url}
+    if package_path.subpath_from_root != Path("."):
+        subpath = package_path.subpath_from_root.as_posix()
+    else:
+        subpath = None
+
+    purl = PackageURL(
+        type=type,
+        name=name,
+        version=version,
+        qualifiers=qualifiers,
+        subpath=subpath,
+    )
+
+    return purl.to_string()
+
+
+def _generate_purl_dependency(package: dict[str, Any]) -> str:
+    """Get the purl for this dependency."""
+    type = "pypi"
+    name = package["name"]
+    dependency_kind = package.get("kind", None)
+    version = None
+    qualifiers = None
+
+    if dependency_kind == "pypi":
+        version = package["version"]
+    elif dependency_kind == "vcs":
+        qualifiers = {"vcs_url": package["version"]}
+    elif dependency_kind == "url":
+        parsed_url = urllib.parse.urldefrag(package["version"])
+        fragments = urllib.parse.parse_qs(parsed_url.fragment)
+        checksum = fragments["cachito_hash"][0]
+        qualifiers = {"download_url": parsed_url.url, "checksum": checksum}
+    else:
+        # Should not happen
+        raise RuntimeError(f"Unexpected requirement kind: {dependency_kind}")
+
+    purl = PackageURL(
+        type=type,
+        name=name,
+        version=version,
+        qualifiers=qualifiers,
+    )
+
+    return purl.to_string()
 
 
 def _get_pip_metadata(package_dir: RootedPath) -> tuple[str, str]:
@@ -1879,6 +1940,7 @@ def _resolve_pip(
             "version": _version(dep),
             "type": "pip",
             "dev": dep.get("dev", False),
+            "kind": dep["kind"],
         }
         for dep in (requires + buildrequires)
     ]
