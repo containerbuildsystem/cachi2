@@ -20,7 +20,7 @@ class Component(pydantic.BaseModel):
 
     name: str
     version: Optional[str]
-    purl: Optional[str]  # optional while it is not implemented for Pip
+    purl: Optional[str]  # optional while it is not implemented for all package managers
     type: Literal["library"] = "library"
 
     def key(self) -> str:
