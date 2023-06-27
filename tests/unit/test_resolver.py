@@ -17,7 +17,9 @@ GOMOD_OUTPUT = RequestOutput.from_obj_list(
 )
 
 PIP_OUTPUT = RequestOutput.from_obj_list(
-    components=[Component(type="library", name="spam", version="1.0.0")],
+    components=[
+        Component(type="library", name="spam", version="1.0.0", purl="pkg:pypi/spam@1.0.0")
+    ],
     environment_variables=[
         EnvironmentVariable(name="PIP_INDEX_URL", value="file:///some/path", kind="literal"),
     ],
