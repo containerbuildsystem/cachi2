@@ -59,6 +59,24 @@ log = logging.getLogger(__name__)
             ),
             id="npm_bundled_lockfile3",
         ),
+        pytest.param(
+            utils.TestParameters(
+                repo="https://github.com/cachito-testing/npm-cachi2-registry-yarnpkg.git",
+                ref="666e85812266bdad8795e75025ce053ecbb060d9",
+                packages=({"path": ".", "type": "npm"},),
+                check_vendor_checksums=False,
+            ),
+            id="npm_lockfile1_yarn_registry",
+        ),
+        pytest.param(
+            utils.TestParameters(
+                repo="https://github.com/cachito-testing/npm-cachi2-registry-yarnpkg.git",
+                ref="f830b62780e75357c38abb7e1102871b51bfbcfe",
+                packages=({"path": ".", "type": "npm"},),
+                check_vendor_checksums=False,
+            ),
+            id="npm_lockfile3_yarn_registry",
+        ),
     ],
 )
 def test_npm_smoketest(
