@@ -40,6 +40,27 @@ log = logging.getLogger(__name__)
             ),
             id="npm_smoketest_lockfile3",
         ),
+        # bundled dependencies, see the repo README for more details
+        pytest.param(
+            utils.TestParameters(
+                repo="https://github.com/cachito-testing/npm-cachi2-bundled.git",
+                ref="87937b938d5c737bc4d62f3759478dd5e3e9ebb6",
+                packages=({"path": ".", "type": "npm"},),
+                check_vendor_checksums=False,
+            ),
+            id="npm_bundled_lockfile1",
+            marks=pytest.mark.xfail(reason="cachi2 does not handle bundled deps properly"),
+        ),
+        pytest.param(
+            utils.TestParameters(
+                repo="https://github.com/cachito-testing/npm-cachi2-bundled.git",
+                ref="de68ac6aa88a81272660b6d0f6d44ce157207799",
+                packages=({"path": ".", "type": "npm"},),
+                check_vendor_checksums=False,
+            ),
+            id="npm_bundled_lockfile3",
+            marks=pytest.mark.xfail(reason="cachi2 does not handle bundled deps properly"),
+        ),
     ],
 )
 def test_npm_smoketest(
