@@ -210,6 +210,7 @@ def _safe_extract(tar: TarFile, path: str = ".", *, numeric_owner: bool = False)
 
 def update_test_data_if_needed(path: Path, data: Dict) -> None:
     if os.getenv("CACHI2_GENERATE_TEST_DATA") == "true":
+        path.parent.mkdir(parents=True, exist_ok=True)
         with open(path, "w") as file:
             json_formatted_str = json.dumps(data, indent=2, sort_keys=True)
             file.write(json_formatted_str + "\n")
