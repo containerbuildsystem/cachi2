@@ -27,11 +27,14 @@ from cachi2.core.models.input import Request
 from cachi2.core.models.output import Component, ProjectFile
 from cachi2.core.package_managers import general, pip
 from cachi2.core.rooted_path import PathOutsideRoot, RootedPath
+from cachi2.core.scm import RepoID
 from tests.common_utils import Symlink, write_file_tree
 
 THIS_MODULE_DIR = Path(__file__).resolve().parent
 GIT_REF = "9a557920b2a6d4110f838506120904a6fda421a2"
 PKG_DIR = RootedPath("/foo/package_dir")
+PKG_DIR_SUBPATH = PKG_DIR.join_within_root("subpath")
+MOCK_REPO_ID = RepoID("https://github.com/foolish/bar.git", "abcdef1234")
 
 
 def setup_module() -> None:
@@ -54,10 +57,13 @@ def rooted_tmp_path(tmp_path: Path) -> RootedPath:
 @pytest.mark.parametrize("cfg_exists", [True, False])
 @pytest.mark.parametrize("cfg_name", ["name_in_setup_cfg", None])
 @pytest.mark.parametrize("cfg_version", ["version_in_setup_cfg", None])
+@pytest.mark.parametrize("repo_name_with_subpath", ["bar-subpath", None])
 @mock.patch("cachi2.core.package_managers.pip.SetupCFG")
 @mock.patch("cachi2.core.package_managers.pip.SetupPY")
 @mock.patch("cachi2.core.package_managers.pip.PyProjectTOML")
+@mock.patch("cachi2.core.package_managers.pip.get_repo_id")
 def test_get_pip_metadata(
+    mock_get_repo_id: mock.Mock,
     mock_pyproject_toml: mock.Mock,
     mock_setup_py: mock.Mock,
     mock_setup_cfg: mock.Mock,
@@ -70,6 +76,7 @@ def test_get_pip_metadata(
     cfg_exists: bool,
     cfg_name: Optional[str],
     cfg_version: Optional[str],
+    repo_name_with_subpath: Optional[str],
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     """
@@ -102,26 +109,24 @@ def test_get_pip_metadata(
     setup_cfg.get_name.return_value = cfg_name
     setup_cfg.get_version.return_value = cfg_version
 
-    expect_name = toml_name or py_name or cfg_name
+    mock_get_repo_id.return_value = MOCK_REPO_ID
+
+    expect_name = toml_name or py_name or cfg_name or repo_name_with_subpath
     expect_version = toml_version or py_version or cfg_version
 
-    if expect_name and expect_version:
-        name, version = pip._get_pip_metadata(PKG_DIR)
+    if expect_name:
+        name, version = pip._get_pip_metadata(PKG_DIR_SUBPATH)
 
         assert name == expect_name
         assert version == expect_version
     else:
+        mock_get_repo_id.side_effect = UnsupportedFeature(
+            "Cachi2 cannot process repositories that don't have an 'origin' remote"
+        )
         with pytest.raises(PackageRejected) as exc_info:
-            pip._get_pip_metadata(PKG_DIR)
-
-        if expect_name:
-            missing = "version"
-        elif expect_version:
-            missing = "name"
-        else:
-            missing = "name, version"
-
-        assert str(exc_info.value) == f"Could not resolve package metadata: {missing}"
+            pip._get_pip_metadata(PKG_DIR_SUBPATH)
+        assert str(exc_info.value) == "Could not take name from the repository origin url"
+        return
 
     assert pyproject_toml.get_name.called == toml_exists
     assert pyproject_toml.get_version.called == toml_exists
@@ -145,6 +150,9 @@ def test_get_pip_metadata(
 
     if find_name_in_setup_cfg or find_version_in_setup_cfg:
         assert "Filling in missing metadata from setup.cfg" in caplog.text
+
+    if not (toml_exists or py_exists or cfg_exists):
+        assert "Processing metadata from git repository" in caplog.text
 
     if expect_name:
         assert f"Resolved package name: '{expect_name}'" in caplog.text
@@ -3448,14 +3456,6 @@ def test_resolve_pip_no_deps(mock_metadata: mock.Mock, rooted_tmp_path: RootedPa
         "requirements": [],
     }
     assert pkg_info == expected
-
-
-@mock.patch("cachi2.core.package_managers.pip._get_pip_metadata")
-def test_resolve_pip_incompatible(mock_metadata: mock.Mock, rooted_tmp_path: RootedPath) -> None:
-    expected_error = "Could not resolve package metadata: name"
-    mock_metadata.side_effect = PackageRejected(expected_error, solution=None)
-    with pytest.raises(PackageRejected, match=expected_error):
-        pip._resolve_pip(rooted_tmp_path, rooted_tmp_path.join_within_root("output"))
 
 
 @mock.patch("cachi2.core.package_managers.pip._get_pip_metadata")

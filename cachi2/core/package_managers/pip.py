@@ -19,7 +19,7 @@ import tomli
 from packageurl import PackageURL
 
 from cachi2.core.rooted_path import RootedPath
-from cachi2.core.scm import get_repo_id
+from cachi2.core.scm import clone_as_tarball, get_repo_id
 
 if TYPE_CHECKING:
     from typing_extensions import TypeGuard
@@ -40,7 +40,6 @@ from cachi2.core.package_managers.general import (
     extract_git_info,
     pkg_requests_session,
 )
-from cachi2.core.scm import clone_as_tarball
 
 log = logging.getLogger(__name__)
 
@@ -164,7 +163,7 @@ def _generate_purl_dependency(package: dict[str, Any]) -> str:
     return purl.to_string()
 
 
-def _get_pip_metadata(package_dir: RootedPath) -> tuple[str, str]:
+def _get_pip_metadata(package_dir: RootedPath) -> tuple[str, Optional[str]]:
     """
     Attempt to get the name and version of a Pip package.
 
@@ -173,11 +172,8 @@ def _get_pip_metadata(package_dir: RootedPath) -> tuple[str, str]:
     could not be resolved and there is a setup.cfg file, try to fill in the missing
     values from metadata.name and metadata.version in the .cfg file.
 
-    If either name or version could not be resolved, raise an error.
-
     :param package_dir: Path to the root directory of a Pip package
     :return: Tuple of strings (name, version)
-    :raises PackageRejected: If either name or version could not be resolved
     """
     name = None
     version = None
@@ -204,20 +200,32 @@ def _get_pip_metadata(package_dir: RootedPath) -> tuple[str, str]:
         name = name or setup_cfg.get_name()
         version = version or setup_cfg.get_version()
 
-    if name:
-        log.info("Resolved package name: %r", name)
+    if not name:
+        log.info("Processing metadata from git repository")
+        try:
+            repo_path = get_repo_id(package_dir.root).parsed_origin_url.path.removesuffix(".git")
+            repo_name = Path(repo_path).name
+            package_subpath = package_dir.subpath_from_root
+
+            resolved_path = Path(repo_name).joinpath(package_subpath)
+            normalized_path = pkg_resources.safe_name(str(resolved_path))
+            name = normalized_path.strip("-.")
+        except UnsupportedFeature:
+            raise PackageRejected(
+                reason="Could not take name from the repository origin url",
+                solution=(
+                    "Please specify package metadata in a way that Cachi2 understands (see the docs)\n"
+                    "or make sure that the directory Cachi2 is processing is a git repository with\n"
+                    "an 'origin' remote in which case Cachi2 will infer the package name from the remote url."
+                ),
+                docs=PIP_METADATA_DOC,
+            )
+
+    log.info("Resolved package name: %r", name)
     if version:
         log.info("Resolved package version: %r", version)
-
-    if not (name and version):
-        missing = [attr for attr, value in zip(["name", "version"], [name, version]) if not value]
-        raise PackageRejected(
-            f"Could not resolve package metadata: {', '.join(missing)}",
-            solution=(
-                "Please specify package metadata in a way that Cachi2 understands (see the docs)."
-            ),
-            docs=PIP_METADATA_DOC,
-        )
+    else:
+        log.warning("Could not resolve package version")
 
     return name, version
 
