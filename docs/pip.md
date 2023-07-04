@@ -270,7 +270,9 @@ Cachi2 looks for the name and version of your project in the following project f
 * [setup.cfg](#setupcfg)
 * [setup.py](#setuppy)
 
-If Cachi2 fails to resolve the necessary metadata, it will refuse to process the project. This may change in the future.
+If Cachi2 fails to resolve the project name, it will generate a name based
+on the git repository origin url (and package subpath if the package is not in the repository root).
+If Cachi2 fails to resolve the version, it will omit the version.
 
 ### pyproject.toml: [PEP 621 metadata](https://packaging.python.org/en/latest/specifications/declaring-project-metadata/)
 
