@@ -1,0 +1,322 @@
+{
+    "bomFormat": "CycloneDX",
+    "specVersion": "1.4",
+    "serialNumber": "urn:uuid:43840228-3fae-4d88-95aa-96512d2510dd",
+    "version": 1,
+    "metadata": {
+        "timestamp": "2023-05-03T18:19:41Z",
+        "tools": [
+            {
+                "vendor": "anchore",
+                "name": "syft",
+                "version": "0.47.0"
+            },
+            {
+                "vendor": "red hat",
+                "name": "cachi2"
+            }
+        ],
+        "component": {
+            "bom-ref": "6b8edfe5f2756e0",
+            "type": "file",
+            "name": "/var/lib/containers/storage/vfs/dir/517aef0ffe20db360d19aa475dbbfbe03f452f53403881a31f9a475c83af788b"
+        }
+    },
+    "components": [
+        {
+            "bom-ref": "pkg:rpm/rhel/bash@4.4.20-4.el8_6?arch=x86_64&upstream=bash-4.4.20-4.el8_6.src.rpm&distro=rhel-8.7&package-id=5b17560161ffa050",
+            "type": "library",
+            "publisher": "Red Hat, Inc.",
+            "name": "bash",
+            "version": "4.4.20-4.el8_6",
+            "cpe": "cpe:2.3:a:redhat:bash:4.4.20-4.el8_6:*:*:*:*:*:*:*",
+            "purl": "pkg:rpm/rhel/bash@4.4.20-4.el8_6?arch=x86_64&upstream=bash-4.4.20-4.el8_6.src.rpm&distro=rhel-8.7",
+            "properties": [
+                {
+                    "name": "syft:package:foundBy",
+                    "value": "rpmdb-cataloger"
+                },
+                {
+                    "name": "syft:package:metadataType",
+                    "value": "RpmdbMetadata"
+                },
+                {
+                    "name": "syft:package:type",
+                    "value": "rpm"
+                },
+                {
+                    "name": "syft:cpe23",
+                    "value": "cpe:2.3:a:bash:bash:4.4.20-4.el8_6:*:*:*:*:*:*:*"
+                },
+                {
+                    "name": "syft:location:0:path",
+                    "value": "var/lib/rpm/Packages"
+                },
+                {
+                    "name": "syft:metadata:release",
+                    "value": "4.el8_6"
+                },
+                {
+                    "name": "syft:metadata:size",
+                    "value": "6861444"
+                },
+                {
+                    "name": "syft:metadata:sourceRpm",
+                    "value": "bash-4.4.20-4.el8_6.src.rpm"
+                }
+            ]
+        },
+        {
+            "type": "operating-system",
+            "name": "rhel",
+            "version": "8.7",
+            "description": "Red Hat Enterprise Linux 8.7 (Ootpa)",
+            "cpe": "cpe:/o:redhat:enterprise_linux:8::baseos",
+            "swid": {
+                "tagId": "rhel",
+                "name": "rhel",
+                "version": "8.7"
+            },
+            "externalReferences": [
+                {
+                    "url": "https://bugzilla.redhat.com/",
+                    "type": "issue-tracker"
+                },
+                {
+                    "url": "https://www.redhat.com/",
+                    "type": "website"
+                }
+            ],
+            "properties": [
+                {
+                    "name": "syft:distro:id",
+                    "value": "rhel"
+                },
+                {
+                    "name": "syft:distro:idLike:0",
+                    "value": "fedora"
+                },
+                {
+                    "name": "syft:distro:prettyName",
+                    "value": "Red Hat Enterprise Linux 8.7 (Ootpa)"
+                },
+                {
+                    "name": "syft:distro:versionID",
+                    "value": "8.7"
+                }
+            ]
+        },
+        {
+            "name": "aiowsgi",
+            "properties": [
+                {
+                    "name": "cachi2:found_by",
+                    "value": "cachi2"
+                }
+            ],
+            "version": "0.8",
+            "purl": "pkg:pypi/aiowsgi@0.8",
+            "type": "library"
+        },
+        {
+            "name": "appr",
+            "properties": [
+                {
+                    "name": "cachi2:found_by",
+                    "value": "cachi2"
+                }
+            ],
+            "purl": "pkg:pypi/appr?checksum=sha256:ee6a0a38bed8cff46a562ed3620bc453141a02262ab0c8dd055824af2829ee5c&download_url=https://github.com/quay/appr/archive/37ff9a487a54ad41b59855ecd76ee092fe206a84.zip",
+            "type": "library"
+        },
+        {
+            "name": "archive/tar",
+            "properties": [
+                {
+                    "name": "cachi2:found_by",
+                    "value": "cachi2"
+                }
+            ],
+            "purl": "pkg:golang/archive/tar?type=package",
+            "type": "library"
+        },
+        {
+            "name": "cachi2",
+            "properties": [
+                {
+                    "name": "cachi2:found_by",
+                    "value": "cachi2"
+                }
+            ],
+            "version": "0.0.1",
+            "purl": "pkg:pypi/cachi2@0.0.1?vcs_url=git%2Bssh://git%40github.com/containerbuildsystem/cachi2%40fc0d6079c2dc9b2a491c0848e550ad3509986110",
+            "type": "library"
+        },
+        {
+            "name": "cachito-npm-without-deps",
+            "properties": [
+                {
+                    "name": "cachi2:found_by",
+                    "value": "cachi2"
+                }
+            ],
+            "purl": "pkg:npm/cachito-npm-without-deps?vcs_url=git%2Bhttps://github.com/cachito-testing/cachito-npm-without-deps.git%402f0ce1d7b1f8b35572d919428b965285a69583f6",
+            "type": "library"
+        },
+        {
+            "name": "code.gitea.io/sdk/gitea",
+            "properties": [
+                {
+                    "name": "cachi2:found_by",
+                    "value": "cachi2"
+                }
+            ],
+            "version": "v0.15.1",
+            "purl": "pkg:golang/code.gitea.io/sdk/gitea@v0.15.1?type=module",
+            "type": "library"
+        },
+        {
+            "name": "code.gitea.io/sdk/gitea",
+            "properties": [
+                {
+                    "name": "cachi2:found_by",
+                    "value": "cachi2"
+                }
+            ],
+            "version": "v0.15.1",
+            "purl": "pkg:golang/code.gitea.io/sdk/gitea@v0.15.1?type=package",
+            "type": "library"
+        },
+        {
+            "name": "fecha",
+            "properties": [
+                {
+                    "name": "cachi2:found_by",
+                    "value": "cachi2"
+                }
+            ],
+            "purl": "pkg:npm/fecha?checksum=sha512:8ae71e98d68e38e1f6e4c629187684dd85e4dc96647c7219b1dd189598ea52865e947f0ad94a7001fa8fb5eccf58467fe34ad10066e831af3374120134604bd5&download_url=https://github.com/taylorhakes/fecha/archive/91680e4db1415fea33eac878cfd889c80a7b55c7.tar.gz",
+            "type": "library"
+        },
+        {
+            "name": "github.com/docker/cli/cli/config",
+            "properties": [
+                {
+                    "name": "cachi2:found_by",
+                    "value": "cachi2"
+                }
+            ],
+            "version": "v23.0.0-rc.3+incompatible",
+            "purl": "pkg:golang/github.com/docker/cli/cli/config@v23.0.0-rc.3%2Bincompatible?type=package",
+            "type": "library"
+        },
+        {
+            "name": "github.com/docker/cli",
+            "properties": [
+                {
+                    "name": "cachi2:found_by",
+                    "value": "cachi2"
+                }
+            ],
+            "version": "v23.0.0-rc.3+incompatible",
+            "purl": "pkg:golang/github.com/docker/cli@v23.0.0-rc.3%2Bincompatible?type=module",
+            "type": "library"
+        },
+        {
+            "name": "knative.dev/pkg/metrics",
+            "properties": [
+                {
+                    "name": "cachi2:found_by",
+                    "value": "cachi2"
+                }
+            ],
+            "version": "v0.0.0-20230125083639-408ad0773f47",
+            "purl": "pkg:golang/knative.dev/pkg/metrics@v0.0.0-20230125083639-408ad0773f47?type=package",
+            "type": "library"
+        },
+        {
+            "name": "knative.dev/pkg",
+            "properties": [
+                {
+                    "name": "cachi2:found_by",
+                    "value": "cachi2"
+                }
+            ],
+            "version": "v0.0.0-20230125083639-408ad0773f47",
+            "purl": "pkg:golang/knative.dev/pkg@v0.0.0-20230125083639-408ad0773f47?type=module",
+            "type": "library"
+        },
+        {
+            "name": "github.com/redhat-appstudio/build-service",
+            "properties": [
+                {
+                    "name": "cachi2:found_by",
+                    "value": "cachi2"
+                }
+            ],
+            "version": "v0.0.0-20230503110830-d1a9e858489d",
+            "purl": "pkg:golang/github.com/redhat-appstudio/build-service@v0.0.0-20230503110830-d1a9e858489d?type=module",
+            "type": "library"
+        },
+        {
+            "name": "github.com/redhat-appstudio/build-service",
+            "properties": [
+                {
+                    "name": "cachi2:found_by",
+                    "value": "cachi2"
+                }
+            ],
+            "version": "v0.0.0-20230503110830-d1a9e858489d",
+            "purl": "pkg:golang/github.com/redhat-appstudio/build-service@v0.0.0-20230503110830-d1a9e858489d?type=package",
+            "type": "library"
+        },
+        {
+            "name": "github.com/cachito-testing/gomod-pandemonium/terminaltor",
+            "properties": [
+                {
+                    "name": "cachi2:found_by",
+                    "value": "cachi2"
+                }
+            ],
+            "version": "v1.0.0",
+            "purl": "pkg:golang/github.com/cachito-testing/gomod-pandemonium/terminaltor@v1.0.0?type=module",
+            "type": "library"
+        },
+        {
+            "name": "github.com/cachito-testing/gomod-pandemonium/terminaltor",
+            "properties": [
+                {
+                    "name": "cachi2:found_by",
+                    "value": "cachi2"
+                }
+            ],
+            "version": "v1.0.0",
+            "purl": "pkg:golang/github.com/cachito-testing/gomod-pandemonium/terminaltor@v1.0.0?type=package",
+            "type": "library"
+        },
+        {
+            "name": "PyYAML",
+            "properties": [
+                {
+                    "name": "cachi2:found_by",
+                    "value": "cachi2"
+                }
+            ],
+            "version": "6.0",
+            "purl": "pkg:pypi/pyyaml@6.0",
+            "type": "library"
+        },
+        {
+            "name": "test_package_cachi2",
+            "properties": [
+                {
+                    "name": "cachi2:found_by",
+                    "value": "cachi2"
+                }
+            ],
+            "version": "1.0.0",
+            "purl": "pkg:pypi/test-package-cachi2@1.0.0?vcs_url=git%2Bssh://git%40github.com/brunoapimentel/pip-e2e-test.git%40294df352deed835cf703ae8a799926418ae5fd3b",
+            "type": "library"
+        }
+    ]
+}
