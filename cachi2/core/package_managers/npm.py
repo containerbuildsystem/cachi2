@@ -1,4 +1,6 @@
 import asyncio
+import copy
+import fnmatch
 import functools
 import json
 import logging
@@ -18,6 +20,12 @@ from cachi2.core.package_managers.general import async_download_files
 from cachi2.core.rooted_path import RootedPath
 from cachi2.core.scm import RepoID, clone_as_tarball, get_repo_id
 
+DEPENDENCY_TYPES = (
+    "dependencies",
+    "devDependencies",
+    "optionalDependencies",
+    "peerDependencies",
+)
 log = logging.getLogger(__name__)
 
 # Known CNAMEs for the official npm registry server.
@@ -32,8 +40,7 @@ class ResolvedNpmPackage(TypedDict):
 
     package: dict[str, str]
     dependencies: list[dict[str, str]]
-    package_lock_file: ProjectFile
-    dependencies_to_download: Dict[str, Dict[str, Any]]
+    projectfiles: list[ProjectFile]
 
 
 class Package:
@@ -55,6 +62,16 @@ class Package:
     def integrity(self) -> Optional[str]:
         """Get the package integrity."""
         return self._package_dict.get("integrity")
+
+    @integrity.setter
+    def integrity(self, integrity: str) -> None:
+        """Set the package integrity."""
+        self._package_dict["integrity"] = integrity
+
+    @property
+    def link(self) -> Optional[Any]:
+        """Get the package link."""
+        return self._package_dict.get("link")
 
     @property
     def version(self) -> str:
@@ -86,6 +103,11 @@ class Package:
             return self.version
         else:
             return None
+
+    @property
+    def dependencies(self) -> Optional[Any]:
+        """Get the dict of package dependencies, if available."""
+        return self._package_dict.get("dependencies") or None
 
     @property
     def resolved_url(self) -> Optional[str]:
@@ -140,6 +162,7 @@ class PackageLock:
 
     def __init__(self, lockfile_path: RootedPath, lockfile_data: dict[str, Any]) -> None:
         """Initialize a PackageLock."""
+        self._workspaces: list[str] = []
         self._lockfile_path = lockfile_path
         self._lockfile_data = lockfile_data
         self._packages = self._get_packages()
@@ -149,6 +172,22 @@ class PackageLock:
     def lockfile_version(self) -> int:
         """Get the lockfileVersion from package-lock.json data."""
         return self._lockfile_data["lockfileVersion"]
+
+    def check_if_package_is_workspace(self, resolved_url: str) -> bool:
+        """Test if package is workspace based on main package workspaces."""
+        if (
+            "packages" not in self._lockfile_data
+            or "" not in self._lockfile_data["packages"]
+            or "workspaces" not in self._lockfile_data["packages"][""]
+        ):
+            return False
+
+        main_package_workspaces = self._lockfile_data["packages"][""]["workspaces"]
+
+        for main_package_workspace in main_package_workspaces:
+            if fnmatch.fnmatch(resolved_url, main_package_workspace.removeprefix("./")):
+                return True
+        return False
 
     @functools.cached_property
     def _purlifier(self) -> "_Purlifier":
@@ -194,7 +233,12 @@ class PackageLock:
         for package_path, package_data in self._lockfile_data.get("packages", {}).items():
             # ignore links and the main package, since they're already accounted
             # for elsewhere in the lockfile
-            if package_data.get("link") or package_path == "":
+            if package_data.get("link"):
+                if self.check_if_package_is_workspace(package_data.get("resolved")):
+                    self._workspaces.append(package_data.get("resolved"))
+                continue
+
+            if package_path == "":
                 continue
             # if there is no name key, derive it from the package path
             if not (package_name := package_data.get("name")):
@@ -253,6 +297,11 @@ class PackageLock:
             for package in packages
             if (resolved_url := package.resolved_url) and not resolved_url.startswith("file:")
         }
+
+    @property
+    def workspaces(self) -> list:
+        """Return list of workspaces."""
+        return self._workspaces
 
 
 class _Purlifier:
@@ -429,7 +478,7 @@ def _clone_repo_pack_archive(
 
 
 def _get_npm_dependencies(
-    download_dir: RootedPath, deps_to_download: Dict[str, Dict[str, str]]
+    download_dir: RootedPath, deps_to_download: Dict[str, Dict[str, Optional[str]]]
 ) -> Dict[NormalizedUrl, RootedPath]:
     """
     Download npm dependencies.
@@ -502,6 +551,148 @@ def _get_npm_dependencies(
     return download_paths
 
 
+def replace_dependency(dependency_version: str) -> bool:
+    """Check if dependency must be updated in package(-lock).json.
+
+    package(-lock).json files require to replace dependency URLs for
+    empty string in git and https dependencies in V2+ and V1 dependency URLs
+    should be replaced for local paths to fetched dependencies.
+    """
+    url = urlparse(dependency_version)
+    if url.scheme == "file":
+        return False
+    return not (url.scheme == "" and "/" not in dependency_version)
+
+
+def update_package_lock_with_local_paths(
+    download_paths: Dict[NormalizedUrl, RootedPath],
+    package_lock: PackageLock,
+) -> Optional[Dict[str, str]]:
+    """Replace packages resolved URLs with local paths.
+
+    Update package-lock.json file in a way it can be used in isolated environment (container)
+    without internet connection. All package/dependency URLs will be replaced for
+    local paths to downloaded dependencies.
+
+    :param download_paths:
+    :param package_lock: PackageLock instance which holds package-lock.json content
+    """
+    if package_lock.lockfile_version > 1:
+        for package in package_lock._get_packages():
+            # Remove integrity for git sources, their integrity checksum will change when
+            # constructing tar archive from cloned repository
+            if package.resolved_url:
+                url = _normalize_resolved_url(str(package.resolved_url))
+            else:
+                continue
+            if _classify_resolved_url(url) == "git":
+                if package.integrity:
+                    package.integrity = ""
+
+            # Update all type of dependencies except file:
+            if _classify_resolved_url(url) != "file":
+                templated_abspath = Path("${output_dir}", download_paths[url].subpath_from_root)
+                package.resolved_url = f"file://{templated_abspath}"
+
+            for dep_type in DEPENDENCY_TYPES:
+                if package._package_dict.get(dep_type):
+                    for dependency, dependency_version in package._package_dict[dep_type].items():
+                        if replace_dependency(dependency_version):
+                            package._package_dict[dep_type].update({dependency: ""})
+
+        main_package = package_lock._lockfile_data["packages"][""]
+        for dep_type in DEPENDENCY_TYPES:
+            if main_package.get(dep_type):
+                for dependency, dependency_version in main_package[dep_type].items():
+                    if replace_dependency(dependency_version):
+                        main_package[dep_type].update({dependency: ""})
+        return {}
+    else:
+        # TODO: This part for V1 packages is still in development <--
+        replace_deps = {}
+        for package in package_lock._get_dependencies():
+            if package.resolved_url:
+                url = _normalize_resolved_url(str(package.resolved_url))
+            else:
+                continue
+
+            if _classify_resolved_url(url) == "git":
+                if package.integrity:
+                    package.integrity = ""
+
+            # Update all type of dependencies except file:
+            if _classify_resolved_url(url) != "file":
+                templated_abspath = Path("${output_dir}", download_paths[url].subpath_from_root)
+                package.resolved_url = f"file://{templated_abspath}"
+                replace_deps[package.name] = package.resolved_url
+
+            # requires item needs to be removed, otherwise npm will try to download all required dependencies and
+            # hermetic build will fail
+            if package._package_dict.get("requires"):
+                del package._package_dict["requires"]
+
+            for dep_type in DEPENDENCY_TYPES:
+                if package._package_dict.get(
+                    dep_type
+                ):  # TODO: Recursively update dependencies for V1, check if it's needed??
+                    for dependency, dependency_dict in package._package_dict[dep_type].items():
+                        key = "resolved" if "resolved" in dependency_dict else "version"
+                        if replace_dependency(dependency_dict[key]):
+                            templated_abspath = Path(
+                                "${output_dir}",
+                                download_paths[dependency_dict[key]].subpath_from_root,
+                            )
+                            package._package_dict[dep_type][dependency].update(
+                                {key: f"file://{templated_abspath}"}
+                            )
+        # TODO: This part for V1 packages is still in development -->
+        return replace_deps
+
+
+def update_package_json_files(
+    workspaces: list[str],
+    pkg_dir: RootedPath,
+    replace_deps: Optional[Dict[str, str]],
+    lockfile_version: int,
+) -> list[ProjectFile]:
+    """Set dependencies to empty string in package.json files.
+
+    :param workspaces: list of workspaces paths
+    :param pkg_dir: Package subdirectory
+    """
+    package_json_paths = []
+    if lockfile_version > 1:
+        for workspace in workspaces:
+            package_json_paths.append(pkg_dir.join_within_root(workspace, "package.json"))
+    package_json_paths.append(pkg_dir.join_within_root("package.json"))
+
+    package_json_projectfiles = []
+    for package_json_path in package_json_paths:
+        with open(package_json_path, "r") as f:
+            package_json_content = json.load(f)
+
+        for dep_type in DEPENDENCY_TYPES:
+            if package_json_content.get(dep_type):
+                for dependency, url in package_json_content[dep_type].items():
+                    if lockfile_version > 1:
+                        if replace_dependency(url):
+                            package_json_content[dep_type].update({dependency: ""})
+                    else:
+                        if urlparse(url).scheme != "file":
+                            if replace_deps:
+                                package_json_content[dep_type].update(
+                                    {dependency: replace_deps.get(dependency, "")}
+                                )
+
+        package_json_projectfiles.append(
+            ProjectFile(
+                abspath=package_json_path.path,
+                template=json.dumps(package_json_content, indent=2) + "\n",
+            )
+        )
+    return package_json_projectfiles
+
+
 def fetch_npm_source(request: Request) -> RequestOutput:
     """Resolve and fetch npm dependencies for the given request.
 
@@ -511,21 +702,18 @@ def fetch_npm_source(request: Request) -> RequestOutput:
     components: list[Component] = []
     project_files: list[ProjectFile] = []
 
-    for package in request.npm_packages:
-        info = _resolve_npm(request.source_dir.join_within_root(package.path))
+    npm_deps_dir = request.output_dir.join_within_root("deps", "npm")
+    npm_deps_dir.path.mkdir(parents=True, exist_ok=True)
 
+    for package in request.npm_packages:
+        info = _resolve_npm(package.path, request.source_dir, request.output_dir, npm_deps_dir)
         components.append(Component.from_package_dict(info["package"]))
-        project_files.append(info["package_lock_file"])
 
         for dependency in info["dependencies"]:
             components.append(Component.from_package_dict(dependency))
 
-        npm_deps_dir = request.output_dir.join_within_root("deps", "npm")
-        npm_deps_dir.path.mkdir(parents=True, exist_ok=True)
-
-        # Download dependencies via resolved URLs and return download_paths for updating
-        # package-lock.json with local file paths
-        _get_npm_dependencies(npm_deps_dir, info["dependencies_to_download"])
+        for projectfile in info["projectfiles"]:
+            project_files.append(projectfile)
 
     return RequestOutput.from_obj_list(
         components=components,
@@ -534,7 +722,9 @@ def fetch_npm_source(request: Request) -> RequestOutput:
     )
 
 
-def _resolve_npm(pkg_path: RootedPath) -> ResolvedNpmPackage:
+def _resolve_npm(
+    pkg_subpath: Path, source_dir: RootedPath, output_dir: RootedPath, npm_deps_dir: RootedPath
+) -> ResolvedNpmPackage:
     """Resolve and fetch npm dependencies for the given package.
 
     :param pkg_path: the path to the directory containing npm-shrinkwrap.json or package-lock.json
@@ -547,6 +737,8 @@ def _resolve_npm(pkg_path: RootedPath) -> ResolvedNpmPackage:
     # npm-shrinkwrap.json and package-lock.json share the same format but serve slightly
     # different purposes. See the following documentation for more information:
     # https://docs.npmjs.com/files/package-lock.json.
+    pkg_path = source_dir.join_within_root(pkg_subpath)
+
     for lock_file in ("npm-shrinkwrap.json", "package-lock.json"):
         package_lock_path = pkg_path.join_within_root(lock_file)
         if package_lock_path.path.exists():
@@ -557,12 +749,24 @@ def _resolve_npm(pkg_path: RootedPath) -> ResolvedNpmPackage:
             "package manager",
             solution="Please double-check that you have specified the correct path to the package directory containing one of those two files",
         )
+    original_package_lock = PackageLock.from_file(package_lock_path)
+    package_lock = copy.deepcopy(original_package_lock)
 
-    package_lock = PackageLock.from_file(package_lock_path)
+    # Download dependencies via resolved URLs and return download_paths for updating
+    # package-lock.json with local file paths
+    download_paths = _get_npm_dependencies(
+        npm_deps_dir, package_lock.get_dependencies_to_download()
+    )
+
+    # Update package-lock.json, package.json(s) files with local paths to dependencies and store them as ProjectFiles
+    replace_deps = update_package_lock_with_local_paths(download_paths, package_lock)
+    projectfiles = update_package_json_files(
+        package_lock.workspaces, source_dir, replace_deps, package_lock.lockfile_version
+    )
+    projectfiles.append(package_lock.get_project_file())
 
     return {
-        "package": package_lock.get_main_package(),
-        "dependencies": package_lock.get_sbom_components(),
-        "package_lock_file": package_lock.get_project_file(),
-        "dependencies_to_download": package_lock.get_dependencies_to_download(),
+        "package": original_package_lock.get_main_package(),
+        "dependencies": original_package_lock.get_sbom_components(),
+        "projectfiles": projectfiles,
     }
