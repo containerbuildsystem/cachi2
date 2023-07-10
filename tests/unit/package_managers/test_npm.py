@@ -80,6 +80,18 @@ class TestPackage:
             pytest.param(
                 Package(
                     "foo",
+                    "",
+                    {
+                        "version": "1.0.0",
+                        "bundled": True,
+                    },
+                ),
+                None,
+                id="bundled_dependency",
+            ),
+            pytest.param(
+                Package(
+                    "foo",
                     "node_modules/foo",
                     {
                         "version": "1.0.0",
@@ -99,6 +111,33 @@ class TestPackage:
                 ),
                 "file:foo",
                 id="workspace_package",
+            ),
+            pytest.param(
+                Package(
+                    "foo",
+                    "node_modules/bar/node_modules/foo",
+                    {
+                        "version": "1.0.0",
+                        "inBundle": True,
+                    },
+                ),
+                None,
+                id="bundled_package",
+            ),
+            pytest.param(
+                Package(
+                    "foo",
+                    "node_modules/foo",
+                    {
+                        "version": "1.0.0",
+                        "resolved": "https://some.registry.org/foo/-/foo-1.0.0.tgz",
+                        # direct bundled dependency, should be treated as not bundled (it's not
+                        # bundled in the source repo, but would be bundled via `npm pack .`)
+                        "inBundle": True,
+                    },
+                ),
+                "https://some.registry.org/foo/-/foo-1.0.0.tgz",
+                id="directly_bundled_package",
             ),
         ],
     )
@@ -306,6 +345,10 @@ class TestPurlifier:
                 "pkg:npm/registry-dep@1.0.0",
             ),
             (
+                ("bundled-dep", "1.0.0", None),
+                "pkg:npm/bundled-dep@1.0.0",
+            ),
+            (
                 (
                     "@scoped/registry-dep",
                     "2.0.0",
@@ -365,7 +408,7 @@ class TestPurlifier:
     )
     def test_get_purl_for_remote_package(
         self,
-        pkg_data: tuple[str, Optional[str], str],
+        pkg_data: tuple[str, Optional[str], Optional[str]],
         expect_purl: str,
         rooted_tmp_path: RootedPath,
     ) -> None:
@@ -644,6 +687,10 @@ def test_resolve_npm_no_lock(
                                 "resolved": "https://registry.npmjs.org/bar/-/bar-3.0.0.tgz",
                                 "integrity": "sha512-YOLOYOLO",
                             },
+                            "spam": {
+                                "version": "4.0.0",
+                                "bundled": True,
+                            },
                         },
                     },
                 },
@@ -664,6 +711,11 @@ def test_resolve_npm_no_lock(
                         "name": "bar",
                         "version": "3.0.0",
                         "purl": "pkg:npm/bar@3.0.0",
+                    },
+                    {
+                        "name": "spam",
+                        "version": "4.0.0",
+                        "purl": "pkg:npm/spam@4.0.0",
                     },
                 ],
                 "dependencies_to_download": {
@@ -834,6 +886,10 @@ def test_resolve_npm_no_lock(
                         "resolved": "https://registry.npmjs.org/baz/-/baz-3.0.0.tgz",
                         "integrity": "sha512-YOLOYOLO",
                     },
+                    "node_modules/bar/node_modules/spam": {
+                        "version": "4.0.0",
+                        "inBundle": True,
+                    },
                 },
                 "dependencies": {
                     "bar": {
@@ -844,6 +900,10 @@ def test_resolve_npm_no_lock(
                             "baz": {
                                 "version": "3.0.0",
                                 "resolved": "https://registry.npmjs.org/baz/-/baz-3.0.0.tgz",
+                            },
+                            "spam": {
+                                "version": "4.0.0",
+                                "bundled": True,
                             },
                         },
                     },
@@ -865,6 +925,11 @@ def test_resolve_npm_no_lock(
                         "name": "baz",
                         "version": "3.0.0",
                         "purl": "pkg:npm/baz@3.0.0",
+                    },
+                    {
+                        "name": "spam",
+                        "version": "4.0.0",
+                        "purl": "pkg:npm/spam@4.0.0",
                     },
                 ],
                 "dependencies_to_download": {

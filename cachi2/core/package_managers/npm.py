@@ -73,16 +73,22 @@ class Package:
     def semver_version(self) -> Optional[str]:
         """Get the semver version, if available.
 
-        For v1/v2 `dependencies`, the semver version is only available for registry dependencies.
+        For v1/v2 `dependencies`, the semver version is only available for registry dependencies
+        and bundled dependencies.
 
         For v2+ `packages`, the semver version is always available.
         """
-        if self.path or "resolved" in self._package_dict:
-            return self._package_dict["version"]
-        return None
+        # v2+
+        if self.path:
+            return self.version
+        # v1 registry or bundled
+        elif "resolved" in self._package_dict or self._package_dict.get("bundled"):
+            return self.version
+        else:
+            return None
 
     @property
-    def resolved_url(self) -> str:
+    def resolved_url(self) -> Optional[str]:
         """Get the location where the package was resolved from.
 
         For v1/v2 package-lock.json `dependencies`, this will be the "resolved"
@@ -90,11 +96,22 @@ class Package:
 
         For v2+ package-lock.json `packages`, this will be the "resolved" key
         unless it is a file dep, in which case it will be the path to the file.
-        """
-        if self.path and "resolved" not in self._package_dict:
-            return f"file:{self.path}"
 
-        return self._package_dict.get("resolved") or self.version
+        For bundled dependencies, this will be None. Such dependencies are included
+        in the tarball of a different dependency (the dependency that bundles them).
+        """
+        if "resolved" not in self._package_dict:
+            # indirect bundled dependency, does not have a resolved url
+            if self._package_dict.get("bundled") or self._package_dict.get("inBundle"):
+                return None
+            # v2+ file dependency (or a workspace)
+            elif self.path:
+                return f"file:{self.path}"
+            # v1 non-registry dependency
+            else:
+                return self.version
+
+        return self._package_dict["resolved"]
 
     @resolved_url.setter
     def resolved_url(self, resolved_url: str) -> None:
@@ -228,13 +245,13 @@ class PackageLock:
         """Return a Dict of URL dependencies to download."""
         packages = self._dependencies if self.lockfile_version == 1 else self._packages
         return {
-            package.resolved_url: {
+            resolved_url: {
                 "version": package.version,
                 "name": package.name,
                 "integrity": package.integrity,
             }
             for package in packages
-            if "file:" not in package.resolved_url
+            if (resolved_url := package.resolved_url) and not resolved_url.startswith("file:")
         }
 
 
@@ -250,12 +267,21 @@ class _Purlifier:
         return get_repo_id(self._pkg_path.root)
 
     def get_purl(
-        self, name: str, version: Optional[str], resolved_url: str, integrity: Optional[str]
+        self,
+        name: str,
+        version: Optional[str],
+        resolved_url: Optional[str],
+        integrity: Optional[str],
     ) -> PackageURL:
         """Get the purl for an npm package.
 
         https://github.com/package-url/purl-spec/blob/master/PURL-TYPES.rst#npm
         """
+        if not resolved_url:
+            # bundled dependency, same purl as a registry dependency
+            # (differentiation between bundled and registry should be done elsewhere)
+            return PackageURL(type="npm", name=name.lower(), version=version)
+
         qualifiers: Optional[dict[str, str]] = None
         subpath: Optional[str] = None
 

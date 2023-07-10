@@ -49,7 +49,6 @@ log = logging.getLogger(__name__)
                 check_vendor_checksums=False,
             ),
             id="npm_bundled_lockfile1",
-            marks=pytest.mark.xfail(reason="cachi2 does not handle bundled deps properly"),
         ),
         pytest.param(
             utils.TestParameters(
@@ -59,7 +58,6 @@ log = logging.getLogger(__name__)
                 check_vendor_checksums=False,
             ),
             id="npm_bundled_lockfile3",
-            marks=pytest.mark.xfail(reason="cachi2 does not handle bundled deps properly"),
         ),
     ],
 )
