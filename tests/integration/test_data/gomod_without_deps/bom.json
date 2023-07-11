@@ -3,17 +3,37 @@
   "components": [
     {
       "name": "github.com/cachito-testing/cachito-gomod-without-deps",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
       "purl": "pkg:golang/github.com/cachito-testing/cachito-gomod-without-deps@v0.0.0-20200925115855-a888f7261b9a?type=module",
       "type": "library",
       "version": "v0.0.0-20200925115855-a888f7261b9a"
     },
     {
       "name": "github.com/cachito-testing/cachito-gomod-without-deps",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
       "purl": "pkg:golang/github.com/cachito-testing/cachito-gomod-without-deps@v0.0.0-20200925115855-a888f7261b9a?type=package",
       "type": "library",
       "version": "v0.0.0-20200925115855-a888f7261b9a"
     }
   ],
+  "metadata": {
+    "tools": [
+      {
+        "name": "cachi2",
+        "vendor": "red hat"
+      }
+    ]
+  },
   "specVersion": "1.4",
   "version": 1
 }

@@ -6,10 +6,12 @@ import pydantic
 import pytest
 
 from cachi2.core.models.output import (
+    FOUND_BY_CACHI2_PROPERTY,
     BuildConfig,
     Component,
     EnvironmentVariable,
     ProjectFile,
+    Property,
     RequestOutput,
     Sbom,
 )
@@ -59,6 +61,28 @@ class TestComponent:
     def test_invalid_components(self, input_data: dict[str, str], expect_error: str) -> None:
         with pytest.raises(pydantic.ValidationError, match=expect_error):
             Component(**input_data)
+
+    @pytest.mark.parametrize(
+        "input_properties, expected_properties",
+        [
+            (
+                [],
+                [FOUND_BY_CACHI2_PROPERTY],
+            ),
+            (
+                [Property(name="a:random:prop", value="xpto")],
+                [Property(name="a:random:prop", value="xpto"), FOUND_BY_CACHI2_PROPERTY],
+            ),
+            (
+                [FOUND_BY_CACHI2_PROPERTY],
+                [FOUND_BY_CACHI2_PROPERTY],
+            ),
+        ],
+    )
+    def test_default_property(
+        self, input_properties: list[Property], expected_properties: list[Property]
+    ) -> None:
+        Component(name="foo", properties=input_properties).properties == expected_properties
 
 
 class TestSbom:
