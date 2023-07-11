@@ -3,33 +3,71 @@
   "components": [
     {
       "name": "aiowsgi",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
       "purl": "pkg:pypi/aiowsgi@0.7",
       "type": "library",
       "version": "0.7"
     },
     {
       "name": "appr",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
       "purl": "pkg:pypi/appr?checksum=sha256:ee6a0a38bed8cff46a562ed3620bc453141a02262ab0c8dd055824af2829ee5c&download_url=https://github.com/quay/appr/archive/37ff9a487a54ad41b59855ecd76ee092fe206a84.zip",
       "type": "library"
     },
     {
       "name": "appr",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
       "purl": "pkg:pypi/appr?vcs_url=git%2Bhttps://github.com/quay/appr.git%4058c88e4952e95935c0dd72d4a24b0c44f2249f5b",
       "type": "library"
     },
     {
       "name": "first_pkg",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
       "purl": "pkg:pypi/first-pkg@1.0.0?vcs_url=git%2Bhttps://github.com/cachito-testing/cachito-pip-multiple.git%4093c6c44b36075454a509d595850b81be29e53db0#first_pkg",
       "type": "library",
       "version": "1.0.0"
     },
     {
       "name": "second_pkg",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
       "purl": "pkg:pypi/second-pkg@1.0.0?vcs_url=git%2Bhttps://github.com/cachito-testing/cachito-pip-multiple.git%4093c6c44b36075454a509d595850b81be29e53db0#second_pkg",
       "type": "library",
       "version": "1.0.0"
     }
   ],
+  "metadata": {
+    "tools": [
+      {
+        "name": "cachi2",
+        "vendor": "red hat"
+      }
+    ]
+  },
   "specVersion": "1.4",
   "version": 1
 }

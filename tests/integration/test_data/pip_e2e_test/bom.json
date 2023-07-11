@@ -3,64 +3,132 @@
   "components": [
     {
       "name": "certifi",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
       "purl": "pkg:pypi/certifi@2022.12.7",
       "type": "library",
       "version": "2022.12.7"
     },
     {
       "name": "charset-normalizer",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
       "purl": "pkg:pypi/charset-normalizer@3.0.1",
       "type": "library",
       "version": "3.0.1"
     },
     {
       "name": "dockerfile-parse",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
       "purl": "pkg:pypi/dockerfile-parse?checksum=sha256:36e4469abb0d96b0e3cd656284d5016e8a674cd57b8ebe5af64786fe63b8184d&download_url=https://github.com/containerbuildsystem/dockerfile-parse/archive/refs/tags/2.0.0.tar.gz",
       "type": "library"
     },
     {
       "name": "flit_core",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
       "purl": "pkg:pypi/flit-core@3.8.0",
       "type": "library",
       "version": "3.8.0"
     },
     {
       "name": "idna",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
       "purl": "pkg:pypi/idna@3.4",
       "type": "library",
       "version": "3.4"
     },
     {
       "name": "requests",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
       "purl": "pkg:pypi/requests@2.28.2",
       "type": "library",
       "version": "2.28.2"
     },
     {
       "name": "setuptools",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
       "purl": "pkg:pypi/setuptools@67.1.0",
       "type": "library",
       "version": "67.1.0"
     },
     {
       "name": "test_package_cachi2",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
       "purl": "pkg:pypi/test-package-cachi2@1.0.0?vcs_url=git%2Bhttps://github.com/cachito-testing/pip-e2e-test.git%40bae083d57dc265a899b59859b769e88eb8319404",
       "type": "library",
       "version": "1.0.0"
     },
     {
       "name": "urllib3",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
       "purl": "pkg:pypi/urllib3@1.26.14",
       "type": "library",
       "version": "1.26.14"
     },
     {
       "name": "wheel",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
       "purl": "pkg:pypi/wheel@0.38.4",
       "type": "library",
       "version": "0.38.4"
     }
   ],
+  "metadata": {
+    "tools": [
+      {
+        "name": "cachi2",
+        "vendor": "red hat"
+      }
+    ]
+  },
   "specVersion": "1.4",
   "version": 1
 }

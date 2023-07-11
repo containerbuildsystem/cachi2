@@ -3,407 +3,817 @@
   "components": [
     {
       "name": "@types/prop-types",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
       "purl": "pkg:npm/%40types/prop-types@15.7.5",
       "type": "library",
       "version": "15.7.5"
     },
     {
       "name": "@types/react-dom",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
       "purl": "pkg:npm/%40types/react-dom@18.2.6",
       "type": "library",
       "version": "18.2.6"
     },
     {
       "name": "@types/react",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
       "purl": "pkg:npm/%40types/react@18.2.14",
       "type": "library",
       "version": "18.2.14"
     },
     {
       "name": "@types/scheduler",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
       "purl": "pkg:npm/%40types/scheduler@0.16.3",
       "type": "library",
       "version": "0.16.3"
     },
     {
       "name": "accepts",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
       "purl": "pkg:npm/accepts@1.3.8",
       "type": "library",
       "version": "1.3.8"
     },
     {
       "name": "array-flatten",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
       "purl": "pkg:npm/array-flatten@1.1.1",
       "type": "library",
       "version": "1.1.1"
     },
     {
       "name": "body-parser",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
       "purl": "pkg:npm/body-parser@1.20.1",
       "type": "library",
       "version": "1.20.1"
     },
     {
       "name": "bytes",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
       "purl": "pkg:npm/bytes@3.1.2",
       "type": "library",
       "version": "3.1.2"
     },
     {
       "name": "call-bind",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
       "purl": "pkg:npm/call-bind@1.0.2",
       "type": "library",
       "version": "1.0.2"
     },
     {
       "name": "content-disposition",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
       "purl": "pkg:npm/content-disposition@0.5.4",
       "type": "library",
       "version": "0.5.4"
     },
     {
       "name": "content-type",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
       "purl": "pkg:npm/content-type@1.0.5",
       "type": "library",
       "version": "1.0.5"
     },
     {
       "name": "cookie-signature",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
       "purl": "pkg:npm/cookie-signature@1.0.6",
       "type": "library",
       "version": "1.0.6"
     },
     {
       "name": "cookie",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
       "purl": "pkg:npm/cookie@0.5.0",
       "type": "library",
       "version": "0.5.0"
     },
     {
       "name": "csstype",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
       "purl": "pkg:npm/csstype@3.1.2",
       "type": "library",
       "version": "3.1.2"
     },
     {
       "name": "debug",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
       "purl": "pkg:npm/debug@2.6.9",
       "type": "library",
       "version": "2.6.9"
     },
     {
       "name": "debug",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
       "purl": "pkg:npm/debug@4.3.4",
       "type": "library",
       "version": "4.3.4"
     },
     {
       "name": "depd",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
       "purl": "pkg:npm/depd@2.0.0",
       "type": "library",
       "version": "2.0.0"
     },
     {
       "name": "destroy",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
       "purl": "pkg:npm/destroy@1.2.0",
       "type": "library",
       "version": "1.2.0"
     },
     {
       "name": "ee-first",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
       "purl": "pkg:npm/ee-first@1.1.1",
       "type": "library",
       "version": "1.1.1"
     },
     {
       "name": "encodeurl",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
       "purl": "pkg:npm/encodeurl@1.0.2",
       "type": "library",
       "version": "1.0.2"
     },
     {
       "name": "escape-html",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
       "purl": "pkg:npm/escape-html@1.0.3",
       "type": "library",
       "version": "1.0.3"
     },
     {
       "name": "etag",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
       "purl": "pkg:npm/etag@1.8.1",
       "type": "library",
       "version": "1.8.1"
     },
     {
       "name": "express",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
       "purl": "pkg:npm/express@4.18.2",
       "type": "library",
       "version": "4.18.2"
     },
     {
       "name": "finalhandler",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
       "purl": "pkg:npm/finalhandler@1.2.0",
       "type": "library",
       "version": "1.2.0"
     },
     {
       "name": "forwarded",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
       "purl": "pkg:npm/forwarded@0.2.0",
       "type": "library",
       "version": "0.2.0"
     },
     {
       "name": "fresh",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
       "purl": "pkg:npm/fresh@0.5.2",
       "type": "library",
       "version": "0.5.2"
     },
     {
       "name": "function-bind",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
       "purl": "pkg:npm/function-bind@1.1.1",
       "type": "library",
       "version": "1.1.1"
     },
     {
       "name": "get-intrinsic",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
       "purl": "pkg:npm/get-intrinsic@1.2.1",
       "type": "library",
       "version": "1.2.1"
     },
     {
       "name": "has-proto",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
       "purl": "pkg:npm/has-proto@1.0.1",
       "type": "library",
       "version": "1.0.1"
     },
     {
       "name": "has-symbols",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
       "purl": "pkg:npm/has-symbols@1.0.3",
       "type": "library",
       "version": "1.0.3"
     },
     {
       "name": "has",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
       "purl": "pkg:npm/has@1.0.3",
       "type": "library",
       "version": "1.0.3"
     },
     {
       "name": "http-errors",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
       "purl": "pkg:npm/http-errors@2.0.0",
       "type": "library",
       "version": "2.0.0"
     },
     {
       "name": "iconv-lite",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
       "purl": "pkg:npm/iconv-lite@0.4.24",
       "type": "library",
       "version": "0.4.24"
     },
     {
       "name": "inherits",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
       "purl": "pkg:npm/inherits@2.0.4",
       "type": "library",
       "version": "2.0.4"
     },
     {
       "name": "ipaddr.js",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
       "purl": "pkg:npm/ipaddr.js@1.9.1",
       "type": "library",
       "version": "1.9.1"
     },
     {
       "name": "media-typer",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
       "purl": "pkg:npm/media-typer@0.3.0",
       "type": "library",
       "version": "0.3.0"
     },
     {
       "name": "merge-descriptors",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
       "purl": "pkg:npm/merge-descriptors@1.0.1",
       "type": "library",
       "version": "1.0.1"
     },
     {
       "name": "methods",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
       "purl": "pkg:npm/methods@1.1.2",
       "type": "library",
       "version": "1.1.2"
     },
     {
       "name": "mime-db",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
       "purl": "pkg:npm/mime-db@1.52.0",
       "type": "library",
       "version": "1.52.0"
     },
     {
       "name": "mime-types",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
       "purl": "pkg:npm/mime-types@2.1.35",
       "type": "library",
       "version": "2.1.35"
     },
     {
       "name": "mime",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
       "purl": "pkg:npm/mime@1.6.0",
       "type": "library",
       "version": "1.6.0"
     },
     {
       "name": "ms",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
       "purl": "pkg:npm/ms@2.0.0",
       "type": "library",
       "version": "2.0.0"
     },
     {
       "name": "ms",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
       "purl": "pkg:npm/ms@2.1.2",
       "type": "library",
       "version": "2.1.2"
     },
     {
       "name": "ms",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
       "purl": "pkg:npm/ms@2.1.3",
       "type": "library",
       "version": "2.1.3"
     },
     {
       "name": "negotiator",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
       "purl": "pkg:npm/negotiator@0.6.3",
       "type": "library",
       "version": "0.6.3"
     },
     {
       "name": "npm-cachi2-yarn-registry-test",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
       "purl": "pkg:npm/npm-cachi2-yarn-registry-test@1.0.0?vcs_url=git%2Bhttps://github.com/cachito-testing/npm-cachi2-registry-yarnpkg.git%40f830b62780e75357c38abb7e1102871b51bfbcfe",
       "type": "library",
       "version": "1.0.0"
     },
     {
       "name": "object-inspect",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
       "purl": "pkg:npm/object-inspect@1.12.3",
       "type": "library",
       "version": "1.12.3"
     },
     {
       "name": "on-finished",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
       "purl": "pkg:npm/on-finished@2.4.1",
       "type": "library",
       "version": "2.4.1"
     },
     {
       "name": "parseurl",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
       "purl": "pkg:npm/parseurl@1.3.3",
       "type": "library",
       "version": "1.3.3"
     },
     {
       "name": "path-to-regexp",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
       "purl": "pkg:npm/path-to-regexp@0.1.7",
       "type": "library",
       "version": "0.1.7"
     },
     {
       "name": "proxy-addr",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
       "purl": "pkg:npm/proxy-addr@2.0.7",
       "type": "library",
       "version": "2.0.7"
     },
     {
       "name": "qs",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
       "purl": "pkg:npm/qs@6.11.0",
       "type": "library",
       "version": "6.11.0"
     },
     {
       "name": "range-parser",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
       "purl": "pkg:npm/range-parser@1.2.1",
       "type": "library",
       "version": "1.2.1"
     },
     {
       "name": "raw-body",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
       "purl": "pkg:npm/raw-body@2.5.1",
       "type": "library",
       "version": "2.5.1"
     },
     {
       "name": "safe-buffer",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
       "purl": "pkg:npm/safe-buffer@5.2.1",
       "type": "library",
       "version": "5.2.1"
     },
     {
       "name": "safer-buffer",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
       "purl": "pkg:npm/safer-buffer@2.1.2",
       "type": "library",
       "version": "2.1.2"
     },
     {
       "name": "sax",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
       "purl": "pkg:npm/sax@0.1.1",
       "type": "library",
       "version": "0.1.1"
     },
     {
       "name": "send",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
       "purl": "pkg:npm/send@0.18.0",
       "type": "library",
       "version": "0.18.0"
     },
     {
       "name": "serve-static",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
       "purl": "pkg:npm/serve-static@1.15.0",
       "type": "library",
       "version": "1.15.0"
     },
     {
       "name": "setprototypeof",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
       "purl": "pkg:npm/setprototypeof@1.2.0",
       "type": "library",
       "version": "1.2.0"
     },
     {
       "name": "side-channel",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
       "purl": "pkg:npm/side-channel@1.0.4",
       "type": "library",
       "version": "1.0.4"
     },
     {
       "name": "statuses",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
       "purl": "pkg:npm/statuses@2.0.1",
       "type": "library",
       "version": "2.0.1"
     },
     {
       "name": "toidentifier",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
       "purl": "pkg:npm/toidentifier@1.0.1",
       "type": "library",
       "version": "1.0.1"
     },
     {
       "name": "type-is",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
       "purl": "pkg:npm/type-is@1.6.18",
       "type": "library",
       "version": "1.6.18"
     },
     {
       "name": "unpipe",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
       "purl": "pkg:npm/unpipe@1.0.0",
       "type": "library",
       "version": "1.0.0"
     },
     {
       "name": "utils-merge",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
       "purl": "pkg:npm/utils-merge@1.0.1",
       "type": "library",
       "version": "1.0.1"
     },
     {
       "name": "vary",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
       "purl": "pkg:npm/vary@1.1.2",
       "type": "library",
       "version": "1.1.2"
     }
   ],
+  "metadata": {
+    "tools": [
+      {
+        "name": "cachi2",
+        "vendor": "red hat"
+      }
+    ]
+  },
   "specVersion": "1.4",
   "version": 1
 }
