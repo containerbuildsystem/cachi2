@@ -422,9 +422,9 @@ isort[colors]==5.12.0 \
     --hash=sha256:8bef7dde241278824a6d83f44a544709b065191b95b6e50894bdc722fcba0504 \
     --hash=sha256:f84c2818376e66cf843d497486ea8fed8700b340f308f076c6fb1229dff318b6
     # via cachi2 (pyproject.toml)
-jsonschema==4.18.0 \
-    --hash=sha256:8caf5b57a990a98e9b39832ef3cb35c176fe331414252b6e1b26fd5866f891a4 \
-    --hash=sha256:b508dd6142bd03f4c3670534c80af68cd7bbff9ea830b9cf2625d4a3c49ddf60
+jsonschema==4.18.2 \
+    --hash=sha256:159fdff1443b4c5ed900d4eeac6b928a3485f4aff5fba6edd1e25cd66bb46b39 \
+    --hash=sha256:af3855bfa30e83b2200a5fe12ab5eb92460e4d3b8e4efd34094aa637f7272a87
     # via cachi2 (pyproject.toml)
 jsonschema-specifications==2023.6.1 \
     --hash=sha256:3d2b82663aff01815f744bb5c7887e2121a63399b49b104a3c96145474d091d7 \
