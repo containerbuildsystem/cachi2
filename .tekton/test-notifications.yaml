@@ -1,0 +1,83 @@
+---
+apiVersion: tekton.dev/v1beta1
+kind: PipelineRun
+metadata:
+  name: cachi2-test-slack-notification
+  annotations:
+    build.appstudio.redhat.com/commit_sha: "{{revision}}"
+    build.appstudio.redhat.com/pull_request_number: "{{pull_request_number}}"
+    build.appstudio.redhat.com/target_branch: "{{target_branch}}"
+    pipelinesascode.tekton.dev/max-keep-runs: "1"
+    pipelinesascode.tekton.dev/on-event: "[pull_request]"
+    pipelinesascode.tekton.dev/on-target-branch: "[main]"
+spec:
+  params:
+    - name: slack-webhook-notification-team
+      value: build
+  pipelineSpec:
+    tasks:
+      - name: fail
+        taskSpec:
+          steps:
+            - name: just-fail
+              image: registry.access.redhat.com/ubi9/ubi-minimal:9.2-691@sha256:a717a237599c1e32e76b8846a1be1d1bc4eb0c6f45a363f9ea34c3ab0d61f7e5
+              script: |
+                #!/usr/bin/env bash
+                echo "Test a failing pipeline"
+                exit 1
+    finally:
+      - name: slack-webhook-notification
+        taskSpec:
+          description: >-
+            Sends message to slack using incoming webhook
+          params:
+            - name: message
+              description: Message to be sent
+            - name: secret-name
+              description: |
+                Secret with at least one key where value is webhook URL for slack.
+                eg. oc create secret generic my-secret --from-literal team1=https://hooks.slack.com/services/XXX/XXXXXX --from-literal team2=https://hooks.slack.com/services/YYY/YYYYYY
+              default: slack-webhook-notification-secret
+            - name: key-name
+              description: Key in the key in secret which contains webhook URL for slack.
+          volumes:
+            - name: webhook-secret
+              secret:
+                secretName: $(params.secret-name)
+                optional: true
+          steps:
+            - name: send-message
+              image: registry.access.redhat.com/ubi9/ubi-minimal:9.2-691@sha256:a717a237599c1e32e76b8846a1be1d1bc4eb0c6f45a363f9ea34c3ab0d61f7e5
+              volumeMounts:
+                - name: webhook-secret
+                  mountPath: "/etc/secrets"
+                  readOnly: true
+              env:
+                - name: HOME
+                  value: /tekton/home
+                - name: KEY_NAME
+                  value: $(params.key-name)
+                - name: MESSAGE
+                  value: $(params.message)
+              script: |
+                #!/usr/bin/env bash
+                if [ -f "/etc/secrets/$KEY_NAME" ]; then
+                  WEBHOOK_URL=$(cat "/etc/secrets/$KEY_NAME")
+                else
+                  echo "Secret not defined properly"
+                  exit 1
+                fi
+                curl -X POST -H 'Content-type: application/json' --data "{\"text\":\"$MESSAGE\"}" $WEBHOOK_URL
+
+        when:
+        - input: $(params.slack-webhook-notification-team)
+          operator: notin
+          values: [""]
+        - input: $(tasks.status)
+          operator: in
+          values: ["Failed"]
+        params:
+        - name: message
+          value: Tekton pipelineRun $(context.pipelineRun.name) failed
+        - name: key-name
+          value: $(params.slack-webhook-notification-team)
