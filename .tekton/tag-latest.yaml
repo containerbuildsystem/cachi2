@@ -13,6 +13,8 @@ spec:
   params:
     - name: revision
       value: "{{revision}}"
+    - name: slack-webhook-notification-team
+      value: build
   pipelineSpec:
     params:
       - name: revision
@@ -44,3 +46,27 @@ spec:
                 echo "${SRC_REF} has been pushed, copying to ${TARGET_REF}"
 
                 skopeo copy "docker://${SRC_REF}" "docker://${TARGET_REF}"
+
+    finally:
+      - name: slack-webhook-notification
+        taskRef:
+          resolver: bundles
+          params:
+            - name: name
+              value: slack-webhook-notification
+            - name: bundle
+              value: quay.io/redhat-appstudio-tekton-catalog/task-slack-webhook-notification:0.1
+            - name: kind
+              value: task
+        when:
+        - input: $(tasks.status)
+          operator: in
+          values: ["Failed"]
+        params:
+        - name: message
+          value: |-
+            Tekton pipelineRun $(context.pipelineRun.name) failed.
+            See https://console-openshift-console.apps.stone-prd-rh01.pg1f.p1.openshiftapps.com/k8s/ns/tekton-ci/tekton.dev~v1beta1~PipelineRun/$(context.pipelineRun.name)
+            (Quick! It may disappear soon!)
+        - name: key-name
+          value: $(params.slack-webhook-notification-team)

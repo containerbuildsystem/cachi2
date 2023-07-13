@@ -13,6 +13,8 @@ spec:
       value: "{{repo_url}}"
     - name: revision
       value: "{{revision}}"
+    - name: slack-webhook-notification-team
+      value: build
   pipelineSpec:
     tasks:
       - name: fetch-repository
@@ -51,7 +53,7 @@ spec:
               script: |
                 #!/usr/bin/env bash
                 set -eufx
-                
+
                 git config --global --add safe.directory "${WORKSPACE_OUTPUT_PATH}"
                 git fetch --tag -v
                 version=$(git  --no-pager tag --points-at HEAD)
@@ -78,10 +80,34 @@ spec:
               script: |
                 #!/usr/bin/env bash
                 set -eufx
-                
+
                 version=$(cat $(results.version.path)) 
                 skopeo copy docker://quay.io/redhat-appstudio/cachi2:$PARAM_REVISION \
                   docker://quay.io/redhat-appstudio/cachi2:$version
+
+    finally:
+      - name: slack-webhook-notification
+        taskRef:
+          resolver: bundles
+          params:
+            - name: name
+              value: slack-webhook-notification
+            - name: bundle
+              value: quay.io/redhat-appstudio-tekton-catalog/task-slack-webhook-notification:0.1
+            - name: kind
+              value: task
+        when:
+        - input: $(tasks.status)
+          operator: in
+          values: ["Failed"]
+        params:
+        - name: message
+          value: |-
+            Tekton pipelineRun $(context.pipelineRun.name) failed.
+            See https://console-openshift-console.apps.stone-prd-rh01.pg1f.p1.openshiftapps.com/k8s/ns/tekton-ci/tekton.dev~v1beta1~PipelineRun/$(context.pipelineRun.name)
+            (Quick! It may disappear soon!)
+        - name: key-name
+          value: $(params.slack-webhook-notification-team)
 
   workspaces:
     - name: workspace
