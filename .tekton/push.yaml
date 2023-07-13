@@ -18,6 +18,8 @@ spec:
       value: "quay.io/redhat-appstudio/cachi2:{{revision}}"
     - name: dockerfile
       value: Containerfile
+    - name: slack-webhook-notification-team
+      value: build
   pipelineRef:
     name: docker-build
     bundle: quay.io/redhat-appstudio-tekton-catalog/pipeline-core-services-docker-build:latest
