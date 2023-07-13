@@ -286,6 +286,28 @@ def test_npm_smoketest(
             ],
             id="npm_lockfile3_dev_optional_peer_deps",
         ),
+        pytest.param(
+            utils.TestParameters(
+                repo="https://github.com/cachito-testing/npm-cachi2-multiple-packages.git",
+                ref="542312f9462dd6549ec57cd95106104c30054ec9",
+                packages=(
+                    {"path": "first_pkg", "type": "npm"},
+                    {"path": "second_pkg", "type": "npm"},
+                ),
+                check_vendor_checksums=False,
+            ),
+            ["npm", "cache", "ls"],
+            [
+                "/tmp/npm_multiple_packages_lockfile3-output/deps/npm/types-react-18.2.18.tgz",
+                "/tmp/npm_multiple_packages_lockfile3-output/deps/npm/external-cachito-npm-without-deps/cachito-npm-without-deps-external-sha512-43e71f90ad5f9eb349ab18a283f8954994def373962ddc61b866bdea4d48249e67913c6b84dca1e8c519e981ca1fcc62b438292104a88ee9ed72db76a41efede.tgz",
+                "/tmp/npm_multiple_packages_lockfile3-output/deps/npm/github.com/kevva/is-positive/is-positive-external-gitcommit-97edff6f525f192a3f83cea1944765f769ae2678.tgz",
+                "/tmp/npm_multiple_packages_lockfile3-output/deps/npm/express-4.18.2.tgz",
+                "/tmp/npm_multiple_packages_lockfile3-output/deps/npm/debug-4.3.4.tgz",
+                "/tmp/npm_multiple_packages_lockfile3-output/deps/npm/bitbucket.org/cachi-testing/cachi2-without-deps-second/cachi2-without-deps-second-external-gitcommit-09992d418fc44a2895b7a9ff27c4e32d6f74a982.tgz",
+                "/tmp/npm_multiple_packages_lockfile3-output/deps/npm/sax-0.1.1.tgz",
+            ],
+            id="npm_multiple_packages_lockfile3",
+        ),
     ],
 )
 def test_e2e_npm(
