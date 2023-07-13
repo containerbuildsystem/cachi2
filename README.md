@@ -17,6 +17,7 @@ The primary intended use of Cachi2's outputs is for network-isolated container b
 * [Basic usage](#basic-usage)
 * [Configuration](#configuration)
 * [Development](#development)
+* [Releasing](#releasing)
 * [Package managers](#package-managers)
 * [Project status](#project-status)
 
@@ -250,6 +251,27 @@ Generate data for test cases matching a pytest pattern:
 CACHI2_GENERATE_TEST_DATA=true tox -e integration -- -k gomod
 ```
 
+## Releasing
+
+To release a new version of Cachi2, simply create a [GitHub release][cachi2-releases]. Note that
+Cachi2 follows [semantic versioning](https://semver.org/) rules.
+
+Upon release, the [.tekton/release.yaml](.tekton/release.yaml) pipeline tags the corresponding
+[Cachi2 image][cachi2-container] with the newly released version tag (after validating that the
+tag follows the expected format: `$major.$minor.$patch`, without a `v` prefix).
+
+*You apply a release tag to a specific commit. The [.tekton/push.yaml](.tekton/push.yaml) pipeline
+should have built the image for that commit already. This is the "corresponding image" that receives
+the new version tag. If the image for the tagged commit does not exist, the release pipeline will fail.*
+
+You can watch the release pipeline in the [OpenShift console][ocp-cachi2-pipelines] in case it fails
+(the pipeline is not visible anywhere in GitHub UI). For intermittent failures, retrying should be
+possible from the OpenShift UI or by deleting and re-pushing the version tag.
+
+*⚠ The release pipeline runs as soon as you push a tag into the repository. Do not push the new version
+tag until you are ready to publish the release. You can use GitHub's ability to auto-create the tag
+upon publishment.*
+
 ## Package managers
 
 Supported:
@@ -319,8 +341,10 @@ still in early development phase.
 [cachi2-coveralls-badge]: https://coveralls.io/repos/github/containerbuildsystem/cachi2/badge.svg?branch=main
 [cachi2-container]: https://quay.io/repository/redhat-appstudio/cachi2
 [cachi2-container-status]: https://quay.io/repository/redhat-appstudio/cachi2/status
+[cachi2-releases]: https://github.com/containerbuildsystem/cachi2/releases
 [wheel-spec]: https://packaging.python.org/en/latest/specifications/binary-distribution-format/
 [setuppy-discouraged]: https://setuptools.pypa.io/en/latest/userguide/quickstart.html#setuppy-discouraged
 [go117-changelog]: https://tip.golang.org/doc/go1.17#go-command
 [go118-changelog]: https://tip.golang.org/doc/go1.18#go-command
 [go119-changelog]: https://tip.golang.org/doc/go1.19#go-command
+[ocp-cachi2-pipelines]: https://console-openshift-console.apps.stone-prd-rh01.pg1f.p1.openshiftapps.com/pipelines/ns/tekton-ci/pipeline-runs?name=cachi2
