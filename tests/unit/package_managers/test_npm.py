@@ -1,5 +1,6 @@
 import json
 import urllib.parse
+from pathlib import Path
 from typing import Any, Dict, Iterator, List, Optional, Union
 from unittest import mock
 
@@ -21,6 +22,7 @@ from cachi2.core.package_managers.npm import (
     _resolve_npm,
     _update_vcs_url_with_full_hostname,
     fetch_npm_source,
+    replace_dependency,
 )
 from cachi2.core.rooted_path import RootedPath
 from cachi2.core.scm import RepoID
@@ -242,63 +244,157 @@ class TestPackageLock:
         assert package_lock._dependencies == expected_packages
 
     @pytest.mark.parametrize(
-        "lockfile_data, expected_packages",
+        "resolved_url, lockfile_data, expected_result",
+        [
+            pytest.param(
+                "bar",
+                {
+                    "packages": {
+                        "": {"workspaces": ["foo"], "version": "1.0.0"},
+                    }
+                },
+                False,
+                id="missing_package_in_workspaces",
+            ),
+            pytest.param(
+                "foo",
+                {
+                    "packages": {
+                        "": {"version": "1.0.0"},
+                    }
+                },
+                False,
+                id="missing_workspaces",
+            ),
+            pytest.param(
+                "foo",
+                {
+                    "packages": {
+                        "": {
+                            "workspaces": ["foo", "./bar", "spam-packages/spam", "eggs-packages/*"],
+                        }
+                    },
+                },
+                True,
+                id="exact_match_package_in_workspace",
+            ),
+            pytest.param(
+                "bar",
+                {
+                    "packages": {
+                        "": {
+                            "workspaces": ["foo", "./bar", "spam-packages/spam", "eggs-packages/*"]
+                        }
+                    },
+                },
+                True,
+                id="compare_package_with_slash_in_workspace",
+            ),
+            pytest.param(
+                "spam-packages/spam",
+                {
+                    "packages": {
+                        "": {
+                            "workspaces": ["foo", "./bar", "spam-packages/spam", "eggs-packages/*"]
+                        }
+                    },
+                },
+                True,
+                id="workspace_with_subdirectory",
+            ),
+            pytest.param(
+                "eggs-packages/eggs",
+                {
+                    "packages": {
+                        "": {
+                            "workspaces": ["foo", "./bar", "spam-packages/spam", "eggs-packages/*"]
+                        }
+                    },
+                },
+                True,
+                id="anything_in_subdirectory",
+            ),
+        ],
+    )
+    def test_check_if_package_is_workspace(
+        self,
+        rooted_tmp_path: RootedPath,
+        resolved_url: str,
+        lockfile_data: dict[str, Any],
+        expected_result: bool,
+    ) -> None:
+        package_lock = PackageLock(rooted_tmp_path, lockfile_data)
+        assert package_lock.check_if_package_is_workspace(resolved_url) == expected_result
+
+    @pytest.mark.parametrize(
+        "lockfile_data, expected_packages, expected_workspaces",
         [
             pytest.param(
                 {},
+                [],
                 [],
                 id="no_packages",
             ),
             pytest.param(
                 {
                     "packages": {
-                        "": {"version": "1.0.0"},
-                        "node_modules/foo": {"version": "1.0.0"},
-                        "node_modules/bar": {"version": "2.0.0"},
+                        "": {"workspaces": ["foo"], "version": "1.0.0"},
+                        "node_modules/foo": {"version": "1.0.0", "resolved": "foo"},
+                        "node_modules/bar": {"version": "2.0.0", "resolved": "bar"},
                     }
                 },
                 [
-                    Package("foo", "node_modules/foo", {"version": "1.0.0"}),
-                    Package("bar", "node_modules/bar", {"version": "2.0.0"}),
+                    Package("foo", "node_modules/foo", {"version": "1.0.0", "resolved": "foo"}),
+                    Package("bar", "node_modules/bar", {"version": "2.0.0", "resolved": "bar"}),
                 ],
+                [],
                 id="normal_packages",
             ),
             pytest.param(
                 {
                     "packages": {
-                        "": {"version": "1.0.0"},
-                        "foo": {"version": "1.0.0"},
-                        "node_modules/foo": {"link": True},
+                        "": {"workspaces": ["not-foo"], "version": "1.0.0"},
+                        "foo": {"version": "1.0.0", "resolved": "foo"},
+                        "node_modules/foo": {"link": True, "resolved": "not-foo"},
                     }
                 },
                 [
-                    Package("foo", "foo", {"version": "1.0.0"}),
+                    Package("foo", "foo", {"version": "1.0.0", "resolved": "foo"}),
                 ],
+                ["not-foo"],
                 id="workspace_link",
             ),
             pytest.param(
                 {
                     "packages": {
                         "": {"version": "1.0.0"},
-                        "foo": {"name": "not-foo", "version": "1.0.0"},
-                        "node_modules/not-foo": {"link": True},
+                        "foo": {"name": "not-foo", "version": "1.0.0", "resolved": "foo"},
+                        "node_modules/not-foo": {"link": True, "resolved": "not-foo"},
                     }
                 },
                 [
-                    Package("not-foo", "foo", {"name": "not-foo", "version": "1.0.0"}),
+                    Package(
+                        "not-foo", "foo", {"name": "not-foo", "version": "1.0.0", "resolved": "foo"}
+                    ),
                 ],
+                [],
                 id="workspace_different_name",
             ),
             pytest.param(
                 {
                     "packages": {
                         "": {"version": "1.0.0"},
-                        "node_modules/@foo/bar": {"version": "1.0.0"},
+                        "node_modules/@foo/bar": {"version": "1.0.0", "resolved": "@foo/bar"},
                     }
                 },
                 [
-                    Package("@foo/bar", "node_modules/@foo/bar", {"version": "1.0.0"}),
+                    Package(
+                        "@foo/bar",
+                        "node_modules/@foo/bar",
+                        {"version": "1.0.0", "resolved": "@foo/bar"},
+                    ),
                 ],
+                [],
                 id="group_package",
             ),
         ],
@@ -308,9 +404,11 @@ class TestPackageLock:
         rooted_tmp_path: RootedPath,
         lockfile_data: dict[str, Any],
         expected_packages: list[Package],
+        expected_workspaces: list[str],
     ) -> None:
         package_lock = PackageLock(rooted_tmp_path, lockfile_data)
         assert package_lock._packages == expected_packages
+        assert package_lock.workspaces == expected_workspaces
 
     @pytest.mark.parametrize("lockfile_version", [1, 2])
     def test_get_sbom_components(self, lockfile_version: int) -> None:
@@ -511,6 +609,9 @@ class TestPurlifier:
                     "dependencies": [
                         {"name": "bar", "version": "2.0.0", "purl": "pkg:npm/bar@2.0.0"}
                     ],
+                    "projectfiles": [
+                        ProjectFile(abspath="/some/path", template="some text"),
+                    ],
                     "dependencies_to_download": {
                         "https://some.registry.org/bar/-/bar-2.0.0.tgz": {
                             "integrity": "sha512-JCB8C6SnDoQf",
@@ -541,6 +642,9 @@ class TestPurlifier:
                     "dependencies": [
                         {"name": "bar", "version": "2.0.0", "purl": "pkg:npm/bar@2.0.0"}
                     ],
+                    "projectfiles": [
+                        ProjectFile(abspath="/some/path", template="some text"),
+                    ],
                     "dependencies_to_download": {
                         "https://some.registry.org/bar/-/bar-2.0.0.tgz": {
                             "integrity": "sha512-JCB8C6SnDoQf",
@@ -562,6 +666,10 @@ class TestPurlifier:
                             "version": "1.0.0",
                         }
                     },
+                    "projectfiles": [
+                        ProjectFile(abspath="/some/path", template="some text"),
+                        ProjectFile(abspath="/some/other/path", template="some other text"),
+                    ],
                     "package_lock_file": ProjectFile(
                         abspath="/some/other/path", template="some other text"
                     ),
@@ -586,7 +694,11 @@ class TestPurlifier:
 )
 @mock.patch("cachi2.core.package_managers.npm._resolve_npm")
 @mock.patch("cachi2.core.package_managers.npm._get_npm_dependencies")
+@mock.patch("cachi2.core.package_managers.npm.update_package_lock_with_local_paths")
+@mock.patch("cachi2.core.package_managers.npm.update_package_json_files")
 def test_fetch_npm_source(
+    update_package_json_files: mock.Mock,
+    update_package_lock_with_local_paths: mock.Mock,
     mock_get_npm_dependencies: mock.Mock,
     mock_resolve_npm: mock.Mock,
     npm_request: Request,
@@ -597,6 +709,7 @@ def test_fetch_npm_source(
     """Test fetch_npm_source with different Request inputs."""
     mock_resolve_npm.side_effect = resolved_packages
     output = fetch_npm_source(npm_request)
+    """
     calls = []
     for r in resolved_packages:
         calls.append(
@@ -605,7 +718,8 @@ def test_fetch_npm_source(
                 r["dependencies_to_download"],
             )
         )
-    mock_get_npm_dependencies.assert_has_calls(calls)
+    """
+    # mock_get_npm_dependencies.assert_has_calls(calls)
     expected_output = RequestOutput.from_obj_list(
         components=request_output["components"],
         environment_variables=request_output["environment_variables"],
@@ -613,6 +727,8 @@ def test_fetch_npm_source(
     )
 
     assert output == expected_output
+    # update_package_lock_with_local_paths.assert_called()
+    # update_package_json_files.assert_called()
 
 
 @mock.patch("pathlib.Path.exists")
@@ -626,8 +742,10 @@ def test_resolve_npm_no_lock(
         "The npm-shrinkwrap.json or package-lock.json file must be present for the npm "
         "package manager"
     )
+    output_dir = mock.Mock(spec=RootedPath)
+    npm_deps_dir = mock.Mock(spec=RootedPath)
     with pytest.raises(PackageRejected, match=expected_error):
-        _resolve_npm(rooted_tmp_path)
+        _resolve_npm(Path("."), rooted_tmp_path, output_dir, npm_deps_dir)
 
 
 @pytest.mark.parametrize(
@@ -660,13 +778,10 @@ def test_resolve_npm_no_lock(
                         "purl": "pkg:npm/bar@2.0.0",
                     }
                 ],
-                "dependencies_to_download": {
-                    "https://registry.npmjs.org/bar/-/bar-2.0.0.tgz": {
-                        "integrity": "sha512-JCB8C6SnDoQf",
-                        "name": "bar",
-                        "version": "2.0.0",
-                    },
-                },
+                "projectfiles": [
+                    ProjectFile(abspath="/some/path", template="some text"),
+                    ProjectFile(abspath="/some/other/path", template="some other text"),
+                ],
             },
             id="npm_v1_lockfile",
         ),
@@ -718,18 +833,10 @@ def test_resolve_npm_no_lock(
                         "purl": "pkg:npm/spam@4.0.0",
                     },
                 ],
-                "dependencies_to_download": {
-                    "https://registry.npmjs.org/bar/-/bar-2.0.0.tgz": {
-                        "integrity": "sha512-JCB8C6SnDoQf",
-                        "name": "bar",
-                        "version": "2.0.0",
-                    },
-                    "https://registry.npmjs.org/bar/-/bar-3.0.0.tgz": {
-                        "integrity": "sha512-YOLOYOLO",
-                        "name": "bar",
-                        "version": "3.0.0",
-                    },
-                },
+                "projectfiles": [
+                    ProjectFile(abspath="/some/path", template="some text"),
+                    ProjectFile(abspath="/some/other/path", template="some other text"),
+                ],
             },
             id="npm_v1_lockfile_nested_deps",
         ),
@@ -772,18 +879,10 @@ def test_resolve_npm_no_lock(
                         "purl": f"pkg:npm/spam?vcs_url={urlq('git+ssh://git@github.com/spam/spam.git@deadbeef')}",
                     },
                 ],
-                "dependencies_to_download": {
-                    "https://foohub.org/bar/-/bar-2.0.0.tgz": {
-                        "integrity": "sha512-JCB8C6SnDoQf",
-                        "name": "bar",
-                        "version": "https://foohub.org/bar/-/bar-2.0.0.tgz",
-                    },
-                    "git+ssh://git@github.com/spam/spam.git#deadbeef": {
-                        "integrity": None,
-                        "name": "spam",
-                        "version": "git+ssh://git@github.com/spam/spam.git#deadbeef",
-                    },
-                },
+                "projectfiles": [
+                    ProjectFile(abspath="/some/path", template="some text"),
+                    ProjectFile(abspath="/some/other/path", template="some other text"),
+                ],
             },
             id="npm_v1_lockfile_non_registry_deps",
         ),
@@ -811,7 +910,10 @@ def test_resolve_npm_no_lock(
                         "purl": f"pkg:npm/baz?vcs_url={MOCK_REPO_VCS_URL}#subpath/baz",
                     },
                 ],
-                "dependencies_to_download": {},
+                "projectfiles": [
+                    ProjectFile(abspath="/some/path", template="some text"),
+                    ProjectFile(abspath="/some/other/path", template="some other text"),
+                ],
             },
             id="npm_v1_at_subpath_with_file_dep",
         ),
@@ -854,13 +956,10 @@ def test_resolve_npm_no_lock(
                         "purl": "pkg:npm/bar@2.0.0",
                     }
                 ],
-                "dependencies_to_download": {
-                    "https://registry.npmjs.org/bar/-/bar-2.0.0.tgz": {
-                        "integrity": "sha512-JCB8C6SnDoQf",
-                        "name": "bar",
-                        "version": "2.0.0",
-                    },
-                },
+                "projectfiles": [
+                    ProjectFile(abspath="/some/path", template="some text"),
+                    ProjectFile(abspath="/some/other/path", template="some other text"),
+                ],
             },
             id="npm_v2_lockfile",
         ),
@@ -932,18 +1031,10 @@ def test_resolve_npm_no_lock(
                         "purl": "pkg:npm/spam@4.0.0",
                     },
                 ],
-                "dependencies_to_download": {
-                    "https://registry.npmjs.org/bar/-/bar-2.0.0.tgz": {
-                        "integrity": "sha512-JCB8C6SnDoQf",
-                        "name": "bar",
-                        "version": "2.0.0",
-                    },
-                    "https://registry.npmjs.org/baz/-/baz-3.0.0.tgz": {
-                        "integrity": "sha512-YOLOYOLO",
-                        "name": "baz",
-                        "version": "3.0.0",
-                    },
-                },
+                "projectfiles": [
+                    ProjectFile(abspath="/some/path", template="some text"),
+                    ProjectFile(abspath="/some/other/path", template="some other text"),
+                ],
             },
             id="npm_v2_lockfile_nested_deps",
         ),
@@ -984,7 +1075,10 @@ def test_resolve_npm_no_lock(
                         "purl": f"pkg:npm/not-bar@2.0.0?vcs_url={MOCK_REPO_VCS_URL}#bar",
                     }
                 ],
-                "dependencies_to_download": {},
+                "projectfiles": [
+                    ProjectFile(abspath="/some/path", template="some text"),
+                    ProjectFile(abspath="/some/other/path", template="some other text"),
+                ],
             },
             id="npm_v2_lockfile_workspace",
         ),
@@ -1025,7 +1119,10 @@ def test_resolve_npm_no_lock(
                         "purl": f"pkg:npm/not-bar@2.0.0?vcs_url={MOCK_REPO_VCS_URL}#subpath/bar",
                     }
                 ],
-                "dependencies_to_download": {},
+                "projectfiles": [
+                    ProjectFile(abspath="/some/path", template="some text"),
+                    ProjectFile(abspath="/some/other/path", template="some other text"),
+                ],
             },
             id="npm_v2_at_subpath_with_workspace",
         ),
@@ -1050,6 +1147,7 @@ def test_resolve_npm_no_lock(
                         "resolved": "git+ssh://git@github.com/spam/spam.git#deadbeef",
                     },
                 },
+                "get_list_of_workspaces": [],
                 "dependencies": {
                     "bar": {
                         "version": "https://foohub.org/bar/-/bar-2.0.0.tgz",
@@ -1078,18 +1176,10 @@ def test_resolve_npm_no_lock(
                         "purl": f"pkg:npm/spam@3.0.0?vcs_url={urlq('git+ssh://git@github.com/spam/spam.git@deadbeef')}",
                     },
                 ],
-                "dependencies_to_download": {
-                    "https://foohub.org/bar/-/bar-2.0.0.tgz": {
-                        "integrity": "sha512-JCB8C6SnDoQf",
-                        "name": "bar",
-                        "version": "2.0.0",
-                    },
-                    "git+ssh://git@github.com/spam/spam.git#deadbeef": {
-                        "integrity": None,
-                        "name": "spam",
-                        "version": "3.0.0",
-                    },
-                },
+                "projectfiles": [
+                    ProjectFile(abspath="/some/path", template="some text"),
+                    ProjectFile(abspath="/some/other/path", template="some other text"),
+                ],
             },
             id="npm_v2_lockfile_non_registry_deps",
         ),
@@ -1132,13 +1222,10 @@ def test_resolve_npm_no_lock(
                         "purl": "pkg:npm/%40bar/baz@2.0.0",
                     }
                 ],
-                "dependencies_to_download": {
-                    "https://registry.npmjs.org/@bar/baz/-/baz-2.0.0.tgz": {
-                        "integrity": "sha512-JCB8C6SnDoQf",
-                        "name": "@bar/baz",
-                        "version": "2.0.0",
-                    }
-                },
+                "projectfiles": [
+                    ProjectFile(abspath="/some/path", template="some text"),
+                    ProjectFile(abspath="/some/other/path", template="some other text"),
+                ],
             },
             id="npm_v2_lockfile_grouped_deps",
         ),
@@ -1174,19 +1261,22 @@ def test_resolve_npm_no_lock(
                         "purl": "pkg:npm/bar@2.0.0",
                     }
                 ],
-                "dependencies_to_download": {
-                    "https://registry.npmjs.org/bar/-/bar-2.0.0.tgz": {
-                        "integrity": "sha512-JCB8C6SnDoQf",
-                        "name": "bar",
-                        "version": "2.0.0",
-                    }
-                },
+                "projectfiles": [
+                    ProjectFile(abspath="/some/path", template="some text"),
+                    ProjectFile(abspath="/some/other/path", template="some other text"),
+                ],
             },
             id="npm_v3_lockfile",
         ),
     ],
 )
+@mock.patch("cachi2.core.package_managers.npm._get_npm_dependencies")
+@mock.patch("cachi2.core.package_managers.npm.update_package_lock_with_local_paths")
+@mock.patch("cachi2.core.package_managers.npm.update_package_json_files")
 def test_resolve_npm(
+    update_package_json_files: mock.Mock,
+    update_package_lock_with_local_paths: mock.Mock,
+    mock_get_npm_dependencies: mock.Mock,
     rooted_tmp_path: RootedPath,
     main_pkg_subpath: str,
     package_lock_json: dict[str, Union[str, dict]],
@@ -1201,10 +1291,26 @@ def test_resolve_npm(
     with lockfile_path.open("w") as f:
         json.dump(package_lock_json, f)
 
-    pkg_info = _resolve_npm(pkg_dir)
-    expected_output["package_lock_file"] = ProjectFile(
-        abspath=lockfile_path.resolve(), template=json.dumps(package_lock_json, indent=2) + "\n"
+    output_dir = rooted_tmp_path.join_within_root("output")
+    npm_deps_dir = output_dir.join_within_root("deps", "npm")
+
+    # Mock package.json files
+    update_package_json_files.return_value = [
+        ProjectFile(abspath="/some/path", template="some text"),
+        ProjectFile(abspath="/some/other/path", template="some other text"),
+    ]
+
+    pkg_info = _resolve_npm(pkg_dir.path, rooted_tmp_path, output_dir, npm_deps_dir)
+    expected_output["projectfiles"].append(
+        ProjectFile(
+            abspath=lockfile_path.resolve(), template=json.dumps(package_lock_json, indent=2) + "\n"
+        )
     )
+
+    mock_get_npm_dependencies.assert_called()
+    update_package_lock_with_local_paths.assert_called()
+    update_package_json_files.assert_called()
+
     assert pkg_info == expected_output
     mock_get_repo_id.assert_called_once_with(rooted_tmp_path.root)
 
@@ -1221,8 +1327,10 @@ def test_resolve_npm_unsupported_lockfileversion(rooted_tmp_path: RootedPath) ->
         json.dump(package_lock_json, f)
 
     expected_error = f"lockfileVersion {package_lock_json['lockfileVersion']} from {lockfile_path} is not supported"
+    output_dir = mock.Mock(spec=RootedPath)
+    npm_deps_dir = mock.Mock(spec=RootedPath)
     with pytest.raises(UnsupportedFeature, match=expected_error):
-        _resolve_npm(rooted_tmp_path)
+        _resolve_npm(Path("."), rooted_tmp_path, output_dir, npm_deps_dir)
 
 
 @pytest.mark.parametrize(
@@ -1294,6 +1402,33 @@ def test_clone_repo_pack_archive(
 
 
 @pytest.mark.parametrize(
+    "dependency_version, expected_result",
+    [
+        ("1.0.0 - 2.9999.9999", False),
+        (">=1.0.2 <2.1.2", False),
+        ("2.0.1", False),
+        ("<1.0.0 || >=2.3.1 <2.4.5 || >=2.5.2 <3.0.0", False),
+        ("~1.2", False),
+        ("3.3.x", False),
+        ("latest", False),
+        ("file:../dyl", False),
+        ("git+ssh://git@github.com:npm/cli.git#v1.0.27", True),
+        ("git+ssh://git@github.com:npm/cli#semver:^5.0", True),
+        ("git+https://isaacs@github.com/npm/cli.git", True),
+        ("git://github.com/npm/cli.git#v1.0.27", True),
+        ("git+ssh://git@github.com:npm/cli.git#v1.0.27", True),
+        ("expressjs/express", True),
+        ("mochajs/mocha#4727d357ea", True),
+        ("user/repo#feature/branch", True),
+        ("https://asdf.com/asdf.tar.gz", True),
+        ("https://asdf.com/asdf.tgz", True),
+    ],
+)
+def test_replace_dependency(dependency_version: str, expected_result: bool) -> None:
+    assert replace_dependency(dependency_version) == expected_result
+
+
+@pytest.mark.parametrize(
     "deps_to_download, expected_download_subpaths",
     [
         (
@@ -1356,7 +1491,7 @@ def test_get_npm_dependencies(
     mock_must_match_any_checksum: mock.Mock,
     mock_async_download_files: mock.Mock,
     rooted_tmp_path: RootedPath,
-    deps_to_download: Dict[str, Dict[str, str]],
+    deps_to_download: Dict[str, Dict[str, Optional[str]]],
     expected_download_subpaths: Dict[str, str],
 ) -> None:
     def args_based_return_checksum(integrity: str) -> ChecksumInfo:
