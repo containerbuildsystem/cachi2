@@ -114,7 +114,7 @@ def test_pip_packages(
                 expected_output="All dependencies fetched successfully",
             ),
             ["python3", "/opt/test_package_cachi2"],
-            "registry.fedoraproject.org/fedora-minimal:37",
+            ["registry.fedoraproject.org/fedora-minimal:37"],
             id="pip_e2e_test",
         ),
     ],

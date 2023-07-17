@@ -368,7 +368,8 @@ def build_image_and_check_cmd(
         (output, exit_code) = test_image.run_cmd_on_image(check_cmd, tmp_path)
 
         assert exit_code == 0, f"{check_cmd} command failed, Output: {output}"
-        assert expected_cmd_output in output, f"{expected_cmd_output} is missing in {output}"
+        for expected_output in expected_cmd_output:
+            assert expected_output in output, f"{expected_output} is missing in {output}"
 
 
 def _replace_tmp_path_with_placeholder(project_files: list[dict[str, str]], tmp_path: Path) -> None:

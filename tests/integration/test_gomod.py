@@ -194,7 +194,7 @@ def test_gomod_packages(
                 expected_output="All dependencies fetched successfully",
             ),
             ["retrodep", "--help"],
-            "retrodep: help requested",
+            ["retrodep: help requested"],
             id="gomod_e2e_test",
         ),
         # Check handling of multiple Go modules in one repository. See the README in the testing
@@ -213,7 +213,7 @@ def test_gomod_packages(
                 expected_output="All dependencies fetched successfully",
             ),
             [],  # check using CMD defined in Dockerfile
-            "",
+            [""],
             id="gomod_e2e_multiple_modules",
         ),
     ],
