@@ -1,0 +1,23 @@
+FROM docker.io/node:10
+
+# Test disabled network access
+RUN if curl -IsS www.google.com; then echo "Has network access!"; exit 1; fi
+
+# Print cachi2 env vars file
+RUN cat /tmp/cachi2.env
+
+# Check pip deps
+RUN ls /tmp/npm_smoketest_lockfile1-output/deps/npm
+
+# Check content of source repository folder
+RUN ls /tmp/npm_smoketest_lockfile1-source/
+
+RUN cat /tmp/npm_smoketest_lockfile1-source/package-lock.json
+RUN cat /tmp/npm_smoketest_lockfile1-source/package.json
+
+WORKDIR /tmp/npm_smoketest_lockfile1-source
+# Install packages
+RUN . /tmp/cachi2.env && npm i
+
+RUN mkdir /opt/source && cp -r /tmp/npm_smoketest_lockfile1-source/* /opt/source/
+WORKDIR /opt/source/

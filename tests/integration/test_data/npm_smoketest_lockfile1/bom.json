@@ -2,18 +2,6 @@
   "bomFormat": "CycloneDX",
   "components": [
     {
-      "name": "@types/prop-types",
-      "properties": [
-        {
-          "name": "cachi2:found_by",
-          "value": "cachi2"
-        }
-      ],
-      "purl": "pkg:npm/%40types/prop-types@15.7.5",
-      "type": "library",
-      "version": "15.7.5"
-    },
-    {
       "name": "@types/react-dom",
       "properties": [
         {
@@ -21,9 +9,9 @@
           "value": "cachi2"
         }
       ],
-      "purl": "pkg:npm/%40types/react-dom@18.0.11",
+      "purl": "pkg:npm/%40types/react-dom@15.5.17",
       "type": "library",
-      "version": "18.0.11"
+      "version": "15.5.17"
     },
     {
       "name": "@types/react",
@@ -33,21 +21,9 @@
           "value": "cachi2"
         }
       ],
-      "purl": "pkg:npm/%40types/react@18.0.35",
+      "purl": "pkg:npm/%40types/react@15.7.19",
       "type": "library",
-      "version": "18.0.35"
-    },
-    {
-      "name": "@types/scheduler",
-      "properties": [
-        {
-          "name": "cachi2:found_by",
-          "value": "cachi2"
-        }
-      ],
-      "purl": "pkg:npm/%40types/scheduler@0.16.3",
-      "type": "library",
-      "version": "0.16.3"
+      "version": "15.7.19"
     },
     {
       "name": "abbrev",
@@ -57,9 +33,9 @@
           "value": "cachi2"
         }
       ],
-      "purl": "pkg:npm/abbrev@2.0.0",
+      "purl": "pkg:npm/abbrev@1.1.1",
       "type": "library",
-      "version": "2.0.0"
+      "version": "1.1.1"
     },
     {
       "name": "accepts",
@@ -86,17 +62,6 @@
       "version": "1.1.1"
     },
     {
-      "name": "bar",
-      "properties": [
-        {
-          "name": "cachi2:found_by",
-          "value": "cachi2"
-        }
-      ],
-      "purl": "pkg:npm/bar?vcs_url=git%2Bhttps://github.com/cachito-testing/npm-cachi2-smoketest.git%40e5bd11ca3a7aacd81aa195275d679d954848c71c#bar",
-      "type": "library"
-    },
-    {
       "name": "bitbucket-cachi2-npm-without-deps-second",
       "properties": [
         {
@@ -104,18 +69,7 @@
           "value": "cachi2"
         }
       ],
-      "purl": "pkg:npm/bitbucket-cachi2-npm-without-deps-second?vcs_url=git%2Bssh://git%40bitbucket.org/cachi-testing/cachi2-without-deps-second.git%4009992d418fc44a2895b7a9ff27c4e32d6f74a982",
-      "type": "library"
-    },
-    {
-      "name": "bitbucket-cachi2-npm-without-deps",
-      "properties": [
-        {
-          "name": "cachi2:found_by",
-          "value": "cachi2"
-        }
-      ],
-      "purl": "pkg:npm/bitbucket-cachi2-npm-without-deps?vcs_url=git%2Bssh://git%40bitbucket.org/cachi-testing/cachi2-without-deps.git%409e164b97043a2d91bbeb992f6cc68a3d1015086a",
+      "purl": "pkg:npm/bitbucket-cachi2-npm-without-deps-second?vcs_url=git%2Bhttps://bitbucket.org/cachi-testing/cachi2-without-deps-second.git%4009992d418fc44a2895b7a9ff27c4e32d6f74a982",
       "type": "library"
     },
     {
@@ -143,17 +97,6 @@
       "version": "3.1.2"
     },
     {
-      "name": "cachito-npm-without-deps",
-      "properties": [
-        {
-          "name": "cachi2:found_by",
-          "value": "cachi2"
-        }
-      ],
-      "purl": "pkg:npm/cachito-npm-without-deps?checksum=sha512:43e71f90ad5f9eb349ab18a283f8954994def373962ddc61b866bdea4d48249e67913c6b84dca1e8c519e981ca1fcc62b438292104a88ee9ed72db76a41efede&download_url=https://github.com/cachito-testing/cachito-npm-without-deps/raw/tarball/cachito-npm-without-deps-1.0.0.tgz",
-      "type": "library"
-    },
-    {
       "name": "call-bind",
       "properties": [
         {
@@ -173,9 +116,9 @@
           "value": "cachi2"
         }
       ],
-      "purl": "pkg:npm/classnames@2.3.2",
+      "purl": "pkg:npm/classnames@1.2.2",
       "type": "library",
-      "version": "2.3.2"
+      "version": "1.2.2"
     },
     {
       "name": "colors",
@@ -238,18 +181,6 @@
       "version": "0.5.0"
     },
     {
-      "name": "csstype",
-      "properties": [
-        {
-          "name": "cachi2:found_by",
-          "value": "cachi2"
-        }
-      ],
-      "purl": "pkg:npm/csstype@3.1.2",
-      "type": "library",
-      "version": "3.1.2"
-    },
-    {
       "name": "dateformat",
       "properties": [
         {
@@ -257,9 +188,9 @@
           "value": "cachi2"
         }
       ],
-      "purl": "pkg:npm/dateformat@5.0.3",
+      "purl": "pkg:npm/dateformat@3.0.3",
       "type": "library",
-      "version": "5.0.3"
+      "version": "3.0.3"
     },
     {
       "name": "debug",
@@ -310,17 +241,6 @@
       "version": "1.1.1"
     },
     {
-      "name": "eggs",
-      "properties": [
-        {
-          "name": "cachi2:found_by",
-          "value": "cachi2"
-        }
-      ],
-      "purl": "pkg:npm/eggs?vcs_url=git%2Bhttps://github.com/cachito-testing/npm-cachi2-smoketest.git%40e5bd11ca3a7aacd81aa195275d679d954848c71c#eggs-packages/eggs",
-      "type": "library"
-    },
-    {
       "name": "encodeurl",
       "properties": [
         {
@@ -369,6 +289,17 @@
       "version": "4.18.2"
     },
     {
+      "name": "fecha",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:npm/fecha?vcs_url=git%2Bhttps://github.com/cachito-testing/npm-cachi2-smoketest.git%406471e7b3d975eef263483f1a517fb7d83e73b138#fecha-4.2.3.tgz",
+      "type": "library"
+    },
+    {
       "name": "finalhandler",
       "properties": [
         {
@@ -379,17 +310,6 @@
       "purl": "pkg:npm/finalhandler@1.2.0",
       "type": "library",
       "version": "1.2.0"
-    },
-    {
-      "name": "foo",
-      "properties": [
-        {
-          "name": "cachi2:found_by",
-          "value": "cachi2"
-        }
-      ],
-      "purl": "pkg:npm/foo?vcs_url=git%2Bhttps://github.com/cachito-testing/npm-cachi2-smoketest.git%40e5bd11ca3a7aacd81aa195275d679d954848c71c#foo",
-      "type": "library"
     },
     {
       "name": "forwarded",
@@ -435,9 +355,21 @@
           "value": "cachi2"
         }
       ],
-      "purl": "pkg:npm/get-intrinsic@1.2.0",
+      "purl": "pkg:npm/get-intrinsic@1.2.1",
       "type": "library",
-      "version": "1.2.0"
+      "version": "1.2.1"
+    },
+    {
+      "name": "has-proto",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:npm/has-proto@1.0.1",
+      "type": "library",
+      "version": "1.0.1"
     },
     {
       "name": "has-symbols",
@@ -510,17 +442,6 @@
       "purl": "pkg:npm/ipaddr.js@1.9.1",
       "type": "library",
       "version": "1.9.1"
-    },
-    {
-      "name": "is-positive",
-      "properties": [
-        {
-          "name": "cachi2:found_by",
-          "value": "cachi2"
-        }
-      ],
-      "purl": "pkg:npm/is-positive?vcs_url=git%2Bssh://git%40github.com/kevva/is-positive.git%4097edff6f525f192a3f83cea1944765f769ae2678",
-      "type": "library"
     },
     {
       "name": "media-typer",
@@ -631,17 +552,6 @@
       "version": "0.6.3"
     },
     {
-      "name": "not-baz",
-      "properties": [
-        {
-          "name": "cachi2:found_by",
-          "value": "cachi2"
-        }
-      ],
-      "purl": "pkg:npm/not-baz?vcs_url=git%2Bhttps://github.com/cachito-testing/npm-cachi2-smoketest.git%40e5bd11ca3a7aacd81aa195275d679d954848c71c#baz",
-      "type": "library"
-    },
-    {
       "name": "npm_test",
       "properties": [
         {
@@ -649,7 +559,7 @@
           "value": "cachi2"
         }
       ],
-      "purl": "pkg:npm/npm_test@1.1.0?vcs_url=git%2Bhttps://github.com/cachito-testing/npm-cachi2-smoketest.git%40e5bd11ca3a7aacd81aa195275d679d954848c71c",
+      "purl": "pkg:npm/npm_test@1.1.0?vcs_url=git%2Bhttps://github.com/cachito-testing/npm-cachi2-smoketest.git%406471e7b3d975eef263483f1a517fb7d83e73b138",
       "type": "library",
       "version": "1.1.0"
     },
@@ -781,9 +691,9 @@
           "value": "cachi2"
         }
       ],
-      "purl": "pkg:npm/sax@0.1.1",
+      "purl": "pkg:npm/sax@0.6.1",
       "type": "library",
-      "version": "0.1.1"
+      "version": "0.6.1"
     },
     {
       "name": "send",
@@ -832,17 +742,6 @@
       "purl": "pkg:npm/side-channel@1.0.4",
       "type": "library",
       "version": "1.0.4"
-    },
-    {
-      "name": "spam",
-      "properties": [
-        {
-          "name": "cachi2:found_by",
-          "value": "cachi2"
-        }
-      ],
-      "purl": "pkg:npm/spam?vcs_url=git%2Bhttps://github.com/cachito-testing/npm-cachi2-smoketest.git%40e5bd11ca3a7aacd81aa195275d679d954848c71c#spam-packages/spam",
-      "type": "library"
     },
     {
       "name": "statuses",
@@ -912,9 +811,9 @@
           "value": "cachi2"
         }
       ],
-      "purl": "pkg:npm/uuid@9.0.0",
+      "purl": "pkg:npm/uuid@7.0.3",
       "type": "library",
-      "version": "9.0.0"
+      "version": "7.0.3"
     },
     {
       "name": "vary",
