@@ -615,17 +615,32 @@ def test_fetch_npm_source(
     assert output == expected_output
 
 
+@pytest.mark.parametrize(
+    "lockfile_exists, node_mods_exists, expected_error",
+    [
+        pytest.param(
+            False,
+            False,
+            "The npm-shrinkwrap.json or package-lock.json file must be present for the npm package manager",
+            id="no lockfile present",
+        ),
+        pytest.param(
+            True,
+            True,
+            "The 'node_modules' directory cannot be present in the source repository",
+            id="lockfile present; node_modules present",
+        ),
+    ],
+)
 @mock.patch("pathlib.Path.exists")
-def test_resolve_npm_no_lock(
+def test_resolve_npm_validation(
     mock_exists: mock.Mock,
+    lockfile_exists: bool,
+    node_mods_exists: bool,
+    expected_error: str,
     rooted_tmp_path: RootedPath,
 ) -> None:
-    """Test resolve_npm where npm-shrinkwrap.json or package-lock.json do not exist."""
-    mock_exists.return_value = False
-    expected_error = (
-        "The npm-shrinkwrap.json or package-lock.json file must be present for the npm "
-        "package manager"
-    )
+    mock_exists.side_effect = [lockfile_exists, node_mods_exists]
     with pytest.raises(PackageRejected, match=expected_error):
         _resolve_npm(rooted_tmp_path)
 
