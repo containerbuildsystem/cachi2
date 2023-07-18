@@ -50,6 +50,7 @@ test = [
   "GitPython",
   "jsonschema",
   "pytest",
+  "pytest-asyncio",
   "pytest-cov",
   "pytest-env",
   "pyyaml",
