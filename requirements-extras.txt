@@ -681,9 +681,9 @@ pyyaml==6.0 \
     # via
     #   bandit
     #   cachi2 (pyproject.toml)
-referencing==0.29.1 \
-    --hash=sha256:90cb53782d550ba28d2166ef3f55731f38397def8832baac5d45235f1995e35e \
-    --hash=sha256:d3c8f323ee1480095da44d55917cfb8278d73d6b4d5f677e3e40eb21314ac67f
+referencing==0.30.0 \
+    --hash=sha256:47237742e990457f7512c7d27486394a9aadaf876cbfaa4be65b27b4f4d47c6b \
+    --hash=sha256:c257b08a399b6c2f5a3510a50d28ab5dbc7bbde049bcaf954d43c446f83ab548
     # via
     #   jsonschema
     #   jsonschema-specifications
