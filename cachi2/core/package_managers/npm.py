@@ -558,6 +558,13 @@ def _resolve_npm(pkg_path: RootedPath) -> ResolvedNpmPackage:
             solution="Please double-check that you have specified the correct path to the package directory containing one of those two files",
         )
 
+    node_modules_path = pkg_path.join_within_root("node_modules")
+    if node_modules_path.path.exists():
+        raise PackageRejected(
+            "The 'node_modules' directory cannot be present in the source repository",
+            solution="Ensure that there are no 'node_modules' directories in your repo",
+        )
+
     package_lock = PackageLock.from_file(package_lock_path)
 
     return {
