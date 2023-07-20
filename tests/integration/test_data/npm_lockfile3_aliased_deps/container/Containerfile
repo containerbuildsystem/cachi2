@@ -1,0 +1,20 @@
+FROM node:18
+
+# Test disabled network access
+RUN if curl -IsS www.google.com; then echo "Has network access!"; exit 1; fi
+
+# Print cachi2 env vars file
+RUN cat /tmp/cachi2.env
+
+# Check npm deps
+RUN ls /tmp/npm_lockfile3_aliased_deps-output/deps/npm
+
+# Check content of source repository folder
+RUN ls /tmp/npm_lockfile3_aliased_deps-source/
+
+WORKDIR /tmp/npm_lockfile3_aliased_deps-source
+
+# Install packages and list them
+RUN . /tmp/cachi2.env && \
+    npm install && \
+    npm ll --parseable > /opt/npm-ls-output.txt
