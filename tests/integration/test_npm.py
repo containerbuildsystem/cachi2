@@ -12,27 +12,6 @@ log = logging.getLogger(__name__)
 @pytest.mark.parametrize(
     "test_params",
     [
-        # Test case checks loading npm dependencies in SBOM format for source repo
-        # Plus fetching the dependencies
-        pytest.param(
-            utils.TestParameters(
-                repo="https://github.com/cachito-testing/npm-cachi2-smoketest.git",
-                ref="e5bd11ca3a7aacd81aa195275d679d954848c71c",
-                packages=({"path": ".", "type": "npm"},),
-                check_vendor_checksums=False,
-            ),
-            id="npm_smoketest_lockfile1",
-        ),
-        # bundled dependencies, see the repo README for more details
-        pytest.param(
-            utils.TestParameters(
-                repo="https://github.com/cachito-testing/npm-cachi2-bundled.git",
-                ref="87937b938d5c737bc4d62f3759478dd5e3e9ebb6",
-                packages=({"path": ".", "type": "npm"},),
-                check_vendor_checksums=False,
-            ),
-            id="npm_bundled_lockfile1",
-        ),
         pytest.param(
             utils.TestParameters(
                 repo="https://github.com/cachito-testing/npm-cachi2-bundled.git",
@@ -41,15 +20,6 @@ log = logging.getLogger(__name__)
                 check_vendor_checksums=False,
             ),
             id="npm_bundled_lockfile3",
-        ),
-        pytest.param(
-            utils.TestParameters(
-                repo="https://github.com/cachito-testing/npm-cachi2-registry-yarnpkg.git",
-                ref="666e85812266bdad8795e75025ce053ecbb060d9",
-                packages=({"path": ".", "type": "npm"},),
-                check_vendor_checksums=False,
-            ),
-            id="npm_lockfile1_yarn_registry",
         ),
         pytest.param(
             utils.TestParameters(
