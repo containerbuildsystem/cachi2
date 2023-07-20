@@ -246,6 +246,22 @@ def test_npm_smoketest(
             ],
             id="npm_lockfile3_multiple_dep_versions",
         ),
+        pytest.param(
+            utils.TestParameters(
+                repo="https://github.com/cachito-testing/npm-with-aliased-deps.git",
+                ref="48c5f156b43b8727b10bf464c00847b09e2f25f6",
+                packages=({"path": ".", "type": "npm"},),
+                check_vendor_checksums=False,
+            ),
+            ["cat", "/opt/npm-ls-output.txt"],
+            [
+                "/tmp/npm_lockfile3_aliased_deps-source:npm-with-aliased-deps@1.0.0",
+                "/tmp/npm_lockfile3_aliased_deps-source/node_modules/fecha-4.2.0:fecha-4.2.0@npm:fecha@4.2.0",
+                "/tmp/npm_lockfile3_aliased_deps-source/node_modules/fecha-4.2.2:fecha-4.2.2@npm:fecha@4.2.2",
+                "/tmp/npm_lockfile3_aliased_deps-source/node_modules/fecha:fecha@4.2.3",
+            ],
+            id="npm_lockfile3_aliased_deps",
+        ),
     ],
 )
 def test_e2e_npm(
