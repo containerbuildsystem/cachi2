@@ -1331,6 +1331,7 @@ def test_clone_repo_pack_archive(
         ("file:../dyl", False),
         ("", False),
         ("*", False),
+        ("npm:somedep@^1.0.0", False),
         ("git+ssh://git@github.com:npm/cli.git#v1.0.27", True),
         ("git+ssh://git@github.com:npm/cli#semver:^5.0", True),
         ("git+https://isaacs@github.com/npm/cli.git", True),
