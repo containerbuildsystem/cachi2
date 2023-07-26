@@ -572,7 +572,7 @@ def _should_replace_dependency(dependency_version: str) -> bool:
     empty string in git and https dependencies in V2+.
     """
     url = urlparse(dependency_version)
-    if url.scheme == "file":
+    if url.scheme == "file" or url.scheme == "npm":
         return False
     return url.scheme != "" or "/" in dependency_version
 
