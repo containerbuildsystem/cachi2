@@ -628,6 +628,7 @@ class TestGenerateEnv:
         tmp_cwd.joinpath(".build-config.json").write_text(build_config.json())
         return tmp_cwd
 
+    @pytest.mark.parametrize("use_relative_path", [True, False])
     @pytest.mark.parametrize(
         "extra_args, make_output, output_file",
         [
@@ -644,11 +645,15 @@ class TestGenerateEnv:
         extra_args: list[str],
         make_output: Callable[[Path], str],
         output_file: Optional[str],
+        use_relative_path: bool,
         tmp_cwd_as_output_dir: Path,
     ) -> None:
-        result = invoke_expecting_sucess(
-            app, ["generate-env", str(tmp_cwd_as_output_dir), *extra_args]
-        )
+        if use_relative_path:
+            from_output_dir = "."
+        else:
+            from_output_dir = str(tmp_cwd_as_output_dir)
+
+        result = invoke_expecting_sucess(app, ["generate-env", from_output_dir, *extra_args])
 
         expect_output = make_output(tmp_cwd_as_output_dir)
         if output_file is None:
