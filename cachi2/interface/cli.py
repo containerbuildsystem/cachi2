@@ -255,10 +255,13 @@ FROM_OUTPUT_DIR_ARG = typer.Argument(
     ...,
     exists=True,
     file_okay=False,
+    resolve_path=True,
     help="The output directory populated by a previous fetch-deps command.",
 )
 FOR_OUTPUT_DIR_OPTION = typer.Option(
-    None, help="Generate output as if the output directory was at this path instead."
+    None,
+    resolve_path=True,
+    help="Generate output as if the output directory was at this path instead.",
 )
 
 
@@ -283,7 +286,7 @@ def generate_env(
 ) -> None:
     """Generate the environment variables needed to use the fetched dependencies."""
     fmt = fmt or (EnvFormat.based_on_suffix(output) if output else EnvFormat.json)
-    for_output_dir = (for_output_dir or from_output_dir).resolve()
+    for_output_dir = for_output_dir or from_output_dir
     fetch_deps_output = _get_build_config(from_output_dir)
 
     env_file_content = generate_envfile(fetch_deps_output, fmt, for_output_dir)
@@ -302,7 +305,7 @@ def inject_files(
     for_output_dir: Optional[Path] = FOR_OUTPUT_DIR_OPTION,
 ) -> None:
     """Inject the project files needed to use the fetched dependencies."""
-    for_output_dir = (for_output_dir or from_output_dir).resolve()
+    for_output_dir = for_output_dir or from_output_dir
     fetch_deps_output = _get_build_config(from_output_dir)
 
     for project_file in fetch_deps_output.project_files:
