@@ -229,6 +229,23 @@ def test_npm_smoketest(
             ],
             id="npm_smoketest_lockfile3",
         ),
+        pytest.param(
+            utils.TestParameters(
+                repo="https://github.com/cachito-testing/cachito-npm-with-multiple-dep-versions.git",
+                ref="97070a9eb06bad62eb581890731221660ade9ea3",
+                packages=({"path": ".", "type": "npm"},),
+                check_vendor_checksums=False,
+            ),
+            ["cat", "/opt/npm-ls-output.txt"],
+            [
+                "/tmp/npm_lockfile3_multiple_dep_versions-source:cachito-npm-with-multiple-dep-versions@1.0.0",
+                "/tmp/npm_lockfile3_multiple_dep_versions-source/node_modules/cachito-npm-without-deps:cachito-npm-without-deps@1.0.0",
+                "/tmp/npm_lockfile3_multiple_dep_versions-source/node_modules/foo:foo@1.0.0:/tmp/npm_lockfile3_multiple_dep_versions-source/foo",
+                "/tmp/npm_lockfile3_multiple_dep_versions-source/node_modules/is-positive:is-positive@1.0.0",
+                "/tmp/npm_lockfile3_multiple_dep_versions-source/foo/node_modules/is-positive:is-positive@2.0.0",
+            ],
+            id="npm_lockfile3_multiple_dep_versions",
+        ),
     ],
 )
 def test_e2e_npm(
