@@ -1,0 +1,145 @@
+{
+  "bomFormat": "CycloneDX",
+  "components": [
+    {
+      "name": "aiowsgi",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:pypi/aiowsgi@0.8",
+      "type": "library",
+      "version": "0.8"
+    },
+    {
+      "name": "cachito-pip-without-metadata-subpath1-subpath2",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:pypi/cachito-pip-without-metadata-subpath1-subpath2?vcs_url=git%2Bhttps://github.com/cachito-testing/cachito-pip-without-metadata.git%404fb61a80f9bb19fdd422a74602b108d405ede299#subpath1/subpath2",
+      "type": "library"
+    },
+    {
+      "name": "cachito-pip-without-metadata",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:pypi/cachito-pip-without-metadata?vcs_url=git%2Bhttps://github.com/cachito-testing/cachito-pip-without-metadata.git%404fb61a80f9bb19fdd422a74602b108d405ede299",
+      "type": "library"
+    },
+    {
+      "name": "certifi",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:pypi/certifi@2023.7.22",
+      "type": "library",
+      "version": "2023.7.22"
+    },
+    {
+      "name": "charset-normalizer",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:pypi/charset-normalizer@3.2.0",
+      "type": "library",
+      "version": "3.2.0"
+    },
+    {
+      "name": "idna",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:pypi/idna@3.4",
+      "type": "library",
+      "version": "3.4"
+    },
+    {
+      "name": "requests",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:pypi/requests@2.31.0",
+      "type": "library",
+      "version": "2.31.0"
+    },
+    {
+      "name": "six",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:pypi/six@1.16.0",
+      "type": "library",
+      "version": "1.16.0"
+    },
+    {
+      "name": "urllib3",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:pypi/urllib3@2.0.4",
+      "type": "library",
+      "version": "2.0.4"
+    },
+    {
+      "name": "waitress",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:pypi/waitress@2.1.2",
+      "type": "library",
+      "version": "2.1.2"
+    },
+    {
+      "name": "WebOb",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:pypi/webob@1.8.7",
+      "type": "library",
+      "version": "1.8.7"
+    }
+  ],
+  "metadata": {
+    "tools": [
+      {
+        "name": "cachi2",
+        "vendor": "red hat"
+      }
+    ]
+  },
+  "specVersion": "1.4",
+  "version": 1
+}
