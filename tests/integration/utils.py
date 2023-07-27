@@ -18,6 +18,17 @@ from git import Repo
 
 log = logging.getLogger(__name__)
 
+# use the '|' style for multiline strings
+# https://github.com/yaml/pyyaml/issues/240
+yaml.representer.SafeRepresenter.add_representer(
+    str,
+    lambda dumper, data: dumper.represent_scalar(
+        "tag:yaml.org,2002:str",
+        data,
+        style="|" if data.count("\n") > 0 else None,
+    ),
+)
+
 
 CYCLONEDX_SCHEMA_URL = (
     "https://raw.githubusercontent.com/CycloneDX/specification/1.4/schema/bom-1.4.schema.json"
@@ -177,10 +188,10 @@ def _calculate_sha256sum(file: Path) -> str:
     return f"sha256:{sha256_hash.hexdigest()}"
 
 
-def _load_json(file: Path) -> Dict:
-    """Load JSON file and return dict."""
-    with open(file) as json_file:
-        return json.load(json_file)
+def _load_json_or_yaml(file: Path) -> dict[str, Any]:
+    """Load JSON or YAML file and return dict."""
+    with open(file) as f:
+        return yaml.safe_load(f)
 
 
 def _safe_extract(tar: TarFile, path: str = ".", *, numeric_owner: bool = False) -> None:
@@ -208,12 +219,26 @@ def _safe_extract(tar: TarFile, path: str = ".", *, numeric_owner: bool = False)
     tar.extractall(path, numeric_owner=numeric_owner)
 
 
-def update_test_data_if_needed(path: Path, data: Dict) -> None:
+def _json_serialize(data: dict[str, Any]) -> str:
+    return json.dumps(data, indent=2, sort_keys=True) + "\n"
+
+
+def _yaml_serialize(data: dict[str, Any]) -> str:
+    return yaml.safe_dump(data)
+
+
+def update_test_data_if_needed(path: Path, data: dict[str, Any]) -> None:
+    if path.suffix == ".json":
+        serialize = _json_serialize
+    elif path.suffix == ".yaml":
+        serialize = _yaml_serialize
+    else:
+        raise ValueError(f"Don't know how to serialize data to {path.name} :(")
+
     if os.getenv("CACHI2_GENERATE_TEST_DATA") == "true":
         path.parent.mkdir(parents=True, exist_ok=True)
         with open(path, "w") as file:
-            json_formatted_str = json.dumps(data, indent=2, sort_keys=True)
-            file.write(json_formatted_str + "\n")
+            file.write(serialize(data))
 
 
 @functools.cache
@@ -265,20 +290,21 @@ def fetch_deps_and_check_output(
     ), f"Expected msg {test_params.expected_output} was not found in cmd output: {output}"
 
     if test_params.check_output:
-        build_config = _load_json(output_folder.joinpath(".build-config.json"))
-        sbom = _load_json(output_folder.joinpath("bom.json"))
+        build_config = _load_json_or_yaml(output_folder.joinpath(".build-config.json"))
+        sbom = _load_json_or_yaml(output_folder.joinpath("bom.json"))
 
         if "project_files" in build_config:
             _replace_tmp_path_with_placeholder(build_config["project_files"], tmp_path)
 
-        expected_build_config_path = test_data_dir.joinpath(test_case, ".build-config.json")
+        # store .build_config as yaml for more readable test data
+        expected_build_config_path = test_data_dir.joinpath(test_case, ".build-config.yaml")
         expected_sbom_path = test_data_dir.joinpath(test_case, "bom.json")
 
         update_test_data_if_needed(expected_build_config_path, build_config)
         update_test_data_if_needed(expected_sbom_path, sbom)
 
-        expected_build_config = _load_json(expected_build_config_path)
-        expected_sbom = _load_json(expected_sbom_path)
+        expected_build_config = _load_json_or_yaml(expected_build_config_path)
+        expected_sbom = _load_json_or_yaml(expected_sbom_path)
 
         log.info("Compare output files")
         assert build_config == expected_build_config
@@ -298,7 +324,7 @@ def fetch_deps_and_check_output(
             test_data_dir, test_case, "fetch_deps_sha256sums.json"
         )
         update_test_data_if_needed(expected_files_checksums_path, files_checksums)
-        expected_files_checksums = _load_json(expected_files_checksums_path)
+        expected_files_checksums = _load_json_or_yaml(expected_files_checksums_path)
 
         log.info("Compare checksums of fetched deps files")
         assert files_checksums == expected_files_checksums
@@ -307,7 +333,7 @@ def fetch_deps_and_check_output(
         files_checksums = _calculate_files_checksums_in_dir(source_folder.joinpath("vendor"))
         expected_files_checksums_path = test_data_dir.joinpath(test_case, "vendor_sha256sums.json")
         update_test_data_if_needed(expected_files_checksums_path, files_checksums)
-        expected_files_checksums = _load_json(expected_files_checksums_path)
+        expected_files_checksums = _load_json_or_yaml(expected_files_checksums_path)
 
         log.info("Compare checksums of files in source vendor folder")
         assert files_checksums == expected_files_checksums
