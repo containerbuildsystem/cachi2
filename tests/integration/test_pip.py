@@ -66,6 +66,20 @@ log = logging.getLogger(__name__)
             ),
             id="pip_local_path",
         ),
+        pytest.param(
+            utils.TestParameters(
+                repo="https://github.com/cachito-testing/cachito-pip-without-metadata.git",
+                ref="4fb61a80f9bb19fdd422a74602b108d405ede299",
+                packages=(
+                    {"path": ".", "type": "pip"},
+                    {"path": "subpath1/subpath2", "type": "pip"},
+                ),
+                check_vendor_checksums=False,
+                expected_exit_code=0,
+                expected_output="All dependencies fetched successfully",
+            ),
+            id="pip_without_metadata",
+        ),
     ],
 )
 def test_pip_packages(
