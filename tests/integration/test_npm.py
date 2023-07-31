@@ -262,6 +262,30 @@ def test_npm_smoketest(
             ],
             id="npm_lockfile3_aliased_deps",
         ),
+        pytest.param(
+            utils.TestParameters(
+                repo="https://github.com/cachito-testing/npm-dev-optional-peer-deps.git",
+                ref="77018bf73295ef1248d24479da897d960576f933",
+                packages=({"path": ".", "type": "npm"},),
+                check_vendor_checksums=False,
+            ),
+            ["cat", "/opt/npm-ls-output.txt"],
+            [
+                "/tmp/npm_lockfile3_dev_optional_peer_deps-source/node_modules/ansi-styles",
+                "/tmp/npm_lockfile3_dev_optional_peer_deps-source/node_modules/chalk",
+                "/tmp/npm_lockfile3_dev_optional_peer_deps-source/node_modules/emoji-regex",
+                "/tmp/npm_lockfile3_dev_optional_peer_deps-source/node_modules/foo",
+                "/tmp/npm_lockfile3_dev_optional_peer_deps-source/node_modules/jsonfile",
+                "/tmp/npm_lockfile3_dev_optional_peer_deps-source/node_modules/minimist",
+                "/tmp/npm_lockfile3_dev_optional_peer_deps-source/node_modules/ansi-regex",
+                "/tmp/npm_lockfile3_dev_optional_peer_deps-source/node_modules/balanced-match",
+                "/tmp/npm_lockfile3_dev_optional_peer_deps-source/node_modules/is-interactive",
+                "/tmp/npm_lockfile3_dev_optional_peer_deps-source/node_modules/ms",
+                "/tmp/npm_lockfile3_dev_optional_peer_deps-source/node_modules/graceful-fs",
+                "/tmp/npm_lockfile3_dev_optional_peer_deps-source/node_modules/universalify",
+            ],
+            id="npm_lockfile3_dev_optional_peer_deps",
+        ),
     ],
 )
 def test_e2e_npm(
