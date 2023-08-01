@@ -278,10 +278,10 @@ Supported:
 
 * [gomod](#gomod)
 * [pip](#pip)
+* [npm](#npm)
 
 Planned:
 
-* npm
 * yarn
 * rubygems
 
@@ -331,6 +331,20 @@ Note that, per the Cachi2 [goals](#goals), we download only source distributions
 all the dependencies from source, which makes the build process more complex than you might expect.
 
 See [docs/pip.md](docs/pip.md) for more details.
+
+### npm
+
+<https://docs.npmjs.com/>
+
+Cachi2 supports npm by parsing [package-lock.json](https://docs.npmjs.com/cli/v9/configuring-npm/package-lock-json)
+file present in the source repository and downloading the declared dependencies.
+
+To generate lockfile or to make sure the file is up to date,
+you can use [npm install](https://docs.npmjs.com/cli/v9/commands/npm-install?v=true).
+
+Make sure lockfile version is higher than v1 (Node.js 15 or higher).
+
+See [docs/npm.md](docs/npm.md) for more details.
 
 ## Project status
 

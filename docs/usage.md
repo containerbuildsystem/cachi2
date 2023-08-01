@@ -14,6 +14,7 @@ The second section goes through each of these steps for the supported package ma
 * [Usage Examples](#usage-examples)
   * [Example with Go modules](#example-go-modules)
   * [Example with pip](#example-pip)
+  * [Example with npm](#example-npm)
 
 ## General Process
 
@@ -416,4 +417,82 @@ podman build . \
   --volume "$(realpath ./cachi2.env)":/tmp/cachi2.env:Z \
   --network none \
   --tag atomic-reactor
+```
+
+### Example: npm
+
+Let's build simple npm project [sample-nodejs-app](https://github.com/cachito-testing/sample-nodejs-app).
+Get the repo if you want to try for yourself:
+
+
+```shell
+git clone https://github.com/cachito-testing/sample-nodejs-app.git
+```
+
+#### Pre-fetch dependencies (npm)
+
+The steps for pre-fetching the dependencies is similar to before, but this time we will use the `npm` package
+manager type. The default behavior path of `.` is assumed.
+
+See [the npm documentation](npm.md) for more details about running Cachi2 for pre-fetching npm dependencies.
+
+```shell
+cachi2 fetch-deps --source ./sample-nodejs-app --output ./cachi2-output '{"type": "npm"}'
+```
+
+#### Generate environment variables (npm)
+Next, we need to generate the environment file, so we can provide environment variables to the `npm install` command.
+
+```shell
+cachi2 generate-env ./cachi2-output -o ./cachi2.env --for-output-dir /tmp/cachi2-output
+```
+
+Currently, Cachi2 does not require any environment variables for the npm package manager, but this might change in the future.
+
+
+#### Inject project files (npm)
+
+In order to be able to install npm dependencies in a hermetic environment,
+we need to perform the injection to change the remote dependencies to instead point to the local file system.
+
+```shell
+cachi2 inject-files ./cachi2-output --for-output-dir /tmp/cachi2-output
+```
+
+We can look at the `git diff` to see what the package remapping looks like. As an example,
+
+```diff
+diff --git a/package-lock.json b/package-lock.json
+-      "resolved": "https://registry.npmjs.org/accepts/-/accepts-1.3.8.tgz",
++      "resolved": "file:///tmp/cachi2-output/deps/npm/accepts-1.3.8.tgz",
+```
+
+#### Build the application image (npm)
+
+We will base the final application image on `node:18` base image.
+The base image build has `npm` pre-installed, so the final phase can use network isolation 🎉.
+
+
+```Containerfile
+FROM node:18
+
+COPY sample-nodejs-app/ /src/sample-nodejs-app
+WORKDIR /src/sample-nodejs-app
+
+# Run npm install command and list installed packages
+RUN . /tmp/cachi2.env && npm i && npm ls
+
+EXPOSE 9000
+
+CMD ["node", "index.js"]
+```
+
+We can then build the image as before while mounting the required Cachi2 data!
+
+```shell
+podman build . \
+  --volume "$(realpath ./cachi2-output)":/tmp/cachi2-output:Z \
+  --volume "$(realpath ./cachi2.env)":/tmp/cachi2.env:Z \
+  --network none \
+  --tag sample-nodejs-app
 ```
