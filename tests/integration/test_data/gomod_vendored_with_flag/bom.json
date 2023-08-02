@@ -117,6 +117,17 @@
       "type": "library"
     },
     {
+      "name": "internal/coverage/rtcov",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:golang/internal/coverage/rtcov?type=package",
+      "type": "library"
+    },
+    {
       "name": "internal/cpu",
       "properties": [
         {
