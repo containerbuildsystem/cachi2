@@ -112,6 +112,17 @@
       "type": "library"
     },
     {
+      "name": "crypto/ecdh",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:golang/crypto/ecdh?type=package",
+      "type": "library"
+    },
+    {
       "name": "crypto/ecdsa",
       "properties": [
         {
@@ -153,6 +164,28 @@
         }
       ],
       "purl": "pkg:golang/crypto/hmac?type=package",
+      "type": "library"
+    },
+    {
+      "name": "crypto/internal/alias",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:golang/crypto/internal/alias?type=package",
+      "type": "library"
+    },
+    {
+      "name": "crypto/internal/bigmod",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:golang/crypto/internal/bigmod?type=package",
       "type": "library"
     },
     {
@@ -241,17 +274,6 @@
         }
       ],
       "purl": "pkg:golang/crypto/internal/randutil?type=package",
-      "type": "library"
-    },
-    {
-      "name": "crypto/internal/subtle",
-      "properties": [
-        {
-          "name": "cachi2:found_by",
-          "value": "cachi2"
-        }
-      ],
-      "purl": "pkg:golang/crypto/internal/subtle?type=package",
       "type": "library"
     },
     {
@@ -862,6 +884,17 @@
         }
       ],
       "purl": "pkg:golang/internal/bytealg?type=package",
+      "type": "library"
+    },
+    {
+      "name": "internal/coverage/rtcov",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:golang/internal/coverage/rtcov?type=package",
       "type": "library"
     },
     {
@@ -1657,28 +1690,6 @@
       "type": "library"
     },
     {
-      "name": "vendor/golang.org/x/crypto/curve25519/internal/field",
-      "properties": [
-        {
-          "name": "cachi2:found_by",
-          "value": "cachi2"
-        }
-      ],
-      "purl": "pkg:golang/vendor/golang.org/x/crypto/curve25519/internal/field?type=package",
-      "type": "library"
-    },
-    {
-      "name": "vendor/golang.org/x/crypto/curve25519",
-      "properties": [
-        {
-          "name": "cachi2:found_by",
-          "value": "cachi2"
-        }
-      ],
-      "purl": "pkg:golang/vendor/golang.org/x/crypto/curve25519?type=package",
-      "type": "library"
-    },
-    {
       "name": "vendor/golang.org/x/crypto/hkdf",
       "properties": [
         {
@@ -1690,6 +1701,17 @@
       "type": "library"
     },
     {
+      "name": "vendor/golang.org/x/crypto/internal/alias",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:golang/vendor/golang.org/x/crypto/internal/alias?type=package",
+      "type": "library"
+    },
+    {
       "name": "vendor/golang.org/x/crypto/internal/poly1305",
       "properties": [
         {
@@ -1698,17 +1720,6 @@
         }
       ],
       "purl": "pkg:golang/vendor/golang.org/x/crypto/internal/poly1305?type=package",
-      "type": "library"
-    },
-    {
-      "name": "vendor/golang.org/x/crypto/internal/subtle",
-      "properties": [
-        {
-          "name": "cachi2:found_by",
-          "value": "cachi2"
-        }
-      ],
-      "purl": "pkg:golang/vendor/golang.org/x/crypto/internal/subtle?type=package",
       "type": "library"
     },
     {
