@@ -1297,7 +1297,9 @@ def test_missing_gomod_file(file_tree: dict[str, Any], tmp_path: Path) -> None:
 @mock.patch("cachi2.core.package_managers.gomod._find_missing_gomod_files")
 @mock.patch("cachi2.core.package_managers.gomod._resolve_gomod")
 @mock.patch("cachi2.core.package_managers.gomod.GoCacheTemporaryDirectory")
+@mock.patch("cachi2.core.scm.Repo")
 def test_fetch_gomod_source(
+    mock_git_repo: mock.Mock,
     mock_tmp_dir: mock.Mock,
     mock_resolve_gomod: mock.Mock,
     mock_find_missing_gomod_files: mock.Mock,
@@ -1318,6 +1320,11 @@ def test_fetch_gomod_source(
     mock_resolve_gomod.side_effect = resolve_gomod_mocked
     mock_find_missing_gomod_files.return_value = []
     mock_get_repository_name.return_value = "github.com/my-org/my-repo"
+
+    mocked_repo = mock.Mock()
+    mocked_repo.remote.return_value.url = "https://github.com/my-org/my-repo"
+    mocked_repo.head.commit.hexsha = "f" * 40
+    mock_git_repo.return_value = mocked_repo
 
     output = fetch_gomod_source(gomod_request)
 

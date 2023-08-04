@@ -314,9 +314,18 @@ def fetch_gomod_source(request: Request) -> RequestOutput:
 
     repo_name = _get_repository_name(request.source_dir)
 
+    local_repo = git.Repo(request.source_dir.root)
+    try:
+        local_repo.remote().fetch(force=True, tags=True)
+    except Exception as ex:
+        raise FetchError(
+            f"Failed to fetch the tags on the Git repository ({type(ex).__name__}) "
+            f"for {request.source_dir.root}"
+        )
+
     with GoCacheTemporaryDirectory(prefix="cachito-") as tmp_dir:
         request.gomod_download_dir.path.mkdir(exist_ok=True, parents=True)
-        for i, subpath in enumerate(subpaths):
+        for subpath in subpaths:
             log.info("Fetching the gomod dependencies at subpath %s", subpath)
 
             log.info(f'Fetching the gomod dependencies at the "{subpath}" directory')
@@ -509,7 +518,7 @@ def _resolve_gomod(
     main_module_name = _run_gomod_cmd([*go_list, "-m"], run_params).rstrip()
     main_module = ParsedModule(
         path=main_module_name,
-        version=_get_golang_version(main_module_name, app_dir, update_tags=True),
+        version=_get_golang_version(main_module_name, app_dir),
         main=True,
         dir=str(app_dir),
     )
@@ -663,7 +672,6 @@ def _get_golang_version(
     module_name: str,
     app_dir: RootedPath,
     commit_sha: Optional[str] = None,
-    update_tags: bool = False,
 ) -> str:
     """
     Get the version of the Go module in the input Git repository in the same format as `go list`.
@@ -688,14 +696,6 @@ def _get_golang_version(
         module_major_version = int(match.groupdict()["major_version"])
 
     repo = git.Repo(app_dir.root)
-    if update_tags:
-        try:
-            repo.remote().fetch(force=True, tags=True)
-        except Exception as ex:
-            raise FetchError(
-                f"Failed to fetch the tags on the Git repository ({type(ex).__name__}) "
-                f"for {module_name}"
-            )
 
     if module_major_version:
         major_versions_to_try: tuple[int, ...] = (module_major_version,)
