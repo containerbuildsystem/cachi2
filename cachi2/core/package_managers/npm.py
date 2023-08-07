@@ -6,7 +6,7 @@ import json
 import logging
 import os.path
 from pathlib import Path
-from typing import Any, Dict, Iterator, Literal, NewType, Optional, TypedDict
+from typing import Any, Dict, Literal, NewType, Optional, TypedDict
 from urllib.parse import urlparse
 
 from packageurl import PackageURL
@@ -39,7 +39,7 @@ class ResolvedNpmPackage(TypedDict):
     """Contains all of the data for a resolved npm package."""
 
     package: dict[str, str]
-    dependencies: list[dict[str, str]]
+    dependencies: list[dict[str, Optional[str]]]
     projectfiles: list[ProjectFile]
 
 
@@ -50,9 +50,8 @@ class Package:
         """Initialize a Package.
 
         :param name: the package name, which should correspond to the name in it's package.json
-        :param path: the relative path to the package from the root project dir. This is set for
-                     for package-lock.json `packages` and falsy for `dependencies`.
-        :param package_dict: the raw dict for a package-lock.json `package` or `dependency`
+        :param path: the relative path to the package from the root project dir.
+        :param package_dict: the raw dict for a package-lock.json `package`
         """
         self.name = name
         self.path = path
@@ -77,41 +76,16 @@ class Package:
     def version(self) -> str:
         """Get the package version.
 
-        For v1/v2 package-lock.json `dependencies`, this will be a semver
-        for registry dependencies and a url for git/https/filepath sources.
-        https://docs.npmjs.com/cli/v6/configuring-npm/package-lock-json#dependencies
-
-        For v2+ package-lock.json `packages`, this will be a semver from the package.json file.
+        This will be a semver from the package.json file.
         https://docs.npmjs.com/cli/v7/configuring-npm/package-lock-json#packages
         """
         return self._package_dict["version"]
 
     @property
-    def semver_version(self) -> Optional[str]:
-        """Get the semver version, if available.
-
-        For v1/v2 `dependencies`, the semver version is only available for registry dependencies
-        and bundled dependencies.
-
-        For v2+ `packages`, the semver version is always available.
-        """
-        # v2+
-        if self.path:
-            return self.version
-        # v1 registry or bundled
-        elif "resolved" in self._package_dict or self._package_dict.get("bundled"):
-            return self.version
-        else:
-            return None
-
-    @property
     def resolved_url(self) -> Optional[str]:
         """Get the location where the package was resolved from.
 
-        For v1/v2 package-lock.json `dependencies`, this will be the "resolved"
-        key for registry deps and the "version" key for non-registry deps.
-
-        For v2+ package-lock.json `packages`, this will be the "resolved" key
+        For package-lock.json `packages`, this will be the "resolved" key
         unless it is a file dep, in which case it will be the path to the file.
 
         For bundled dependencies, this will be None. Such dependencies are included
@@ -119,28 +93,18 @@ class Package:
         """
         if "resolved" not in self._package_dict:
             # indirect bundled dependency, does not have a resolved url
-            if self._package_dict.get("bundled") or self._package_dict.get("inBundle"):
+            if self._package_dict.get("inBundle"):
                 return None
-            # v2+ file dependency (or a workspace)
-            elif self.path:
-                return f"file:{self.path}"
-            # v1 non-registry dependency
+            # file dependency (or a workspace)
             else:
-                return self.version
+                return f"file:{self.path}"
 
         return self._package_dict["resolved"]
 
     @resolved_url.setter
     def resolved_url(self, resolved_url: str) -> None:
-        """Set the location where the package should be resolved from.
-
-        For v1/v2 package-lock.json `dependencies`, this will be the "resolved"
-        key for registry deps and the "version" key for non-registry deps.
-
-        For v2+ package-lock.json `packages`, this will be the "resolved" key.
-        """
-        key = "resolved" if "resolved" in self._package_dict else "version"
-        self._package_dict[key] = resolved_url
+        """Set the location where the package should be resolved from."""
+        self._package_dict["resolved"] = resolved_url
 
     def __eq__(self, other: Any) -> bool:
         if isinstance(other, Package):
@@ -161,7 +125,6 @@ class PackageLock:
         self._lockfile_path = lockfile_path
         self._lockfile_data = lockfile_data
         self._main_package, self._packages = self._get_packages()
-        self._dependencies = self._get_dependencies()
 
     @property
     def packages(self) -> list[Package]:
@@ -177,11 +140,6 @@ class PackageLock:
     def lockfile_data(self) -> dict[str, Any]:
         """Get content of package-lock.json stored in Dictionary."""
         return self._lockfile_data
-
-    @property
-    def lockfile_version(self) -> int:
-        """Get the lockfileVersion from package-lock.json data."""
-        return self._lockfile_data["lockfileVersion"]
 
     def _check_if_package_is_workspace(self, resolved_url: str) -> bool:
         """Test if package is workspace based on main package workspaces."""
@@ -227,13 +185,10 @@ class PackageLock:
         )
 
     def _get_packages(self) -> tuple[Package, list[Package]]:
-        """Return a flat list of Packages from a v2+ package-lock.json file.
-
-        Use the "packages" key in the lockfile.
-        """
+        """Return a flat list of Packages from a package-lock.json file."""
 
         def get_package_name_from_path(package_path: str) -> str:
-            """Get the package name from the path in v2+ package-lock.json file."""
+            """Get the package name from the path in package-lock.json file."""
             path = Path(package_path)
             parent_name = Path(package_path).parents[0].name
             is_scoped = parent_name.startswith("@")
@@ -262,21 +217,6 @@ class PackageLock:
 
         return main_package, packages
 
-    def _get_dependencies(self) -> list[Package]:
-        """Return a flat list of Packages from a v1/v2 package-lock.json file.
-
-        Use the "dependencies" key in the lockfile.
-        """
-
-        def get_dependencies_iter(dependencies: dict[str, dict[str, Any]]) -> Iterator[Package]:
-            for dependency_name, dependency_data in dependencies.items():
-                yield Package(dependency_name, "", dependency_data)
-                # v1 lockfiles can have nested dependencies
-                if "dependencies" in dependency_data:
-                    yield from get_dependencies_iter(dependency_data["dependencies"])
-
-        return list(get_dependencies_iter(self._lockfile_data.get("dependencies", {})))
-
     def get_main_package(self) -> dict[str, str]:
         """Return a dict with sbom component data for the main package."""
         name = self._lockfile_data["name"]
@@ -284,24 +224,21 @@ class PackageLock:
         purl = self._purlifier.get_purl(name, version, "file:.", integrity=None)
         return {"name": name, "version": version, "purl": purl.to_string()}
 
-    def get_sbom_components(self) -> list[dict[str, str]]:
+    def get_sbom_components(self) -> list[dict[str, Optional[str]]]:
         """Return a list of dicts with sbom component data."""
-        packages = self._dependencies if self.lockfile_version == 1 else self._packages
+        packages = self._packages
 
-        def to_component(package: Package) -> dict[str, str]:
+        def to_component(package: Package) -> dict[str, Optional[str]]:
             name = package.name
-            version = package.semver_version
+            version = package.version
             purl = self._purlifier.get_purl(name, version, package.resolved_url, package.integrity)
-            if version:
-                return {"name": name, "version": version, "purl": purl.to_string()}
-            else:
-                return {"name": name, "purl": purl.to_string()}
+            return {"name": name, "version": version, "purl": purl.to_string()}
 
         return list(map(to_component, packages))
 
     def get_dependencies_to_download(self) -> Dict[str, Dict[str, Optional[str]]]:
         """Return a Dict of URL dependencies to download."""
-        packages = self._dependencies if self.lockfile_version == 1 else self._packages
+        packages = self._packages
         return {
             resolved_url: {
                 "version": package.version,
@@ -569,7 +506,7 @@ def _should_replace_dependency(dependency_version: str) -> bool:
     """Check if dependency must be updated in package(-lock).json.
 
     package(-lock).json files require to replace dependency URLs for
-    empty string in git and https dependencies in V2+.
+    empty string in git and https dependencies.
     """
     url = urlparse(dependency_version)
     if url.scheme == "file" or url.scheme == "npm":

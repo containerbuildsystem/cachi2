@@ -73,29 +73,6 @@ class TestPackage:
             pytest.param(
                 Package(
                     "foo",
-                    "",
-                    {
-                        "version": "https://foohub.org/foo/-/foo-1.0.0.tgz",
-                    },
-                ),
-                "https://foohub.org/foo/-/foo-1.0.0.tgz",
-                id="non_registry_dependency",
-            ),
-            pytest.param(
-                Package(
-                    "foo",
-                    "",
-                    {
-                        "version": "1.0.0",
-                        "bundled": True,
-                    },
-                ),
-                None,
-                id="bundled_dependency",
-            ),
-            pytest.param(
-                Package(
-                    "foo",
                     "node_modules/foo",
                     {
                         "version": "1.0.0",
@@ -167,18 +144,6 @@ class TestPackage:
             pytest.param(
                 Package(
                     "foo",
-                    "",
-                    {
-                        "version": "https://foohub.org/foo/-/foo-1.0.0.tgz",
-                    },
-                ),
-                "file:///foo-1.0.0.tgz",
-                "file:///foo-1.0.0.tgz",
-                id="non_registry_dependency",
-            ),
-            pytest.param(
-                Package(
-                    "foo",
                     "node_modules/foo",
                     {
                         "version": "1.0.0",
@@ -205,46 +170,6 @@ class TestPackage:
 
 
 class TestPackageLock:
-    @pytest.mark.parametrize(
-        "lockfile_data, expected_packages",
-        [
-            pytest.param(
-                {},
-                [],
-                id="no_deps",
-            ),
-            pytest.param(
-                {"dependencies": {"foo": {"version": "1.0.0"}}},
-                [Package("foo", "", {"version": "1.0.0"})],
-                id="single_level_deps",
-            ),
-            pytest.param(
-                {
-                    "dependencies": {
-                        "foo": {"version": "1.0.0", "dependencies": {"bar": {"version": "2.0.0"}}}
-                    }
-                },
-                [
-                    Package(
-                        "foo",
-                        "",
-                        {"version": "1.0.0", "dependencies": {"bar": {"version": "2.0.0"}}},
-                    ),
-                    Package("bar", "", {"version": "2.0.0"}),
-                ],
-                id="nested_deps",
-            ),
-        ],
-    )
-    def test_get_dependencies(
-        self,
-        rooted_tmp_path: RootedPath,
-        lockfile_data: dict[str, Any],
-        expected_packages: list[Package],
-    ) -> None:
-        package_lock = PackageLock(rooted_tmp_path, lockfile_data)
-        assert package_lock._dependencies == expected_packages
-
     @pytest.mark.parametrize(
         "resolved_url, lockfile_data, expected_result",
         [
@@ -499,11 +424,10 @@ class TestPackageLock:
         assert package_lock.workspaces == expected_workspaces
         assert package_lock.main_package == expected_main_package
 
-    @pytest.mark.parametrize("lockfile_version", [1, 2])
-    def test_get_sbom_components(self, lockfile_version: int) -> None:
+    def test_get_sbom_components(self) -> None:
         mock_package_lock = mock.Mock()
         mock_package_lock.get_sbom_components = PackageLock.get_sbom_components
-        mock_package_lock.lockfile_version = lockfile_version
+        mock_package_lock.lockfile_version = 2
         mock_package_lock._packages = [
             Package("foo", "node_modules/foo", {"version": "1.0.0"}),
         ]
@@ -513,10 +437,7 @@ class TestPackageLock:
 
         components = mock_package_lock.get_sbom_components(mock_package_lock)
         names = {component["name"] for component in components}
-        if lockfile_version == 1:
-            assert names == {"bar"}
-        else:
-            assert names == {"foo"}
+        assert names == {"foo"}
 
 
 def urlq(url: str) -> str:
