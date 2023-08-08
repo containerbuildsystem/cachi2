@@ -19,6 +19,10 @@
         {
           "name": "cachi2:found_by",
           "value": "cachi2"
+        },
+        {
+          "name": "cdx:npm:package:development",
+          "value": "true"
         }
       ],
       "purl": "pkg:npm/cachito-npm-without-deps@1.0.0?vcs_url=git%2Bssh://git%40github.com/cachito-testing/cachito-npm-without-deps.git%402f0ce1d7b1f8b35572d919428b965285a69583f6",

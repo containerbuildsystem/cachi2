@@ -31,6 +31,10 @@
         {
           "name": "cachi2:found_by",
           "value": "cachi2"
+        },
+        {
+          "name": "cdx:npm:package:development",
+          "value": "true"
         }
       ],
       "purl": "pkg:npm/bundle-dependencies@1.0.2",
@@ -43,6 +47,14 @@
         {
           "name": "cachi2:found_by",
           "value": "cachi2"
+        },
+        {
+          "name": "cdx:npm:package:development",
+          "value": "true"
+        },
+        {
+          "name": "cdx:npm:package:bundled",
+          "value": "true"
         }
       ],
       "purl": "pkg:npm/camelcase@2.1.0",
@@ -55,6 +67,14 @@
         {
           "name": "cachi2:found_by",
           "value": "cachi2"
+        },
+        {
+          "name": "cdx:npm:package:development",
+          "value": "true"
+        },
+        {
+          "name": "cdx:npm:package:bundled",
+          "value": "true"
         }
       ],
       "purl": "pkg:npm/cliui@3.1.0",
@@ -67,6 +87,14 @@
         {
           "name": "cachi2:found_by",
           "value": "cachi2"
+        },
+        {
+          "name": "cdx:npm:package:development",
+          "value": "true"
+        },
+        {
+          "name": "cdx:npm:package:bundled",
+          "value": "true"
         }
       ],
       "purl": "pkg:npm/code-point-at@1.0.0",
@@ -79,6 +107,14 @@
         {
           "name": "cachi2:found_by",
           "value": "cachi2"
+        },
+        {
+          "name": "cdx:npm:package:development",
+          "value": "true"
+        },
+        {
+          "name": "cdx:npm:package:bundled",
+          "value": "true"
         }
       ],
       "purl": "pkg:npm/decamelize@1.1.2",
@@ -91,6 +127,14 @@
         {
           "name": "cachi2:found_by",
           "value": "cachi2"
+        },
+        {
+          "name": "cdx:npm:package:development",
+          "value": "true"
+        },
+        {
+          "name": "cdx:npm:package:bundled",
+          "value": "true"
         }
       ],
       "purl": "pkg:npm/error-ex@1.3.0",
@@ -103,6 +147,14 @@
         {
           "name": "cachi2:found_by",
           "value": "cachi2"
+        },
+        {
+          "name": "cdx:npm:package:development",
+          "value": "true"
+        },
+        {
+          "name": "cdx:npm:package:bundled",
+          "value": "true"
         }
       ],
       "purl": "pkg:npm/escape-string-regexp@1.0.5",
@@ -127,6 +179,14 @@
         {
           "name": "cachi2:found_by",
           "value": "cachi2"
+        },
+        {
+          "name": "cdx:npm:package:development",
+          "value": "true"
+        },
+        {
+          "name": "cdx:npm:package:bundled",
+          "value": "true"
         }
       ],
       "purl": "pkg:npm/find-up@1.1.0",
@@ -139,6 +199,14 @@
         {
           "name": "cachi2:found_by",
           "value": "cachi2"
+        },
+        {
+          "name": "cdx:npm:package:development",
+          "value": "true"
+        },
+        {
+          "name": "cdx:npm:package:bundled",
+          "value": "true"
         }
       ],
       "purl": "pkg:npm/graceful-fs@4.1.3",
@@ -151,6 +219,14 @@
         {
           "name": "cachi2:found_by",
           "value": "cachi2"
+        },
+        {
+          "name": "cdx:npm:package:development",
+          "value": "true"
+        },
+        {
+          "name": "cdx:npm:package:bundled",
+          "value": "true"
         }
       ],
       "purl": "pkg:npm/hosted-git-info@2.1.4",
@@ -163,6 +239,14 @@
         {
           "name": "cachi2:found_by",
           "value": "cachi2"
+        },
+        {
+          "name": "cdx:npm:package:development",
+          "value": "true"
+        },
+        {
+          "name": "cdx:npm:package:bundled",
+          "value": "true"
         }
       ],
       "purl": "pkg:npm/invert-kv@1.0.0",
@@ -175,6 +259,14 @@
         {
           "name": "cachi2:found_by",
           "value": "cachi2"
+        },
+        {
+          "name": "cdx:npm:package:development",
+          "value": "true"
+        },
+        {
+          "name": "cdx:npm:package:bundled",
+          "value": "true"
         }
       ],
       "purl": "pkg:npm/is-arrayish@0.2.1",
@@ -187,6 +279,14 @@
         {
           "name": "cachi2:found_by",
           "value": "cachi2"
+        },
+        {
+          "name": "cdx:npm:package:development",
+          "value": "true"
+        },
+        {
+          "name": "cdx:npm:package:bundled",
+          "value": "true"
         }
       ],
       "purl": "pkg:npm/is-builtin-module@1.0.0",
@@ -199,6 +299,14 @@
         {
           "name": "cachi2:found_by",
           "value": "cachi2"
+        },
+        {
+          "name": "cdx:npm:package:development",
+          "value": "true"
+        },
+        {
+          "name": "cdx:npm:package:bundled",
+          "value": "true"
         }
       ],
       "purl": "pkg:npm/is-fullwidth-code-point@1.0.0",
@@ -211,6 +319,14 @@
         {
           "name": "cachi2:found_by",
           "value": "cachi2"
+        },
+        {
+          "name": "cdx:npm:package:development",
+          "value": "true"
+        },
+        {
+          "name": "cdx:npm:package:bundled",
+          "value": "true"
         }
       ],
       "purl": "pkg:npm/is-utf8@0.2.1",
@@ -223,6 +339,14 @@
         {
           "name": "cachi2:found_by",
           "value": "cachi2"
+        },
+        {
+          "name": "cdx:npm:package:development",
+          "value": "true"
+        },
+        {
+          "name": "cdx:npm:package:bundled",
+          "value": "true"
         }
       ],
       "purl": "pkg:npm/lcid@1.0.0",
@@ -235,6 +359,14 @@
         {
           "name": "cachi2:found_by",
           "value": "cachi2"
+        },
+        {
+          "name": "cdx:npm:package:development",
+          "value": "true"
+        },
+        {
+          "name": "cdx:npm:package:bundled",
+          "value": "true"
         }
       ],
       "purl": "pkg:npm/load-json-file@1.1.0",
@@ -247,6 +379,14 @@
         {
           "name": "cachi2:found_by",
           "value": "cachi2"
+        },
+        {
+          "name": "cdx:npm:package:development",
+          "value": "true"
+        },
+        {
+          "name": "cdx:npm:package:bundled",
+          "value": "true"
         }
       ],
       "purl": "pkg:npm/lodash.assign@4.0.3",
@@ -259,6 +399,14 @@
         {
           "name": "cachi2:found_by",
           "value": "cachi2"
+        },
+        {
+          "name": "cdx:npm:package:development",
+          "value": "true"
+        },
+        {
+          "name": "cdx:npm:package:bundled",
+          "value": "true"
         }
       ],
       "purl": "pkg:npm/lodash.keys@4.0.3",
@@ -271,6 +419,14 @@
         {
           "name": "cachi2:found_by",
           "value": "cachi2"
+        },
+        {
+          "name": "cdx:npm:package:development",
+          "value": "true"
+        },
+        {
+          "name": "cdx:npm:package:bundled",
+          "value": "true"
         }
       ],
       "purl": "pkg:npm/lodash.rest@4.0.1",
@@ -283,6 +439,14 @@
         {
           "name": "cachi2:found_by",
           "value": "cachi2"
+        },
+        {
+          "name": "cdx:npm:package:development",
+          "value": "true"
+        },
+        {
+          "name": "cdx:npm:package:bundled",
+          "value": "true"
         }
       ],
       "purl": "pkg:npm/normalize-package-data@2.3.5",
@@ -307,6 +471,14 @@
         {
           "name": "cachi2:found_by",
           "value": "cachi2"
+        },
+        {
+          "name": "cdx:npm:package:development",
+          "value": "true"
+        },
+        {
+          "name": "cdx:npm:package:bundled",
+          "value": "true"
         }
       ],
       "purl": "pkg:npm/number-is-nan@1.0.0",
@@ -319,6 +491,14 @@
         {
           "name": "cachi2:found_by",
           "value": "cachi2"
+        },
+        {
+          "name": "cdx:npm:package:development",
+          "value": "true"
+        },
+        {
+          "name": "cdx:npm:package:bundled",
+          "value": "true"
         }
       ],
       "purl": "pkg:npm/object-assign@4.0.1",
@@ -331,6 +511,14 @@
         {
           "name": "cachi2:found_by",
           "value": "cachi2"
+        },
+        {
+          "name": "cdx:npm:package:development",
+          "value": "true"
+        },
+        {
+          "name": "cdx:npm:package:bundled",
+          "value": "true"
         }
       ],
       "purl": "pkg:npm/os-locale@1.4.0",
@@ -343,6 +531,14 @@
         {
           "name": "cachi2:found_by",
           "value": "cachi2"
+        },
+        {
+          "name": "cdx:npm:package:development",
+          "value": "true"
+        },
+        {
+          "name": "cdx:npm:package:bundled",
+          "value": "true"
         }
       ],
       "purl": "pkg:npm/parse-json@2.2.0",
@@ -355,6 +551,14 @@
         {
           "name": "cachi2:found_by",
           "value": "cachi2"
+        },
+        {
+          "name": "cdx:npm:package:development",
+          "value": "true"
+        },
+        {
+          "name": "cdx:npm:package:bundled",
+          "value": "true"
         }
       ],
       "purl": "pkg:npm/path-exists@2.1.0",
@@ -367,6 +571,14 @@
         {
           "name": "cachi2:found_by",
           "value": "cachi2"
+        },
+        {
+          "name": "cdx:npm:package:development",
+          "value": "true"
+        },
+        {
+          "name": "cdx:npm:package:bundled",
+          "value": "true"
         }
       ],
       "purl": "pkg:npm/path-type@1.1.0",
@@ -379,6 +591,14 @@
         {
           "name": "cachi2:found_by",
           "value": "cachi2"
+        },
+        {
+          "name": "cdx:npm:package:development",
+          "value": "true"
+        },
+        {
+          "name": "cdx:npm:package:bundled",
+          "value": "true"
         }
       ],
       "purl": "pkg:npm/pify@2.3.0",
@@ -391,6 +611,14 @@
         {
           "name": "cachi2:found_by",
           "value": "cachi2"
+        },
+        {
+          "name": "cdx:npm:package:development",
+          "value": "true"
+        },
+        {
+          "name": "cdx:npm:package:bundled",
+          "value": "true"
         }
       ],
       "purl": "pkg:npm/pinkie-promise@2.0.0",
@@ -403,6 +631,14 @@
         {
           "name": "cachi2:found_by",
           "value": "cachi2"
+        },
+        {
+          "name": "cdx:npm:package:development",
+          "value": "true"
+        },
+        {
+          "name": "cdx:npm:package:bundled",
+          "value": "true"
         }
       ],
       "purl": "pkg:npm/pinkie@2.0.4",
@@ -415,6 +651,14 @@
         {
           "name": "cachi2:found_by",
           "value": "cachi2"
+        },
+        {
+          "name": "cdx:npm:package:development",
+          "value": "true"
+        },
+        {
+          "name": "cdx:npm:package:bundled",
+          "value": "true"
         }
       ],
       "purl": "pkg:npm/pkg-conf@1.1.1",
@@ -427,6 +671,14 @@
         {
           "name": "cachi2:found_by",
           "value": "cachi2"
+        },
+        {
+          "name": "cdx:npm:package:development",
+          "value": "true"
+        },
+        {
+          "name": "cdx:npm:package:bundled",
+          "value": "true"
         }
       ],
       "purl": "pkg:npm/read-pkg-up@1.0.1",
@@ -439,6 +691,14 @@
         {
           "name": "cachi2:found_by",
           "value": "cachi2"
+        },
+        {
+          "name": "cdx:npm:package:development",
+          "value": "true"
+        },
+        {
+          "name": "cdx:npm:package:bundled",
+          "value": "true"
         }
       ],
       "purl": "pkg:npm/read-pkg@1.1.0",
@@ -451,6 +711,14 @@
         {
           "name": "cachi2:found_by",
           "value": "cachi2"
+        },
+        {
+          "name": "cdx:npm:package:development",
+          "value": "true"
+        },
+        {
+          "name": "cdx:npm:package:bundled",
+          "value": "true"
         }
       ],
       "purl": "pkg:npm/require-main-filename@1.0.1",
@@ -463,6 +731,14 @@
         {
           "name": "cachi2:found_by",
           "value": "cachi2"
+        },
+        {
+          "name": "cdx:npm:package:development",
+          "value": "true"
+        },
+        {
+          "name": "cdx:npm:package:bundled",
+          "value": "true"
         }
       ],
       "purl": "pkg:npm/semver@5.1.0",
@@ -475,6 +751,14 @@
         {
           "name": "cachi2:found_by",
           "value": "cachi2"
+        },
+        {
+          "name": "cdx:npm:package:development",
+          "value": "true"
+        },
+        {
+          "name": "cdx:npm:package:bundled",
+          "value": "true"
         }
       ],
       "purl": "pkg:npm/spdx-correct@1.0.2",
@@ -487,6 +771,14 @@
         {
           "name": "cachi2:found_by",
           "value": "cachi2"
+        },
+        {
+          "name": "cdx:npm:package:development",
+          "value": "true"
+        },
+        {
+          "name": "cdx:npm:package:bundled",
+          "value": "true"
         }
       ],
       "purl": "pkg:npm/spdx-exceptions@1.0.4",
@@ -499,6 +791,14 @@
         {
           "name": "cachi2:found_by",
           "value": "cachi2"
+        },
+        {
+          "name": "cdx:npm:package:development",
+          "value": "true"
+        },
+        {
+          "name": "cdx:npm:package:bundled",
+          "value": "true"
         }
       ],
       "purl": "pkg:npm/spdx-expression-parse@1.0.2",
@@ -511,6 +811,14 @@
         {
           "name": "cachi2:found_by",
           "value": "cachi2"
+        },
+        {
+          "name": "cdx:npm:package:development",
+          "value": "true"
+        },
+        {
+          "name": "cdx:npm:package:bundled",
+          "value": "true"
         }
       ],
       "purl": "pkg:npm/spdx-license-ids@1.2.0",
@@ -523,6 +831,14 @@
         {
           "name": "cachi2:found_by",
           "value": "cachi2"
+        },
+        {
+          "name": "cdx:npm:package:development",
+          "value": "true"
+        },
+        {
+          "name": "cdx:npm:package:bundled",
+          "value": "true"
         }
       ],
       "purl": "pkg:npm/string-width@1.0.1",
@@ -535,6 +851,14 @@
         {
           "name": "cachi2:found_by",
           "value": "cachi2"
+        },
+        {
+          "name": "cdx:npm:package:development",
+          "value": "true"
+        },
+        {
+          "name": "cdx:npm:package:bundled",
+          "value": "true"
         }
       ],
       "purl": "pkg:npm/strip-ansi@3.0.1",
@@ -547,6 +871,14 @@
         {
           "name": "cachi2:found_by",
           "value": "cachi2"
+        },
+        {
+          "name": "cdx:npm:package:development",
+          "value": "true"
+        },
+        {
+          "name": "cdx:npm:package:bundled",
+          "value": "true"
         }
       ],
       "purl": "pkg:npm/strip-bom@2.0.0",
@@ -559,6 +891,14 @@
         {
           "name": "cachi2:found_by",
           "value": "cachi2"
+        },
+        {
+          "name": "cdx:npm:package:development",
+          "value": "true"
+        },
+        {
+          "name": "cdx:npm:package:bundled",
+          "value": "true"
         }
       ],
       "purl": "pkg:npm/symbol@0.2.1",
@@ -571,6 +911,14 @@
         {
           "name": "cachi2:found_by",
           "value": "cachi2"
+        },
+        {
+          "name": "cdx:npm:package:development",
+          "value": "true"
+        },
+        {
+          "name": "cdx:npm:package:bundled",
+          "value": "true"
         }
       ],
       "purl": "pkg:npm/validate-npm-package-license@3.0.1",
@@ -583,6 +931,14 @@
         {
           "name": "cachi2:found_by",
           "value": "cachi2"
+        },
+        {
+          "name": "cdx:npm:package:development",
+          "value": "true"
+        },
+        {
+          "name": "cdx:npm:package:bundled",
+          "value": "true"
         }
       ],
       "purl": "pkg:npm/window-size@0.2.0",
@@ -595,6 +951,14 @@
         {
           "name": "cachi2:found_by",
           "value": "cachi2"
+        },
+        {
+          "name": "cdx:npm:package:development",
+          "value": "true"
+        },
+        {
+          "name": "cdx:npm:package:bundled",
+          "value": "true"
         }
       ],
       "purl": "pkg:npm/wrap-ansi@1.0.0",
@@ -607,6 +971,14 @@
         {
           "name": "cachi2:found_by",
           "value": "cachi2"
+        },
+        {
+          "name": "cdx:npm:package:development",
+          "value": "true"
+        },
+        {
+          "name": "cdx:npm:package:bundled",
+          "value": "true"
         }
       ],
       "purl": "pkg:npm/y18n@3.2.0",
@@ -619,6 +991,14 @@
         {
           "name": "cachi2:found_by",
           "value": "cachi2"
+        },
+        {
+          "name": "cdx:npm:package:development",
+          "value": "true"
+        },
+        {
+          "name": "cdx:npm:package:bundled",
+          "value": "true"
         }
       ],
       "purl": "pkg:npm/yargs-parser@2.1.0",
@@ -631,6 +1011,14 @@
         {
           "name": "cachi2:found_by",
           "value": "cachi2"
+        },
+        {
+          "name": "cdx:npm:package:development",
+          "value": "true"
+        },
+        {
+          "name": "cdx:npm:package:bundled",
+          "value": "true"
         }
       ],
       "purl": "pkg:npm/yargs@4.1.0",

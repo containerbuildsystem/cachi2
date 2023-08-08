@@ -15,7 +15,7 @@ from cachi2.core.checksum import ChecksumInfo, must_match_any_checksum
 from cachi2.core.config import get_config
 from cachi2.core.errors import PackageRejected, UnexpectedFormat, UnsupportedFeature
 from cachi2.core.models.input import Request
-from cachi2.core.models.output import Component, ProjectFile, RequestOutput
+from cachi2.core.models.output import Component, ProjectFile, Property, RequestOutput
 from cachi2.core.package_managers.general import async_download_files
 from cachi2.core.rooted_path import RootedPath
 from cachi2.core.scm import RepoID, clone_as_tarball, get_repo_id
@@ -35,11 +35,21 @@ log = logging.getLogger(__name__)
 NPM_REGISTRY_CNAMES = ("registry.npmjs.org", "registry.yarnpkg.com")
 
 
+class NpmComponentInfo(TypedDict):
+    """Contains the data needed to generate an npm SBOM component."""
+
+    name: str
+    purl: str
+    version: str
+    dev: bool
+    bundled: bool
+
+
 class ResolvedNpmPackage(TypedDict):
     """Contains all of the data for a resolved npm package."""
 
-    package: dict[str, str]
-    dependencies: list[dict[str, Optional[str]]]
+    package: NpmComponentInfo
+    dependencies: list[NpmComponentInfo]
     projectfiles: list[ProjectFile]
 
 
@@ -105,6 +115,22 @@ class Package:
     def resolved_url(self, resolved_url: str) -> None:
         """Set the location where the package should be resolved from."""
         self._package_dict["resolved"] = resolved_url
+
+    @property
+    def bundled(self) -> bool:
+        """Return True if this package is bundled."""
+        return (
+            self._package_dict.get("inBundle", False)
+            # In v2+ lockfiles, direct dependencies do have "inBundle": true if they are to be
+            # bundled. They will get bundled if the package is uploaded to the npm registry, but
+            # aren't bundled yet. These have a resolved url and shouldn't be considered bundled.
+            and "resolved" not in self._package_dict
+        )
+
+    @property
+    def dev(self) -> bool:
+        """Return True if this package is a dev dependency."""
+        return self._package_dict.get("dev", False)
 
     def __eq__(self, other: Any) -> bool:
         if isinstance(other, Package):
@@ -217,22 +243,36 @@ class PackageLock:
 
         return main_package, packages
 
-    def get_main_package(self) -> dict[str, str]:
+    def get_main_package(self) -> NpmComponentInfo:
         """Return a dict with sbom component data for the main package."""
         name = self._lockfile_data["name"]
         version = self._lockfile_data["version"]
         purl = self._purlifier.get_purl(name, version, "file:.", integrity=None)
-        return {"name": name, "version": version, "purl": purl.to_string()}
+        return {
+            "name": name,
+            "version": version,
+            "purl": purl.to_string(),
+            "dev": False,
+            "bundled": False,
+        }
 
-    def get_sbom_components(self) -> list[dict[str, Optional[str]]]:
+    def get_sbom_components(self) -> list[NpmComponentInfo]:
         """Return a list of dicts with sbom component data."""
         packages = self._packages
 
-        def to_component(package: Package) -> dict[str, Optional[str]]:
-            name = package.name
-            version = package.version
-            purl = self._purlifier.get_purl(name, version, package.resolved_url, package.integrity)
-            return {"name": name, "version": version, "purl": purl.to_string()}
+        def to_component(package: Package) -> NpmComponentInfo:
+            purl = self._purlifier.get_purl(
+                package.name, package.version, package.resolved_url, package.integrity
+            ).to_string()
+            component: NpmComponentInfo = {
+                "name": package.name,
+                "version": package.version,
+                "purl": purl,
+                "dev": package.dev,
+                "bundled": package.bundled,
+            }
+
+            return component
 
         return list(map(to_component, packages))
 
@@ -585,13 +625,52 @@ def _update_package_json_files(
     return package_json_projectfiles
 
 
+def _merge_npm_sbom_properties(components: list[NpmComponentInfo]) -> list[NpmComponentInfo]:
+    """Deduplicate the NpmComponentInfo objects and merge their dev and bundled properties."""
+    merged_components: dict[str, NpmComponentInfo] = {}
+    for component in components:
+        purl = component["purl"]
+        if purl not in merged_components:
+            merged_components[purl] = component
+            continue
+
+        # The dev and bundled properties for a package are True only if True for all
+        # components with the same purl
+        merged_component = merged_components[purl]
+        merged_component["bundled"] = component["bundled"] and merged_component["bundled"]
+        merged_component["dev"] = component["dev"] and merged_component["dev"]
+
+    return list(merged_components.values())
+
+
+def _generate_component_list(component_info: list[NpmComponentInfo]) -> list[Component]:
+    """Convert a list of NpmComponentInfo objects into a list of Component objects for the SBOM."""
+    merged_component_info = _merge_npm_sbom_properties(component_info)
+
+    def to_component(component_info: NpmComponentInfo) -> Component:
+        property_map = {
+            "dev": Property(name="cdx:npm:package:development", value="true"),
+            "bundled": Property(name="cdx:npm:package:bundled", value="true"),
+        }
+        return Component(
+            name=component_info["name"],
+            version=component_info["version"],
+            purl=component_info["purl"],
+            properties=[
+                obj for name, obj in property_map.items() if component_info.get(name, False)
+            ],
+        )
+
+    return [to_component(component_info) for component_info in merged_component_info]
+
+
 def fetch_npm_source(request: Request) -> RequestOutput:
     """Resolve and fetch npm dependencies for the given request.
 
     :param request: the request to process
     :return: A RequestOutput object with content for all npm packages in the request
     """
-    components: list[Component] = []
+    component_info: list[NpmComponentInfo] = []
     project_files: list[ProjectFile] = []
 
     npm_deps_dir = request.output_dir.join_within_root("deps", "npm")
@@ -599,16 +678,16 @@ def fetch_npm_source(request: Request) -> RequestOutput:
 
     for package in request.npm_packages:
         info = _resolve_npm(request.source_dir.join_within_root(package.path), npm_deps_dir)
-        components.append(Component.from_package_dict(info["package"]))
+        component_info.append(info["package"])
 
         for dependency in info["dependencies"]:
-            components.append(Component.from_package_dict(dependency))
+            component_info.append(dependency)
 
         for projectfile in info["projectfiles"]:
             project_files.append(projectfile)
 
     return RequestOutput.from_obj_list(
-        components=components,
+        components=_generate_component_list(component_info),
         environment_variables=[],
         project_files=project_files,
     )
