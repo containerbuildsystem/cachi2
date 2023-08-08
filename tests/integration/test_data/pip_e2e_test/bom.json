@@ -37,7 +37,7 @@
       "type": "library"
     },
     {
-      "name": "flit_core",
+      "name": "flit-core",
       "properties": [
         {
           "name": "cachi2:found_by",
