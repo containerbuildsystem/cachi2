@@ -120,7 +120,7 @@
       "version": "2.1.2"
     },
     {
-      "name": "WebOb",
+      "name": "webob",
       "properties": [
         {
           "name": "cachi2:found_by",
