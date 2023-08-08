@@ -10,14 +10,18 @@ from packageurl import PackageURL
 from cachi2.core.checksum import ChecksumInfo
 from cachi2.core.errors import PackageRejected, UnexpectedFormat, UnsupportedFeature
 from cachi2.core.models.input import Request
-from cachi2.core.models.output import Component, ProjectFile, RequestOutput
+from cachi2.core.models.output import Component, ProjectFile, Property, RequestOutput
 from cachi2.core.package_managers.npm import (
     NormalizedUrl,
+    NpmComponentInfo,
     Package,
     PackageLock,
+    ResolvedNpmPackage,
     _clone_repo_pack_archive,
     _extract_git_info_npm,
+    _generate_component_list,
     _get_npm_dependencies,
+    _merge_npm_sbom_properties,
     _Purlifier,
     _resolve_npm,
     _should_replace_dependency,
@@ -609,15 +613,275 @@ class TestPurlifier:
 
 
 @pytest.mark.parametrize(
+    "components, expected_components",
+    [
+        (
+            [
+                {
+                    "name": "foo",
+                    "purl": "pkg:npm/foo@1.0.0",
+                    "version": "1.0.0",
+                    "bundled": False,
+                    "dev": False,
+                },
+                {
+                    "name": "bar",
+                    "purl": "pkg:npm/bar@1.0.0",
+                    "version": "1.0.0",
+                    "bundled": False,
+                    "dev": False,
+                },
+            ],
+            [
+                {
+                    "name": "foo",
+                    "purl": "pkg:npm/foo@1.0.0",
+                    "version": "1.0.0",
+                    "bundled": False,
+                    "dev": False,
+                },
+                {
+                    "name": "bar",
+                    "purl": "pkg:npm/bar@1.0.0",
+                    "version": "1.0.0",
+                    "bundled": False,
+                    "dev": False,
+                },
+            ],
+        ),
+        (
+            [
+                {
+                    "name": "foo",
+                    "purl": "pkg:npm/foo@1.0.0",
+                    "version": "1.0.0",
+                    "bundled": False,
+                    "dev": False,
+                },
+                {
+                    "name": "foo",
+                    "purl": "pkg:npm/foo@1.0.0",
+                    "version": "1.0.0",
+                    "bundled": False,
+                    "dev": False,
+                },
+            ],
+            [
+                {
+                    "name": "foo",
+                    "purl": "pkg:npm/foo@1.0.0",
+                    "version": "1.0.0",
+                    "bundled": False,
+                    "dev": False,
+                },
+            ],
+        ),
+        (
+            [
+                {
+                    "name": "foo",
+                    "purl": "pkg:npm/foo@1.0.0",
+                    "version": "1.0.0",
+                    "bundled": False,
+                    "dev": True,
+                },
+                {
+                    "name": "foo",
+                    "purl": "pkg:npm/foo@1.0.0",
+                    "version": "1.0.0",
+                    "bundled": True,
+                    "dev": False,
+                },
+            ],
+            [
+                {
+                    "name": "foo",
+                    "purl": "pkg:npm/foo@1.0.0",
+                    "version": "1.0.0",
+                    "bundled": False,
+                    "dev": False,
+                },
+            ],
+        ),
+        (
+            [
+                {
+                    "name": "foo",
+                    "purl": "pkg:npm/foo@1.0.0",
+                    "version": "1.0.0",
+                    "bundled": False,
+                    "dev": True,
+                },
+                {
+                    "name": "foo",
+                    "purl": "pkg:npm/foo@1.0.0",
+                    "version": "1.0.0",
+                    "bundled": False,
+                    "dev": True,
+                },
+            ],
+            [
+                {
+                    "name": "foo",
+                    "purl": "pkg:npm/foo@1.0.0",
+                    "version": "1.0.0",
+                    "bundled": False,
+                    "dev": True,
+                },
+            ],
+        ),
+        (
+            [
+                {
+                    "name": "foo",
+                    "purl": "pkg:npm/foo@1.0.0",
+                    "version": "1.0.0",
+                    "bundled": True,
+                    "dev": False,
+                },
+                {
+                    "name": "foo",
+                    "purl": "pkg:npm/foo@1.0.0",
+                    "version": "1.0.0",
+                    "bundled": True,
+                    "dev": False,
+                },
+            ],
+            [
+                {
+                    "name": "foo",
+                    "purl": "pkg:npm/foo@1.0.0",
+                    "version": "1.0.0",
+                    "bundled": True,
+                    "dev": False,
+                },
+            ],
+        ),
+    ],
+)
+def test_merge_npm_sbom_properties(
+    components: list[NpmComponentInfo], expected_components: list[NpmComponentInfo]
+) -> None:
+    """Test _merge_npm_sbom_properties with different NpmComponentInfo inputs."""
+    merged_components = _merge_npm_sbom_properties(components)
+    assert merged_components == expected_components
+
+
+@pytest.mark.parametrize(
+    "components, expected_components",
+    [
+        (
+            [
+                {
+                    "name": "foo",
+                    "purl": "pkg:npm/foo@1.0.0",
+                    "version": "1.0.0",
+                    "bundled": False,
+                    "dev": False,
+                },
+                {
+                    "name": "bar",
+                    "purl": "pkg:npm/bar@1.0.0",
+                    "version": "1.0.0",
+                    "bundled": False,
+                    "dev": False,
+                },
+            ],
+            [
+                Component(name="foo", version="1.0.0", purl="pkg:npm/foo@1.0.0"),
+                Component(name="bar", version="1.0.0", purl="pkg:npm/bar@1.0.0"),
+            ],
+        ),
+        (
+            [
+                {
+                    "name": "foo",
+                    "purl": "pkg:npm/foo@1.0.0",
+                    "version": "1.0.0",
+                    "bundled": False,
+                    "dev": True,
+                },
+                {
+                    "name": "foo",
+                    "purl": "pkg:npm/foo@1.0.0",
+                    "version": "1.0.0",
+                    "bundled": False,
+                    "dev": True,
+                },
+            ],
+            [
+                Component(
+                    name="foo",
+                    version="1.0.0",
+                    purl="pkg:npm/foo@1.0.0",
+                    properties=[
+                        Property(name="cachi2:found_by", value="cachi2"),
+                        Property(name="cdx:npm:package:development", value="true"),
+                    ],
+                ),
+            ],
+        ),
+        (
+            [
+                {
+                    "name": "foo",
+                    "purl": "pkg:npm/foo@1.0.0",
+                    "version": "1.0.0",
+                    "bundled": True,
+                    "dev": False,
+                },
+                {
+                    "name": "foo",
+                    "purl": "pkg:npm/foo@1.0.0",
+                    "version": "1.0.0",
+                    "bundled": True,
+                    "dev": False,
+                },
+            ],
+            [
+                Component(
+                    name="foo",
+                    version="1.0.0",
+                    purl="pkg:npm/foo@1.0.0",
+                    properties=[
+                        Property(name="cachi2:found_by", value="cachi2"),
+                        Property(name="cdx:npm:package:bundled", value="true"),
+                    ],
+                ),
+            ],
+        ),
+    ],
+)
+def test_generate_component_list(
+    components: list[NpmComponentInfo], expected_components: list[Component]
+) -> None:
+    """Test _generate_component_list with different NpmComponentInfo inputs."""
+    merged_components = _generate_component_list(components)
+    assert merged_components == expected_components
+
+
+@pytest.mark.parametrize(
     "npm_input_packages, resolved_packages, request_output",
     [
         pytest.param(
             [{"type": "npm", "path": "."}],
             [
                 {
-                    "package": {"name": "foo", "version": "1.0.0", "purl": "pkg:npm/foo@1.0.0"},
+                    "package": {
+                        "name": "foo",
+                        "version": "1.0.0",
+                        "purl": "pkg:npm/foo@1.0.0",
+                        "bundled": False,
+                        "dev": False,
+                    },
                     "dependencies": [
-                        {"name": "bar", "version": "2.0.0", "purl": "pkg:npm/bar@2.0.0"}
+                        {
+                            "name": "bar",
+                            "version": "2.0.0",
+                            "purl": "pkg:npm/bar@2.0.0",
+                            "bundled": False,
+                            "dev": False,
+                        }
                     ],
                     "projectfiles": [
                         ProjectFile(abspath="/some/path", template="some text"),
@@ -648,9 +912,21 @@ class TestPurlifier:
             [{"type": "npm", "path": "."}, {"type": "npm", "path": "path"}],
             [
                 {
-                    "package": {"name": "foo", "version": "1.0.0", "purl": "pkg:npm/foo@1.0.0"},
+                    "package": {
+                        "name": "foo",
+                        "version": "1.0.0",
+                        "purl": "pkg:npm/foo@1.0.0",
+                        "bundled": False,
+                        "dev": False,
+                    },
                     "dependencies": [
-                        {"name": "bar", "version": "2.0.0", "purl": "pkg:npm/bar@2.0.0"}
+                        {
+                            "name": "bar",
+                            "version": "2.0.0",
+                            "purl": "pkg:npm/bar@2.0.0",
+                            "bundled": False,
+                            "dev": False,
+                        }
                     ],
                     "projectfiles": [
                         ProjectFile(abspath="/some/path", template="some text"),
@@ -665,9 +941,21 @@ class TestPurlifier:
                     "package_lock_file": ProjectFile(abspath="/some/path", template="some text"),
                 },
                 {
-                    "package": {"name": "spam", "version": "3.0.0", "purl": "pkg:npm/spam@3.0.0"},
+                    "package": {
+                        "name": "spam",
+                        "version": "3.0.0",
+                        "purl": "pkg:npm/spam@3.0.0",
+                        "bundled": False,
+                        "dev": False,
+                    },
                     "dependencies": [
-                        {"name": "eggs", "version": "4.0.0", "purl": "pkg:npm/eggs@4.0.0"}
+                        {
+                            "name": "eggs",
+                            "version": "4.0.0",
+                            "purl": "pkg:npm/eggs@4.0.0",
+                            "bundled": False,
+                            "dev": False,
+                        }
                     ],
                     "dependencies_to_download": {
                         "https://some.registry.org/eggs/-/eggs-1.0.0.tgz": {
@@ -707,7 +995,7 @@ def test_fetch_npm_source(
     mock_resolve_npm: mock.Mock,
     npm_request: Request,
     npm_input_packages: dict[str, str],
-    resolved_packages: List[dict[str, Any]],
+    resolved_packages: List[ResolvedNpmPackage],
     request_output: dict[str, list[Any]],
 ) -> None:
     """Test fetch_npm_source with different Request inputs."""
@@ -787,12 +1075,16 @@ def test_resolve_npm_validation(
                     "name": "foo",
                     "version": "1.0.0",
                     "purl": f"pkg:npm/foo@1.0.0?vcs_url={MOCK_REPO_VCS_URL}",
+                    "bundled": False,
+                    "dev": False,
                 },
                 "dependencies": [
                     {
                         "name": "bar",
                         "version": "2.0.0",
                         "purl": "pkg:npm/bar@2.0.0",
+                        "bundled": False,
+                        "dev": False,
                     }
                 ],
                 "projectfiles": [
@@ -852,22 +1144,30 @@ def test_resolve_npm_validation(
                     "name": "foo",
                     "version": "1.0.0",
                     "purl": f"pkg:npm/foo@1.0.0?vcs_url={MOCK_REPO_VCS_URL}",
+                    "bundled": False,
+                    "dev": False,
                 },
                 "dependencies": [
                     {
                         "name": "bar",
                         "version": "2.0.0",
                         "purl": "pkg:npm/bar@2.0.0",
+                        "bundled": False,
+                        "dev": False,
                     },
                     {
                         "name": "baz",
                         "version": "3.0.0",
                         "purl": "pkg:npm/baz@3.0.0",
+                        "bundled": False,
+                        "dev": False,
                     },
                     {
                         "name": "spam",
                         "version": "4.0.0",
                         "purl": "pkg:npm/spam@4.0.0",
+                        "bundled": True,
+                        "dev": False,
                     },
                 ],
                 "projectfiles": [
@@ -906,12 +1206,16 @@ def test_resolve_npm_validation(
                     "name": "foo",
                     "version": "1.0.0",
                     "purl": f"pkg:npm/foo@1.0.0?vcs_url={MOCK_REPO_VCS_URL}",
+                    "bundled": False,
+                    "dev": False,
                 },
                 "dependencies": [
                     {
                         "name": "not-bar",
                         "version": "2.0.0",
                         "purl": f"pkg:npm/not-bar@2.0.0?vcs_url={MOCK_REPO_VCS_URL}#bar",
+                        "bundled": False,
+                        "dev": False,
                     }
                 ],
                 "projectfiles": [
@@ -950,12 +1254,16 @@ def test_resolve_npm_validation(
                     "name": "foo",
                     "version": "1.0.0",
                     "purl": f"pkg:npm/foo@1.0.0?vcs_url={MOCK_REPO_VCS_URL}#subpath",
+                    "bundled": False,
+                    "dev": False,
                 },
                 "dependencies": [
                     {
                         "name": "not-bar",
                         "version": "2.0.0",
                         "purl": f"pkg:npm/not-bar@2.0.0?vcs_url={MOCK_REPO_VCS_URL}#subpath/bar",
+                        "bundled": False,
+                        "dev": False,
                     }
                 ],
                 "projectfiles": [
@@ -1002,17 +1310,23 @@ def test_resolve_npm_validation(
                     "name": "foo",
                     "version": "1.0.0",
                     "purl": f"pkg:npm/foo@1.0.0?vcs_url={MOCK_REPO_VCS_URL}",
+                    "bundled": False,
+                    "dev": False,
                 },
                 "dependencies": [
                     {
                         "name": "bar",
                         "version": "2.0.0",
                         "purl": "pkg:npm/bar@2.0.0?checksum=sha512:24207c0ba4a70e841f&download_url=https://foohub.org/bar/-/bar-2.0.0.tgz",
+                        "bundled": False,
+                        "dev": False,
                     },
                     {
                         "name": "spam",
                         "version": "3.0.0",
                         "purl": f"pkg:npm/spam@3.0.0?vcs_url={urlq('git+ssh://git@github.com/spam/spam.git@deadbeef')}",
+                        "bundled": False,
+                        "dev": False,
                     },
                 ],
                 "projectfiles": [
@@ -1053,12 +1367,16 @@ def test_resolve_npm_validation(
                     "name": "foo",
                     "version": "1.0.0",
                     "purl": f"pkg:npm/foo@1.0.0?vcs_url={MOCK_REPO_VCS_URL}",
+                    "bundled": False,
+                    "dev": False,
                 },
                 "dependencies": [
                     {
                         "name": "@bar/baz",
                         "version": "2.0.0",
                         "purl": "pkg:npm/%40bar/baz@2.0.0",
+                        "bundled": False,
+                        "dev": False,
                     }
                 ],
                 "projectfiles": [
@@ -1092,12 +1410,16 @@ def test_resolve_npm_validation(
                     "name": "foo",
                     "version": "1.0.0",
                     "purl": f"pkg:npm/foo@1.0.0?vcs_url={MOCK_REPO_VCS_URL}",
+                    "bundled": False,
+                    "dev": False,
                 },
                 "dependencies": [
                     {
                         "name": "bar",
                         "version": "2.0.0",
                         "purl": "pkg:npm/bar@2.0.0",
+                        "bundled": False,
+                        "dev": False,
                     }
                 ],
                 "projectfiles": [
