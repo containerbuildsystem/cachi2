@@ -626,9 +626,9 @@ pytest==7.4.0 \
     #   pytest-asyncio
     #   pytest-cov
     #   pytest-env
-pytest-asyncio==0.21.0 \
-    --hash=sha256:2b38a496aef56f56b0e87557ec313e11e1ab9276fc3863f6a7be0f1d0e415e1b \
-    --hash=sha256:f2b3366b7cd501a4056858bd39349d5af19742aed2d81660b7998b6341c7eb9c
+pytest-asyncio==0.21.1 \
+    --hash=sha256:40a7eae6dded22c7b604986855ea48400ab15b069ae38116e8c01238e9eeb64d \
+    --hash=sha256:8666c1c8ac02631d7c51ba282e0c69a8a452b211ffedf2599099845da5c5c37b
     # via cachi2 (pyproject.toml)
 pytest-cov==4.1.0 \
     --hash=sha256:3904b13dfbfec47f003b8e77fd5b589cd11904a21ddf1ab38a64f204d6a10ef6 \
