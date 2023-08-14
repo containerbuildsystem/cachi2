@@ -91,6 +91,15 @@ class ParsedPackage(_ParsedModel):
     module: Optional[ParsedModule]
 
 
+class ResolvedGoModule(NamedTuple):
+    """Contains the data for a resolved main module (a module in the user's repo)."""
+
+    parsed_main_module: ParsedModule
+    parsed_modules: Iterable[ParsedModule]
+    parsed_packages: Iterable[ParsedPackage]
+    modules_in_go_sum: frozenset["ModuleID"]
+
+
 class Module(NamedTuple):
     """A Go module with relevant data for the SBOM generation.
 
@@ -354,18 +363,18 @@ def fetch_gomod_source(request: Request) -> RequestOutput:
                 log.error("Failed to fetch gomod dependencies")
                 raise
 
-            parsed_main_module, parsed_modules, parsed_packages = resolve_result
-
             main_module = _create_main_module_from_parsed_data(
-                main_module_dir, repo_name, parsed_main_module
+                main_module_dir, repo_name, resolve_result.parsed_main_module
             )
 
             modules = [main_module]
             modules.extend(
-                _create_modules_from_parsed_data(main_module, main_module_dir, parsed_modules)
+                _create_modules_from_parsed_data(
+                    main_module, main_module_dir, resolve_result.parsed_modules
+                )
             )
 
-            packages = _create_packages_from_parsed_data(modules, parsed_packages)
+            packages = _create_packages_from_parsed_data(modules, resolve_result.parsed_packages)
 
             components.extend(module.to_component() for module in modules)
             components.extend(package.to_component() for package in packages)
@@ -473,9 +482,7 @@ def _find_missing_gomod_files(source_path: RootedPath, subpaths: list[str]) -> l
     return invalid_gomod_files
 
 
-def _resolve_gomod(
-    app_dir: RootedPath, request: Request, tmp_dir: Path
-) -> tuple[ParsedModule, Iterable[ParsedModule], Iterable[ParsedPackage]]:
+def _resolve_gomod(app_dir: RootedPath, request: Request, tmp_dir: Path) -> ResolvedGoModule:
     """
     Resolve and fetch gomod dependencies for given app source archive.
 
@@ -489,6 +496,7 @@ def _resolve_gomod(
     :raises GoModError: if fetching dependencies fails
     """
     _protect_against_symlinks(app_dir)
+    modules_in_go_sum = _parse_go_sum(app_dir)
 
     config = get_config()
 
@@ -561,7 +569,46 @@ def _resolve_gomod(
 
     _validate_local_replacements(all_modules, app_dir)
 
-    return main_module, all_modules, all_packages
+    return ResolvedGoModule(main_module, all_modules, all_packages, modules_in_go_sum)
+
+
+def _parse_go_sum(module_dir: RootedPath) -> frozenset[ModuleID]:
+    """Return the set of modules present in the go.sum file in the specified directory.
+
+    A module is considered present if the checksum for its .zip file is present. The go.mod file
+    checksums are not relevant for our purposes.
+    """
+    go_sum = module_dir.join_within_root("go.sum")
+    if not go_sum.path.exists():
+        return frozenset()
+
+    modules: list[ModuleID] = []
+
+    # https://github.com/golang/go/blob/d5c5808534f0ad97333b1fd5fff81998f44986fe/src/cmd/go/internal/modfetch/fetch.go#L507-L534
+    lines = go_sum.path.read_text().splitlines()
+    for i, go_sum_line in enumerate(lines):
+        parts = go_sum_line.split()
+        if not parts:
+            continue
+        if len(parts) != 3:
+            # https://github.com/golang/go/issues/62345
+            # replicate the bug here, because it means that go only uses the non-broken part
+            #   of go.sum for checksum verification
+            log.warning(
+                "%s:%d: malformed line, skipping the rest of the file: %r",
+                go_sum.subpath_from_root,
+                i + 1,
+                go_sum_line,
+            )
+            break
+
+        name, version, _ = parts
+        if Path(version).name == "go.mod":
+            continue
+
+        modules.append((name, version))
+
+    return frozenset(modules)
 
 
 def _deduplicate_resolved_modules(

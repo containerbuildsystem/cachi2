@@ -37,8 +37,12 @@ $(
     go list -deps -json=ImportPath,Module,Standard,Deps ./... > \
         "$mocked_data_dir_abspath/non-vendored/go_list_deps_threedot.json"
 
+    echo "generating $mocked_data_dir/non-vendored/go.sum"
+    cp go.sum "$mocked_data_dir_abspath/non-vendored/go.sum"
+
     echo "generating $mocked_data_dir/vendored/modules.txt"
     go mod vendor
+    go mod tidy
     cp vendor/modules.txt "$mocked_data_dir_abspath/vendored/modules.txt"
 
     echo "generating $mocked_data_dir/vendored/go_list_deps_all.json"
@@ -48,6 +52,9 @@ $(
     echo "generating $mocked_data_dir/vendored/go_list_deps_threedot.json"
     go list -deps -json=ImportPath,Module,Standard,Deps ./... > \
         "$mocked_data_dir_abspath/vendored/go_list_deps_threedot.json"
+
+    echo "generating $mocked_data_dir/vendored/go.sum"
+    cp go.sum "$mocked_data_dir_abspath/vendored/go.sum"
 )
 --------------------------------------------------------------------------------
 banner-end
