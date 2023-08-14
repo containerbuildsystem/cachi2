@@ -85,6 +85,7 @@ class PipPackageInput(_PackageInputBase):
     type: Literal["pip"]
     requirements_files: Optional[list[Path]] = None
     requirements_build_files: Optional[list[Path]] = None
+    allow_binary: bool = False
 
     @pydantic.validator("requirements_files", "requirements_build_files")
     def _no_explicit_none(cls, paths: Optional[list[Path]]) -> list[Path]:
