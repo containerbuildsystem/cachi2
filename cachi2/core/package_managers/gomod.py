@@ -184,28 +184,53 @@ class StandardPackage(NamedTuple):
         return Component(name=self.name, purl=self.purl)
 
 
+ModuleID = tuple[str, str]
+
+
+def _get_module_id(module: ParsedModule) -> ModuleID:
+    """Identify a ParsedModule by its name and version/filepath.
+
+    The main module, which doesn't have a version in its ParsedModule representation,
+    gets the "." filepath.
+
+    Note: if two IDs (include a filepath and) differ only by filepath, they may in fact identify
+    the same module - different relative paths but the same absolute path. IDs that include
+    a filepath are not universally unique, only locally unique within the dependencies of a main
+    module.
+    """
+    if not (replace := module.replace):
+        name = module.path
+        version_or_path = module.version or "."
+    elif replace.version:
+        # module/name v1.0.0 => replace/name v1.2.3
+        name = replace.path
+        version_or_path = replace.version
+    else:
+        # module/name v1.0.0 => ./local/path
+        name = module.path
+        version_or_path = replace.path
+
+    return name, version_or_path
+
+
 def _create_modules_from_parsed_data(
-    main_module: Module, main_module_dir: RootedPath, parsed_modules: Iterable[ParsedModule]
+    main_module: Module,
+    main_module_dir: RootedPath,
+    parsed_modules: Iterable[ParsedModule],
 ) -> list[Module]:
     def _create_module(module: ParsedModule) -> Module:
-        if not (replace := module.replace):
-            name = module.path
-            version = module.version or ""
-            original_name = name
-            real_path = name
-        elif replace.version:
-            # module/name v1.0.0 => replace/name v1.2.3
-            name = replace.path
-            version = replace.version
-            original_name = module.path
+        mod_id = _get_module_id(module)
+        name, version_or_path = mod_id
+        original_name = module.path
+
+        if not version_or_path.startswith("."):
+            version = version_or_path
             real_path = name
         else:
             # module/name v1.0.0 => ./local/path
-            name = module.path
-            resolved_replacement_path = main_module_dir.join_within_root(module.replace.path)
+            resolved_replacement_path = main_module_dir.join_within_root(version_or_path)
             version = _get_golang_version(module.path, resolved_replacement_path)
             real_path = _resolve_path_for_local_replacement(module)
-            original_name = name
 
         return Module(name=name, version=version, original_name=original_name, real_path=real_path)
 
@@ -543,22 +568,12 @@ def _deduplicate_resolved_modules(
     package_modules: Iterable[ParsedModule],
     downloaded_modules: Iterable[ParsedModule],
 ) -> Iterable[ParsedModule]:
-    def get_unique_key(module: ParsedModule) -> tuple[str, Optional[str]]:
-        if not (replace := module.replace):
-            return module.path, module.version
-        elif replace.version:
-            # module/name v1.0.0 => replace/name v1.2.3
-            return replace.path, replace.version
-        else:
-            # module/name v1.0.0 => ./local/path
-            return module.path, replace.path
-
-    modules_by_name_and_version: dict[tuple[str, Optional[str]], ParsedModule] = {}
+    modules_by_name_and_version: dict[ModuleID, ParsedModule] = {}
 
     # package_modules have the replace data, so they should take precedence in the deduplication
     for module in chain(package_modules, downloaded_modules):
         # get the module for this name+version or create a new one
-        modules_by_name_and_version.setdefault(get_unique_key(module), module)
+        modules_by_name_and_version.setdefault(_get_module_id(module), module)
 
     return modules_by_name_and_version.values()
 
