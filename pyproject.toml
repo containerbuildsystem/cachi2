@@ -28,6 +28,7 @@ dependencies = [
   "packageurl-python",
   "packaging",
   "pydantic",
+  "pypi-simple",
   "pyyaml",
   "requests",
   "semver",
