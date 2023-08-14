@@ -19,15 +19,18 @@ from cachi2.core.models.sbom import Component
 from cachi2.core.package_managers import gomod
 from cachi2.core.package_managers.gomod import (
     Module,
+    ModuleID,
     Package,
     ParsedModule,
     ParsedPackage,
+    ResolvedGoModule,
     StandardPackage,
     _create_modules_from_parsed_data,
     _create_packages_from_parsed_data,
     _deduplicate_resolved_modules,
     _get_golang_version,
     _get_repository_name,
+    _parse_go_sum,
     _parse_vendor,
     _resolve_gomod,
     _run_download_cmd,
@@ -76,16 +79,17 @@ def get_mocked_data(data_dir: Path, filepath: Union[str, Path]) -> str:
     return data_dir.joinpath("gomod-mocks", filepath).read_text()
 
 
-def _parse_mocked_data(
-    data_dir: Path, file_path: str
-) -> tuple[ParsedModule, list[ParsedModule], list[ParsedPackage]]:
+def _parse_mocked_data(data_dir: Path, file_path: str) -> ResolvedGoModule:
     mocked_data = json.loads(get_mocked_data(data_dir, file_path))
 
     main_module = ParsedModule(**mocked_data["main_module"])
     modules = [ParsedModule(**module) for module in mocked_data["modules"]]
     packages = [ParsedPackage(**package) for package in mocked_data["packages"]]
+    modules_in_go_sum = frozenset(
+        (name, version) for name, version in mocked_data["modules_in_go_sum"]
+    )
 
-    return main_module, modules, packages
+    return ResolvedGoModule(main_module, modules, packages, modules_in_go_sum)
 
 
 @pytest.mark.parametrize("cgo_disable", [False, True])
@@ -148,8 +152,12 @@ def test_resolve_gomod(
     gomod_request.flags = frozenset(flags)
 
     module_dir = gomod_request.source_dir.join_within_root("path/to/module")
+    module_dir.path.mkdir(parents=True)
+    module_dir.join_within_root("go.sum").path.write_text(
+        get_mocked_data(data_dir, "non-vendored/go.sum")
+    )
 
-    main_module, modules, packages = _resolve_gomod(module_dir, gomod_request, tmp_path)
+    resolve_result = _resolve_gomod(module_dir, gomod_request, tmp_path)
 
     if force_gomod_tidy:
         assert mock_run.call_args_list[1][0][0] == ("go", "mod", "tidy")
@@ -174,15 +182,16 @@ def test_resolve_gomod(
         else:
             assert "CGO_ENABLED" not in env
 
-    expect_main_module, expect_modules, expect_packages = _parse_mocked_data(
-        data_dir, "expected-results/resolve_gomod.json"
+    expect_result = _parse_mocked_data(data_dir, "expected-results/resolve_gomod.json")
+
+    assert resolve_result.parsed_main_module == expect_result.parsed_main_module
+    assert list(resolve_result.parsed_modules) == expect_result.parsed_modules
+    assert list(resolve_result.parsed_packages) == expect_result.parsed_packages
+    assert resolve_result.modules_in_go_sum == expect_result.modules_in_go_sum
+
+    mock_validate_local_replacements.assert_called_once_with(
+        resolve_result.parsed_modules, module_dir
     )
-
-    assert main_module == expect_main_module
-    assert list(modules) == expect_modules
-    assert list(packages) == expect_packages
-
-    mock_validate_local_replacements.assert_called_once_with(modules, module_dir)
 
 
 @pytest.mark.parametrize("force_gomod_tidy", [False, True])
@@ -235,12 +244,15 @@ def test_resolve_gomod_vendor_dependencies(
     gomod_request.flags = frozenset(flags)
 
     module_dir = gomod_request.source_dir.join_within_root("path/to/module")
-    module_dir.path.joinpath("vendor").mkdir(parents=True)
-    module_dir.path.joinpath("vendor/modules.txt").write_text(
+    module_dir.join_within_root("vendor").path.mkdir(parents=True)
+    module_dir.join_within_root("vendor/modules.txt").path.write_text(
         get_mocked_data(data_dir, "vendored/modules.txt")
     )
+    module_dir.join_within_root("go.sum").path.write_text(
+        get_mocked_data(data_dir, "vendored/go.sum")
+    )
 
-    main_module, modules, packages = _resolve_gomod(module_dir, gomod_request, tmp_path)
+    resolve_result = _resolve_gomod(module_dir, gomod_request, tmp_path)
 
     assert mock_run.call_args_list[0][0][0] == ("go", "mod", "vendor")
     # when vendoring, go list should be called without -mod readonly
@@ -253,9 +265,12 @@ def test_resolve_gomod_vendor_dependencies(
         "all",
     ]
 
-    expect_gomod = _parse_mocked_data(data_dir, "expected-results/resolve_gomod_vendored.json")
+    expect_result = _parse_mocked_data(data_dir, "expected-results/resolve_gomod_vendored.json")
 
-    assert (main_module, list(modules), list(packages)) == expect_gomod
+    assert resolve_result.parsed_main_module == expect_result.parsed_main_module
+    assert list(resolve_result.parsed_modules) == expect_result.parsed_modules
+    assert list(resolve_result.parsed_packages) == expect_result.parsed_packages
+    assert resolve_result.modules_in_go_sum == expect_result.modules_in_go_sum
 
 
 def test_resolve_gomod_vendor_without_flag(tmp_path: Path, gomod_request: Request) -> None:
@@ -322,7 +337,7 @@ def test_resolve_gomod_no_deps(
         gomod_request.flags = frozenset({"force-gomod-tidy"})
 
     module_path = gomod_request.source_dir.join_within_root("path/to/module")
-    main_module, modules, packages = _resolve_gomod(module_path, gomod_request, tmp_path)
+    main_module, modules, packages, _ = _resolve_gomod(module_path, gomod_request, tmp_path)
     packages_list = list(packages)
 
     assert main_module == ParsedModule(
@@ -365,6 +380,69 @@ def test_resolve_gomod_suspicious_symlinks(symlinked_file: str, gomod_request: R
 
     e = exc_info.value
     assert "Found a potentially harmful symlink" in e.friendly_msg()
+
+
+@pytest.mark.parametrize(
+    "go_sum_content, expect_modules",
+    [
+        (None, set()),
+        ("", set()),
+        (
+            dedent(
+                """
+                github.com/creack/pty v1.1.18 h1:n56/Zwd5o6whRC5PMGretI4IdRLlmBXYNjScPaBgsbY=
+
+                github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
+
+                github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
+                github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
+
+                github.com/moby/term v0.0.0-20221205130635-1aeaba878587 h1:HfkjXDfhgVaN5rmueG8cL8KKeFNecRCXFhaJ2qZ5SKA=
+                github.com/moby/term v0.0.0-20221205130635-1aeaba878587/go.mod h1:8FzsFHVUBGZdbDsJw/ot+X+d5HLUbvklYLJ9uGfcI3Y=
+                """
+            ),
+            {
+                ("github.com/creack/pty", "v1.1.18"),  # has the .zip checksum => include it
+                # ("github.com/davecgh/go-spew", "v1.1.0"),  # only the .mod checksum => exclude it
+                ("github.com/davecgh/go-spew", "v1.1.1"),
+                ("github.com/moby/term", "v0.0.0-20221205130635-1aeaba878587"),
+            },
+        ),
+    ],
+)
+def test_parse_go_sum(
+    go_sum_content: Optional[str],
+    expect_modules: set[ModuleID],
+    rooted_tmp_path: RootedPath,
+) -> None:
+    if go_sum_content is not None:
+        rooted_tmp_path.join_within_root("go.sum").path.write_text(go_sum_content)
+
+    parsed_modules = _parse_go_sum(rooted_tmp_path)
+    assert frozenset(expect_modules) == parsed_modules
+
+
+def test_parse_broken_go_sum(rooted_tmp_path: RootedPath, caplog: pytest.LogCaptureFixture) -> None:
+    go_sum_content = dedent(
+        """\
+        github.com/creack/pty v1.1.18 h1:n56/Zwd5o6whRC5PMGretI4IdRLlmBXYNjScPaBgsbY=
+        github.com/davecgh/go-spew v1.1.0/go.mod
+        github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
+        github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
+        github.com/moby/term v0.0.0-20221205130635-1aeaba878587 h1:HfkjXDfhgVaN5rmueG8cL8KKeFNecRCXFhaJ2qZ5SKA=
+        github.com/moby/term v0.0.0-20221205130635-1aeaba878587/go.mod h1:8FzsFHVUBGZdbDsJw/ot+X+d5HLUbvklYLJ9uGfcI3Y=
+        """
+    )
+    expect_modules = frozenset([("github.com/creack/pty", "v1.1.18")])
+
+    submodule = rooted_tmp_path.join_within_root("submodule")
+    submodule.path.mkdir()
+    submodule.join_within_root("go.sum").path.write_text(go_sum_content)
+
+    assert _parse_go_sum(submodule) == expect_modules
+    assert caplog.messages == [
+        "submodule/go.sum:2: malformed line, skipping the rest of the file: 'github.com/davecgh/go-spew v1.1.0/go.mod'",
+    ]
 
 
 @mock.patch("cachi2.core.package_managers.gomod._get_golang_version")
@@ -1207,7 +1285,7 @@ def test_missing_gomod_file(file_tree: dict[str, Any], tmp_path: Path) -> None:
         (
             [{"type": "gomod", "path": "."}],
             {
-                ".": (
+                ".": ResolvedGoModule(
                     ParsedModule(
                         path="github.com/my-org/my-repo",
                         version="v1.0.0",
@@ -1234,6 +1312,7 @@ def test_missing_gomod_file(file_tree: dict[str, Any], tmp_path: Path) -> None:
                             ),
                         ),
                     ],
+                    frozenset(),
                 ),
             },
             [
@@ -1262,21 +1341,23 @@ def test_missing_gomod_file(file_tree: dict[str, Any], tmp_path: Path) -> None:
         (
             [{"type": "gomod", "path": "."}, {"type": "gomod", "path": "./path"}],
             {
-                ".": (
+                ".": ResolvedGoModule(
                     ParsedModule(
                         path="github.com/my-org/my-repo",
                         version="v1.0.0",
                     ),
                     [],
                     [],
+                    frozenset(),
                 ),
-                "path": (
+                "path": ResolvedGoModule(
                     ParsedModule(
                         path="github.com/my-org/my-repo/path",
                         version="v1.0.0",
                     ),
                     [],
                     [],
+                    frozenset(),
                 ),
             },
             [
@@ -1304,13 +1385,13 @@ def test_fetch_gomod_source(
     mock_find_missing_gomod_files: mock.Mock,
     mock_get_repository_name: mock.Mock,
     gomod_request: Request,
-    packages_output_by_path: dict[str, dict[str, Any]],
+    packages_output_by_path: dict[str, ResolvedGoModule],
     expect_components: list[Component],
     env_variables: list[dict[str, Any]],
 ) -> None:
     def resolve_gomod_mocked(
         app_dir: RootedPath, request: Request, tmp_dir: Path
-    ) -> dict[str, Any]:
+    ) -> ResolvedGoModule:
         # Find package output based on the path being processed
         return packages_output_by_path[
             app_dir.path.relative_to(gomod_request.source_dir).as_posix()
