@@ -317,7 +317,7 @@ def fetch_gomod_source(request: Request) -> RequestOutput:
 
     with GoCacheTemporaryDirectory(prefix="cachito-") as tmp_dir:
         request.gomod_download_dir.path.mkdir(exist_ok=True, parents=True)
-        for i, subpath in enumerate(subpaths):
+        for subpath in subpaths:
             log.info("Fetching the gomod dependencies at subpath %s", subpath)
 
             log.info(f'Fetching the gomod dependencies at the "{subpath}" directory')
@@ -512,7 +512,6 @@ def _resolve_gomod(
         path=main_module_name,
         version=_get_golang_version(main_module_name, app_dir, update_tags=True),
         main=True,
-        dir=str(app_dir),
     )
 
     def go_list_deps(pattern: Literal["./...", "all"]) -> Iterator[ParsedPackage]:
