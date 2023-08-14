@@ -88,6 +88,7 @@ def fetch_pip_source(request: Request) -> RequestOutput:
             request.output_dir,
             package.requirements_files,
             package.requirements_build_files,
+            package.allow_binary,
         )
         purl = _generate_purl_main_package(info["package"], path_within_root)
         components.append(
@@ -1913,6 +1914,7 @@ def _resolve_pip(
     output_dir: RootedPath,
     requirement_files: Optional[list[Path]] = None,
     build_requirement_files: Optional[list[Path]] = None,
+    allow_binary: bool = False,
 ) -> dict[str, Any]:
     """
     Resolve and fetch pip dependencies for the given pip application.

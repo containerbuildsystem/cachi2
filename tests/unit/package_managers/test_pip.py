@@ -3879,11 +3879,15 @@ def test_fetch_pip_source(
     assert len(output.build_config.environment_variables) == (2 if n_pip_packages > 0 else 0)
 
     if n_pip_packages >= 1:
-        mock_resolve_pip.assert_any_call(source_dir, output_dir, [Path("requirements.txt")], None)
+        mock_resolve_pip.assert_any_call(
+            source_dir, output_dir, [Path("requirements.txt")], None, False
+        )
         mock_replace_requirements.assert_any_call("/package_a/requirements.txt")
         mock_replace_requirements.assert_any_call("/package_a/requirements-build.txt")
     if n_pip_packages >= 2:
-        mock_resolve_pip.assert_any_call(source_dir.join_within_root("foo"), output_dir, None, [])
+        mock_resolve_pip.assert_any_call(
+            source_dir.join_within_root("foo"), output_dir, None, [], False
+        )
         mock_replace_requirements.assert_any_call("/package_b/requirements.txt")
 
 

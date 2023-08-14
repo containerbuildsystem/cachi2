@@ -46,15 +46,22 @@ class TestPackageInput:
                     "path": Path("."),
                     "requirements_files": None,
                     "requirements_build_files": None,
+                    "allow_binary": False,
                 },
             ),
             (
-                {"type": "pip", "requirements_files": ["reqs.txt"], "requirements_build_files": []},
+                {
+                    "type": "pip",
+                    "requirements_files": ["reqs.txt"],
+                    "requirements_build_files": [],
+                    "allow_binary": True,
+                },
                 {
                     "type": "pip",
                     "path": Path("."),
                     "requirements_files": [Path("reqs.txt")],
                     "requirements_build_files": [],
+                    "allow_binary": True,
                 },
             ),
         ],
