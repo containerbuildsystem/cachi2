@@ -597,7 +597,7 @@ class TestFetchDeps:
         written_sbom = Sbom.parse_file(sbom_path)
 
         assert written_build_config == request_output.build_config
-        assert written_sbom == request_output.sbom
+        assert written_sbom == request_output.generate_sbom()
 
 
 def env_file_as_json(for_output_dir: Path) -> str:

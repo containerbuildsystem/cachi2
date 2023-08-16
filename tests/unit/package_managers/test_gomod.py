@@ -15,7 +15,7 @@ import pytest
 from cachi2.core.errors import GoModError, PackageRejected, UnexpectedFormat
 from cachi2.core.models.input import Flag, Request
 from cachi2.core.models.output import BuildConfig, RequestOutput
-from cachi2.core.models.sbom import Component, Sbom
+from cachi2.core.models.sbom import Component
 from cachi2.core.package_managers import gomod
 from cachi2.core.package_managers.gomod import (
     Module,
@@ -1333,7 +1333,7 @@ def test_fetch_gomod_source(
         expected_output = RequestOutput.empty()
     else:
         expected_output = RequestOutput(
-            sbom=Sbom(components=expect_components),
+            components=expect_components,
             build_config=BuildConfig(environment_variables=env_variables),
         )
 

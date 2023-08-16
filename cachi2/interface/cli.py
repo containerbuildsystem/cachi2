@@ -243,9 +243,11 @@ def fetch_deps(
     request.output_dir.join_within_root(".build-config.json").path.write_text(
         request_output.build_config.json()
     )
+
+    sbom = request_output.generate_sbom()
     request.output_dir.join_within_root("bom.json").path.write_text(
         # the Sbom model has camelCase aliases in some fields
-        request_output.sbom.json(by_alias=True, exclude_none=True)
+        sbom.json(by_alias=True, exclude_none=True)
     )
 
     log.info(r"All dependencies fetched successfully \o/")
