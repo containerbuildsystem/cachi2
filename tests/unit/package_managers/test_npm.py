@@ -10,7 +10,8 @@ from packageurl import PackageURL
 from cachi2.core.checksum import ChecksumInfo
 from cachi2.core.errors import PackageRejected, UnexpectedFormat, UnsupportedFeature
 from cachi2.core.models.input import Request
-from cachi2.core.models.output import Component, ProjectFile, Property, RequestOutput
+from cachi2.core.models.output import ProjectFile, RequestOutput
+from cachi2.core.models.sbom import Component, Property
 from cachi2.core.package_managers.npm import (
     NormalizedUrl,
     NpmComponentInfo,
