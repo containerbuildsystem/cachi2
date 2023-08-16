@@ -22,7 +22,6 @@ from cachi2.core.package_managers.npm import (
     _extract_git_info_npm,
     _generate_component_list,
     _get_npm_dependencies,
-    _merge_npm_sbom_properties,
     _Purlifier,
     _resolve_npm,
     _should_replace_dependency,
@@ -634,174 +633,12 @@ class TestPurlifier:
                 },
             ],
             [
-                {
-                    "name": "foo",
-                    "purl": "pkg:npm/foo@1.0.0",
-                    "version": "1.0.0",
-                    "bundled": False,
-                    "dev": False,
-                },
-                {
-                    "name": "bar",
-                    "purl": "pkg:npm/bar@1.0.0",
-                    "version": "1.0.0",
-                    "bundled": False,
-                    "dev": False,
-                },
-            ],
-        ),
-        (
-            [
-                {
-                    "name": "foo",
-                    "purl": "pkg:npm/foo@1.0.0",
-                    "version": "1.0.0",
-                    "bundled": False,
-                    "dev": False,
-                },
-                {
-                    "name": "foo",
-                    "purl": "pkg:npm/foo@1.0.0",
-                    "version": "1.0.0",
-                    "bundled": False,
-                    "dev": False,
-                },
-            ],
-            [
-                {
-                    "name": "foo",
-                    "purl": "pkg:npm/foo@1.0.0",
-                    "version": "1.0.0",
-                    "bundled": False,
-                    "dev": False,
-                },
-            ],
-        ),
-        (
-            [
-                {
-                    "name": "foo",
-                    "purl": "pkg:npm/foo@1.0.0",
-                    "version": "1.0.0",
-                    "bundled": False,
-                    "dev": True,
-                },
-                {
-                    "name": "foo",
-                    "purl": "pkg:npm/foo@1.0.0",
-                    "version": "1.0.0",
-                    "bundled": True,
-                    "dev": False,
-                },
-            ],
-            [
-                {
-                    "name": "foo",
-                    "purl": "pkg:npm/foo@1.0.0",
-                    "version": "1.0.0",
-                    "bundled": False,
-                    "dev": False,
-                },
-            ],
-        ),
-        (
-            [
-                {
-                    "name": "foo",
-                    "purl": "pkg:npm/foo@1.0.0",
-                    "version": "1.0.0",
-                    "bundled": False,
-                    "dev": True,
-                },
-                {
-                    "name": "foo",
-                    "purl": "pkg:npm/foo@1.0.0",
-                    "version": "1.0.0",
-                    "bundled": False,
-                    "dev": True,
-                },
-            ],
-            [
-                {
-                    "name": "foo",
-                    "purl": "pkg:npm/foo@1.0.0",
-                    "version": "1.0.0",
-                    "bundled": False,
-                    "dev": True,
-                },
-            ],
-        ),
-        (
-            [
-                {
-                    "name": "foo",
-                    "purl": "pkg:npm/foo@1.0.0",
-                    "version": "1.0.0",
-                    "bundled": True,
-                    "dev": False,
-                },
-                {
-                    "name": "foo",
-                    "purl": "pkg:npm/foo@1.0.0",
-                    "version": "1.0.0",
-                    "bundled": True,
-                    "dev": False,
-                },
-            ],
-            [
-                {
-                    "name": "foo",
-                    "purl": "pkg:npm/foo@1.0.0",
-                    "version": "1.0.0",
-                    "bundled": True,
-                    "dev": False,
-                },
-            ],
-        ),
-    ],
-)
-def test_merge_npm_sbom_properties(
-    components: list[NpmComponentInfo], expected_components: list[NpmComponentInfo]
-) -> None:
-    """Test _merge_npm_sbom_properties with different NpmComponentInfo inputs."""
-    merged_components = _merge_npm_sbom_properties(components)
-    assert merged_components == expected_components
-
-
-@pytest.mark.parametrize(
-    "components, expected_components",
-    [
-        (
-            [
-                {
-                    "name": "foo",
-                    "purl": "pkg:npm/foo@1.0.0",
-                    "version": "1.0.0",
-                    "bundled": False,
-                    "dev": False,
-                },
-                {
-                    "name": "bar",
-                    "purl": "pkg:npm/bar@1.0.0",
-                    "version": "1.0.0",
-                    "bundled": False,
-                    "dev": False,
-                },
-            ],
-            [
                 Component(name="foo", version="1.0.0", purl="pkg:npm/foo@1.0.0"),
                 Component(name="bar", version="1.0.0", purl="pkg:npm/bar@1.0.0"),
             ],
         ),
         (
             [
-                {
-                    "name": "foo",
-                    "purl": "pkg:npm/foo@1.0.0",
-                    "version": "1.0.0",
-                    "bundled": False,
-                    "dev": True,
-                },
                 {
                     "name": "foo",
                     "purl": "pkg:npm/foo@1.0.0",
@@ -824,13 +661,6 @@ def test_merge_npm_sbom_properties(
         ),
         (
             [
-                {
-                    "name": "foo",
-                    "purl": "pkg:npm/foo@1.0.0",
-                    "version": "1.0.0",
-                    "bundled": True,
-                    "dev": False,
-                },
                 {
                     "name": "foo",
                     "purl": "pkg:npm/foo@1.0.0",

@@ -16,7 +16,8 @@ from cachi2.core.config import get_config
 from cachi2.core.errors import PackageRejected, UnexpectedFormat, UnsupportedFeature
 from cachi2.core.models.input import Request
 from cachi2.core.models.output import ProjectFile, RequestOutput
-from cachi2.core.models.sbom import Component, Property
+from cachi2.core.models.property_semantics import PropertySet
+from cachi2.core.models.sbom import Component
 from cachi2.core.package_managers.general import async_download_files
 from cachi2.core.rooted_path import RootedPath
 from cachi2.core.scm import RepoID, clone_as_tarball, get_repo_id
@@ -626,43 +627,21 @@ def _update_package_json_files(
     return package_json_projectfiles
 
 
-def _merge_npm_sbom_properties(components: list[NpmComponentInfo]) -> list[NpmComponentInfo]:
-    """Deduplicate the NpmComponentInfo objects and merge their dev and bundled properties."""
-    merged_components: dict[str, NpmComponentInfo] = {}
-    for component in components:
-        purl = component["purl"]
-        if purl not in merged_components:
-            merged_components[purl] = component
-            continue
-
-        # The dev and bundled properties for a package are True only if True for all
-        # components with the same purl
-        merged_component = merged_components[purl]
-        merged_component["bundled"] = component["bundled"] and merged_component["bundled"]
-        merged_component["dev"] = component["dev"] and merged_component["dev"]
-
-    return list(merged_components.values())
-
-
-def _generate_component_list(component_info: list[NpmComponentInfo]) -> list[Component]:
+def _generate_component_list(component_infos: list[NpmComponentInfo]) -> list[Component]:
     """Convert a list of NpmComponentInfo objects into a list of Component objects for the SBOM."""
-    merged_component_info = _merge_npm_sbom_properties(component_info)
 
     def to_component(component_info: NpmComponentInfo) -> Component:
-        property_map = {
-            "dev": Property(name="cdx:npm:package:development", value="true"),
-            "bundled": Property(name="cdx:npm:package:bundled", value="true"),
-        }
         return Component(
             name=component_info["name"],
             version=component_info["version"],
             purl=component_info["purl"],
-            properties=[
-                obj for name, obj in property_map.items() if component_info.get(name, False)
-            ],
+            properties=PropertySet(
+                npm_bundled=component_info["bundled"],
+                npm_development=component_info["dev"],
+            ).to_properties(),
         )
 
-    return [to_component(component_info) for component_info in merged_component_info]
+    return [to_component(component_info) for component_info in component_infos]
 
 
 def fetch_npm_source(request: Request) -> RequestOutput:
