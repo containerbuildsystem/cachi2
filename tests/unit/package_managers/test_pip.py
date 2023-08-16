@@ -24,7 +24,8 @@ from cachi2.core.errors import (
     UnsupportedFeature,
 )
 from cachi2.core.models.input import Request
-from cachi2.core.models.output import Component, ProjectFile
+from cachi2.core.models.output import ProjectFile
+from cachi2.core.models.sbom import Component
 from cachi2.core.package_managers import general, pip
 from cachi2.core.rooted_path import PathOutsideRoot, RootedPath
 from cachi2.core.scm import RepoID

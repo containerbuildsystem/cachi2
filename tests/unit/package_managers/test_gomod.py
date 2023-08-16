@@ -14,7 +14,8 @@ import pytest
 
 from cachi2.core.errors import GoModError, PackageRejected, UnexpectedFormat
 from cachi2.core.models.input import Flag, Request
-from cachi2.core.models.output import BuildConfig, Component, RequestOutput, Sbom
+from cachi2.core.models.output import BuildConfig, RequestOutput
+from cachi2.core.models.sbom import Component, Sbom
 from cachi2.core.package_managers import gomod
 from cachi2.core.package_managers.gomod import (
     Module,

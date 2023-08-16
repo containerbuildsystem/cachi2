@@ -34,7 +34,8 @@ from cachi2.core.checksum import ChecksumInfo, must_match_any_checksum
 from cachi2.core.config import get_config
 from cachi2.core.errors import FetchError, PackageRejected, UnexpectedFormat, UnsupportedFeature
 from cachi2.core.models.input import Request
-from cachi2.core.models.output import Component, EnvironmentVariable, ProjectFile, RequestOutput
+from cachi2.core.models.output import EnvironmentVariable, ProjectFile, RequestOutput
+from cachi2.core.models.sbom import Component
 from cachi2.core.package_managers.general import (
     download_binary_file,
     extract_git_info,

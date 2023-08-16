@@ -4,7 +4,8 @@ from unittest import mock
 
 from cachi2.core import resolver
 from cachi2.core.models.input import Request
-from cachi2.core.models.output import Component, EnvironmentVariable, ProjectFile, RequestOutput
+from cachi2.core.models.output import EnvironmentVariable, ProjectFile, RequestOutput
+from cachi2.core.models.sbom import Component
 
 GOMOD_OUTPUT = RequestOutput.from_obj_list(
     components=[Component(type="library", name="github.com/foo/bar", version="v1.0.0")],

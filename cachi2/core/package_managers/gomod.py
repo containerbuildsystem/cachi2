@@ -32,7 +32,8 @@ from packageurl import PackageURL
 from cachi2.core.config import get_config
 from cachi2.core.errors import FetchError, GoModError, PackageRejected, UnexpectedFormat
 from cachi2.core.models.input import Request
-from cachi2.core.models.output import Component, EnvironmentVariable, RequestOutput
+from cachi2.core.models.output import EnvironmentVariable, RequestOutput
+from cachi2.core.models.sbom import Component
 from cachi2.core.rooted_path import PathOutsideRoot, RootedPath
 from cachi2.core.scm import get_repo_id
 from cachi2.core.utils import load_json_stream, run_cmd
