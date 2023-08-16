@@ -5,6 +5,7 @@ from typing import Literal, Optional
 
 import pydantic
 
+from cachi2.core.models.property_semantics import merge_component_properties
 from cachi2.core.models.sbom import Component, Sbom
 from cachi2.core.models.validators import unique_sorted
 
@@ -91,10 +92,10 @@ class RequestOutput(pydantic.BaseModel):
     def generate_sbom(self) -> Sbom:
         """Generate the SBOM for this RequestOutput.
 
-        Note that RequestOutput may contain duplicated components, the Sbom model will de-duplicate
-        them automatically.
+        Note that RequestOutput may contain duplicated components, we de-duplicate them here
+        while merging their `properties`.
         """
-        return Sbom(components=self.components)
+        return Sbom(components=merge_component_properties(self.components))
 
     @classmethod
     def empty(cls) -> "RequestOutput":

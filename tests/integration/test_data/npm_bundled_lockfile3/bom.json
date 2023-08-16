@@ -49,11 +49,11 @@
           "value": "cachi2"
         },
         {
-          "name": "cdx:npm:package:development",
+          "name": "cdx:npm:package:bundled",
           "value": "true"
         },
         {
-          "name": "cdx:npm:package:bundled",
+          "name": "cdx:npm:package:development",
           "value": "true"
         }
       ],
@@ -69,11 +69,11 @@
           "value": "cachi2"
         },
         {
-          "name": "cdx:npm:package:development",
+          "name": "cdx:npm:package:bundled",
           "value": "true"
         },
         {
-          "name": "cdx:npm:package:bundled",
+          "name": "cdx:npm:package:development",
           "value": "true"
         }
       ],
@@ -89,11 +89,11 @@
           "value": "cachi2"
         },
         {
-          "name": "cdx:npm:package:development",
+          "name": "cdx:npm:package:bundled",
           "value": "true"
         },
         {
-          "name": "cdx:npm:package:bundled",
+          "name": "cdx:npm:package:development",
           "value": "true"
         }
       ],
@@ -109,11 +109,11 @@
           "value": "cachi2"
         },
         {
-          "name": "cdx:npm:package:development",
+          "name": "cdx:npm:package:bundled",
           "value": "true"
         },
         {
-          "name": "cdx:npm:package:bundled",
+          "name": "cdx:npm:package:development",
           "value": "true"
         }
       ],
@@ -129,11 +129,11 @@
           "value": "cachi2"
         },
         {
-          "name": "cdx:npm:package:development",
+          "name": "cdx:npm:package:bundled",
           "value": "true"
         },
         {
-          "name": "cdx:npm:package:bundled",
+          "name": "cdx:npm:package:development",
           "value": "true"
         }
       ],
@@ -149,11 +149,11 @@
           "value": "cachi2"
         },
         {
-          "name": "cdx:npm:package:development",
+          "name": "cdx:npm:package:bundled",
           "value": "true"
         },
         {
-          "name": "cdx:npm:package:bundled",
+          "name": "cdx:npm:package:development",
           "value": "true"
         }
       ],
@@ -181,11 +181,11 @@
           "value": "cachi2"
         },
         {
-          "name": "cdx:npm:package:development",
+          "name": "cdx:npm:package:bundled",
           "value": "true"
         },
         {
-          "name": "cdx:npm:package:bundled",
+          "name": "cdx:npm:package:development",
           "value": "true"
         }
       ],
@@ -201,11 +201,11 @@
           "value": "cachi2"
         },
         {
-          "name": "cdx:npm:package:development",
+          "name": "cdx:npm:package:bundled",
           "value": "true"
         },
         {
-          "name": "cdx:npm:package:bundled",
+          "name": "cdx:npm:package:development",
           "value": "true"
         }
       ],
@@ -221,11 +221,11 @@
           "value": "cachi2"
         },
         {
-          "name": "cdx:npm:package:development",
+          "name": "cdx:npm:package:bundled",
           "value": "true"
         },
         {
-          "name": "cdx:npm:package:bundled",
+          "name": "cdx:npm:package:development",
           "value": "true"
         }
       ],
@@ -241,11 +241,11 @@
           "value": "cachi2"
         },
         {
-          "name": "cdx:npm:package:development",
+          "name": "cdx:npm:package:bundled",
           "value": "true"
         },
         {
-          "name": "cdx:npm:package:bundled",
+          "name": "cdx:npm:package:development",
           "value": "true"
         }
       ],
@@ -261,11 +261,11 @@
           "value": "cachi2"
         },
         {
-          "name": "cdx:npm:package:development",
+          "name": "cdx:npm:package:bundled",
           "value": "true"
         },
         {
-          "name": "cdx:npm:package:bundled",
+          "name": "cdx:npm:package:development",
           "value": "true"
         }
       ],
@@ -281,11 +281,11 @@
           "value": "cachi2"
         },
         {
-          "name": "cdx:npm:package:development",
+          "name": "cdx:npm:package:bundled",
           "value": "true"
         },
         {
-          "name": "cdx:npm:package:bundled",
+          "name": "cdx:npm:package:development",
           "value": "true"
         }
       ],
@@ -301,11 +301,11 @@
           "value": "cachi2"
         },
         {
-          "name": "cdx:npm:package:development",
+          "name": "cdx:npm:package:bundled",
           "value": "true"
         },
         {
-          "name": "cdx:npm:package:bundled",
+          "name": "cdx:npm:package:development",
           "value": "true"
         }
       ],
@@ -321,11 +321,11 @@
           "value": "cachi2"
         },
         {
-          "name": "cdx:npm:package:development",
+          "name": "cdx:npm:package:bundled",
           "value": "true"
         },
         {
-          "name": "cdx:npm:package:bundled",
+          "name": "cdx:npm:package:development",
           "value": "true"
         }
       ],
@@ -341,11 +341,11 @@
           "value": "cachi2"
         },
         {
-          "name": "cdx:npm:package:development",
+          "name": "cdx:npm:package:bundled",
           "value": "true"
         },
         {
-          "name": "cdx:npm:package:bundled",
+          "name": "cdx:npm:package:development",
           "value": "true"
         }
       ],
@@ -361,11 +361,11 @@
           "value": "cachi2"
         },
         {
-          "name": "cdx:npm:package:development",
+          "name": "cdx:npm:package:bundled",
           "value": "true"
         },
         {
-          "name": "cdx:npm:package:bundled",
+          "name": "cdx:npm:package:development",
           "value": "true"
         }
       ],
@@ -381,11 +381,11 @@
           "value": "cachi2"
         },
         {
-          "name": "cdx:npm:package:development",
+          "name": "cdx:npm:package:bundled",
           "value": "true"
         },
         {
-          "name": "cdx:npm:package:bundled",
+          "name": "cdx:npm:package:development",
           "value": "true"
         }
       ],
@@ -401,11 +401,11 @@
           "value": "cachi2"
         },
         {
-          "name": "cdx:npm:package:development",
+          "name": "cdx:npm:package:bundled",
           "value": "true"
         },
         {
-          "name": "cdx:npm:package:bundled",
+          "name": "cdx:npm:package:development",
           "value": "true"
         }
       ],
@@ -421,11 +421,11 @@
           "value": "cachi2"
         },
         {
-          "name": "cdx:npm:package:development",
+          "name": "cdx:npm:package:bundled",
           "value": "true"
         },
         {
-          "name": "cdx:npm:package:bundled",
+          "name": "cdx:npm:package:development",
           "value": "true"
         }
       ],
@@ -441,11 +441,11 @@
           "value": "cachi2"
         },
         {
-          "name": "cdx:npm:package:development",
+          "name": "cdx:npm:package:bundled",
           "value": "true"
         },
         {
-          "name": "cdx:npm:package:bundled",
+          "name": "cdx:npm:package:development",
           "value": "true"
         }
       ],
@@ -473,11 +473,11 @@
           "value": "cachi2"
         },
         {
-          "name": "cdx:npm:package:development",
+          "name": "cdx:npm:package:bundled",
           "value": "true"
         },
         {
-          "name": "cdx:npm:package:bundled",
+          "name": "cdx:npm:package:development",
           "value": "true"
         }
       ],
@@ -493,11 +493,11 @@
           "value": "cachi2"
         },
         {
-          "name": "cdx:npm:package:development",
+          "name": "cdx:npm:package:bundled",
           "value": "true"
         },
         {
-          "name": "cdx:npm:package:bundled",
+          "name": "cdx:npm:package:development",
           "value": "true"
         }
       ],
@@ -513,11 +513,11 @@
           "value": "cachi2"
         },
         {
-          "name": "cdx:npm:package:development",
+          "name": "cdx:npm:package:bundled",
           "value": "true"
         },
         {
-          "name": "cdx:npm:package:bundled",
+          "name": "cdx:npm:package:development",
           "value": "true"
         }
       ],
@@ -533,11 +533,11 @@
           "value": "cachi2"
         },
         {
-          "name": "cdx:npm:package:development",
+          "name": "cdx:npm:package:bundled",
           "value": "true"
         },
         {
-          "name": "cdx:npm:package:bundled",
+          "name": "cdx:npm:package:development",
           "value": "true"
         }
       ],
@@ -553,11 +553,11 @@
           "value": "cachi2"
         },
         {
-          "name": "cdx:npm:package:development",
+          "name": "cdx:npm:package:bundled",
           "value": "true"
         },
         {
-          "name": "cdx:npm:package:bundled",
+          "name": "cdx:npm:package:development",
           "value": "true"
         }
       ],
@@ -573,11 +573,11 @@
           "value": "cachi2"
         },
         {
-          "name": "cdx:npm:package:development",
+          "name": "cdx:npm:package:bundled",
           "value": "true"
         },
         {
-          "name": "cdx:npm:package:bundled",
+          "name": "cdx:npm:package:development",
           "value": "true"
         }
       ],
@@ -593,11 +593,11 @@
           "value": "cachi2"
         },
         {
-          "name": "cdx:npm:package:development",
+          "name": "cdx:npm:package:bundled",
           "value": "true"
         },
         {
-          "name": "cdx:npm:package:bundled",
+          "name": "cdx:npm:package:development",
           "value": "true"
         }
       ],
@@ -613,11 +613,11 @@
           "value": "cachi2"
         },
         {
-          "name": "cdx:npm:package:development",
+          "name": "cdx:npm:package:bundled",
           "value": "true"
         },
         {
-          "name": "cdx:npm:package:bundled",
+          "name": "cdx:npm:package:development",
           "value": "true"
         }
       ],
@@ -633,11 +633,11 @@
           "value": "cachi2"
         },
         {
-          "name": "cdx:npm:package:development",
+          "name": "cdx:npm:package:bundled",
           "value": "true"
         },
         {
-          "name": "cdx:npm:package:bundled",
+          "name": "cdx:npm:package:development",
           "value": "true"
         }
       ],
@@ -653,11 +653,11 @@
           "value": "cachi2"
         },
         {
-          "name": "cdx:npm:package:development",
+          "name": "cdx:npm:package:bundled",
           "value": "true"
         },
         {
-          "name": "cdx:npm:package:bundled",
+          "name": "cdx:npm:package:development",
           "value": "true"
         }
       ],
@@ -673,11 +673,11 @@
           "value": "cachi2"
         },
         {
-          "name": "cdx:npm:package:development",
+          "name": "cdx:npm:package:bundled",
           "value": "true"
         },
         {
-          "name": "cdx:npm:package:bundled",
+          "name": "cdx:npm:package:development",
           "value": "true"
         }
       ],
@@ -693,11 +693,11 @@
           "value": "cachi2"
         },
         {
-          "name": "cdx:npm:package:development",
+          "name": "cdx:npm:package:bundled",
           "value": "true"
         },
         {
-          "name": "cdx:npm:package:bundled",
+          "name": "cdx:npm:package:development",
           "value": "true"
         }
       ],
@@ -713,11 +713,11 @@
           "value": "cachi2"
         },
         {
-          "name": "cdx:npm:package:development",
+          "name": "cdx:npm:package:bundled",
           "value": "true"
         },
         {
-          "name": "cdx:npm:package:bundled",
+          "name": "cdx:npm:package:development",
           "value": "true"
         }
       ],
@@ -733,11 +733,11 @@
           "value": "cachi2"
         },
         {
-          "name": "cdx:npm:package:development",
+          "name": "cdx:npm:package:bundled",
           "value": "true"
         },
         {
-          "name": "cdx:npm:package:bundled",
+          "name": "cdx:npm:package:development",
           "value": "true"
         }
       ],
@@ -753,11 +753,11 @@
           "value": "cachi2"
         },
         {
-          "name": "cdx:npm:package:development",
+          "name": "cdx:npm:package:bundled",
           "value": "true"
         },
         {
-          "name": "cdx:npm:package:bundled",
+          "name": "cdx:npm:package:development",
           "value": "true"
         }
       ],
@@ -773,11 +773,11 @@
           "value": "cachi2"
         },
         {
-          "name": "cdx:npm:package:development",
+          "name": "cdx:npm:package:bundled",
           "value": "true"
         },
         {
-          "name": "cdx:npm:package:bundled",
+          "name": "cdx:npm:package:development",
           "value": "true"
         }
       ],
@@ -793,11 +793,11 @@
           "value": "cachi2"
         },
         {
-          "name": "cdx:npm:package:development",
+          "name": "cdx:npm:package:bundled",
           "value": "true"
         },
         {
-          "name": "cdx:npm:package:bundled",
+          "name": "cdx:npm:package:development",
           "value": "true"
         }
       ],
@@ -813,11 +813,11 @@
           "value": "cachi2"
         },
         {
-          "name": "cdx:npm:package:development",
+          "name": "cdx:npm:package:bundled",
           "value": "true"
         },
         {
-          "name": "cdx:npm:package:bundled",
+          "name": "cdx:npm:package:development",
           "value": "true"
         }
       ],
@@ -833,11 +833,11 @@
           "value": "cachi2"
         },
         {
-          "name": "cdx:npm:package:development",
+          "name": "cdx:npm:package:bundled",
           "value": "true"
         },
         {
-          "name": "cdx:npm:package:bundled",
+          "name": "cdx:npm:package:development",
           "value": "true"
         }
       ],
@@ -853,11 +853,11 @@
           "value": "cachi2"
         },
         {
-          "name": "cdx:npm:package:development",
+          "name": "cdx:npm:package:bundled",
           "value": "true"
         },
         {
-          "name": "cdx:npm:package:bundled",
+          "name": "cdx:npm:package:development",
           "value": "true"
         }
       ],
@@ -873,11 +873,11 @@
           "value": "cachi2"
         },
         {
-          "name": "cdx:npm:package:development",
+          "name": "cdx:npm:package:bundled",
           "value": "true"
         },
         {
-          "name": "cdx:npm:package:bundled",
+          "name": "cdx:npm:package:development",
           "value": "true"
         }
       ],
@@ -893,11 +893,11 @@
           "value": "cachi2"
         },
         {
-          "name": "cdx:npm:package:development",
+          "name": "cdx:npm:package:bundled",
           "value": "true"
         },
         {
-          "name": "cdx:npm:package:bundled",
+          "name": "cdx:npm:package:development",
           "value": "true"
         }
       ],
@@ -913,11 +913,11 @@
           "value": "cachi2"
         },
         {
-          "name": "cdx:npm:package:development",
+          "name": "cdx:npm:package:bundled",
           "value": "true"
         },
         {
-          "name": "cdx:npm:package:bundled",
+          "name": "cdx:npm:package:development",
           "value": "true"
         }
       ],
@@ -933,11 +933,11 @@
           "value": "cachi2"
         },
         {
-          "name": "cdx:npm:package:development",
+          "name": "cdx:npm:package:bundled",
           "value": "true"
         },
         {
-          "name": "cdx:npm:package:bundled",
+          "name": "cdx:npm:package:development",
           "value": "true"
         }
       ],
@@ -953,11 +953,11 @@
           "value": "cachi2"
         },
         {
-          "name": "cdx:npm:package:development",
+          "name": "cdx:npm:package:bundled",
           "value": "true"
         },
         {
-          "name": "cdx:npm:package:bundled",
+          "name": "cdx:npm:package:development",
           "value": "true"
         }
       ],
@@ -973,11 +973,11 @@
           "value": "cachi2"
         },
         {
-          "name": "cdx:npm:package:development",
+          "name": "cdx:npm:package:bundled",
           "value": "true"
         },
         {
-          "name": "cdx:npm:package:bundled",
+          "name": "cdx:npm:package:development",
           "value": "true"
         }
       ],
@@ -993,11 +993,11 @@
           "value": "cachi2"
         },
         {
-          "name": "cdx:npm:package:development",
+          "name": "cdx:npm:package:bundled",
           "value": "true"
         },
         {
-          "name": "cdx:npm:package:bundled",
+          "name": "cdx:npm:package:development",
           "value": "true"
         }
       ],
@@ -1013,11 +1013,11 @@
           "value": "cachi2"
         },
         {
-          "name": "cdx:npm:package:development",
+          "name": "cdx:npm:package:bundled",
           "value": "true"
         },
         {
-          "name": "cdx:npm:package:bundled",
+          "name": "cdx:npm:package:development",
           "value": "true"
         }
       ],
