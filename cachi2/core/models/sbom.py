@@ -4,11 +4,18 @@ import pydantic
 
 from cachi2.core.models.validators import unique_sorted
 
+PropertyName = Literal[
+    "cachi2:found_by",
+    "cachi2:missing_hash:in_file",
+    "cdx:npm:package:bundled",
+    "cdx:npm:package:development",
+]
+
 
 class Property(pydantic.BaseModel):
     """A property inside an SBOM component."""
 
-    name: str
+    name: PropertyName
     value: str
 
 
@@ -41,7 +48,7 @@ class Component(pydantic.BaseModel):
     @pydantic.validator("properties", always=True)
     def _add_found_by_property(cls, properties: list[Property]) -> list[Property]:
         if FOUND_BY_CACHI2_PROPERTY not in properties:
-            properties.insert(0, FOUND_BY_CACHI2_PROPERTY)
+            properties.append(FOUND_BY_CACHI2_PROPERTY)
 
         return properties
 

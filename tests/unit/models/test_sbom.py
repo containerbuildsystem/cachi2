@@ -57,8 +57,11 @@ class TestComponent:
                 [FOUND_BY_CACHI2_PROPERTY],
             ),
             (
-                [Property(name="a:random:prop", value="xpto")],
-                [FOUND_BY_CACHI2_PROPERTY, Property(name="a:random:prop", value="xpto")],
+                [Property(name="cachi2:missing_hash:in_file", value="go.sum")],
+                [
+                    Property(name="cachi2:missing_hash:in_file", value="go.sum"),
+                    FOUND_BY_CACHI2_PROPERTY,
+                ],
             ),
             (
                 [FOUND_BY_CACHI2_PROPERTY],

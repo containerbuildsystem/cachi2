@@ -816,8 +816,8 @@ def test_merge_npm_sbom_properties(
                     version="1.0.0",
                     purl="pkg:npm/foo@1.0.0",
                     properties=[
-                        Property(name="cachi2:found_by", value="cachi2"),
                         Property(name="cdx:npm:package:development", value="true"),
+                        Property(name="cachi2:found_by", value="cachi2"),
                     ],
                 ),
             ],
@@ -845,8 +845,8 @@ def test_merge_npm_sbom_properties(
                     version="1.0.0",
                     purl="pkg:npm/foo@1.0.0",
                     properties=[
-                        Property(name="cachi2:found_by", value="cachi2"),
                         Property(name="cdx:npm:package:bundled", value="true"),
+                        Property(name="cachi2:found_by", value="cachi2"),
                     ],
                 ),
             ],
