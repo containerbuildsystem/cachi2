@@ -85,13 +85,21 @@ class BuildConfig(pydantic.BaseModel):
 class RequestOutput(pydantic.BaseModel):
     """Results of processing one or more package managers."""
 
+    components: list[Component]
     build_config: BuildConfig
-    sbom: Sbom
+
+    def generate_sbom(self) -> Sbom:
+        """Generate the SBOM for this RequestOutput.
+
+        Note that RequestOutput may contain duplicated components, the Sbom model will de-duplicate
+        them automatically.
+        """
+        return Sbom(components=self.components)
 
     @classmethod
     def empty(cls) -> "RequestOutput":
         """Return an empty RequestOutput."""
-        return cls(sbom=Sbom(), build_config=BuildConfig())
+        return cls(components=[], build_config=BuildConfig())
 
     @classmethod
     def from_obj_list(
@@ -100,7 +108,7 @@ class RequestOutput(pydantic.BaseModel):
         environment_variables: Optional[list[EnvironmentVariable]] = None,
         project_files: Optional[list[ProjectFile]] = None,
     ) -> "RequestOutput":
-        """Create a RequestOutput from internal Sbom and BuildConfig contents."""
+        """Create a RequestOutput from components, environment variables and project files."""
         if environment_variables is None:
             environment_variables = []
 
@@ -108,8 +116,9 @@ class RequestOutput(pydantic.BaseModel):
             project_files = []
 
         return RequestOutput(
-            sbom=Sbom(components=components),
+            components=components,
             build_config=BuildConfig(
-                environment_variables=environment_variables, project_files=project_files
+                environment_variables=environment_variables,
+                project_files=project_files,
             ),
         )

@@ -3822,20 +3822,20 @@ def test_fetch_pip_source(
         "purl": f"pkg:pypi/spam@2.1?vcs_url=git%2Bhttps://github.com/my-org/my-repo%40{'f'*40}#foo",
         "dependencies": [
             {
-                "name": "eggs",
-                "version": None,
-                "type": "pip",
-                "dev": False,
-                "kind": "url",
-                "purl": "pkg:pypi/eggs?checksum=sha256:aaaaaaaaaa&download_url=https://x.org/eggs.zip",
-            },
-            {
                 "name": "ham",
                 "version": "3.2",
                 "type": "pip",
                 "dev": False,
                 "kind": "pypi",
                 "purl": "pkg:pypi/ham@3.2",
+            },
+            {
+                "name": "eggs",
+                "version": None,
+                "type": "pip",
+                "dev": False,
+                "kind": "url",
+                "purl": "pkg:pypi/eggs?checksum=sha256:aaaaaaaaaa&download_url=https://x.org/eggs.zip",
             },
         ],
     }
@@ -3844,12 +3844,9 @@ def test_fetch_pip_source(
         components = []
 
         for package in packages:
+            components.append(Component.from_package_dict(package))
             for dependency in package["dependencies"]:
                 components.append(Component.from_package_dict(dependency))
-
-            components.append(Component.from_package_dict(package))
-
-        components.sort(key=lambda c: c.key())
 
         return components
 
@@ -3865,7 +3862,7 @@ def test_fetch_pip_source(
     else:
         assert False
 
-    assert output.sbom.components == expect_packages
+    assert output.components == expect_packages
     assert output.build_config.project_files == expect_files
     assert len(output.build_config.environment_variables) == (2 if n_pip_packages > 0 else 0)
 

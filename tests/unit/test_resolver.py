@@ -44,9 +44,7 @@ NPM_OUTPUT = RequestOutput.from_obj_list(
 )
 
 COMBINED_OUTPUT = RequestOutput.from_obj_list(
-    components=(
-        GOMOD_OUTPUT.sbom.components + PIP_OUTPUT.sbom.components + NPM_OUTPUT.sbom.components
-    ),
+    components=GOMOD_OUTPUT.components + NPM_OUTPUT.components + PIP_OUTPUT.components,
     environment_variables=(
         GOMOD_OUTPUT.build_config.environment_variables
         + PIP_OUTPUT.build_config.environment_variables

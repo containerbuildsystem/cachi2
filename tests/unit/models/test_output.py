@@ -6,7 +6,6 @@ import pydantic
 import pytest
 
 from cachi2.core.models.output import BuildConfig, EnvironmentVariable, ProjectFile, RequestOutput
-from cachi2.core.models.sbom import Sbom
 
 
 class TestProjectFile:
@@ -96,7 +95,7 @@ class TestRequestOutput:
             (
                 {"components": [{"name": "mypkg"}]},
                 RequestOutput(
-                    sbom=Sbom(components=[{"name": "mypkg"}]),
+                    components=[{"name": "mypkg"}],
                     build_config=BuildConfig(),
                 ),
             ),
@@ -107,7 +106,7 @@ class TestRequestOutput:
                     "project_files": [{"abspath": "/first/path", "template": "foo"}],
                 },
                 RequestOutput(
-                    sbom=Sbom(components=[{"name": "mypkg"}]),
+                    components=[{"name": "mypkg"}],
                     build_config=BuildConfig(
                         environment_variables=[
                             EnvironmentVariable(name="a", value="y", kind="literal")

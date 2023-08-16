@@ -39,7 +39,7 @@ def _merge_outputs(outputs: Iterable[RequestOutput]) -> RequestOutput:
     project_files = []
 
     for output in outputs:
-        components.extend(output.sbom.components)
+        components.extend(output.components)
         env_vars.extend(output.build_config.environment_variables)
         project_files.extend(output.build_config.project_files)
 
