@@ -33,6 +33,7 @@ from cachi2.core.config import get_config
 from cachi2.core.errors import FetchError, GoModError, PackageRejected, UnexpectedFormat
 from cachi2.core.models.input import Request
 from cachi2.core.models.output import EnvironmentVariable, RequestOutput
+from cachi2.core.models.property_semantics import PropertySet
 from cachi2.core.models.sbom import Component
 from cachi2.core.rooted_path import PathOutsideRoot, RootedPath
 from cachi2.core.scm import get_repo_id
@@ -108,6 +109,8 @@ class Module(NamedTuple):
     real_path: real path to locate the package on the Internet, which might differ from its name
     version: the resolved version for this module
     main: if this is the main module in the repository subpath that is being processed
+    missing_hash_in_file: path (relative to repository root) to the go.sum file which should have
+        had a checksum for this module but didn't
     """
 
     name: str
@@ -115,6 +118,7 @@ class Module(NamedTuple):
     real_path: str
     version: str
     main: bool = False
+    missing_hash_in_file: Optional[Path] = None
 
     @property
     def purl(self) -> str:
@@ -129,7 +133,17 @@ class Module(NamedTuple):
 
     def to_component(self) -> Component:
         """Create a SBOM component for this module."""
-        return Component(name=self.name, version=self.version, purl=self.purl)
+        if self.missing_hash_in_file:
+            missing_hash_in_file = frozenset([str(self.missing_hash_in_file)])
+        else:
+            missing_hash_in_file = frozenset()
+
+        return Component(
+            name=self.name,
+            version=self.version,
+            purl=self.purl,
+            properties=PropertySet(missing_hash_in_file=missing_hash_in_file).to_properties(),
+        )
 
 
 class Package(NamedTuple):
@@ -226,22 +240,34 @@ def _create_modules_from_parsed_data(
     main_module: Module,
     main_module_dir: RootedPath,
     parsed_modules: Iterable[ParsedModule],
+    modules_in_go_sum: frozenset[ModuleID],
 ) -> list[Module]:
     def _create_module(module: ParsedModule) -> Module:
         mod_id = _get_module_id(module)
         name, version_or_path = mod_id
         original_name = module.path
+        missing_hash_in_file = None
 
         if not version_or_path.startswith("."):
             version = version_or_path
             real_path = name
+
+            if mod_id not in modules_in_go_sum:
+                missing_hash_in_file = main_module_dir.subpath_from_root / "go.sum"
+                log.warning("checksum not found in %s: %s@%s", missing_hash_in_file, name, version)
         else:
             # module/name v1.0.0 => ./local/path
             resolved_replacement_path = main_module_dir.join_within_root(version_or_path)
             version = _get_golang_version(module.path, resolved_replacement_path)
             real_path = _resolve_path_for_local_replacement(module)
 
-        return Module(name=name, version=version, original_name=original_name, real_path=real_path)
+        return Module(
+            name=name,
+            version=version,
+            original_name=original_name,
+            real_path=real_path,
+            missing_hash_in_file=missing_hash_in_file,
+        )
 
     def _resolve_path_for_local_replacement(module: ParsedModule) -> str:
         """Resolve all instances of "." and ".." for a local replacement."""
@@ -370,7 +396,10 @@ def fetch_gomod_source(request: Request) -> RequestOutput:
             modules = [main_module]
             modules.extend(
                 _create_modules_from_parsed_data(
-                    main_module, main_module_dir, resolve_result.parsed_modules
+                    main_module,
+                    main_module_dir,
+                    resolve_result.parsed_modules,
+                    resolve_result.modules_in_go_sum,
                 )
             )
 
