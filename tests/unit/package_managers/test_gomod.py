@@ -15,7 +15,7 @@ import pytest
 from cachi2.core.errors import GoModError, PackageRejected, UnexpectedFormat
 from cachi2.core.models.input import Flag, Request
 from cachi2.core.models.output import BuildConfig, RequestOutput
-from cachi2.core.models.sbom import Component
+from cachi2.core.models.sbom import Component, Property
 from cachi2.core.package_managers import gomod
 from cachi2.core.package_managers.gomod import (
     Module,
@@ -493,6 +493,13 @@ def test_create_modules_from_parsed_data(
         ),
     ]
 
+    modules_in_go_sum = frozenset(
+        [
+            ("golang.org/a/standard-module", "v0.0.0-20190311183353-d8887717615a"),
+            # another-org/useful-module is missing
+        ]
+    )
+
     expect_modules = [
         Module(
             name="golang.org/a/standard-module",
@@ -505,6 +512,7 @@ def test_create_modules_from_parsed_data(
             version="v2.0.0",
             original_name="github.com/a-neat-org/useful-module",
             real_path="github.com/another-org/useful-module",
+            missing_hash_in_file=Path("target-module/go.sum"),
         ),
         Module(
             name="github.com/some-org/this-other-module",
@@ -520,7 +528,9 @@ def test_create_modules_from_parsed_data(
         ),
     ]
 
-    modules = _create_modules_from_parsed_data(main_module, main_module_dir, parsed_modules)
+    modules = _create_modules_from_parsed_data(
+        main_module, main_module_dir, parsed_modules, modules_in_go_sum
+    )
 
     assert modules == expect_modules
 
@@ -1295,6 +1305,10 @@ def test_missing_gomod_file(file_tree: dict[str, Any], tmp_path: Path) -> None:
                             path="golang.org/x/net",
                             version="v0.0.0-20190311183353-d8887717615a",
                         ),
+                        ParsedModule(
+                            path="golang.org/x/tools",
+                            version="v0.7.0",
+                        ),
                     ],
                     [
                         ParsedPackage(
@@ -1312,7 +1326,7 @@ def test_missing_gomod_file(file_tree: dict[str, Any], tmp_path: Path) -> None:
                             ),
                         ),
                     ],
-                    frozenset(),
+                    frozenset([("golang.org/x/tools", "v0.7.0")]),
                 ),
             },
             [
@@ -1325,6 +1339,12 @@ def test_missing_gomod_file(file_tree: dict[str, Any], tmp_path: Path) -> None:
                     name="golang.org/x/net",
                     purl="pkg:golang/golang.org/x/net@v0.0.0-20190311183353-d8887717615a?type=module",
                     version="v0.0.0-20190311183353-d8887717615a",
+                    properties=[Property(name="cachi2:missing_hash:in_file", value="go.sum")],
+                ),
+                Component(
+                    name="golang.org/x/tools",
+                    purl="pkg:golang/golang.org/x/tools@v0.7.0?type=module",
+                    version="v0.7.0",
                 ),
                 Component(
                     name="github.com/my-org/my-repo",
@@ -1355,9 +1375,18 @@ def test_missing_gomod_file(file_tree: dict[str, Any], tmp_path: Path) -> None:
                         path="github.com/my-org/my-repo/path",
                         version="v1.0.0",
                     ),
+                    [
+                        ParsedModule(
+                            path="golang.org/x/net",
+                            version="v0.0.0-20190311183353-d8887717615a",
+                        ),
+                        ParsedModule(
+                            path="golang.org/x/tools",
+                            version="v0.7.0",
+                        ),
+                    ],
                     [],
-                    [],
-                    frozenset(),
+                    frozenset([("golang.org/x/tools", "v0.7.0")]),
                 ),
             },
             [
@@ -1370,6 +1399,17 @@ def test_missing_gomod_file(file_tree: dict[str, Any], tmp_path: Path) -> None:
                     name="github.com/my-org/my-repo/path",
                     purl="pkg:golang/github.com/my-org/my-repo/path@v1.0.0?type=module",
                     version="v1.0.0",
+                ),
+                Component(
+                    name="golang.org/x/net",
+                    purl="pkg:golang/golang.org/x/net@v0.0.0-20190311183353-d8887717615a?type=module",
+                    version="v0.0.0-20190311183353-d8887717615a",
+                    properties=[Property(name="cachi2:missing_hash:in_file", value="path/go.sum")],
+                ),
+                Component(
+                    name="golang.org/x/tools",
+                    purl="pkg:golang/golang.org/x/tools@v0.7.0?type=module",
+                    version="v0.7.0",
                 ),
             ],
         ),
