@@ -58,7 +58,7 @@ class TestComponent:
             ),
             (
                 [Property(name="a:random:prop", value="xpto")],
-                [Property(name="a:random:prop", value="xpto"), FOUND_BY_CACHI2_PROPERTY],
+                [FOUND_BY_CACHI2_PROPERTY, Property(name="a:random:prop", value="xpto")],
             ),
             (
                 [FOUND_BY_CACHI2_PROPERTY],
@@ -69,7 +69,7 @@ class TestComponent:
     def test_default_property(
         self, input_properties: list[Property], expected_properties: list[Property]
     ) -> None:
-        Component(name="foo", properties=input_properties).properties == expected_properties
+        assert Component(name="foo", properties=input_properties).properties == expected_properties
 
 
 class TestSbom:
