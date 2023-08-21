@@ -30,9 +30,9 @@ class Component(pydantic.BaseModel):
     """
 
     name: str
-    version: Optional[str]
+    purl: str
+    version: Optional[str] = None
     properties: list[Property] = []
-    purl: Optional[str]  # optional while it is not implemented for all package managers
     type: Literal["library"] = "library"
 
     def key(self) -> str:
@@ -40,10 +40,7 @@ class Component(pydantic.BaseModel):
 
         Used mainly for sorting and deduplication.
         """
-        if self.purl:
-            return self.purl
-
-        return f"{self.name}:{self.version}"
+        return self.purl
 
     @pydantic.validator("properties", always=True)
     def _add_found_by_property(cls, properties: list[Property]) -> list[Property]:

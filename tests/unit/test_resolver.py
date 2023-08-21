@@ -8,7 +8,14 @@ from cachi2.core.models.output import EnvironmentVariable, ProjectFile, RequestO
 from cachi2.core.models.sbom import Component
 
 GOMOD_OUTPUT = RequestOutput.from_obj_list(
-    components=[Component(type="library", name="github.com/foo/bar", version="v1.0.0")],
+    components=[
+        Component(
+            type="library",
+            name="github.com/foo/bar",
+            version="v1.0.0",
+            purl="pkg:golang/github.com/foo/bar@v1.0.0",
+        )
+    ],
     environment_variables=[
         EnvironmentVariable(name="GOMODCACHE", value="deps/gomod/pkg/mod", kind="path"),
     ],
@@ -32,7 +39,7 @@ PIP_OUTPUT = RequestOutput.from_obj_list(
 )
 
 NPM_OUTPUT = RequestOutput.from_obj_list(
-    components=[Component(type="library", name="eggs", version="1.0.0")],
+    components=[Component(type="library", name="eggs", version="1.0.0", purl="pkg:npm/eggs@1.0.0")],
     environment_variables=[
         EnvironmentVariable(name="CHROMEDRIVER_SKIP_DOWNLOAD", value="true", kind="literal"),
     ],

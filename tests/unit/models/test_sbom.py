@@ -8,21 +8,28 @@ class TestComponent:
     @pytest.mark.parametrize(
         "input_data, expected_data",
         [
-            ({"name": "mypkg"}, Component(name="mypkg")),
-            ({"name": "mypkg", "version": "1.0.0"}, Component(name="mypkg", version="1.0.0")),
             (
-                {"name": "mypkg", "version": "random-version-string"},
-                Component(name="mypkg", version="random-version-string"),
+                {"name": "mypkg", "purl": "pkg:generic/mypkg"},
+                Component(name="mypkg", purl="pkg:generic/mypkg"),
+            ),
+            (
+                {"name": "mypkg", "purl": "pkg:generic/mypkg@1.0.0", "version": "1.0.0"},
+                Component(name="mypkg", version="1.0.0", purl="pkg:generic/mypkg@1.0.0"),
+            ),
+            (
+                {"name": "mypkg", "purl": "pkg:generic/mypkg", "version": "random-version-string"},
+                Component(name="mypkg", version="random-version-string", purl="pkg:generic/mypkg"),
             ),
             (
                 {
                     "name": "mypkg",
+                    "purl": "pkg:generic/mypkg@1.0.0",
                     "version": "1.0.0",
                     "type": "gomod",
                     "path": ".",
                     "dependencies": [],
                 },
-                Component(name="mypkg", version="1.0.0"),
+                Component(name="mypkg", version="1.0.0", purl="pkg:generic/mypkg@1.0.0"),
             ),
         ],
     )
@@ -36,11 +43,19 @@ class TestComponent:
         "input_data, expect_error",
         [
             (
-                {},
+                {"purl": "pkg:generic/x"},
                 "1 validation error for Component\nname\n  field required",
             ),
             (
-                {"type": "gomod", "name": "github.com/org/cool-dep"},
+                {"name": "x"},
+                "1 validation error for Component\npurl\n  field required",
+            ),
+            (
+                {
+                    "type": "gomod",
+                    "name": "github.com/org/cool-dep",
+                    "purl": "pkg:golang/github.com/org/cool-dep",
+                },
                 "1 validation error for Component\ntype\n  unexpected value",
             ),
         ],
@@ -72,27 +87,57 @@ class TestComponent:
     def test_default_property(
         self, input_properties: list[Property], expected_properties: list[Property]
     ) -> None:
-        assert Component(name="foo", properties=input_properties).properties == expected_properties
+        assert (
+            Component(name="foo", purl="pkg:generic/foo", properties=input_properties).properties
+            == expected_properties
+        )
 
 
 class TestSbom:
     def test_sort_and_dedupe_components(self) -> None:
         sbom = Sbom(
             components=[
-                {"name": "github.com/org/B", "version": "v1.0.0"},
-                {"name": "github.com/org/A", "version": "v1.1.0"},
-                {"name": "github.com/org/A", "version": "v1.0.0"},
-                {"name": "github.com/org/A", "version": "v1.0.0"},
-                {"name": "github.com/org/B", "version": "v1.0.0"},
-                {"name": "fmt", "version": None},
-                {"name": "fmt", "version": None},
-                {"name": "bytes", "version": None},
+                {
+                    "name": "github.com/org/B",
+                    "version": "v1.0.0",
+                    "purl": "pkg:golang/github.com/org/B@v1.0.0",
+                },
+                {
+                    "name": "github.com/org/A",
+                    "version": "v1.1.0",
+                    "purl": "pkg:golang/github.com/org/A@v1.1.0",
+                },
+                {
+                    "name": "github.com/org/A",
+                    "version": "v1.0.0",
+                    "purl": "pkg:golang/github.com/org/A@v1.0.0",
+                },
+                {
+                    "name": "github.com/org/A",
+                    "version": "v1.0.0",
+                    "purl": "pkg:golang/github.com/org/A@v1.0.0",
+                },
+                {
+                    "name": "github.com/org/B",
+                    "version": "v1.0.0",
+                    "purl": "pkg:golang/github.com/org/B@v1.0.0",
+                },
+                {"name": "fmt", "version": None, "purl": "pkg:golang/fmt"},
+                {"name": "fmt", "version": None, "purl": "pkg:golang/fmt"},
+                {"name": "bytes", "version": None, "purl": "pkg:golang/bytes"},
             ],
         )
+        print(sbom.components)
         assert sbom.components == [
-            Component(name="bytes", version=None),
-            Component(name="fmt", version=None),
-            Component(name="github.com/org/A", version="v1.0.0"),
-            Component(name="github.com/org/A", version="v1.1.0"),
-            Component(name="github.com/org/B", version="v1.0.0"),
+            Component(name="bytes", purl="pkg:golang/bytes"),
+            Component(name="fmt", purl="pkg:golang/fmt"),
+            Component(
+                name="github.com/org/A", purl="pkg:golang/github.com/org/A@v1.0.0", version="v1.0.0"
+            ),
+            Component(
+                name="github.com/org/A", purl="pkg:golang/github.com/org/A@v1.1.0", version="v1.1.0"
+            ),
+            Component(
+                name="github.com/org/B", purl="pkg:golang/github.com/org/B@v1.0.0", version="v1.0.0"
+            ),
         ]
