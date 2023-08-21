@@ -93,20 +93,20 @@ class TestRequestOutput:
         "input_data, expected_data",
         [
             (
-                {"components": [{"name": "mypkg"}]},
+                {"components": [{"name": "mypkg", "purl": "pkg:generic/mypkg"}]},
                 RequestOutput(
-                    components=[{"name": "mypkg"}],
+                    components=[{"name": "mypkg", "purl": "pkg:generic/mypkg"}],
                     build_config=BuildConfig(),
                 ),
             ),
             (
                 {
-                    "components": [{"name": "mypkg"}],
+                    "components": [{"name": "mypkg", "purl": "pkg:generic/mypkg"}],
                     "environment_variables": [{"name": "a", "value": "y", "kind": "literal"}],
                     "project_files": [{"abspath": "/first/path", "template": "foo"}],
                 },
                 RequestOutput(
-                    components=[{"name": "mypkg"}],
+                    components=[{"name": "mypkg", "purl": "pkg:generic/mypkg"}],
                     build_config=BuildConfig(
                         environment_variables=[
                             EnvironmentVariable(name="a", value="y", kind="literal")

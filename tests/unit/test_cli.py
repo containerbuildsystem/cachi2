@@ -106,7 +106,14 @@ class TestTopLevelOpts:
         args = ["--config-file", file, "fetch-deps", "gomod"]
 
         output = RequestOutput.from_obj_list(
-            components=[Component(name="cool-package", version="v1.0.0", type="library")],
+            components=[
+                Component(
+                    name="cool-package",
+                    version="v1.0.0",
+                    purl="pkg:generic/cool-package@v1.0.0",
+                    type="library",
+                )
+            ],
             environment_variables=[
                 EnvironmentVariable(name="GOMOD_SOMETHING", value="yes", kind="literal"),
             ],
@@ -578,7 +585,14 @@ class TestFetchDeps:
         [
             RequestOutput.empty(),
             RequestOutput.from_obj_list(
-                components=[Component(name="cool-package", version="v1.0.0", type="library")],
+                components=[
+                    Component(
+                        name="cool-package",
+                        version="v1.0.0",
+                        purl="pkg:generic/cool-package@v1.0.0",
+                        type="library",
+                    )
+                ],
                 environment_variables=[
                     EnvironmentVariable(name="GOMOD_SOMETHING", value="yes", kind="literal"),
                 ],
