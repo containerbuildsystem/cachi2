@@ -62,6 +62,7 @@ def must_match_any_checksum(
                              (for any of the supported algorithms)
     """
     filename = Path(file_path).name
+    log.info("Verifying checksums of %s", filename)
     mismatches: list[_MismatchInfo] = []
 
     for algorithm, expected_digests in _group_by_algorithm(expected_checksums).items():

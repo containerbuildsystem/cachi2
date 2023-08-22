@@ -79,13 +79,17 @@ def test_verify_checksum(
     tmp_path: Path,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    file = tmp_path.joinpath("spells.txt")
-    file.write_text(FILE_CONTENT)
+    filename = "spells.txt"
+    path = tmp_path.joinpath(filename)
+    path.write_text(FILE_CONTENT)
     caplog.set_level("DEBUG")
 
-    must_match_any_checksum(file, checksums)
+    must_match_any_checksum(path, checksums)
 
-    assert caplog.messages == [f"spells.txt: {expect_log_msg}"]
+    assert caplog.messages == [
+        f"Verifying checksums of {filename}",
+        f"{filename}: {expect_log_msg}",
+    ]
 
 
 @pytest.mark.parametrize(

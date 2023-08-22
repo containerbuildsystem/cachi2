@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 import ast
+import asyncio
 import configparser
 import functools
 import io
@@ -10,9 +11,20 @@ import tarfile
 import urllib
 import zipfile
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from os import PathLike
 from pathlib import Path
-from typing import IO, TYPE_CHECKING, Any, Iterable, Iterator, Optional, no_type_check
+from typing import (
+    IO,
+    TYPE_CHECKING,
+    Any,
+    Iterable,
+    Iterator,
+    Literal,
+    Optional,
+    Union,
+    no_type_check,
+)
 
 import tomli
 from packageurl import PackageURL
@@ -23,11 +35,10 @@ from cachi2.core.scm import clone_as_tarball, get_repo_id
 if TYPE_CHECKING:
     from typing_extensions import TypeGuard
 
-import bs4
 import pkg_resources
+import pypi_simple
 import requests
 from packaging.utils import canonicalize_name, canonicalize_version
-from requests.auth import AuthBase
 
 from cachi2.core.checksum import ChecksumInfo, must_match_any_checksum
 from cachi2.core.config import get_config
@@ -36,9 +47,9 @@ from cachi2.core.models.input import Request
 from cachi2.core.models.output import EnvironmentVariable, ProjectFile, RequestOutput
 from cachi2.core.models.sbom import Component, Property
 from cachi2.core.package_managers.general import (
+    async_download_files,
     download_binary_file,
     extract_git_info,
-    pkg_requests_session,
 )
 
 log = logging.getLogger(__name__)
@@ -776,16 +787,16 @@ class SetupPY(SetupFile):
         if self._is_setup_call(root_node):
             return root_node, []
 
-        for name, field in ast.iter_fields(root_node):
-            # Field is a node
-            if isinstance(field, ast.AST):
-                setup_call, setup_path = self._find_setup_call(field)
+        for name, value in ast.iter_fields(root_node):
+            # Value is a node
+            if isinstance(value, ast.AST):
+                setup_call, setup_path = self._find_setup_call(value)
                 if setup_call is not None:
                     setup_path.append(ASTPathElement(root_node, name))
                     return setup_call, setup_path
-            # Field is a list of nodes (use any(), nodes will never be mixed with non-nodes)
-            elif isinstance(field, list) and any(isinstance(x, ast.AST) for x in field):
-                for i, node in enumerate(field):
+            # Value is a list of nodes (use any(), nodes will never be mixed with non-nodes)
+            elif isinstance(value, list) and any(isinstance(x, ast.AST) for x in value):
+                for i, node in enumerate(value):
                     setup_call, setup_path = self._find_setup_call(node)
                     if setup_call is not None:
                         setup_path.append(ASTPathElement(root_node, name, i))
@@ -1370,7 +1381,7 @@ class PipRequirement:
 
 
 def _download_dependencies(
-    output_dir: RootedPath, requirements_file: PipRequirementsFile
+    output_dir: RootedPath, requirements_file: PipRequirementsFile, allow_binary: bool = False
 ) -> list[dict[str, Any]]:
     """
     Download sdists (source distributions) of all dependencies in a requirements.txt file.
@@ -1402,14 +1413,21 @@ def _download_dependencies(
     pip_deps_dir = output_dir.join_within_root("deps", "pip")
     pip_deps_dir.path.mkdir(parents=True, exist_ok=True)
 
-    downloads = []
+    downloaded = []
+    to_download: list[DistributionPackageInfo] = []
 
     for req in requirements_file.requirements:
         log.info("Downloading %s", req.download_line)
 
         if req.kind == "pypi":
-            download_info = _download_pypi_package(req, pip_deps_dir, PYPI_URL)
-            _check_metadata_in_sdist(download_info["path"])
+            source, wheels = _process_package_distributions(req, pip_deps_dir, allow_binary)
+            if allow_binary:
+                to_download.extend(w for w in wheels if not w.path.exists())
+
+            download_binary_file(source.url, source.path, auth=None)
+            _check_metadata_in_sdist(source.path)
+            download_info = source.download_info
+
         elif req.kind == "vcs":
             download_info = _download_vcs_package(req, pip_deps_dir)
         elif req.kind == "url":
@@ -1426,16 +1444,29 @@ def _download_dependencies(
 
         if require_hashes or req.kind == "url":
             hashes = req.hashes or [req.qualifiers["cachito_hash"]]
-            _verify_hash(download_info["path"], hashes)
+            must_match_any_checksum(download_info["path"], list(map(_to_checksum_info, hashes)))
             download_info["hash_verified"] = True
         else:
             download_info["hash_verified"] = False
 
         download_info["kind"] = req.kind
         download_info["requirement_file"] = str(requirements_file.file_path.subpath_from_root)
-        downloads.append(download_info)
+        downloaded.append(download_info)
 
-    return downloads
+    if allow_binary:
+        log.info("Downloading %d wheel(s) ...", len(to_download))
+        files: dict[str, Union[str, PathLike[str]]] = {pkg.url: pkg.path for pkg in to_download}
+        asyncio.run(async_download_files(files, get_config().concurrency_limit))
+
+        for pkg in to_download:
+            try:
+                if pkg.should_verify_checksums():
+                    must_match_any_checksum(pkg.path, pkg.checksums_to_verify)
+            except PackageRejected:
+                pkg.path.unlink()
+                log.warning("The %s is removed from the output directory", pkg.path.name)
+
+    return downloaded
 
 
 def _process_options(options: list[str]) -> dict[str, Any]:
@@ -1620,52 +1651,141 @@ def _validate_provided_hashes(requirements: list[PipRequirement], require_hashes
                 raise PackageRejected(msg, solution=None)
 
 
-def _download_pypi_package(
-    requirement: PipRequirement,
-    pip_deps_dir: RootedPath,
-    pypi_url: str,
-    pypi_auth: Optional[AuthBase] = None,
-) -> dict[str, Any]:
-    """
-    Download the sdist (source distribution) of a PyPI package.
+@dataclass
+class DistributionPackageInfo:
+    """A class representing relevant information about a distribution package."""
 
-    The package must be pinned to an exact version using the '==' (or '===') operator.
-    While the specification defines the '==' operator as slightly magical (reference:
-    https://www.python.org/dev/peps/pep-0440/#version-matching), we treat the version
-    as exact (after normalization).
+    name: str
+    version: str
+    package_type: Literal["sdist", "wheel"]
+    path: Path
+    url: str
+    is_yanked: bool
 
-    Does not download any dependencies (implied: ignores extras). Ignores environment
-    markers (target environment is not known to Cachi2).
+    pypi_checksums: set[ChecksumInfo] = field(default_factory=set)
+    user_checksums: set[ChecksumInfo] = field(default_factory=set)
 
-    :param PipRequirement requirement: PyPI requirement from a requirement.txt file
-    :param RootedPath pip_deps_dir: The deps/pip directory in a Cachi2 request bundle
-    :param str pypi_url: URL of the PyPI server or a proxy
-    :param (requests.auth.AuthBase | None) pypi_auth: Authorization for the PyPI server
+    checksums_to_verify: set[ChecksumInfo] = field(init=False, default_factory=set)
 
-    :return: Dict with package name, version and download path
-    :raises FetchError: if PyPI query failed
-    :raises PackageRejected: if sdists for the package is not found or yanked
-    """
-    timeout = get_config().requests_timeout
-    package = requirement.package
+    def __post_init__(self) -> None:
+        if self.package_type == "wheel":
+            self.checksums_to_verify = self._determine_checksums_to_verify()
+
+    def _determine_checksums_to_verify(self) -> set[ChecksumInfo]:
+        """Determine the set of checksums to verify for a given distribution package."""
+        matching = self.pypi_checksums.intersection(self.user_checksums)
+
+        if self.pypi_checksums and self.user_checksums:
+            checksums = matching or set()
+            msg = "using intersection of user specified and PyPI reported checksums"
+        elif self.pypi_checksums:
+            checksums = self.pypi_checksums
+            msg = "using PyPI reported checksums"
+        elif self.user_checksums:
+            checksums = self.user_checksums
+            msg = "using user specified checksums"
+        else:
+            checksums = set()
+            msg = "no checksums reported by PyPI or specified by the user"
+
+        log.debug("%s: %s", self.path.name, msg)
+        return checksums
+
+    def should_download_wheel(self) -> bool:
+        """Determine if the wheel should be downloaded.
+
+        If the user specified any checksums, but they do not match with those
+        reported by PyPI, we do not want to download the wheel.
+
+        Otherwise, we do.
+        """
+        return self.package_type == "wheel" and (
+            len(self.checksums_to_verify) > 0
+            or len(self.pypi_checksums) == 0
+            or len(self.user_checksums) == 0
+        )
+
+    def should_verify_checksums(self) -> bool:
+        """Check if checksum verification is required."""
+        return len(self.checksums_to_verify) > 0
+
+    @property
+    def download_info(self) -> dict[str, Any]:
+        """Only necessary attributes to process download information."""
+        return {
+            "package": self.name,
+            "version": self.version,
+            "path": self.path,
+        }
+
+
+def _process_package_distributions(
+    requirement: PipRequirement, pip_deps_dir: RootedPath, allow_binary: bool = False
+) -> tuple[DistributionPackageInfo, list[DistributionPackageInfo]]:
+    name = requirement.package
     version = requirement.version_specs[0][1]
+    normalized_version = canonicalize_version(version)
 
-    # See https://www.python.org/dev/peps/pep-0503/
-    package_url = f"{pypi_url.rstrip('/')}/simple/{canonicalize_name(package)}/"
+    client = pypi_simple.PyPISimple()
     try:
-        pypi_resp = pkg_requests_session.get(package_url, auth=pypi_auth, timeout=timeout)
-        pypi_resp.raise_for_status()
-    except requests.RequestException as e:
+        timeout = get_config().requests_timeout
+        project_page = client.get_project_page(name, timeout)
+        packages = project_page.packages
+    except (requests.RequestException, pypi_simple.NoSuchProjectError) as e:
         raise FetchError(f"PyPI query failed: {e}")
 
-    html = bs4.BeautifulSoup(pypi_resp.text, "html.parser")
-    # Find all anchors anywhere in the doc, the PEP does not specify where they should be
-    links = html.find_all("a")
+    wheels = []
+    if allow_binary:
+        filtered = [
+            p
+            for p in packages
+            if p.version
+            and canonicalize_version(p.version) == normalized_version
+            and p.package_type == "wheel"
+        ]
 
-    sdists = _process_package_links(links, package, version)
+        user_checksums = set(map(_to_checksum_info, requirement.hashes))
+        for wheel in filtered:
+            pypi_checksums = {
+                ChecksumInfo(algorithm, digest) for algorithm, digest in wheel.digests.items()
+            }
+            wheel_info = DistributionPackageInfo(
+                name,
+                version,
+                "wheel",
+                pip_deps_dir.join_within_root(wheel.filename).path,
+                wheel.url,
+                wheel.is_yanked,
+                pypi_checksums=pypi_checksums,
+                user_checksums=user_checksums,
+            )
+
+            if wheel_info.should_download_wheel():
+                wheels.append(wheel_info)
+            else:
+                log.info("Filtering out %s due to checksum mismatch", wheel.filename)
+
+        if len(filtered) > 0 and len(wheels) == 0:
+            log.warning("All %s wheel distributions were filtered out", name)
+
+    sdists = [
+        DistributionPackageInfo(
+            name,
+            version,
+            "sdist",
+            pip_deps_dir.join_within_root(p.filename).path,
+            p.url,
+            p.is_yanked,
+        )
+        for p in packages
+        if p.version
+        and canonicalize_version(p.version) == normalized_version
+        and p.package_type == "sdist"
+    ]
+
     if not sdists:
         raise PackageRejected(
-            f"No sdists found for package {package}=={version}",
+            f"No sdists found for package {name}=={version}",
             solution=(
                 "It seems that this version does not exist or isn't published as a sdist "
                 "(a zip or a tarball).\n"
@@ -1675,82 +1795,22 @@ def _download_pypi_package(
             docs=PIP_NO_SDIST_DOC,
         )
 
-    # Choose best candidate based on sorting key
-    sdist = max(sdists, key=_sdist_preference)
-    if sdist.get("yanked", False):
+    best_sdist = max(sdists, key=_sdist_preference)
+    if best_sdist.is_yanked:
         raise PackageRejected(
-            f"All sdists for package {package}=={version} are yanked",
+            f"All sdists for package {name}=={version} are yanked",
             solution=(
-                f"Please update the {package} version in your requirements file.\n"
+                f"Please update the {name} version in your requirements file.\n"
                 "Usually, when a version gets yanked from PyPI, there will already "
                 "be a fixed version available.\n"
                 "Otherwise, you may need to pin to the previous version."
             ),
         )
 
-    download_to = pip_deps_dir.join_within_root(sdist["filename"])
-
-    # URLs may be absolute or relative, see https://peps.python.org/pep-0503/
-    sdist_url = urllib.parse.urljoin(package_url, sdist["url"])
-    download_binary_file(sdist_url, download_to.path, auth=pypi_auth)
-
-    return {
-        "package": sdist["name"],
-        "version": sdist["version"],
-        "path": download_to.path,
-    }
+    return best_sdist, wheels
 
 
-def _process_package_links(links: Iterable, name: str, version: str) -> list[dict[str, Any]]:
-    """
-    Process links to Python packages.
-
-    Pick out sdists at the specified version, return metadata about found sdists.
-
-    :param Iterable links: Iterable of html anchor elements
-    :param str name: Package name
-    :param str version: Package version
-    :return: List of dicts with processed metadata
-    """
-    canonical_name = canonicalize_name(name)
-    canonical_version = canonicalize_version(version)
-
-    # When matching package name, use a regex that will match any non-canonical
-    # variation of the canonical name (it also needs to be case-insensitive).
-    # See https://www.python.org/dev/peps/pep-0503/#normalized-names.
-    noncanonical_name_pattern = re.escape(canonical_name).replace("\\-", "[-_.]+")
-    sdist_re = re.compile(
-        # <name>-<version><extension>
-        rf"^({noncanonical_name_pattern})-(.+)(?:{SDIST_EXT_PATTERN})$",
-        re.IGNORECASE,
-    )
-
-    sdists = []
-
-    for link in links:
-        match = sdist_re.match(link.text)
-        if not match:
-            continue
-
-        name, version = match.groups()
-        if canonical_version != canonicalize_version(version):
-            continue
-
-        sdists.append(
-            {
-                "name": name,
-                "version": version,
-                "filename": link.text,
-                "url": link.get("href"),
-                # https://www.python.org/dev/peps/pep-0592/
-                "yanked": link.get("data-yanked") is not None,
-            }
-        )
-
-    return sdists
-
-
-def _sdist_preference(sdist_pkg: dict[str, Any]) -> tuple[int, int]:
+def _sdist_preference(sdist_pkg: DistributionPackageInfo) -> tuple[int, int]:
     """
     Compute preference for a sdist package, can be used to sort in ascending order.
 
@@ -1761,9 +1821,9 @@ def _sdist_preference(sdist_pkg: dict[str, Any]) -> tuple[int, int]:
     :return: Tuple of integers to use as sorting key
     """
     # Higher number = higher preference
-    yanked_pref = 0 if sdist_pkg.get("yanked", False) else 1
+    yanked_pref = 0 if sdist_pkg.is_yanked else 1
 
-    filename = sdist_pkg["filename"]
+    filename = sdist_pkg.name
     if filename.endswith(".tar.gz"):
         filetype_pref = 2
     elif filename.endswith(".zip"):
@@ -1855,26 +1915,35 @@ def _add_cachito_hash_to_url(parsed_url: urllib.parse.ParseResult, hash_spec: st
     return parsed_url._replace(fragment=new_fragment).geturl()
 
 
-def _verify_hash(download_path: Path, hashes: list[str]) -> None:
-    """
-    Check that the downloaded archive verifies against at least one of the provided hashes.
+def _to_checksum_info(hash_: str) -> ChecksumInfo:
+    algorithm, _, digest = hash_.partition(":")
+    return ChecksumInfo(algorithm, digest)
 
-    :param download_path: Path to downloaded file
-    :param hashes: All provided hashes for requirement
-    :raise PackageRejected: If computed hash does not match any of the provided hashes
-    """
 
-    def to_checksum_info(hash_: str) -> ChecksumInfo:
-        algorithm, _, digest = hash_.partition(":")
-        return ChecksumInfo(algorithm, digest)
+# note: this function is not used anymore
+# it might be deleted as soon as the pypi hash verification strategy is resolved
+def _get_user_checksums(
+    req_files: list[PipRequirementsFile],
+) -> dict[tuple[str, str], set[ChecksumInfo]]:
+    result: dict[tuple[str, str], set[ChecksumInfo]] = dict()
 
-    log.info(f"Verifying checksum of {download_path.name}")
-    checksums = list(map(to_checksum_info, hashes))
-    must_match_any_checksum(download_path, checksums)
+    for req_file in req_files:
+        for req in req_file.requirements:
+            if req.kind != "pypi":
+                continue
+
+            normalized_name = canonicalize_name(req.package)
+            normalized_version = canonicalize_version(req.version_specs[0][1])
+            key = (normalized_name, normalized_version)
+
+            checksums = set(map(_to_checksum_info, req.hashes))
+            result[key] = result.get(key, set()).union(checksums)
+
+    return result
 
 
 def _download_from_requirement_files(
-    output_dir: RootedPath, files: list[RootedPath]
+    output_dir: RootedPath, files: list[RootedPath], allow_binary: bool = False
 ) -> list[dict[str, Any]]:
     """
     Download dependencies listed in the requirement files.
@@ -1892,7 +1961,10 @@ def _download_from_requirement_files(
                 f"The requirements file does not exist: {req_file}",
                 solution="Please check that you have specified correct requirements file paths",
             )
-        requirements.extend(_download_dependencies(output_dir, PipRequirementsFile(req_file)))
+        requirements.extend(
+            _download_dependencies(output_dir, PipRequirementsFile(req_file), allow_binary)
+        )
+
     return requirements
 
 
@@ -1945,8 +2017,10 @@ def _resolve_pip(
     else:
         resolved_build_req_files = [app_path.join_within_root(r) for r in build_requirement_files]
 
-    requires = _download_from_requirement_files(output_dir, resolved_req_files)
-    buildrequires = _download_from_requirement_files(output_dir, resolved_build_req_files)
+    requires = _download_from_requirement_files(output_dir, resolved_req_files, allow_binary)
+    buildrequires = _download_from_requirement_files(
+        output_dir, resolved_build_req_files, allow_binary
+    )
 
     # Mark all build dependencies as Cachi2 dev dependencies
     for dependency in buildrequires:

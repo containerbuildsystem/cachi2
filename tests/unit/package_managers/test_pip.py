@@ -8,15 +8,11 @@ from typing import Any, Literal, Optional, Union
 from unittest import mock
 from urllib.parse import urlparse
 
-import bs4
+import pypi_simple
 import pytest
-import requests
 from _pytest.logging import LogCaptureFixture
-from bs4 import ResultSet
-from requests.auth import HTTPBasicAuth
 
 from cachi2.core.checksum import ChecksumInfo
-from cachi2.core.config import get_config
 from cachi2.core.errors import (
     Cachi2Error,
     FetchError,
@@ -27,7 +23,7 @@ from cachi2.core.errors import (
 from cachi2.core.models.input import Request
 from cachi2.core.models.output import ProjectFile
 from cachi2.core.models.sbom import Component, Property
-from cachi2.core.package_managers import general, pip
+from cachi2.core.package_managers import pip
 from cachi2.core.rooted_path import PathOutsideRoot, RootedPath
 from cachi2.core.scm import RepoID
 from tests.common_utils import Symlink, write_file_tree
@@ -2615,42 +2611,6 @@ class TestPipRequirementsFile:
 class TestDownload:
     """Tests for dependency downloading."""
 
-    def mock_pypi_response(self, sdist_exists: bool, sdist_not_yanked: bool) -> str:
-        """Mock a PyPI HTML response from the /simple/<project> endpoint."""
-        egg_filename = "aiowsgi-0.7.egg"
-        tar_filename = "aiowsgi-0.7.tar.gz"
-
-        egg = f'<a href="../../package/{egg_filename}">{egg_filename}</a>'
-        if sdist_not_yanked:
-            sdist = f'<a href="../../packages/{tar_filename}">{tar_filename}</a>'
-        else:
-            sdist = f'<a href="../../packages/{tar_filename}" data-yanked="">{tar_filename}</a>'
-
-        html = dedent(
-            f"""
-            <html>
-              <body>
-                {egg}
-                {sdist if sdist_exists else ""}
-              </body>
-            </html>
-            """
-        )
-
-        return html
-
-    def mock_html_links(self, *anchors: str) -> ResultSet:
-        """Convert <a href=.../> strings into BeautifulSoup <a href=.../> elements."""
-        anchors_str = "\n".join(anchors)
-        html = dedent(
-            f"""
-            <html>
-            {anchors_str}
-            </html>
-            """
-        )
-        return bs4.BeautifulSoup(html, "html.parser").find_all("a")
-
     def mock_requirements_file(
         self, requirements: Optional[list] = None, options: Optional[list] = None
     ) -> Any:
@@ -2686,152 +2646,195 @@ class TestDownload:
             url=url,
         )
 
-    @pytest.mark.parametrize(
-        "pypi_query_success, sdist_exists, sdist_not_yanked",
-        [
-            (True, True, True),
-            (True, True, True),
-            (True, True, False),
-            (True, False, False),
-            (False, False, False),
-        ],
-    )
-    # Package name should be normalized before querying PyPI
-    @pytest.mark.parametrize("package_name", ["AioWSGI", "aiowsgi"])
-    @mock.patch.object(general.pkg_requests_session, "get")
-    @mock.patch("cachi2.core.package_managers.pip.download_binary_file")
-    def test_download_pypi_package(
+    def mock_pypi_simple_package(
         self,
-        mock_download_file: Any,
-        mock_get: Any,
-        pypi_query_success: bool,
-        sdist_exists: bool,
-        sdist_not_yanked: bool,
-        package_name: str,
+        filename: str,
+        version: str,
+        package_type: str = "sdist",
+        digests: Optional[dict[str, str]] = None,
+        is_yanked: bool = False,
+    ) -> pypi_simple.DistributionPackage:
+        return pypi_simple.DistributionPackage(
+            filename=filename,
+            url="",
+            project=None,
+            version=version,
+            package_type=package_type,
+            digests=digests or dict(),
+            requires_python=None,
+            has_sig=None,
+            is_yanked=is_yanked,
+        )
+
+    @mock.patch.object(pypi_simple.PyPISimple, "get_project_page")
+    def test_process_non_existing_package_distributions(
+        self,
+        mock_get_project_page: mock.Mock,
         rooted_tmp_path: RootedPath,
     ) -> None:
-        """Test downloading of a single PyPI package."""
-        timeout = get_config().requests_timeout
+        package_name = "does-not-exists"
         mock_requirement = self.mock_requirement(
-            package_name, "pypi", version_specs=[("==", "0.7")]
+            package_name, "pypi", version_specs=[("==", "1.0.0")]
         )
 
-        pypi_resp = self.mock_pypi_response(sdist_exists, sdist_not_yanked)
-        pypi_success = mock.Mock(text=pypi_resp)
-        pypi_fail = requests.RequestException("Something went wrong")
+        mock_get_project_page.side_effect = pypi_simple.NoSuchProjectError(package_name, "URL")
+        with pytest.raises(FetchError) as exc_info:
+            pip._process_package_distributions(mock_requirement, rooted_tmp_path)
 
-        mock_get.side_effect = [
-            pypi_success if pypi_query_success else pypi_fail,
-        ]
-
-        if not pypi_query_success:
-            expect_error = "PyPI query failed: Something went wrong"
-        elif not sdist_exists:
-            # The error message should show the package name unchanged, not normalized
-            expect_error = f"No sdists found for package {package_name}==0.7"
-        elif not sdist_not_yanked:
-            expect_error = f"All sdists for package {package_name}==0.7 are yanked"
-        else:
-            expect_error = None
-
-        if expect_error is None:
-            download_info = pip._download_pypi_package(
-                mock_requirement,
-                rooted_tmp_path,
-                "https://pypi-proxy.org/",
-                HTTPBasicAuth("user", "password"),
-            )
-            assert download_info == {
-                "package": "aiowsgi",
-                "version": "0.7",
-                "path": rooted_tmp_path.join_within_root("aiowsgi-0.7.tar.gz").path,
-            }
-
-            absolute_file_url = "https://pypi-proxy.org/packages/aiowsgi-0.7.tar.gz"
-            mock_download_file.assert_called_once_with(
-                absolute_file_url, download_info["path"], auth=HTTPBasicAuth("user", "password")
-            )
-        else:
-            with pytest.raises((PackageRejected, FetchError)) as exc_info:
-                pip._download_pypi_package(
-                    mock_requirement,
-                    rooted_tmp_path,
-                    "https://pypi-proxy.org",
-                    HTTPBasicAuth("user", "password"),
-                )
-            assert str(exc_info.value) == expect_error
-
-        mock_get.assert_called_once_with(
-            "https://pypi-proxy.org/simple/aiowsgi/",
-            auth=HTTPBasicAuth("user", "password"),
-            timeout=timeout,
+        assert (
+            str(exc_info.value)
+            == f"PyPI query failed: No details about project '{package_name}' available at URL"
         )
 
-    def test_process_package_links(self) -> None:
-        """Test processing of package links."""
-        links = self.mock_html_links(
-            '<a href="../foo-1.0.tar.gz">foo-1.0.tar.gz</a>',
-            '<a href="../foo-1.0.zip" data-yanked="">foo-1.0.zip</a>',
-        )
-        assert pip._process_package_links(links, "foo", "1.0") == [
-            {
-                "name": "foo",
-                "version": "1.0",
-                "url": "../foo-1.0.tar.gz",
-                "filename": "foo-1.0.tar.gz",
-                "yanked": False,
-            },
-            {
-                "name": "foo",
-                "version": "1.0",
-                "url": "../foo-1.0.zip",
-                "filename": "foo-1.0.zip",
-                "yanked": True,
-            },
-        ]
-
-    @pytest.mark.parametrize(
-        "noncanonical_name, canonical_name",
-        [
-            ("Django", "django"),
-            ("ruamel.yaml.clib", "ruamel-yaml-clib"),
-            ("requests_kerberos", "requests-kerberos"),
-            ("Requests_._-_Kerberos", "requests-kerberos"),
-        ],
-    )
-    @pytest.mark.parametrize("requested_name_is_canonical", [True, False])
-    @pytest.mark.parametrize("actual_name_is_canonical", [True, False])
-    def test_process_package_links_noncanonical_name(
+    @mock.patch.object(pypi_simple.PyPISimple, "get_project_page")
+    def test_process_existing_package_without_distributions(
         self,
-        canonical_name: str,
-        noncanonical_name: str,
-        requested_name_is_canonical: bool,
-        actual_name_is_canonical: bool,
+        mock_get_project_page: mock.Mock,
+        rooted_tmp_path: RootedPath,
     ) -> None:
-        """Test that canonical names match non-canonical names."""
-        if requested_name_is_canonical:
-            requested_name = canonical_name
-        else:
-            requested_name = noncanonical_name
-
-        if actual_name_is_canonical:
-            actual_name = canonical_name
-        else:
-            actual_name = noncanonical_name
-
-        links = self.mock_html_links(
-            f'<a href="../{actual_name}-1.0.tar.gz">{actual_name}-1.0.tar.gz</a>',
+        package_name = "aiowsgi"
+        version = "0.1.0"
+        mock_requirement = self.mock_requirement(
+            package_name, "pypi", version_specs=[("==", version)]
         )
 
-        assert pip._process_package_links(links, requested_name, "1.0") == [
-            {
-                "name": actual_name,
-                "version": "1.0",
-                "url": f"../{actual_name}-1.0.tar.gz",
-                "filename": f"{actual_name}-1.0.tar.gz",
-                "yanked": False,
-            }
-        ]
+        mock_get_project_page.return_value = pypi_simple.ProjectPage(package_name, [], None, None)
+        with pytest.raises(PackageRejected) as exc_info:
+            pip._process_package_distributions(mock_requirement, rooted_tmp_path)
+
+        assert str(exc_info.value) == f"No sdists found for package {package_name}=={version}"
+
+    @mock.patch.object(pypi_simple.PyPISimple, "get_project_page")
+    def test_process_yanked_package_distributions(
+        self,
+        mock_get_project_page: mock.Mock,
+        rooted_tmp_path: RootedPath,
+    ) -> None:
+        package_name = "aiowsgi"
+        version = "0.1.0"
+        mock_requirement = self.mock_requirement(
+            package_name, "pypi", version_specs=[("==", version)]
+        )
+
+        mock_get_project_page.return_value = pypi_simple.ProjectPage(
+            package_name,
+            [self.mock_pypi_simple_package(filename=package_name, version=version, is_yanked=True)],
+            None,
+            None,
+        )
+        with pytest.raises(PackageRejected) as exc_info:
+            pip._process_package_distributions(mock_requirement, rooted_tmp_path)
+
+        assert str(exc_info.value) == f"All sdists for package {package_name}=={version} are yanked"
+
+    @pytest.mark.parametrize("use_user_hashes", (True, False))
+    @pytest.mark.parametrize("use_pypi_digests", (True, False))
+    @mock.patch.object(pypi_simple.PyPISimple, "get_project_page")
+    def test_process_package_distributions_with_checksums(
+        self,
+        mock_get_project_page: mock.Mock,
+        use_user_hashes: bool,
+        use_pypi_digests: bool,
+        rooted_tmp_path: RootedPath,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        package_name = "aiowsgi"
+        version = "0.1.0"
+        mock_requirement = self.mock_requirement(
+            package_name,
+            "pypi",
+            version_specs=[("==", version)],
+            hashes=["sha128:abcdef", "sha256:abcdef", "sha512:xxxxxx"] if use_user_hashes else [],
+        )
+
+        mock_get_project_page.return_value = pypi_simple.ProjectPage(
+            package_name,
+            [
+                self.mock_pypi_simple_package(package_name, version, "sdist"),
+                self.mock_pypi_simple_package(
+                    package_name,
+                    version,
+                    "wheel",
+                    digests={"sha128": "abcdef", "sha256": "abcdef", "sha512": "yyyyyy"}
+                    if use_pypi_digests
+                    else {},
+                ),
+            ],
+            None,
+            None,
+        )
+        _, wheels = pip._process_package_distributions(
+            mock_requirement, rooted_tmp_path, allow_binary=True
+        )
+
+        if use_user_hashes and use_pypi_digests:
+            assert (
+                f"{package_name}: using intersection of user specified and PyPI reported checksums"
+                in caplog.text
+            )
+            assert wheels[0].checksums_to_verify == set(
+                [ChecksumInfo("sha128", "abcdef"), ChecksumInfo("sha256", "abcdef")]
+            )
+
+        elif use_user_hashes and not use_pypi_digests:
+            assert f"{package_name}: using user specified checksums" in caplog.text
+            assert wheels[0].checksums_to_verify == set(
+                [
+                    ChecksumInfo("sha128", "abcdef"),
+                    ChecksumInfo("sha256", "abcdef"),
+                    ChecksumInfo("sha512", "xxxxxx"),
+                ]
+            )
+
+        elif use_pypi_digests and not use_user_hashes:
+            assert f"{package_name}: using PyPI reported checksums" in caplog.text
+            assert wheels[0].checksums_to_verify == set(
+                [
+                    ChecksumInfo("sha128", "abcdef"),
+                    ChecksumInfo("sha256", "abcdef"),
+                    ChecksumInfo("sha512", "yyyyyy"),
+                ]
+            )
+
+        elif not use_user_hashes and not use_pypi_digests:
+            assert (
+                f"{package_name}: no checksums reported by PyPI or specified by the user"
+                in caplog.text
+            )
+            assert wheels[0].checksums_to_verify == set()
+
+    @mock.patch.object(pypi_simple.PyPISimple, "get_project_page")
+    def test_process_package_distributions_with_different_checksums(
+        self,
+        mock_get_project_page: mock.Mock,
+        rooted_tmp_path: RootedPath,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        package_name = "aiowsgi"
+        version = "0.1.0"
+        mock_requirement = self.mock_requirement(
+            package_name, "pypi", version_specs=[("==", version)], hashes=["sha128:abcdef"]
+        )
+
+        mock_get_project_page.return_value = pypi_simple.ProjectPage(
+            package_name,
+            [
+                self.mock_pypi_simple_package(package_name, version),
+                self.mock_pypi_simple_package(
+                    package_name, version, "wheel", digests={"sha256": "abcdef"}
+                ),
+            ],
+            None,
+            None,
+        )
+
+        _, wheels = pip._process_package_distributions(
+            mock_requirement, rooted_tmp_path, allow_binary=True
+        )
+
+        assert len(wheels) == 0
+        assert f"Filtering out {package_name} due to checksum mismatch" in caplog.text
+        assert f"All {package_name} wheel distributions were filtered out" in caplog.text
 
     @pytest.mark.parametrize(
         "noncanonical_version, canonical_version",
@@ -2847,8 +2850,11 @@ class TestDownload:
     )
     @pytest.mark.parametrize("requested_version_is_canonical", [True, False])
     @pytest.mark.parametrize("actual_version_is_canonical", [True, False])
-    def test_process_package_links_noncanonical_version(
+    @mock.patch.object(pypi_simple.PyPISimple, "get_project_page")
+    def test_process_package_distributions_noncanonical_version(
         self,
+        mock_get_project_page: mock.Mock,
+        rooted_tmp_path: RootedPath,
         canonical_version: str,
         noncanonical_version: str,
         requested_version_is_canonical: bool,
@@ -2865,58 +2871,63 @@ class TestDownload:
         else:
             actual_version = noncanonical_version
 
-        links = self.mock_html_links(
-            f'<a href="../foo-{actual_version}.tar.gz">foo-{actual_version}.tar.gz</a>',
+        mock_requirement = self.mock_requirement(
+            "foo", "pypi", version_specs=[("==", requested_version)]
+        )
+        mock_get_project_page.return_value = pypi_simple.ProjectPage(
+            "foo",
+            [
+                self.mock_pypi_simple_package(filename="foo.tar.gz", version=actual_version),
+                self.mock_pypi_simple_package(filename="foo-manylinux.whl", version=actual_version),
+            ],
+            None,
+            None,
         )
 
-        assert pip._process_package_links(links, "foo", requested_version) == [
-            {
-                "name": "foo",
-                "version": actual_version,
-                "url": f"../foo-{actual_version}.tar.gz",
-                "filename": f"foo-{actual_version}.tar.gz",
-                "yanked": False,
-            }
-        ]
-
-    def test_process_package_links_not_sdist(self) -> None:
-        """Test that links for files that are not sdists are ignored."""
-        links = self.mock_html_links(
-            '<a href="../foo-1.0.whl">foo-1.0.whl</a>',
-            '<a href="../foo-1.0.egg">foo-1.0.egg</a>',
-        )
-        assert pip._process_package_links(links, "foo", "1.0") == []
-
-    @pytest.mark.parametrize("requested_version", ["2.0", "1.0.a1", "1.0.post1", "1.0.dev1"])
-    def test_process_package_links_wrong_version(self, requested_version: str) -> None:
-        """Test that links for files with different version are ignored."""
-        links = self.mock_html_links(
-            '<a href="../foo-1.0.tar.gz">foo-1.0.tar.gz</a>',
-        )
-        assert pip._process_package_links(links, "foo", requested_version) == []
+        source, wheels = pip._process_package_distributions(mock_requirement, rooted_tmp_path)
+        assert source.version == requested_version
+        assert all(w.version == requested_version for w in wheels)
 
     def test_sdist_sorting(self) -> None:
         """Test that sdist preference key can be used for sorting in the expected order."""
+        unyanked_tar_gz = pip.DistributionPackageInfo(
+            "unyanked.tar.gz", "1", "sdist", Path(""), "", False
+        )
+        unyanked_zip = pip.DistributionPackageInfo(
+            "unyanked.zip", "1", "sdist", Path(""), "", False
+        )
+        unyanked_tar_bz2 = pip.DistributionPackageInfo(
+            "unyanked.tar.bz2", "1", "sdist", Path(""), "", False
+        )
+        yanked_tar_gz = pip.DistributionPackageInfo(
+            "yanked.tar.gz", "1", "sdist", Path(""), "", True
+        )
+        yanked_zip = pip.DistributionPackageInfo("yanked.zip", "1", "sdist", Path(""), "", True)
+        yanked_tar_bz2 = pip.DistributionPackageInfo(
+            "yanked.tar.bz2", "1", "sdist", Path(""), "", True
+        )
+
         # Original order is descending by preference
         sdists = [
-            {"id": "unyanked-tar.gz", "yanked": False, "filename": "foo.tar.gz"},
-            {"id": "unyanked-zip", "yanked": False, "filename": "foo.zip"},
-            {"id": "unyanked-tar.bz2", "yanked": False, "filename": "foo.tar.bz2"},
-            {"id": "yanked-tar.gz", "yanked": True, "filename": "foo.tar.gz"},
-            {"id": "yanked-zip", "yanked": True, "filename": "foo.zip"},
-            {"id": "yanked-tar.bz2", "yanked": True, "filename": "foo.tar.bz2"},
+            unyanked_tar_gz,
+            unyanked_zip,
+            unyanked_tar_bz2,
+            yanked_tar_gz,
+            yanked_zip,
+            yanked_tar_bz2,
         ]
         # Expected order is ascending by preference
         expect_order = [
-            "yanked-tar.bz2",
-            "yanked-zip",
-            "yanked-tar.gz",
-            "unyanked-tar.bz2",
-            "unyanked-zip",
-            "unyanked-tar.gz",
+            yanked_tar_bz2,
+            yanked_zip,
+            yanked_tar_gz,
+            unyanked_tar_bz2,
+            unyanked_zip,
+            unyanked_tar_gz,
         ]
+
         sdists.sort(key=pip._sdist_preference)
-        assert [s["id"] for s in sdists] == expect_order
+        assert sdists == expect_order
 
     @mock.patch("cachi2.core.package_managers.pip.clone_as_tarball")
     def test_download_vcs_package(
@@ -3229,20 +3240,28 @@ class TestDownload:
 
     @pytest.mark.parametrize("use_hashes", [True, False])
     @pytest.mark.parametrize("trusted_hosts", [[], ["example.org"]])
-    @mock.patch("cachi2.core.package_managers.pip._download_pypi_package")
+    @pytest.mark.parametrize("allow_binary", [True, False])
+    @mock.patch("cachi2.core.package_managers.pip._process_package_distributions")
     @mock.patch("cachi2.core.package_managers.pip._download_vcs_package")
     @mock.patch("cachi2.core.package_managers.pip._download_url_package")
     @mock.patch("cachi2.core.package_managers.pip.must_match_any_checksum")
+    @mock.patch.object(Path, "unlink")
+    @mock.patch("cachi2.core.package_managers.pip.async_download_files")
+    @mock.patch("cachi2.core.package_managers.pip.download_binary_file")
     @mock.patch("cachi2.core.package_managers.pip._check_metadata_in_sdist")
     def test_download_dependencies(
         self,
-        check_metadata_in_sdist: Any,
-        mock_match_checksum: Any,
-        mock_url_download: Any,
-        mock_vcs_download: Any,
-        mock_pypi_download: Any,
+        check_metadata_in_sdist: mock.Mock,
+        download_binary_file: mock.Mock,
+        async_download_files: mock.Mock,
+        mock_path_unlink: mock.Mock,
+        mock_match_checksum: mock.Mock,
+        mock_url_download: mock.Mock,
+        mock_vcs_download: mock.Mock,
+        mock_distributions: mock.Mock,
         use_hashes: bool,
         trusted_hosts: list[str],
+        allow_binary: bool,
         rooted_tmp_path: RootedPath,
         caplog: LogCaptureFixture,
     ) -> None:
@@ -3296,13 +3315,6 @@ class TestDownload:
             "external-bar", "bar-external-sha256-654321.tar.gz"
         ).path
 
-        pypi_info = {
-            "package": "foo",
-            "version": "1.0",
-            "path": pypi_download,
-            "hash_verified": use_hashes,
-            "requirement_file": str(req_file.file_path.subpath_from_root),
-        }
         vcs_info = {
             "package": "eggs",
             "path": vcs_download,
@@ -3320,15 +3332,69 @@ class TestDownload:
             "requirement_file": str(req_file.file_path.subpath_from_root),
         }
 
-        mock_pypi_download.return_value = deepcopy(pypi_info)
+        source_package = pip.DistributionPackageInfo(
+            "foo", "1.0", "sdist", pypi_download, "", False
+        )
+
+        w1_path = pip_deps.join_within_root("foo-1.0-cp25-win32.whl").path
+        w2_path = pip_deps.join_within_root("foo-1.0-cp35-many-linux.whl").path
+        w3_path = pip_deps.join_within_root("foo-1.0-any.whl").path
+
+        wheels = []
+        if allow_binary:
+            wheels = [
+                pip.DistributionPackageInfo(
+                    "foo",
+                    "1.0",
+                    "wheel",
+                    w1_path,
+                    "",
+                    False,
+                    pypi_checksums={ChecksumInfo("sha256", "abcdef")},
+                ),
+                pip.DistributionPackageInfo(
+                    "foo",
+                    "1.0",
+                    "wheel",
+                    w2_path,
+                    "",
+                    False,
+                    pypi_checksums={ChecksumInfo("sha256", "fedcba")},
+                ),
+                pip.DistributionPackageInfo("foo", "1.0", "wheel", w3_path, "", False),
+            ]
+
+        mock_distributions.return_value = source_package, wheels
         mock_vcs_download.return_value = deepcopy(vcs_info)
         mock_url_download.return_value = deepcopy(url_info)
+
+        if use_hashes:
+            mock_match_checksum.side_effect = [
+                # pypi_download
+                None,
+                # vcs_download
+                None,
+                # url_download
+                None,
+                # 1. wheel - checksums OK
+                None,
+                # 2. wheel - checksums NOK
+                PackageRejected("", solution=None),
+                # 3. wheel - no checksums to verify
+            ]
+        else:
+            mock_match_checksum.side_effect = [None, None, PackageRejected("", solution=None)]
         # </setup>
 
         # <call>
-        downloads = pip._download_dependencies(rooted_tmp_path, req_file)
+        downloads = pip._download_dependencies(rooted_tmp_path, req_file, allow_binary)
         assert downloads == [
-            pypi_info | {"kind": "pypi"},
+            source_package.download_info
+            | {
+                "kind": "pypi",
+                "hash_verified": use_hashes,
+                "requirement_file": str(req_file.file_path.subpath_from_root),
+            },
             vcs_info | {"kind": "vcs"},
             url_info | {"kind": "url"},
         ]
@@ -3336,8 +3402,8 @@ class TestDownload:
         # </call>
 
         # <check calls that must always be made>
-        check_metadata_in_sdist.assert_called_once_with(pypi_info["path"])
-        mock_pypi_download.assert_called_once_with(pypi_req, pip_deps, pip.PYPI_URL)
+        check_metadata_in_sdist.assert_called_once_with(source_package.path)
+        mock_distributions.assert_called_once_with(pypi_req, pip_deps, allow_binary)
         mock_vcs_download.assert_called_once_with(vcs_req, pip_deps)
         mock_url_download.assert_called_once_with(url_req, pip_deps, set(trusted_hosts))
         # </check calls that must always be made>
@@ -3348,7 +3414,7 @@ class TestDownload:
             msg = "At least one dependency uses the --hash option, will require hashes"
             assert msg in caplog.text
 
-            verify_checksum_calls = [
+            verify_checksums_calls = [
                 mock.call(pypi_download, [ChecksumInfo("sha256", "abcdef")]),
                 mock.call(vcs_download, [ChecksumInfo("sha256", "123456")]),
                 verify_url_checksum_call,
@@ -3357,16 +3423,19 @@ class TestDownload:
             msg = "No hash options used, will not require hashes unless HTTP(S) dependencies are present."
             assert msg in caplog.text
             # Hashes for URL dependencies should be verified no matter what
-            verify_checksum_calls = [verify_url_checksum_call]
+            verify_checksums_calls = [verify_url_checksum_call]
 
-        mock_match_checksum.assert_has_calls(verify_checksum_calls)
-        assert mock_match_checksum.call_count == len(verify_checksum_calls)
+        if allow_binary:
+            verify_checksums_calls.extend(
+                [
+                    mock.call(w1_path, {ChecksumInfo("sha256", "abcdef")}),
+                    mock.call(w2_path, {ChecksumInfo("sha256", "fedcba")}),
+                ]
+            )
 
-        if use_hashes:
-            assert f"Verifying checksum of {pypi_download.name}" in caplog.text
-            assert f"Verifying checksum of {vcs_download.name}" in caplog.text
+        mock_match_checksum.assert_has_calls(verify_checksums_calls)
+        assert mock_match_checksum.call_count == len(verify_checksums_calls)
 
-        assert f"Verifying checksum of {url_download.name}" in caplog.text
         # </check calls to checksum verification method>
 
         # <check basic logging output>
@@ -3388,33 +3457,77 @@ class TestDownload:
         ) in caplog.text
         # </check basic logging output>
 
-    @mock.patch("cachi2.core.package_managers.pip.must_match_any_checksum")
-    def test_checksum_verification(self, mock_match_checksum: Any) -> None:
-        """Test helper function for checksum verification."""
-        path = Path("/foo/bar.tar.gz")
-        hashes = [
-            "sha256:abcdef",
-            "sha256:123456",
-            "sha512:fedcba",
-            "sha512:654321",
-        ]
-        pip._verify_hash(path, hashes)
-        mock_match_checksum.assert_called_once_with(
-            path,
-            [
-                ChecksumInfo("sha256", "abcdef"),
-                ChecksumInfo("sha256", "123456"),
-                ChecksumInfo("sha512", "fedcba"),
-                ChecksumInfo("sha512", "654321"),
-            ],
-        )
+        # <check downloaded wheels>
+        if allow_binary:
+            assert f"Downloading {len(wheels)} wheel(s) ..." in caplog.text
+            # wheel #2 does not match any checksums
+            assert f"The {w2_path.name} is removed from the output directory" in caplog.text
+        # </check downloaded wheels>
 
-    @mock.patch("cachi2.core.package_managers.pip._download_pypi_package")
+    def test_get_user_checksums(self) -> None:
+        version_specs = [("==", "1.0.1")]
+        cano_version = pip.canonicalize_version(version_specs[0][1])
+
+        requirements = [
+            self.mock_requirement(
+                "r1", "pypi", version_specs=version_specs, hashes=["sha256:123456", "sha256:abcdef"]
+            ),
+            self.mock_requirement(
+                "r2", "pypi", version_specs=version_specs, hashes=["sha256:123456", "sha256:abcdef"]
+            ),
+            self.mock_requirement(
+                "b1", "pypi", version_specs=version_specs, hashes=["sha256:123456", "sha256:654321"]
+            ),
+            self.mock_requirement("extra", "vcs"),
+        ]
+        build_requirements = [
+            self.mock_requirement(
+                "b1", "pypi", version_specs=version_specs, hashes=["sha256:123456", "sha256:abcdef"]
+            ),
+            self.mock_requirement(
+                "b2", "pypi", version_specs=version_specs, hashes=["sha256:123456", "sha256:abcdef"]
+            ),
+            self.mock_requirement(
+                "r1", "pypi", version_specs=version_specs, hashes=["sha256:123456", "sha256:654321"]
+            ),
+        ]
+
+        req_file1 = self.mock_requirements_file(requirements)
+        req_file2 = self.mock_requirements_file(build_requirements)
+
+        checksums = pip._get_user_checksums([req_file1, req_file2])
+        expected = {
+            ("r1", cano_version): set(
+                [
+                    ChecksumInfo("sha256", "123456"),
+                    ChecksumInfo("sha256", "654321"),
+                    ChecksumInfo("sha256", "abcdef"),
+                ]
+            ),
+            ("r2", cano_version): set(
+                [ChecksumInfo("sha256", "123456"), ChecksumInfo("sha256", "abcdef")]
+            ),
+            ("b1", cano_version): set(
+                [
+                    ChecksumInfo("sha256", "123456"),
+                    ChecksumInfo("sha256", "654321"),
+                    ChecksumInfo("sha256", "abcdef"),
+                ]
+            ),
+            ("b2", cano_version): set(
+                [ChecksumInfo("sha256", "123456"), ChecksumInfo("sha256", "abcdef")]
+            ),
+        }
+        assert checksums == expected
+
+    @mock.patch("cachi2.core.package_managers.pip._process_package_distributions")
+    @mock.patch("cachi2.core.package_managers.pip.download_binary_file")
     @mock.patch("cachi2.core.package_managers.pip._check_metadata_in_sdist")
     def test_download_from_requirement_files(
         self,
         check_metadata_in_sdist: mock.Mock,
-        mock_pypi_download: mock.Mock,
+        download_binary_file: mock.Mock,
+        mock_distributions: mock.Mock,
         rooted_tmp_path: RootedPath,
     ) -> None:
         """Test downloading dependencies from a requirement file list."""
@@ -3428,15 +3541,32 @@ class TestDownload:
         pypi_download1 = pip_deps.join_within_root("foo", "foo-1.0.0.tar.gz").path
         pypi_download2 = pip_deps.join_within_root("bar", "bar-0.0.1.tar.gz").path
 
-        pypi_info1 = {"package": "foo", "version": "1.0.0", "path": pypi_download1}
-        pypi_info2 = {"package": "bar", "version": "0.0.1", "path": pypi_download2}
+        pypi_package1 = pip.DistributionPackageInfo(
+            "foo", "1.0.0", "sdist", pypi_download1, "", False
+        )
+        pypi_package2 = pip.DistributionPackageInfo(
+            "bar", "0.0.1", "sdist", pypi_download2, "", False
+        )
 
-        mock_pypi_download.side_effect = [pypi_info1, pypi_info2]
+        mock_distributions.side_effect = [(pypi_package1, []), (pypi_package2, [])]
 
         downloads = pip._download_from_requirement_files(rooted_tmp_path, [req_file1, req_file2])
-        assert downloads == [pypi_info1 | {"kind": "pypi"}, pypi_info2 | {"kind": "pypi"}]
+        assert downloads == [
+            pypi_package1.download_info
+            | {
+                "kind": "pypi",
+                "hash_verified": False,
+                "requirement_file": str(req_file1.subpath_from_root),
+            },
+            pypi_package2.download_info
+            | {
+                "kind": "pypi",
+                "hash_verified": False,
+                "requirement_file": str(req_file2.subpath_from_root),
+            },
+        ]
         check_metadata_in_sdist.assert_has_calls(
-            [mock.call(pypi_info1["path"]), mock.call(pypi_info2["path"])], any_order=True
+            [mock.call(pypi_package1.path), mock.call(pypi_package2.path)], any_order=True
         )
 
 
