@@ -34,7 +34,7 @@ from cachi2.core.config import get_config
 from cachi2.core.errors import FetchError, PackageRejected, UnexpectedFormat, UnsupportedFeature
 from cachi2.core.models.input import Request
 from cachi2.core.models.output import EnvironmentVariable, ProjectFile, RequestOutput
-from cachi2.core.models.sbom import Component
+from cachi2.core.models.sbom import Component, Property
 from cachi2.core.package_managers.general import (
     download_binary_file,
     extract_git_info,
@@ -97,7 +97,15 @@ def fetch_pip_source(request: Request) -> RequestOutput:
         for dependency in info["dependencies"]:
             purl = _generate_purl_dependency(dependency)
             version = dependency["version"] if dependency["kind"] == "pypi" else None
-            components.append(Component(name=dependency["name"], version=version, purl=purl))
+
+            components.append(
+                Component(
+                    name=dependency["name"],
+                    version=version,
+                    purl=purl,
+                    properties=_generate_properties(dependency),
+                )
+            )
 
         replaced_requirements_files = map(_replace_external_requirements, info["requirements"])
         project_files.extend(filter(None, replaced_requirements_files))
@@ -107,6 +115,13 @@ def fetch_pip_source(request: Request) -> RequestOutput:
         environment_variables=environment_variables,
         project_files=project_files,
     )
+
+
+def _generate_properties(dependency: dict) -> list[Property]:
+    if not dependency["hash_verified"]:
+        return [Property(name="cachi2:missing_hash:in_file", value=dependency["requirement_file"])]
+    else:
+        return []
 
 
 def _generate_purl_main_package(package: dict[str, Any], package_path: RootedPath) -> str:
@@ -1411,8 +1426,12 @@ def _download_dependencies(
         if require_hashes or req.kind == "url":
             hashes = req.hashes or [req.qualifiers["cachito_hash"]]
             _verify_hash(download_info["path"], hashes)
+            download_info["hash_verified"] = True
+        else:
+            download_info["hash_verified"] = False
 
         download_info["kind"] = req.kind
+        download_info["requirement_file"] = str(requirements_file.file_path.subpath_from_root)
         downloads.append(download_info)
 
     return downloads
@@ -1949,6 +1968,8 @@ def _resolve_pip(
             "type": "pip",
             "dev": dep.get("dev", False),
             "kind": dep["kind"],
+            "hash_verified": dep["hash_verified"],
+            "requirement_file": dep["requirement_file"],
         }
         for dep in (requires + buildrequires)
     ]

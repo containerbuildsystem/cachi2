@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 import logging
 import re
+from copy import deepcopy
 from pathlib import Path
 from textwrap import dedent
 from typing import Any, Literal, Optional, Union
@@ -25,7 +26,7 @@ from cachi2.core.errors import (
 )
 from cachi2.core.models.input import Request
 from cachi2.core.models.output import ProjectFile
-from cachi2.core.models.sbom import Component
+from cachi2.core.models.sbom import Component, Property
 from cachi2.core.package_managers import general, pip
 from cachi2.core.rooted_path import PathOutsideRoot, RootedPath
 from cachi2.core.scm import RepoID
@@ -3295,11 +3296,19 @@ class TestDownload:
             "external-bar", "bar-external-sha256-654321.tar.gz"
         ).path
 
-        pypi_info = {"package": "foo", "version": "1.0", "path": pypi_download}
+        pypi_info = {
+            "package": "foo",
+            "version": "1.0",
+            "path": pypi_download,
+            "hash_verified": use_hashes,
+            "requirement_file": str(req_file.file_path.subpath_from_root),
+        }
         vcs_info = {
             "package": "eggs",
             "path": vcs_download,
             "repo": "eggs",
+            "hash_verified": use_hashes,
+            "requirement_file": str(req_file.file_path.subpath_from_root),
             # etc., not important for this test
         }
         url_info = {
@@ -3307,11 +3316,13 @@ class TestDownload:
             "original_url": plain_url,
             "url_with_hash": plain_url,
             "path": url_download,
+            "hash_verified": True,
+            "requirement_file": str(req_file.file_path.subpath_from_root),
         }
 
-        mock_pypi_download.return_value = pypi_info
-        mock_vcs_download.return_value = vcs_info
-        mock_url_download.return_value = url_info
+        mock_pypi_download.return_value = deepcopy(pypi_info)
+        mock_vcs_download.return_value = deepcopy(vcs_info)
+        mock_url_download.return_value = deepcopy(url_info)
         # </setup>
 
         # <call>
@@ -3515,8 +3526,26 @@ def test_resolve_pip(
     build_req_file.path.write_text("baz==0.0.5")
     mock_metadata.return_value = ("foo", "1.0")
     mock_download.side_effect = [
-        [{"kind": "pypi", "path": "some/path", "package": "bar", "version": "2.1"}],
-        [{"kind": "pypi", "path": "another/path", "package": "baz", "version": "0.0.5"}],
+        [
+            {
+                "kind": "pypi",
+                "path": "some/path",
+                "package": "bar",
+                "version": "2.1",
+                "hash_verified": True,
+                "requirement_file": str(req_file.subpath_from_root),
+            }
+        ],
+        [
+            {
+                "kind": "pypi",
+                "path": "another/path",
+                "package": "baz",
+                "version": "0.0.5",
+                "hash_verified": True,
+                "requirement_file": str(build_req_file.subpath_from_root),
+            }
+        ],
     ]
     if custom_requirements:
         pkg_info = pip._resolve_pip(
@@ -3537,6 +3566,8 @@ def test_resolve_pip(
                 "type": "pip",
                 "dev": False,
                 "kind": "pypi",
+                "hash_verified": True,
+                "requirement_file": "req.txt" if custom_requirements else "requirements.txt",
             },
             {
                 "name": "baz",
@@ -3544,6 +3575,8 @@ def test_resolve_pip(
                 "type": "pip",
                 "dev": True,
                 "kind": "pypi",
+                "hash_verified": True,
+                "requirement_file": "breq.txt" if custom_requirements else "requirements-build.txt",
             },
         ],
         "requirements": [req_file, build_req_file],
@@ -3738,6 +3771,8 @@ def test_fetch_pip_source(
                 "type": "pip",
                 "dev": False,
                 "kind": "url",
+                "hash_verified": True,
+                "requirement_file": "requirements.txt",
             },
             {
                 "name": "baz",
@@ -3745,6 +3780,8 @@ def test_fetch_pip_source(
                 "type": "pip",
                 "dev": True,
                 "kind": "pypi",
+                "hash_verified": True,
+                "requirement_file": "requirements.txt",
             },
         ],
         "requirements": ["/package_a/requirements.txt", "/package_a/requirements-build.txt"],
@@ -3758,6 +3795,8 @@ def test_fetch_pip_source(
                 "type": "pip",
                 "dev": False,
                 "kind": "pypi",
+                "hash_verified": False,
+                "requirement_file": "requirements.txt",
             },
             {
                 "name": "eggs",
@@ -3765,6 +3804,8 @@ def test_fetch_pip_source(
                 "type": "pip",
                 "dev": False,
                 "kind": "url",
+                "hash_verified": False,
+                "requirement_file": "requirements.txt",
             },
         ],
         "requirements": ["/package_b/requirements.txt"],
@@ -3789,75 +3830,46 @@ def test_fetch_pip_source(
 
     output = pip.fetch_pip_source(request)
 
-    expect_package_a = {
-        "name": "foo",
-        "version": "1.0",
-        "type": "pip",
-        "path": Path("."),
-        "purl": f"pkg:pypi/foo@1.0?vcs_url=git%2Bhttps://github.com/my-org/my-repo%40{'f'*40}",
-        "dependencies": [
-            {
-                "name": "bar",
-                "version": None,
-                "type": "pip",
-                "dev": False,
-                "kind": "url",
-                "purl": "pkg:pypi/bar?checksum=sha256:aaaaaaaaaa&download_url=https://x.org/bar.zip",
-            },
-            {
-                "name": "baz",
-                "version": "0.0.5",
-                "type": "pip",
-                "dev": True,
-                "kind": "pypi",
-                "purl": "pkg:pypi/baz@0.0.5",
-            },
-        ],
-    }
-    expect_package_b = {
-        "name": "spam",
-        "version": "2.1",
-        "type": "pip",
-        "path": Path("foo"),
-        "purl": f"pkg:pypi/spam@2.1?vcs_url=git%2Bhttps://github.com/my-org/my-repo%40{'f'*40}#foo",
-        "dependencies": [
-            {
-                "name": "ham",
-                "version": "3.2",
-                "type": "pip",
-                "dev": False,
-                "kind": "pypi",
-                "purl": "pkg:pypi/ham@3.2",
-            },
-            {
-                "name": "eggs",
-                "version": None,
-                "type": "pip",
-                "dev": False,
-                "kind": "url",
-                "purl": "pkg:pypi/eggs?checksum=sha256:aaaaaaaaaa&download_url=https://x.org/eggs.zip",
-            },
-        ],
-    }
+    expect_components_package_a = [
+        Component(
+            name="foo",
+            version="1.0",
+            purl=f"pkg:pypi/foo@1.0?vcs_url=git%2Bhttps://github.com/my-org/my-repo%40{'f'*40}",
+        ),
+        Component(
+            name="bar",
+            purl="pkg:pypi/bar?checksum=sha256:aaaaaaaaaa&download_url=https://x.org/bar.zip",
+        ),
+        Component(name="baz", version="0.0.5", purl="pkg:pypi/baz@0.0.5"),
+    ]
 
-    def convert_to_component_list(packages: list[dict]) -> list[Component]:
-        components = []
-
-        for package in packages:
-            components.append(Component.from_package_dict(package))
-            for dependency in package["dependencies"]:
-                components.append(Component.from_package_dict(dependency))
-
-        return components
+    expect_components_package_b = [
+        Component(
+            name="spam",
+            version="2.1",
+            purl=f"pkg:pypi/spam@2.1?vcs_url=git%2Bhttps://github.com/my-org/my-repo%40{'f'*40}#foo",
+        ),
+        Component(
+            name="ham",
+            version="3.2",
+            purl="pkg:pypi/ham@3.2",
+            properties=[Property(name="cachi2:missing_hash:in_file", value="requirements.txt")],
+        ),
+        Component(
+            name="eggs",
+            purl="pkg:pypi/eggs?checksum=sha256:aaaaaaaaaa&download_url=https://x.org/eggs.zip",
+            properties=[Property(name="cachi2:missing_hash:in_file", value="requirements.txt")],
+        ),
+    ]
 
     if n_pip_packages == 0:
         expect_packages = []
         expect_files = []
     elif n_pip_packages == 1:
-        expect_packages = convert_to_component_list([expect_package_a])
+        expect_packages = expect_components_package_a
         expect_files = [replaced_file_a]
     elif n_pip_packages == 2:
-        expect_packages = convert_to_component_list([expect_package_a, expect_package_b])
+        expect_packages = expect_components_package_a + expect_components_package_b
         expect_files = [replaced_file_a, replaced_file_b]
     else:
         assert False
