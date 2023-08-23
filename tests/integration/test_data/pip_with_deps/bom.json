@@ -7,6 +7,10 @@
         {
           "name": "cachi2:found_by",
           "value": "cachi2"
+        },
+        {
+          "name": "cachi2:missing_hash:in_file",
+          "value": "requirements.txt"
         }
       ],
       "purl": "pkg:pypi/aiowsgi@0.7",
@@ -30,6 +34,10 @@
         {
           "name": "cachi2:found_by",
           "value": "cachi2"
+        },
+        {
+          "name": "cachi2:missing_hash:in_file",
+          "value": "requirements.txt"
         }
       ],
       "purl": "pkg:pypi/appr?vcs_url=git%2Bhttps://github.com/quay/appr.git%4058c88e4952e95935c0dd72d4a24b0c44f2249f5b",
