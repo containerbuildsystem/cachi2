@@ -37,10 +37,15 @@ log = logging.getLogger(__name__)
         pytest.param(
             utils.TestParameters(
                 repo="https://github.com/cachito-testing/cachito-pip-multiple.git",
-                ref="93c6c44b36075454a509d595850b81be29e53db0",
+                ref="d8a0c2789446f4119604a0cc5e7eb97f30652f9f",
                 packages=(
                     {"path": "first_pkg", "type": "pip"},
-                    {"path": "second_pkg", "type": "pip"},
+                    {
+                        "path": "second_pkg",
+                        "type": "pip",
+                        "requirements_files": ["requirements.txt", "requirements-extra.txt"],
+                    },
+                    {"path": "third_pkg", "type": "pip"},
                 ),
                 check_vendor_checksums=False,
                 expected_exit_code=0,

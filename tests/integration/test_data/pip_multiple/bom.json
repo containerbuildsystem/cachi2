@@ -10,7 +10,7 @@
         },
         {
           "name": "cachi2:missing_hash:in_file",
-          "value": "first_pkg/requirements.txt"
+          "value": "second_pkg/requirements.txt"
         }
       ],
       "purl": "pkg:pypi/aiowsgi@0.7",
@@ -40,8 +40,156 @@
           "value": "second_pkg/requirements.txt"
         }
       ],
-      "purl": "pkg:pypi/appr?vcs_url=git%2Bhttps://github.com/quay/appr.git%4058c88e4952e95935c0dd72d4a24b0c44f2249f5b",
+      "purl": "pkg:pypi/appr?vcs_url=git%2Bhttps://github.com/quay/appr.git%4037ff9a487a54ad41b59855ecd76ee092fe206a84",
       "type": "library"
+    },
+    {
+      "name": "async-timeout",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        },
+        {
+          "name": "cachi2:missing_hash:in_file",
+          "value": "second_pkg/requirements.txt"
+        }
+      ],
+      "purl": "pkg:pypi/async-timeout@4.0.3",
+      "type": "library",
+      "version": "4.0.3"
+    },
+    {
+      "name": "blinker",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        },
+        {
+          "name": "cachi2:missing_hash:in_file",
+          "value": "second_pkg/requirements.txt"
+        }
+      ],
+      "purl": "pkg:pypi/blinker@1.6.2",
+      "type": "library",
+      "version": "1.6.2"
+    },
+    {
+      "name": "certifi",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        },
+        {
+          "name": "cachi2:missing_hash:in_file",
+          "value": "second_pkg/requirements.txt"
+        }
+      ],
+      "purl": "pkg:pypi/certifi@2023.7.22",
+      "type": "library",
+      "version": "2023.7.22"
+    },
+    {
+      "name": "cffi",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        },
+        {
+          "name": "cachi2:missing_hash:in_file",
+          "value": "second_pkg/requirements.txt"
+        }
+      ],
+      "purl": "pkg:pypi/cffi@1.15.1",
+      "type": "library",
+      "version": "1.15.1"
+    },
+    {
+      "name": "charset-normalizer",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        },
+        {
+          "name": "cachi2:missing_hash:in_file",
+          "value": "second_pkg/requirements.txt"
+        }
+      ],
+      "purl": "pkg:pypi/charset-normalizer@3.2.0",
+      "type": "library",
+      "version": "3.2.0"
+    },
+    {
+      "name": "click",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        },
+        {
+          "name": "cachi2:missing_hash:in_file",
+          "value": "second_pkg/requirements.txt"
+        },
+        {
+          "name": "cachi2:missing_hash:in_file",
+          "value": "third_pkg/requirements.txt"
+        }
+      ],
+      "purl": "pkg:pypi/click@8.1.7",
+      "type": "library",
+      "version": "8.1.7"
+    },
+    {
+      "name": "cryptography",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        },
+        {
+          "name": "cachi2:missing_hash:in_file",
+          "value": "second_pkg/requirements.txt"
+        }
+      ],
+      "purl": "pkg:pypi/cryptography@41.0.3",
+      "type": "library",
+      "version": "41.0.3"
+    },
+    {
+      "name": "dnspython",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        },
+        {
+          "name": "cachi2:missing_hash:in_file",
+          "value": "second_pkg/requirements.txt"
+        }
+      ],
+      "purl": "pkg:pypi/dnspython@2.4.2",
+      "type": "library",
+      "version": "2.4.2"
+    },
+    {
+      "name": "ecdsa",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        },
+        {
+          "name": "cachi2:missing_hash:in_file",
+          "value": "second_pkg/requirements.txt"
+        }
+      ],
+      "purl": "pkg:pypi/ecdsa@0.18.0",
+      "type": "library",
+      "version": "0.18.0"
     },
     {
       "name": "first_pkg",
@@ -51,9 +199,361 @@
           "value": "cachi2"
         }
       ],
-      "purl": "pkg:pypi/first-pkg@1.0.0?vcs_url=git%2Bhttps://github.com/cachito-testing/cachito-pip-multiple.git%4093c6c44b36075454a509d595850b81be29e53db0#first_pkg",
+      "purl": "pkg:pypi/first-pkg@1.0.0?vcs_url=git%2Bhttps://github.com/cachito-testing/cachito-pip-multiple.git%40d8a0c2789446f4119604a0cc5e7eb97f30652f9f#first_pkg",
       "type": "library",
       "version": "1.0.0"
+    },
+    {
+      "name": "Flask-Cors",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        },
+        {
+          "name": "cachi2:missing_hash:in_file",
+          "value": "second_pkg/requirements.txt"
+        }
+      ],
+      "purl": "pkg:pypi/flask-cors@4.0.0",
+      "type": "library",
+      "version": "4.0.0"
+    },
+    {
+      "name": "flask",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        },
+        {
+          "name": "cachi2:missing_hash:in_file",
+          "value": "second_pkg/requirements.txt"
+        }
+      ],
+      "purl": "pkg:pypi/flask@2.3.3",
+      "type": "library",
+      "version": "2.3.3"
+    },
+    {
+      "name": "future",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        },
+        {
+          "name": "cachi2:missing_hash:in_file",
+          "value": "second_pkg/requirements.txt"
+        }
+      ],
+      "purl": "pkg:pypi/future@0.18.3",
+      "type": "library",
+      "version": "0.18.3"
+    },
+    {
+      "name": "futures",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        },
+        {
+          "name": "cachi2:missing_hash:in_file",
+          "value": "second_pkg/requirements.txt"
+        }
+      ],
+      "purl": "pkg:pypi/futures@3.0.5",
+      "type": "library",
+      "version": "3.0.5"
+    },
+    {
+      "name": "gevent",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        },
+        {
+          "name": "cachi2:missing_hash:in_file",
+          "value": "second_pkg/requirements.txt"
+        }
+      ],
+      "purl": "pkg:pypi/gevent@23.7.0",
+      "type": "library",
+      "version": "23.7.0"
+    },
+    {
+      "name": "greenlet",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        },
+        {
+          "name": "cachi2:missing_hash:in_file",
+          "value": "second_pkg/requirements.txt"
+        }
+      ],
+      "purl": "pkg:pypi/greenlet@2.0.2",
+      "type": "library",
+      "version": "2.0.2"
+    },
+    {
+      "name": "gunicorn",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        },
+        {
+          "name": "cachi2:missing_hash:in_file",
+          "value": "second_pkg/requirements.txt"
+        }
+      ],
+      "purl": "pkg:pypi/gunicorn@21.2.0",
+      "type": "library",
+      "version": "21.2.0"
+    },
+    {
+      "name": "idna",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        },
+        {
+          "name": "cachi2:missing_hash:in_file",
+          "value": "second_pkg/requirements.txt"
+        }
+      ],
+      "purl": "pkg:pypi/idna@3.4",
+      "type": "library",
+      "version": "3.4"
+    },
+    {
+      "name": "importlib_metadata",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        },
+        {
+          "name": "cachi2:missing_hash:in_file",
+          "value": "second_pkg/requirements.txt"
+        }
+      ],
+      "purl": "pkg:pypi/importlib-metadata@6.8.0",
+      "type": "library",
+      "version": "6.8.0"
+    },
+    {
+      "name": "itsdangerous",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        },
+        {
+          "name": "cachi2:missing_hash:in_file",
+          "value": "second_pkg/requirements.txt"
+        }
+      ],
+      "purl": "pkg:pypi/itsdangerous@2.1.2",
+      "type": "library",
+      "version": "2.1.2"
+    },
+    {
+      "name": "Jinja2",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        },
+        {
+          "name": "cachi2:missing_hash:in_file",
+          "value": "second_pkg/requirements.txt"
+        }
+      ],
+      "purl": "pkg:pypi/jinja2@3.1.2",
+      "type": "library",
+      "version": "3.1.2"
+    },
+    {
+      "name": "jsonpatch",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        },
+        {
+          "name": "cachi2:missing_hash:in_file",
+          "value": "second_pkg/requirements.txt"
+        }
+      ],
+      "purl": "pkg:pypi/jsonpatch@1.33",
+      "type": "library",
+      "version": "1.33"
+    },
+    {
+      "name": "jsonpointer",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        },
+        {
+          "name": "cachi2:missing_hash:in_file",
+          "value": "second_pkg/requirements.txt"
+        }
+      ],
+      "purl": "pkg:pypi/jsonpointer@2.4",
+      "type": "library",
+      "version": "2.4"
+    },
+    {
+      "name": "MarkupSafe",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        },
+        {
+          "name": "cachi2:missing_hash:in_file",
+          "value": "second_pkg/requirements.txt"
+        }
+      ],
+      "purl": "pkg:pypi/markupsafe@2.1.3",
+      "type": "library",
+      "version": "2.1.3"
+    },
+    {
+      "name": "packaging",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        },
+        {
+          "name": "cachi2:missing_hash:in_file",
+          "value": "second_pkg/requirements.txt"
+        }
+      ],
+      "purl": "pkg:pypi/packaging@23.1",
+      "type": "library",
+      "version": "23.1"
+    },
+    {
+      "name": "pathspec",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        },
+        {
+          "name": "cachi2:missing_hash:in_file",
+          "value": "second_pkg/requirements.txt"
+        }
+      ],
+      "purl": "pkg:pypi/pathspec@0.11.2",
+      "type": "library",
+      "version": "0.11.2"
+    },
+    {
+      "name": "pycparser",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        },
+        {
+          "name": "cachi2:missing_hash:in_file",
+          "value": "second_pkg/requirements.txt"
+        }
+      ],
+      "purl": "pkg:pypi/pycparser@2.21",
+      "type": "library",
+      "version": "2.21"
+    },
+    {
+      "name": "pyOpenSSL",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        },
+        {
+          "name": "cachi2:missing_hash:in_file",
+          "value": "second_pkg/requirements.txt"
+        }
+      ],
+      "purl": "pkg:pypi/pyopenssl@23.2.0",
+      "type": "library",
+      "version": "23.2.0"
+    },
+    {
+      "name": "python-etcd",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        },
+        {
+          "name": "cachi2:missing_hash:in_file",
+          "value": "second_pkg/requirements.txt"
+        }
+      ],
+      "purl": "pkg:pypi/python-etcd@0.4.5",
+      "type": "library",
+      "version": "0.4.5"
+    },
+    {
+      "name": "PyYAML",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        },
+        {
+          "name": "cachi2:missing_hash:in_file",
+          "value": "second_pkg/requirements.txt"
+        }
+      ],
+      "purl": "pkg:pypi/pyyaml@6.0.1",
+      "type": "library",
+      "version": "6.0.1"
+    },
+    {
+      "name": "redis",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        },
+        {
+          "name": "cachi2:missing_hash:in_file",
+          "value": "second_pkg/requirements.txt"
+        }
+      ],
+      "purl": "pkg:pypi/redis@5.0.0",
+      "type": "library",
+      "version": "5.0.0"
+    },
+    {
+      "name": "requests",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        },
+        {
+          "name": "cachi2:missing_hash:in_file",
+          "value": "second_pkg/requirements.txt"
+        }
+      ],
+      "purl": "pkg:pypi/requests@2.31.0",
+      "type": "library",
+      "version": "2.31.0"
     },
     {
       "name": "second_pkg",
@@ -63,9 +563,197 @@
           "value": "cachi2"
         }
       ],
-      "purl": "pkg:pypi/second-pkg@1.0.0?vcs_url=git%2Bhttps://github.com/cachito-testing/cachito-pip-multiple.git%4093c6c44b36075454a509d595850b81be29e53db0#second_pkg",
+      "purl": "pkg:pypi/second-pkg@1.0.0?vcs_url=git%2Bhttps://github.com/cachito-testing/cachito-pip-multiple.git%40d8a0c2789446f4119604a0cc5e7eb97f30652f9f#second_pkg",
       "type": "library",
       "version": "1.0.0"
+    },
+    {
+      "name": "semantic_version",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        },
+        {
+          "name": "cachi2:missing_hash:in_file",
+          "value": "second_pkg/requirements.txt"
+        }
+      ],
+      "purl": "pkg:pypi/semantic-version@2.10.0",
+      "type": "library",
+      "version": "2.10.0"
+    },
+    {
+      "name": "six",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        },
+        {
+          "name": "cachi2:missing_hash:in_file",
+          "value": "second_pkg/requirements.txt"
+        }
+      ],
+      "purl": "pkg:pypi/six@1.16.0",
+      "type": "library",
+      "version": "1.16.0"
+    },
+    {
+      "name": "tabulate",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        },
+        {
+          "name": "cachi2:missing_hash:in_file",
+          "value": "second_pkg/requirements.txt"
+        }
+      ],
+      "purl": "pkg:pypi/tabulate@0.9.0",
+      "type": "library",
+      "version": "0.9.0"
+    },
+    {
+      "name": "termcolor",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        },
+        {
+          "name": "cachi2:missing_hash:in_file",
+          "value": "second_pkg/requirements.txt"
+        }
+      ],
+      "purl": "pkg:pypi/termcolor@2.3.0",
+      "type": "library",
+      "version": "2.3.0"
+    },
+    {
+      "name": "third_pkg",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:pypi/third-pkg@1.0.0?vcs_url=git%2Bhttps://github.com/cachito-testing/cachito-pip-multiple.git%40d8a0c2789446f4119604a0cc5e7eb97f30652f9f#third_pkg",
+      "type": "library",
+      "version": "1.0.0"
+    },
+    {
+      "name": "urllib3",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        },
+        {
+          "name": "cachi2:missing_hash:in_file",
+          "value": "second_pkg/requirements.txt"
+        }
+      ],
+      "purl": "pkg:pypi/urllib3@1.21.1",
+      "type": "library",
+      "version": "1.21.1"
+    },
+    {
+      "name": "waitress",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        },
+        {
+          "name": "cachi2:missing_hash:in_file",
+          "value": "second_pkg/requirements.txt"
+        }
+      ],
+      "purl": "pkg:pypi/waitress@2.1.2",
+      "type": "library",
+      "version": "2.1.2"
+    },
+    {
+      "name": "WebOb",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        },
+        {
+          "name": "cachi2:missing_hash:in_file",
+          "value": "second_pkg/requirements.txt"
+        }
+      ],
+      "purl": "pkg:pypi/webob@1.8.7",
+      "type": "library",
+      "version": "1.8.7"
+    },
+    {
+      "name": "werkzeug",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        },
+        {
+          "name": "cachi2:missing_hash:in_file",
+          "value": "second_pkg/requirements.txt"
+        }
+      ],
+      "purl": "pkg:pypi/werkzeug@2.3.7",
+      "type": "library",
+      "version": "2.3.7"
+    },
+    {
+      "name": "zipp",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        },
+        {
+          "name": "cachi2:missing_hash:in_file",
+          "value": "second_pkg/requirements.txt"
+        }
+      ],
+      "purl": "pkg:pypi/zipp@3.16.2",
+      "type": "library",
+      "version": "3.16.2"
+    },
+    {
+      "name": "zope.event",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        },
+        {
+          "name": "cachi2:missing_hash:in_file",
+          "value": "second_pkg/requirements.txt"
+        }
+      ],
+      "purl": "pkg:pypi/zope.event@5.0",
+      "type": "library",
+      "version": "5.0"
+    },
+    {
+      "name": "zope.interface",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        },
+        {
+          "name": "cachi2:missing_hash:in_file",
+          "value": "second_pkg/requirements.txt"
+        }
+      ],
+      "purl": "pkg:pypi/zope.interface@6.0",
+      "type": "library",
+      "version": "6.0"
     }
   ],
   "metadata": {
