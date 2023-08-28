@@ -2114,13 +2114,13 @@ class TestPipRequirementsFile:
         file_contents: str,
         expected_requirements: list[dict[str, str]],
         expected_global_options: list[dict[str, str]],
-        tmp_path: Path,
+        rooted_tmp_path: RootedPath,
     ) -> None:
         """Test the various valid use cases of requirements in a requirements file."""
-        requirements_file = tmp_path.joinpath("requirements.txt")
-        requirements_file.write_text(file_contents)
+        requirements_file = rooted_tmp_path.join_within_root("requirements.txt")
+        requirements_file.path.write_text(file_contents)
 
-        pip_requirements = pip.PipRequirementsFile(str(requirements_file))
+        pip_requirements = pip.PipRequirementsFile(requirements_file)
 
         assert pip_requirements.options == expected_global_options
         assert len(pip_requirements.requirements) == len(expected_requirements)
@@ -2178,13 +2178,13 @@ class TestPipRequirementsFile:
         ),
     )
     def test_parsing_of_invalid_cases(
-        self, file_contents: str, expected_error: Union[str, Exception], tmp_path: Path
+        self, file_contents: str, expected_error: Union[str, Exception], rooted_tmp_path: RootedPath
     ) -> None:
         """Test the invalid use cases of requirements in a requirements file."""
-        requirements_file = tmp_path.joinpath("requirements.txt")
-        requirements_file.write_text(file_contents)
+        requirements_file = rooted_tmp_path.join_within_root("requirements.txt")
+        requirements_file.path.write_text(file_contents)
 
-        pip_requirements = pip.PipRequirementsFile(str(requirements_file))
+        pip_requirements = pip.PipRequirementsFile(requirements_file)
 
         expected_err_type = (
             type(expected_error) if isinstance(expected_error, Exception) else UnexpectedFormat
@@ -2201,12 +2201,12 @@ class TestPipRequirementsFile:
         with pytest.raises(RuntimeError, match="Didn't expect to find multiple requirements in:"):
             pip.PipRequirement.from_line("aiowsgi==0.7 \nasn1crypto==1.3.0", [])
 
-    def test_replace_requirements(self, tmp_path: Path) -> None:
+    def test_replace_requirements(self, rooted_tmp_path: RootedPath) -> None:
         """Test generating a new requirements file with replacements."""
-        original_file_path = tmp_path.joinpath("original-requirements.txt")
-        new_file_path = tmp_path.joinpath("new-requirements.txt")
+        original_file_path = rooted_tmp_path.join_within_root("original-requirements.txt")
+        new_file_path = rooted_tmp_path.join_within_root("new-requirements.txt")
 
-        original_file_path.write_text(
+        original_file_path.path.write_text(
             dedent(
                 """\
                 https://github.com/quay/appr/archive/58c88.tar.gz#egg=cnr_server --hash=sha256:123
@@ -2262,7 +2262,7 @@ class TestPipRequirementsFile:
             },
         }
 
-        pip_requirements = pip.PipRequirementsFile(str(original_file_path))
+        pip_requirements = pip.PipRequirementsFile(original_file_path)
 
         new_requirements = []
         for pip_requirement in pip_requirements.requirements:
@@ -2281,7 +2281,7 @@ class TestPipRequirementsFile:
             new_file.write(f)
 
         # Parse the newly generated requirements file to ensure it's parsed correctly.
-        new_pip_requirements = pip.PipRequirementsFile(str(new_file_path))
+        new_pip_requirements = pip.PipRequirementsFile(new_file_path)
 
         assert new_pip_requirements.options == pip_requirements.options
         for new_pip_requirement, pip_requirement in zip(
@@ -2295,10 +2295,10 @@ class TestPipRequirementsFile:
                     getattr(new_pip_requirement, attr) == expected_value
                 ), f"unexpected {attr!r} value for package {pip_requirement.raw_package!r}"
 
-    def test_write_requirements_file(self, tmp_path: Path) -> None:
+    def test_write_requirements_file(self, rooted_tmp_path: RootedPath) -> None:
         """Test PipRequirementsFile.write method."""
-        original_file_path = tmp_path.joinpath("original-requirements.txt")
-        new_file_path = tmp_path.joinpath("test-requirements.txt")
+        original_file_path = rooted_tmp_path.join_within_root("original-requirements.txt")
+        new_file_path = rooted_tmp_path.join_within_root("test-requirements.txt")
 
         content = dedent(
             """\
@@ -2308,9 +2308,9 @@ class TestPipRequirementsFile:
             """
         )
 
-        original_file_path.write_text(content)
-        assert original_file_path.exists()
-        pip_requirements = pip.PipRequirementsFile(str(original_file_path))
+        original_file_path.path.write_text(content)
+        assert original_file_path.path.exists()
+        pip_requirements = pip.PipRequirementsFile(original_file_path)
         assert pip_requirements.requirements
         assert pip_requirements.options
 
