@@ -11,9 +11,8 @@ import urllib
 import zipfile
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from os import PathLike
 from pathlib import Path
-from typing import IO, TYPE_CHECKING, Any, Iterable, Iterator, Optional, Union, no_type_check
+from typing import IO, TYPE_CHECKING, Any, Iterable, Iterator, Optional, no_type_check
 
 import tomli
 from packageurl import PackageURL
@@ -903,10 +902,10 @@ class PipRequirementsFile:
     # options apply to all the requirements.
     REQUIREMENT_OPTIONS = {"-e", "--editable", "--hash"}
 
-    def __init__(self, file_path: Union[str, PathLike[str]]) -> None:
+    def __init__(self, file_path: RootedPath) -> None:
         """Initialize a PipRequirementsFile.
 
-        :param str | PathLike[str] file_path: the full path to the requirements file
+        :param RootedPath file_path: the full path to the requirements file
         """
         self.file_path = file_path
 
@@ -920,7 +919,7 @@ class PipRequirementsFile:
         :param list options: list of strings of global options
         :return: new instance of PipRequirementsFile
         """
-        new_instance = cls("")
+        new_instance = cls(RootedPath("/"))
         new_instance._parsed = {"requirements": list(requirements), "options": list(options)}
         return new_instance
 
