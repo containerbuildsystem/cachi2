@@ -152,6 +152,24 @@ log = logging.getLogger(__name__)
             ),
             id="gomod_go_generate_imported",
         ),
+        # Test the handling of missing checksums. Cachi2 should report them via
+        # cachi2:missing_hash:in_file properties in the SBOM.
+        # See also https://github.com/cachito-testing/gomod-multiple-modules/tree/missing-checksums
+        pytest.param(
+            utils.TestParameters(
+                repo="https://github.com/cachito-testing/gomod-multiple-modules.git",
+                ref="5a8c00ce49210e4b42a02003ef9ed0d1574abdae",
+                packages=(
+                    {"path": ".", "type": "gomod"},
+                    {"path": "spam-module", "type": "gomod"},
+                    {"path": "eggs-module", "type": "gomod"},
+                ),
+                check_vendor_checksums=False,
+                expected_exit_code=0,
+                expected_output="All dependencies fetched successfully",
+            ),
+            id="gomod_multiple_modules_missing_checksums",
+        ),
     ],
 )
 def test_gomod_packages(
