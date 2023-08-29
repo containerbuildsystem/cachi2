@@ -12,7 +12,7 @@ from unittest import mock
 import git
 import pytest
 
-from cachi2.core.errors import GoModError, PackageRejected, UnexpectedFormat
+from cachi2.core.errors import FetchError, GoModError, PackageRejected, UnexpectedFormat
 from cachi2.core.models.input import Flag, Request
 from cachi2.core.models.output import BuildConfig, RequestOutput
 from cachi2.core.models.sbom import Component, Property
@@ -20,6 +20,7 @@ from cachi2.core.package_managers import gomod
 from cachi2.core.package_managers.gomod import (
     Module,
     ModuleID,
+    ModuleVersionResolver,
     Package,
     ParsedModule,
     ParsedPackage,
@@ -28,7 +29,6 @@ from cachi2.core.package_managers.gomod import (
     _create_modules_from_parsed_data,
     _create_packages_from_parsed_data,
     _deduplicate_resolved_modules,
-    _get_golang_version,
     _get_repository_name,
     _parse_go_sum,
     _parse_vendor,
@@ -94,13 +94,13 @@ def _parse_mocked_data(data_dir: Path, file_path: str) -> ResolvedGoModule:
 
 @pytest.mark.parametrize("cgo_disable", [False, True])
 @pytest.mark.parametrize("force_gomod_tidy", [False, True])
-@mock.patch("cachi2.core.package_managers.gomod._get_golang_version")
+@mock.patch("cachi2.core.package_managers.gomod.ModuleVersionResolver")
 @mock.patch("cachi2.core.package_managers.gomod._validate_local_replacements")
 @mock.patch("subprocess.run")
 def test_resolve_gomod(
     mock_run: mock.Mock,
     mock_validate_local_replacements: mock.Mock,
-    mock_golang_version: mock.Mock,
+    mock_version_resolver: mock.Mock,
     cgo_disable: bool,
     force_gomod_tidy: bool,
     tmp_path: Path,
@@ -141,7 +141,7 @@ def test_resolve_gomod(
     )
     mock_run.side_effect = run_side_effects
 
-    mock_golang_version.return_value = "v0.1.0"
+    mock_version_resolver.get_golang_version.return_value = "v0.1.0"
 
     flags: list[Flag] = []
     if cgo_disable:
@@ -157,7 +157,7 @@ def test_resolve_gomod(
         get_mocked_data(data_dir, "non-vendored/go.sum")
     )
 
-    resolve_result = _resolve_gomod(module_dir, gomod_request, tmp_path)
+    resolve_result = _resolve_gomod(module_dir, gomod_request, tmp_path, mock_version_resolver)
 
     if force_gomod_tidy:
         assert mock_run.call_args_list[1][0][0] == ("go", "mod", "tidy")
@@ -195,13 +195,13 @@ def test_resolve_gomod(
 
 
 @pytest.mark.parametrize("force_gomod_tidy", [False, True])
-@mock.patch("cachi2.core.package_managers.gomod._get_golang_version")
+@mock.patch("cachi2.core.package_managers.gomod.ModuleVersionResolver")
 @mock.patch("cachi2.core.package_managers.gomod._validate_local_replacements")
 @mock.patch("subprocess.run")
 def test_resolve_gomod_vendor_dependencies(
     mock_run: mock.Mock,
     mock_validate_local_replacements: mock.Mock,
-    mock_golang_version: mock.Mock,
+    mock_version_resolver: mock.Mock,
     force_gomod_tidy: bool,
     tmp_path: Path,
     data_dir: Path,
@@ -235,7 +235,7 @@ def test_resolve_gomod_vendor_dependencies(
     )
     mock_run.side_effect = run_side_effects
 
-    mock_golang_version.return_value = "v0.1.0"
+    mock_version_resolver.get_golang_version.return_value = "v0.1.0"
 
     flags: list[Flag] = ["gomod-vendor"]
     if force_gomod_tidy:
@@ -252,7 +252,7 @@ def test_resolve_gomod_vendor_dependencies(
         get_mocked_data(data_dir, "vendored/go.sum")
     )
 
-    resolve_result = _resolve_gomod(module_dir, gomod_request, tmp_path)
+    resolve_result = _resolve_gomod(module_dir, gomod_request, tmp_path, mock_version_resolver)
 
     assert mock_run.call_args_list[0][0][0] == ("go", "mod", "vendor")
     # when vendoring, go list should be called without -mod readonly
@@ -276,21 +276,22 @@ def test_resolve_gomod_vendor_dependencies(
 def test_resolve_gomod_vendor_without_flag(tmp_path: Path, gomod_request: Request) -> None:
     module_dir = gomod_request.source_dir.join_within_root("path/to/module")
     module_dir.path.joinpath("vendor").mkdir(parents=True)
+    version_resolver = mock.Mock()
 
     expected_error = (
         'The "gomod-vendor" or "gomod-vendor-check" flag must be set when your repository has '
         "vendored dependencies."
     )
     with pytest.raises(PackageRejected, match=expected_error):
-        _resolve_gomod(module_dir, gomod_request, tmp_path)
+        _resolve_gomod(module_dir, gomod_request, tmp_path, version_resolver)
 
 
 @pytest.mark.parametrize("force_gomod_tidy", [False, True])
-@mock.patch("cachi2.core.package_managers.gomod._get_golang_version")
+@mock.patch("cachi2.core.package_managers.gomod.ModuleVersionResolver")
 @mock.patch("subprocess.run")
 def test_resolve_gomod_no_deps(
     mock_run: mock.Mock,
-    mock_golang_version: mock.Mock,
+    mock_version_resolver: mock.Mock,
     force_gomod_tidy: bool,
     tmp_path: Path,
     gomod_request: Request,
@@ -331,13 +332,15 @@ def test_resolve_gomod_no_deps(
     )
     mock_run.side_effect = run_side_effects
 
-    mock_golang_version.return_value = "v2.1.1"
+    mock_version_resolver.get_golang_version.return_value = "v2.1.1"
 
     if force_gomod_tidy:
         gomod_request.flags = frozenset({"force-gomod-tidy"})
 
     module_path = gomod_request.source_dir.join_within_root("path/to/module")
-    main_module, modules, packages, _ = _resolve_gomod(module_path, gomod_request, tmp_path)
+    main_module, modules, packages, _ = _resolve_gomod(
+        module_path, gomod_request, tmp_path, mock_version_resolver
+    )
     packages_list = list(packages)
 
     assert main_module == ParsedModule(
@@ -371,12 +374,13 @@ def test_resolve_gomod_suspicious_symlinks(symlinked_file: str, gomod_request: R
     tmp_path = gomod_request.source_dir.path
     tmp_path.joinpath(symlinked_file).parent.mkdir(parents=True, exist_ok=True)
     tmp_path.joinpath(symlinked_file).symlink_to("/foo")
+    version_resolver = mock.Mock()
 
     app_dir = gomod_request.source_dir
 
     expect_err_msg = re.escape(f"Joining path '{symlinked_file}' to '{app_dir}'")
     with pytest.raises(PathOutsideRoot, match=expect_err_msg) as exc_info:
-        _resolve_gomod(app_dir, gomod_request, tmp_path)
+        _resolve_gomod(app_dir, gomod_request, tmp_path, version_resolver)
 
     e = exc_info.value
     assert "Found a potentially harmful symlink" in e.friendly_msg()
@@ -445,12 +449,10 @@ def test_parse_broken_go_sum(rooted_tmp_path: RootedPath, caplog: pytest.LogCapt
     ]
 
 
-@mock.patch("cachi2.core.package_managers.gomod._get_golang_version")
-def test_create_modules_from_parsed_data(
-    mock_get_golang_version: mock.Mock, tmp_path: Path
-) -> None:
+@mock.patch("cachi2.core.package_managers.gomod.ModuleVersionResolver")
+def test_create_modules_from_parsed_data(mock_version_resolver: mock.Mock, tmp_path: Path) -> None:
     main_module_dir = RootedPath(tmp_path).join_within_root("target-module")
-    mock_get_golang_version.return_value = "v1.5.0"
+    mock_version_resolver.get_golang_version.return_value = "v1.5.0"
 
     main_module = Module(
         name="github.com/my-org/my-repo/target-module",
@@ -529,7 +531,7 @@ def test_create_modules_from_parsed_data(
     ]
 
     modules = _create_modules_from_parsed_data(
-        main_module, main_module_dir, parsed_modules, modules_in_go_sum
+        main_module, main_module_dir, parsed_modules, modules_in_go_sum, mock_version_resolver
     )
 
     assert modules == expect_modules
@@ -729,6 +731,7 @@ def test_go_list_cmd_failure(
     gomod_request: Request,
 ) -> None:
     module_path = gomod_request.source_dir.join_within_root("path/to/module")
+    version_resolver = mock.Mock()
 
     mock_config.return_value.gomod_download_max_tries = 1
 
@@ -749,7 +752,7 @@ def test_go_list_cmd_failure(
         expect_error += ". Cachi2 tried the go mod download -json command 1 times"
 
     with pytest.raises(GoModError, match=expect_error):
-        _resolve_gomod(module_path, gomod_request, tmp_path)
+        _resolve_gomod(module_path, gomod_request, tmp_path, version_resolver)
 
 
 def test_deduplicate_resolved_modules() -> None:
@@ -921,15 +924,23 @@ def test_deduplicate_resolved_modules() -> None:
     ),
 )
 def test_get_golang_version(
-    golang_repo_path: Path, module_suffix: str, ref: str, expected: str, subpath: Optional[str]
+    golang_repo_path: Path,
+    module_suffix: str,
+    ref: str,
+    expected: str,
+    subpath: Optional[str],
 ) -> None:
     module_name = f"github.com/mprahl/test-golang-pseudo-versions{module_suffix}"
 
     module_dir = RootedPath(golang_repo_path)
+    repo = git.Repo(golang_repo_path)
+    repo.git.checkout(ref)
+    version_resolver = ModuleVersionResolver(repo, repo.commit(ref))
+
     if subpath:
         module_dir = module_dir.join_within_root(subpath)
 
-    version = _get_golang_version(module_name, module_dir, ref)
+    version = version_resolver.get_golang_version(module_name, module_dir)
     assert version == expected
 
 
@@ -1419,7 +1430,9 @@ def test_missing_gomod_file(file_tree: dict[str, Any], tmp_path: Path) -> None:
 @mock.patch("cachi2.core.package_managers.gomod._find_missing_gomod_files")
 @mock.patch("cachi2.core.package_managers.gomod._resolve_gomod")
 @mock.patch("cachi2.core.package_managers.gomod.GoCacheTemporaryDirectory")
+@mock.patch("cachi2.core.package_managers.gomod.ModuleVersionResolver.from_repo_path")
 def test_fetch_gomod_source(
+    mock_version_resolver: mock.Mock,
     mock_tmp_dir: mock.Mock,
     mock_resolve_gomod: mock.Mock,
     mock_find_missing_gomod_files: mock.Mock,
@@ -1430,7 +1443,10 @@ def test_fetch_gomod_source(
     env_variables: list[dict[str, Any]],
 ) -> None:
     def resolve_gomod_mocked(
-        app_dir: RootedPath, request: Request, tmp_dir: Path
+        app_dir: RootedPath,
+        request: Request,
+        tmp_dir: Path,
+        version_resolver: ModuleVersionResolver,
     ) -> ResolvedGoModule:
         # Find package output based on the path being processed
         return packages_output_by_path[
@@ -1445,7 +1461,12 @@ def test_fetch_gomod_source(
 
     tmp_dir = Path(mock_tmp_dir.return_value.__enter__.return_value)
     calls = [
-        mock.call(gomod_request.source_dir.join_within_root(package.path), gomod_request, tmp_dir)
+        mock.call(
+            gomod_request.source_dir.join_within_root(package.path),
+            gomod_request,
+            tmp_dir,
+            mock_version_resolver.return_value,
+        )
         for package in gomod_request.packages
     ]
     mock_resolve_gomod.assert_has_calls(calls)
@@ -1485,3 +1506,54 @@ def test_get_repository_name(mock_git_repo: Any, input_url: str) -> None:
     resolved_url = _get_repository_name(RootedPath("/my-folder/cloned-repo"))
 
     assert resolved_url == expected_url
+
+
+@pytest.fixture
+def repo_remote_with_tag(rooted_tmp_path: RootedPath) -> tuple[RootedPath, RootedPath]:
+    """
+    Return the Paths to two Repos, with the first configured as the remote of the second.
+
+    There are different git tags applied to the first and second commits of the README file
+    """
+    local_repo_path = rooted_tmp_path.join_within_root("local")
+    remote_repo_path = rooted_tmp_path.join_within_root("remote")
+    readme_file_path = remote_repo_path.join_within_root("README.md")
+
+    local_repo_path.path.mkdir()
+    remote_repo_path.path.mkdir()
+    remote_repo = git.Repo.init(remote_repo_path)
+
+    with open(readme_file_path, "wb"):
+        pass
+    remote_repo.index.add([readme_file_path])
+    initial_commit = remote_repo.index.commit("Add README")
+
+    with open(readme_file_path, "w") as f:
+        f.write("This is a README")
+    remote_repo.index.add([readme_file_path])
+    remote_repo.index.commit("Update README")
+
+    git.Repo.clone_from(remote_repo_path, local_repo_path)
+
+    remote_repo.create_tag("v1.0.0", ref=initial_commit)
+    remote_repo.create_tag("v2.0.0")
+
+    return remote_repo_path, local_repo_path
+
+
+def test_fetch_tags(repo_remote_with_tag: tuple[RootedPath, RootedPath]) -> None:
+    _, local_repo_path = repo_remote_with_tag
+    assert git.Repo(local_repo_path).tags == []
+    version_resolver = ModuleVersionResolver.from_repo_path(local_repo_path)
+    assert version_resolver._commit_tags == ["v2.0.0"]
+    assert version_resolver._all_tags == ["v1.0.0", "v2.0.0"]
+
+
+def test_fetch_tags_fail(repo_remote_with_tag: tuple[RootedPath, RootedPath]) -> None:
+    # The remote_repo itself has no remote configured, so will fail when fetching tags
+    remote_repo_path, _ = repo_remote_with_tag
+    error_msg = re.escape(
+        f"Failed to fetch the tags on the Git repository (ValueError) for {remote_repo_path}"
+    )
+    with pytest.raises(FetchError, match=error_msg):
+        ModuleVersionResolver.from_repo_path(remote_repo_path)
