@@ -149,11 +149,16 @@ def _calculate_files_checksums_in_dir(root_dir: Path) -> Dict:
     for dir_, _, files in os.walk(root_dir):
         rel_dir = Path(dir_).relative_to(root_dir)
         for file_name in files:
-            rel_file = str(rel_dir.joinpath(file_name))
+            rel_file = rel_dir.joinpath(file_name).as_posix()
             if "-external-gitcommit-" in file_name:
                 files_checksums[rel_file] = _get_git_commit_from_tarball(
                     root_dir.joinpath(rel_file)
                 )
+            elif "/sumdb/sum.golang.org/lookup/" in rel_file:
+                files_checksums[rel_file] = "unstable"
+            elif "/sumdb/sum.golang.org/tile/" in rel_file:
+                # drop altogether - even the filenames are unstable, not just the checksums
+                pass
             else:
                 files_checksums[rel_file] = _calculate_sha256sum(root_dir.joinpath(rel_file))
     return files_checksums
