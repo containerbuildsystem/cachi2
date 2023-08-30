@@ -148,7 +148,8 @@ that provides many, but Go (and Cachi2) has to download the whole module anyway.
 use of this ability to report both the downloaded modules and the required packages.
 
 The list of **go-package** dependencies reported by Cachi2 is the full set of packages (transitively) required by your
-project.
+project. *⚠ If any of your module dependencies is [missing a checksum](#missing-checksums) in go.sum, the list may be
+incomplete.*
 
 The list of **gomod** dependencies is the set of modules that Cachi2 downloaded to satisfy the go-package dependencies.
 
@@ -188,9 +189,33 @@ version that you will use to build your project. We do not presume that the vers
   * `io/fs` - standard library
   * `golang.org/x/net` - external
 
+### Missing checksums
+
+Go stores the checksums of all your dependency modules in the [go.sum file][go-sum-file]. Go typically manages this
+file entirely on its own, but if any of your dependencies do end up missing, it can cause issues for Cachi2 and for
+Go itself.
+
+For Cachi2, a missing checksum means that the offending module gets downloaded without checksum verification (or with
+partial checksum verification - Cachi2 does consult the [Go checksum database][gosumdb]). Due to `go list` behavior,
+it also means that the [go-package](#gomod-vs-go-package) dependency listing may be incomplete[^why-incomplete].
+
+<!-- TODO: link the cachi2:missing_hash:in_file property once the taxonomy doc exists -->
+
+For Go, a missing checksum will cause the `go build` or `go run` commands to fail.
+
+Please make sure to keep your go.sum file up to date, perhaps by incorporating the `go mod tidy` command in your dev
+workflow.
+
+[^why-incomplete]: When a module does not have a checksum in go.sum, the `go list` command returns only basic
+  information and an error for the packages from said module. Go doesn't return any information about the dependencies
+  of the affected packages. This can cause Cachi2 to miss the transitive package dependencies of packages from
+  checksum-less modules.
+
 [readme-gomod]: ../README.md#gomod
 [usage-prefetch]: usage.md#pre-fetch-dependencies
 [usage-genenv]: usage.md#generate-environment-variables
 [go-modules-overview]: https://go.dev/ref/mod#modules-overview
+[go-sum-file]: https://go.dev/ref/mod#go-sum-files
+[gosumdb]: https://go.dev/ref/mod#checksum-database
 [py-modules]: https://docs.python.org/3/tutorial/modules.html
 [npm-modules]: https://docs.npmjs.com/about-packages-and-modules
