@@ -17,7 +17,7 @@ jobs:
         python-version: ["3.9", "3.10", "3.11"]
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         fetch-depth: 0
 
@@ -73,7 +73,7 @@ jobs:
           - mypy
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Install required packages
       run: |
         sudo apt-get install -y \
@@ -93,7 +93,7 @@ jobs:
     name: Hadolint
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - uses: hadolint/hadolint-action@v3.1.0
       with:
         dockerfile: Containerfile
@@ -117,7 +117,7 @@ jobs:
           pip install tox tox-gh-actions
 
       - name: add checkout action...
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
