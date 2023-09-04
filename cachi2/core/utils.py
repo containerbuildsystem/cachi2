@@ -32,6 +32,7 @@ def run_cmd(cmd: Any, params: dict) -> str:
         response.check_returncode()
     except subprocess.CalledProcessError:
         log.error('The command "%s" failed with: %s', " ".join(cmd), response.stderr)
+        log.error(response.stdout)
         raise
 
     return response.stdout

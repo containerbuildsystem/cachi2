@@ -51,7 +51,7 @@ def _present_user_input_error(validation_error: pydantic.ValidationError) -> str
 
 
 # Supported package managers
-PackageManagerType = Literal["gomod", "npm", "pip"]
+PackageManagerType = Literal["gomod", "npm", "pip", "yarn"]
 
 Flag = Literal["cgo-disable", "force-gomod-tidy", "gomod-vendor", "gomod-vendor-check"]
 
@@ -100,8 +100,14 @@ class PipPackageInput(_PackageInputBase):
         return check_sane_relpath(path)
 
 
+class YarnPackageInput(_PackageInputBase):
+    """Accepted input for a npm package."""
+
+    type: Literal["yarn"]
+
+
 PackageInput = Annotated[
-    Union[GomodPackageInput, NpmPackageInput, PipPackageInput],
+    Union[GomodPackageInput, NpmPackageInput, PipPackageInput, YarnPackageInput],
     # https://pydantic-docs.helpmanual.io/usage/types/#discriminated-unions-aka-tagged-unions
     pydantic.Field(discriminator="type"),
 ]
