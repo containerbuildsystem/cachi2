@@ -855,22 +855,38 @@ class ModuleVersionResolver:
         # If the module is version v2 or higher, the major version of the module is included as /vN at
         # the end of the module path. If the module is version v0 or v1, the major version is omitted
         # from the module path.
-        module_major_version = None
         match = re.match(r"(?:.+/v)(?P<major_version>\d+)$", module_name)
-        if match:
-            module_major_version = int(match.groupdict()["major_version"])
+        module_major_version = int(match.group("major_version")) if match else None
 
-        if module_major_version:
-            major_versions_to_try: tuple[int, ...] = (module_major_version,)
-        else:
-            # Prefer v1.x.x tags but fallback to v0.x.x tags if both are present
-            major_versions_to_try = (1, 0)
+        # If no match, prefer v1.x.x tags but fallback to v0.x.x tags if both are present
+        major_versions_to_try = (module_major_version,) if module_major_version else (1, 0)
 
         if app_dir.path == app_dir.root:
             subpath = None
         else:
             subpath = app_dir.path.relative_to(app_dir.root).as_posix()
 
+        tag_on_commit = self._get_highest_semver_tag_on_current_commit(
+            major_versions_to_try, subpath
+        )
+        if tag_on_commit:
+            return tag_on_commit
+
+        log.debug("No semantic version tag was found on the commit %s", self._commit.hexsha)
+        pseudo_version = self._get_highest_reachable_semver_tag(major_versions_to_try, subpath)
+        if pseudo_version:
+            return pseudo_version
+
+        log.debug("No valid semantic version tag was found")
+        # Fall-back to a vX.0.0-yyyymmddhhmmss-abcdefabcdef pseudo-version
+        return self._get_golang_pseudo_version(
+            module_major_version=module_major_version, subpath=subpath
+        )
+
+    def _get_highest_semver_tag_on_current_commit(
+        self, major_versions_to_try: tuple[int, ...], subpath: Optional[str]
+    ) -> Optional[str]:
+        """Return the highest semver tag on the current commit."""
         for major_version in major_versions_to_try:
             # Get the highest semantic version tag on the commit with a matching major version
             tag_on_commit = self._get_highest_semver_tag(major_version, subpath=subpath)
@@ -888,8 +904,12 @@ class ModuleVersionResolver:
                 tag_on_commit.name if not subpath else tag_on_commit.name.replace(f"{subpath}/", "")
             )
 
-        log.debug("No semantic version tag was found on the commit %s", self._commit.hexsha)
+        return None
 
+    def _get_highest_reachable_semver_tag(
+        self, major_versions_to_try: tuple[int, ...], subpath: Optional[str]
+    ) -> Optional[str]:
+        """Return the pseudo-version using the highest reachable semver tag as a base."""
         # This logic is based on:
         # https://github.com/golang/go/blob/a23f9afd9899160b525dbc10d01045d9a3f072a0/src/cmd/go/internal/modfetch/coderepo.go#L511-L521
         for major_version in major_versions_to_try:
@@ -913,11 +933,7 @@ class ModuleVersionResolver:
             )
             return pseudo_version
 
-        log.debug("No valid semantic version tag was found")
-        # Fall-back to a vX.0.0-yyyymmddhhmmss-abcdefabcdef pseudo-version
-        return self._get_golang_pseudo_version(
-            module_major_version=module_major_version, subpath=subpath
-        )
+        return None
 
     def _get_highest_semver_tag(
         self,
