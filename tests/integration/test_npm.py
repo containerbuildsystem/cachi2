@@ -289,10 +289,11 @@ def test_npm_smoketest(
         pytest.param(
             utils.TestParameters(
                 repo="https://github.com/cachito-testing/npm-cachi2-multiple-packages.git",
-                ref="542312f9462dd6549ec57cd95106104c30054ec9",
+                ref="a721cb61d43d07b0d8276a5b8c4555b1ed75bd39",
                 packages=(
                     {"path": "first_pkg", "type": "npm"},
                     {"path": "second_pkg", "type": "npm"},
+                    {"path": "third_pkg", "type": "npm"},
                 ),
                 check_vendor_checksums=False,
             ),

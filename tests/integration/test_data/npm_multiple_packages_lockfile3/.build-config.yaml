@@ -1452,3 +1452,138 @@ project_files:
         "sax": "0.1.1"
       }
     }
+- abspath: ${test_case_tmpdir}/npm_multiple_packages_lockfile3-source/third_pkg/package-lock.json
+  template: |
+    {
+      "name": "npm-cachi2-third-package",
+      "version": "1.0.0",
+      "lockfileVersion": 3,
+      "requires": true,
+      "packages": {
+        "": {
+          "name": "npm-cachi2-third-package",
+          "version": "1.0.0",
+          "license": "ISC",
+          "dependencies": {
+            "cachito-npm-without-deps": "",
+            "chai": "4.2.0",
+            "fecha": "file:fecha-4.2.3.tgz",
+            "is-positive": "",
+            "sax": "0.1.1"
+          }
+        },
+        "node_modules/assertion-error": {
+          "version": "1.1.0",
+          "resolved": "file://${output_dir}/deps/npm/assertion-error-1.1.0.tgz",
+          "engines": {
+            "node": "*"
+          }
+        },
+        "node_modules/cachito-npm-without-deps": {
+          "version": "1.0.0",
+          "resolved": "file://${output_dir}/deps/npm/external-cachito-npm-without-deps/cachito-npm-without-deps-external-sha512-43e71f90ad5f9eb349ab18a283f8954994def373962ddc61b866bdea4d48249e67913c6b84dca1e8c519e981ca1fcc62b438292104a88ee9ed72db76a41efede.tgz",
+          "integrity": "sha512-Q+cfkK1fnrNJqxiig/iVSZTe83OWLdxhuGa96k1IJJ5nkTxrhNyh6MUZ6YHKH8xitDgpIQSojuntctt2pB7+3g=="
+        },
+        "node_modules/chai": {
+          "version": "4.2.0",
+          "resolved": "file://${output_dir}/deps/npm/chai-4.2.0.tgz",
+          "dependencies": {
+            "assertion-error": "^1.1.0",
+            "check-error": "^1.0.2",
+            "deep-eql": "^3.0.1",
+            "get-func-name": "^2.0.0",
+            "pathval": "^1.1.0",
+            "type-detect": "^4.0.5"
+          },
+          "engines": {
+            "node": ">=4"
+          }
+        },
+        "node_modules/check-error": {
+          "version": "1.0.2",
+          "resolved": "file://${output_dir}/deps/npm/check-error-1.0.2.tgz",
+          "engines": {
+            "node": "*"
+          }
+        },
+        "node_modules/deep-eql": {
+          "version": "3.0.1",
+          "resolved": "file://${output_dir}/deps/npm/deep-eql-3.0.1.tgz",
+          "dependencies": {
+            "type-detect": "^4.0.0"
+          },
+          "engines": {
+            "node": ">=0.12"
+          }
+        },
+        "node_modules/fecha": {
+          "version": "4.2.3",
+          "resolved": "file:fecha-4.2.3.tgz",
+          "license": "MIT"
+        },
+        "node_modules/get-func-name": {
+          "version": "2.0.2",
+          "resolved": "file://${output_dir}/deps/npm/get-func-name-2.0.2.tgz",
+          "engines": {
+            "node": "*"
+          }
+        },
+        "node_modules/is-positive": {
+          "version": "3.1.0",
+          "resolved": "file://${output_dir}/deps/npm/github.com/kevva/is-positive/is-positive-external-gitcommit-97edff6f525f192a3f83cea1944765f769ae2678.tgz",
+          "license": "MIT",
+          "engines": {
+            "node": ">=0.10.0"
+          }
+        },
+        "node_modules/pathval": {
+          "version": "1.1.1",
+          "resolved": "file://${output_dir}/deps/npm/pathval-1.1.1.tgz",
+          "engines": {
+            "node": "*"
+          }
+        },
+        "node_modules/sax": {
+          "version": "0.1.1",
+          "resolved": "file://${output_dir}/deps/npm/sax-0.1.1.tgz",
+          "engines": {
+            "node": "*"
+          }
+        },
+        "node_modules/type-detect": {
+          "version": "4.0.8",
+          "resolved": "file://${output_dir}/deps/npm/type-detect-4.0.8.tgz",
+          "engines": {
+            "node": ">=4"
+          }
+        }
+      }
+    }
+- abspath: ${test_case_tmpdir}/npm_multiple_packages_lockfile3-source/third_pkg/package.json
+  template: |
+    {
+      "name": "npm-cachi2-third-package",
+      "version": "1.0.0",
+      "main": "index.js",
+      "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1"
+      },
+      "repository": {
+        "type": "git",
+        "url": "git+https://github.com/cachito-testing/cachito-npm-workspaces.git"
+      },
+      "author": "",
+      "license": "ISC",
+      "bugs": {
+        "url": "https://github.com/cachito-testing/cachito-npm-workspaces/issues"
+      },
+      "homepage": "https://github.com/cachito-testing/cachito-npm-workspaces#readme",
+      "dependencies": {
+        "cachito-npm-without-deps": "",
+        "is-positive": "",
+        "fecha": "file:fecha-4.2.3.tgz",
+        "chai": "4.2.0",
+        "sax": "0.1.1"
+      },
+      "description": ""
+    }
