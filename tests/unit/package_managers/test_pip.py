@@ -2687,10 +2687,11 @@ class TestDownload:
         )
 
     @mock.patch.object(pypi_simple.PyPISimple, "get_project_page")
-    def test_process_existing_package_without_distributions(
+    def test_process_existing_package_without_source_distributions(
         self,
         mock_get_project_page: mock.Mock,
         rooted_tmp_path: RootedPath,
+        caplog: pytest.LogCaptureFixture,
     ) -> None:
         package_name = "aiowsgi"
         version = "0.1.0"
@@ -2698,11 +2699,59 @@ class TestDownload:
             package_name, "pypi", version_specs=[("==", version)]
         )
 
-        mock_get_project_page.return_value = pypi_simple.ProjectPage(package_name, [], None, None)
-        with pytest.raises(PackageRejected) as exc_info:
-            pip._process_package_distributions(mock_requirement, rooted_tmp_path)
+        file_1 = package_name + "-" + version + "-py3-none-any.whl"
+        file_2 = package_name + "-" + version + "-manylinux1_x86_64.whl"
 
-        assert str(exc_info.value) == f"No sdists found for package {package_name}=={version}"
+        mock_get_project_page.return_value = pypi_simple.ProjectPage(
+            package_name,
+            [
+                self.mock_pypi_simple_package(file_1, version, "wheel"),
+                self.mock_pypi_simple_package(file_2, version, "wheel"),
+            ],
+            None,
+            None,
+        )
+        source, wheels = pip._process_package_distributions(
+            mock_requirement, rooted_tmp_path, allow_binary=True
+        )
+        assert source is None
+        assert len(wheels) == 2
+        assert f"No source distributions found for package {package_name}=={version}" in caplog.text
+
+    @pytest.mark.parametrize("allow_binary", (True, False))
+    @mock.patch.object(pypi_simple.PyPISimple, "get_project_page")
+    def test_process_existing_package_without_any_distributions(
+        self,
+        mock_get_project_page: mock.Mock,
+        allow_binary: bool,
+        rooted_tmp_path: RootedPath,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        package_name = "aiowsgi"
+        version = "0.1.0"
+        mock_requirement = self.mock_requirement(
+            package_name, "pypi", version_specs=[("==", version)]
+        )
+
+        with pytest.raises(PackageRejected) as exc_info:
+            pip._process_package_distributions(
+                mock_requirement, rooted_tmp_path, allow_binary=allow_binary
+            )
+
+        assert f"No source distributions found for package {package_name}=={version}" in caplog.text
+        assert (
+            str(exc_info.value) == f"No distributions found for package {package_name}=={version}"
+        )
+
+        if allow_binary:
+            assert str(exc_info.value.solution) == (
+                "Please check that the package exists on PyPI or that the name and version are correct.\n"
+            )
+        else:
+            assert str(exc_info.value.solution) == (
+                "It seems that this version does not exist or isn't published as a source distribution.\n"
+                "Try to specify the dependency directly via a URL instead, for example, the tarball for a GitHub release."
+            )
 
     @mock.patch.object(pypi_simple.PyPISimple, "get_project_page")
     def test_process_yanked_package_distributions(
@@ -2834,7 +2883,6 @@ class TestDownload:
 
         assert len(wheels) == 0
         assert f"Filtering out {package_name} due to checksum mismatch" in caplog.text
-        assert f"All {package_name} wheel distributions were filtered out" in caplog.text
 
     @pytest.mark.parametrize(
         "noncanonical_version, canonical_version",
@@ -2885,6 +2933,7 @@ class TestDownload:
         )
 
         source, wheels = pip._process_package_distributions(mock_requirement, rooted_tmp_path)
+        assert source is not None
         assert source.version == requested_version
         assert all(w.version == requested_version for w in wheels)
 
