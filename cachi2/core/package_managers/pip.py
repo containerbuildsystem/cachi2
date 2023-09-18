@@ -14,17 +14,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from os import PathLike
 from pathlib import Path
-from typing import (
-    IO,
-    TYPE_CHECKING,
-    Any,
-    Iterable,
-    Iterator,
-    Literal,
-    Optional,
-    Union,
-    no_type_check,
-)
+from typing import IO, TYPE_CHECKING, Any, Iterable, Iterator, Optional, Union, cast, no_type_check
 
 import tomli
 from packageurl import PackageURL
@@ -1424,6 +1414,19 @@ def _download_dependencies(
             if allow_binary:
                 to_download.extend(w for w in wheels if not w.path.exists())
 
+            if source is None:
+                # at least one wheel exists -> report in the SBOM
+                downloaded.append(
+                    {
+                        "package": req.package,
+                        "version": req.version_specs[0][1],
+                        "kind": req.kind,
+                        "hash_verified": require_hashes,
+                        "requirement_file": str(requirements_file.file_path.subpath_from_root),
+                    }
+                )
+                continue
+
             download_binary_file(source.url, source.path, auth=None)
             _check_metadata_in_sdist(source.path)
             download_info = source.download_info
@@ -1657,7 +1660,7 @@ class DistributionPackageInfo:
 
     name: str
     version: str
-    package_type: Literal["sdist", "wheel"]
+    package_type: str
     path: Path
     url: str
     is_yanked: bool
@@ -1721,7 +1724,7 @@ class DistributionPackageInfo:
 
 def _process_package_distributions(
     requirement: PipRequirement, pip_deps_dir: RootedPath, allow_binary: bool = False
-) -> tuple[DistributionPackageInfo, list[DistributionPackageInfo]]:
+) -> tuple[Optional[DistributionPackageInfo], list[DistributionPackageInfo]]:
     name = requirement.package
     version = requirement.version_specs[0][1]
     normalized_version = canonicalize_version(version)
@@ -1734,78 +1737,76 @@ def _process_package_distributions(
     except (requests.RequestException, pypi_simple.NoSuchProjectError) as e:
         raise FetchError(f"PyPI query failed: {e}")
 
-    wheels = []
-    if allow_binary:
-        filtered = [
-            p
-            for p in packages
-            if p.version
-            and canonicalize_version(p.version) == normalized_version
-            and p.package_type == "wheel"
-        ]
+    allowed_distros = ["sdist", "wheel"] if allow_binary else ["sdist"]
+    filtered_packages = filter(
+        lambda x: x.version is not None
+        and canonicalize_version(x.version) == normalized_version
+        and x.package_type is not None
+        and x.package_type in allowed_distros,
+        packages,
+    )
 
-        user_checksums = set(map(_to_checksum_info, requirement.hashes))
-        for wheel in filtered:
-            pypi_checksums = {
-                ChecksumInfo(algorithm, digest) for algorithm, digest in wheel.digests.items()
-            }
-            wheel_info = DistributionPackageInfo(
-                name,
-                version,
-                "wheel",
-                pip_deps_dir.join_within_root(wheel.filename).path,
-                wheel.url,
-                wheel.is_yanked,
-                pypi_checksums=pypi_checksums,
-                user_checksums=user_checksums,
-            )
+    sdists: list[DistributionPackageInfo] = []
+    wheels: list[DistributionPackageInfo] = []
 
-            if wheel_info.should_download_wheel():
-                wheels.append(wheel_info)
-            else:
-                log.info("Filtering out %s due to checksum mismatch", wheel.filename)
+    user_checksums = set(map(_to_checksum_info, requirement.hashes))
 
-        if len(filtered) > 0 and len(wheels) == 0:
-            log.warning("All %s wheel distributions were filtered out", name)
+    for package in filtered_packages:
+        pypi_checksums = {
+            ChecksumInfo(algorithm, digest) for algorithm, digest in package.digests.items()
+        }
 
-    sdists = [
-        DistributionPackageInfo(
+        dpi = DistributionPackageInfo(
             name,
             version,
-            "sdist",
-            pip_deps_dir.join_within_root(p.filename).path,
-            p.url,
-            p.is_yanked,
-        )
-        for p in packages
-        if p.version
-        and canonicalize_version(p.version) == normalized_version
-        and p.package_type == "sdist"
-    ]
-
-    if not sdists:
-        raise PackageRejected(
-            f"No sdists found for package {name}=={version}",
-            solution=(
-                "It seems that this version does not exist or isn't published as a sdist "
-                "(a zip or a tarball).\n"
-                "You may be able to specify the dependency directly via a URL instead, "
-                "for example the tarball for a GitHub release."
-            ),
-            docs=PIP_NO_SDIST_DOC,
+            cast(str, package.package_type),
+            pip_deps_dir.join_within_root(package.filename).path,
+            package.url,
+            package.is_yanked,
+            pypi_checksums,
+            user_checksums,
         )
 
-    best_sdist = max(sdists, key=_sdist_preference)
-    if best_sdist.is_yanked:
-        raise PackageRejected(
-            f"All sdists for package {name}=={version} are yanked",
-            solution=(
-                f"Please update the {name} version in your requirements file.\n"
-                "Usually, when a version gets yanked from PyPI, there will already "
-                "be a fixed version available.\n"
-                "Otherwise, you may need to pin to the previous version."
-            ),
-        )
+        if dpi.package_type == "sdist":
+            sdists.append(dpi)
+        else:
+            if dpi.should_download_wheel():
+                wheels.append(dpi)
+            else:
+                log.info("Filtering out %s due to checksum mismatch", package.filename)
+
+    if len(sdists) != 0:
+        best_sdist = max(sdists, key=_sdist_preference)
+        if best_sdist.is_yanked:
+            raise PackageRejected(
+                f"All sdists for package {name}=={version} are yanked",
+                solution=(
+                    f"Please update the {name} version in your requirements file.\n"
+                    "Usually, when a version gets yanked from PyPI, there will already "
+                    "be a fixed version available.\n"
+                    "Otherwise, you may need to pin to the previous version."
+                ),
+            )
+    else:
+        log.warning("No source distributions found for package %s==%s", name, version)
+        best_sdist = None
+
+        if len(wheels) == 0:
+            if allow_binary:
+                solution = "Please check that the package exists on PyPI or that the name and version are correct.\n"
+                docs = None
+            else:
+                solution = (
+                    "It seems that this version does not exist or isn't published as a source distribution.\n"
+                    "Try to specify the dependency directly via a URL instead, for example, the tarball for a GitHub release."
+                )
+                docs = PIP_NO_SDIST_DOC
+
+            raise PackageRejected(
+                f"No distributions found for package {name}=={version}",
+                solution=solution,
+                docs=docs,
+            )
 
     return best_sdist, wheels
 
