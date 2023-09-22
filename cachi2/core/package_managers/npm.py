@@ -45,6 +45,7 @@ class NpmComponentInfo(TypedDict):
     version: str
     dev: bool
     bundled: bool
+    missing_hash_in_file: Optional[Path]
 
 
 class ResolvedNpmPackage(TypedDict):
@@ -256,6 +257,7 @@ class PackageLock:
             "purl": purl.to_string(),
             "dev": False,
             "bundled": False,
+            "missing_hash_in_file": None,
         }
 
     def get_sbom_components(self) -> list[NpmComponentInfo]:
@@ -266,12 +268,23 @@ class PackageLock:
             purl = self._purlifier.get_purl(
                 package.name, package.version, package.resolved_url, package.integrity
             ).to_string()
+
+            missing_hash_in_file = None
+            if package.resolved_url:  # dependency is not bundled
+                resolved_url = _normalize_resolved_url(package.resolved_url)
+                dep_type = _classify_resolved_url(resolved_url)
+
+                if not package.integrity:
+                    if dep_type in ("registry", "https"):
+                        missing_hash_in_file = Path(self._lockfile_path.subpath_from_root)
+
             component: NpmComponentInfo = {
                 "name": package.name,
                 "version": package.version,
                 "purl": purl,
                 "dev": package.dev,
                 "bundled": package.bundled,
+                "missing_hash_in_file": missing_hash_in_file,
             }
 
             return component
@@ -531,7 +544,6 @@ def _get_npm_dependencies(
             get_config().concurrency_limit,
         )
     )
-
     # Check integrity of downloaded packages
     for url, item in files_to_download.items():
         if item["integrity"]:
@@ -631,6 +643,11 @@ def _generate_component_list(component_infos: list[NpmComponentInfo]) -> list[Co
     """Convert a list of NpmComponentInfo objects into a list of Component objects for the SBOM."""
 
     def to_component(component_info: NpmComponentInfo) -> Component:
+        if component_info["missing_hash_in_file"]:
+            missing_hash = frozenset({str(component_info["missing_hash_in_file"])})
+        else:
+            missing_hash = frozenset()
+
         return Component(
             name=component_info["name"],
             version=component_info["version"],
@@ -638,6 +655,7 @@ def _generate_component_list(component_infos: list[NpmComponentInfo]) -> list[Co
             properties=PropertySet(
                 npm_bundled=component_info["bundled"],
                 npm_development=component_info["dev"],
+                missing_hash_in_file=missing_hash,
             ).to_properties(),
         )
 
