@@ -1,4 +1,12 @@
-from typing import NamedTuple, Union
+import re
+from dataclasses import dataclass
+from functools import cached_property
+from typing import NamedTuple, Optional, Union
+from urllib.parse import parse_qs, unquote
+
+from cachi2.core.errors import UnexpectedFormat
+
+# --- Locator types ---
 
 
 class FileLocator(NamedTuple):
@@ -113,3 +121,77 @@ def parse_locator(locator: str) -> Locator:
     # we should raise a different type of error for unsparseable/unknown locators, and banned
     # locators (such as ones that resolve to a Git dependency or containing the exec protocol)
     return NotImplemented
+
+
+# --- Parsing locators generically ---
+
+
+# dataclass rather than NamedTuple because NamedTuple doesn't support cached_property
+@dataclass(frozen=True)
+class _ParsedLocator:
+    scope: Optional[str]
+    name: str
+    raw_reference: str
+
+    def __str__(self) -> str:
+        name_at_ref = f"{self.name}@{self.raw_reference}"
+        if self.scope:
+            return f"@{self.scope}/{name_at_ref}"
+        return name_at_ref
+
+    @cached_property
+    def parsed_reference(self) -> "_ParsedReference":
+        return _parse_reference(self.raw_reference)
+
+
+class _ParsedReference(NamedTuple):
+    protocol: Optional[str]
+    source: Optional[str]
+    selector: str
+    params: Optional[dict[str, list[str]]]
+
+
+def _parse_locator(locator_str: str) -> _ParsedLocator:
+    # https://github.com/yarnpkg/berry/blob/b6026842dfec4b012571b5982bb74420c7682a73/packages/yarnpkg-core/sources/structUtils.ts#L411
+    locator_re = re.compile(r"^(?:@([^/]+?)/)?([^@/]+?)(?:@(.+))$")
+    match = locator_re.match(locator_str)
+    if not match:
+        raise UnexpectedFormat("could not parse locator (expected [@scope/]name@reference)")
+    scope, name, reference = match.groups()
+    return _ParsedLocator(scope, name, reference)
+
+
+def _parse_reference(reference_str: str) -> _ParsedReference:
+    """Parse a reference string.
+
+    [@scope/]name@reference
+                  ^^^^^^^^^
+
+    References follow these forms:
+
+        <protocol>:<selector>::<bindings>
+        <protocol>:<source>#<selector>::<bindings>
+
+    See https://github.com/yarnpkg/berry/blob/b6026842dfec4b012571b5982bb74420c7682a73/packages/yarnpkg-core/sources/structUtils.ts#L452
+    """
+    reference_re = re.compile(r"^([^#:]*:)?((?:(?!::)[^#])*)(?:#((?:(?!::).)*))?(?:::(.*))?$")
+    match = reference_re.match(reference_str)
+    if not match:
+        raise UnexpectedFormat("could not parse reference")
+
+    groups = match.groups()
+    has_source = bool(groups[2])  # <protocol>:<source>#<selector>::<bindings>
+    # doesn't have source:          <protocol>:<selector>::<bindings>
+
+    protocol = groups[0]
+    source = unquote(groups[1]) if has_source else None
+    selector = unquote(groups[2]) if has_source else unquote(groups[1])
+    bindings = parse_qs(groups[3]) if groups[3] else None
+
+    return _ParsedReference(
+        protocol,
+        source,
+        selector,
+        # For some reason, Yarnberry calls them bindings in the docstring but params in code
+        params=bindings,
+    )
