@@ -1,6 +1,7 @@
 import json
 import os
 import urllib.parse
+from pathlib import Path
 from typing import Any, Dict, Iterator, List, Optional, Union
 from unittest import mock
 
@@ -623,6 +624,7 @@ class TestPurlifier:
                     "version": "1.0.0",
                     "bundled": False,
                     "dev": False,
+                    "missing_hash_in_file": None,
                 },
                 {
                     "name": "bar",
@@ -630,6 +632,7 @@ class TestPurlifier:
                     "version": "1.0.0",
                     "bundled": False,
                     "dev": False,
+                    "missing_hash_in_file": None,
                 },
             ],
             [
@@ -645,6 +648,7 @@ class TestPurlifier:
                     "version": "1.0.0",
                     "bundled": False,
                     "dev": True,
+                    "missing_hash_in_file": None,
                 },
             ],
             [
@@ -667,6 +671,7 @@ class TestPurlifier:
                     "version": "1.0.0",
                     "bundled": True,
                     "dev": False,
+                    "missing_hash_in_file": None,
                 },
             ],
             [
@@ -677,6 +682,31 @@ class TestPurlifier:
                     properties=[
                         Property(name="cdx:npm:package:bundled", value="true"),
                         Property(name="cachi2:found_by", value="cachi2"),
+                    ],
+                ),
+            ],
+        ),
+        (
+            [
+                {
+                    "name": "foo",
+                    "purl": "pkg:npm/foo@1.0.0",
+                    "version": "1.0.0",
+                    "bundled": False,
+                    "dev": False,
+                    "missing_hash_in_file": Path("path/to/foo/package-lock.json"),
+                },
+            ],
+            [
+                Component(
+                    name="foo",
+                    version="1.0.0",
+                    purl="pkg:npm/foo@1.0.0",
+                    properties=[
+                        Property(
+                            name="cachi2:missing_hash:in_file",
+                            value="path/to/foo/package-lock.json",
+                        ),
                     ],
                 ),
             ],
@@ -704,6 +734,7 @@ def test_generate_component_list(
                         "purl": "pkg:npm/foo@1.0.0",
                         "bundled": False,
                         "dev": False,
+                        "missing_hash_in_file": None,
                     },
                     "dependencies": [
                         {
@@ -712,6 +743,7 @@ def test_generate_component_list(
                             "purl": "pkg:npm/bar@2.0.0",
                             "bundled": False,
                             "dev": False,
+                            "missing_hash_in_file": None,
                         }
                     ],
                     "projectfiles": [
@@ -749,6 +781,7 @@ def test_generate_component_list(
                         "purl": "pkg:npm/foo@1.0.0",
                         "bundled": False,
                         "dev": False,
+                        "missing_hash_in_file": None,
                     },
                     "dependencies": [
                         {
@@ -757,6 +790,7 @@ def test_generate_component_list(
                             "purl": "pkg:npm/bar@2.0.0",
                             "bundled": False,
                             "dev": False,
+                            "missing_hash_in_file": None,
                         }
                     ],
                     "projectfiles": [
@@ -778,6 +812,7 @@ def test_generate_component_list(
                         "purl": "pkg:npm/spam@3.0.0",
                         "bundled": False,
                         "dev": False,
+                        "missing_hash_in_file": None,
                     },
                     "dependencies": [
                         {
@@ -786,6 +821,7 @@ def test_generate_component_list(
                             "purl": "pkg:npm/eggs@4.0.0",
                             "bundled": False,
                             "dev": False,
+                            "missing_hash_in_file": None,
                         }
                     ],
                     "dependencies_to_download": {
@@ -897,7 +933,6 @@ def test_resolve_npm_validation(
                     "bar": {
                         "version": "2.0.0",
                         "resolved": "https://registry.npmjs.org/bar/-/bar-2.0.0.tgz",
-                        "integrity": "sha512-JCB8C6SnDoQf",
                     },
                 },
             },
@@ -908,6 +943,7 @@ def test_resolve_npm_validation(
                     "purl": f"pkg:npm/foo@1.0.0?vcs_url={MOCK_REPO_VCS_URL}",
                     "bundled": False,
                     "dev": False,
+                    "missing_hash_in_file": None,
                 },
                 "dependencies": [
                     {
@@ -916,6 +952,7 @@ def test_resolve_npm_validation(
                         "purl": "pkg:npm/bar@2.0.0",
                         "bundled": False,
                         "dev": False,
+                        "missing_hash_in_file": None,  # correct since integrity is missing from dependencies but is included in packages section
                     }
                 ],
                 "projectfiles": [
@@ -956,7 +993,6 @@ def test_resolve_npm_validation(
                     "bar": {
                         "version": "2.0.0",
                         "resolved": "https://registry.npmjs.org/bar/-/bar-2.0.0.tgz",
-                        "integrity": "sha512-JCB8C6SnDoQf",
                         "dependencies": {
                             "baz": {
                                 "version": "3.0.0",
@@ -977,6 +1013,7 @@ def test_resolve_npm_validation(
                     "purl": f"pkg:npm/foo@1.0.0?vcs_url={MOCK_REPO_VCS_URL}",
                     "bundled": False,
                     "dev": False,
+                    "missing_hash_in_file": None,
                 },
                 "dependencies": [
                     {
@@ -985,6 +1022,7 @@ def test_resolve_npm_validation(
                         "purl": "pkg:npm/bar@2.0.0",
                         "bundled": False,
                         "dev": False,
+                        "missing_hash_in_file": None,
                     },
                     {
                         "name": "baz",
@@ -992,6 +1030,7 @@ def test_resolve_npm_validation(
                         "purl": "pkg:npm/baz@3.0.0",
                         "bundled": False,
                         "dev": False,
+                        "missing_hash_in_file": None,
                     },
                     {
                         "name": "spam",
@@ -999,6 +1038,7 @@ def test_resolve_npm_validation(
                         "purl": "pkg:npm/spam@4.0.0",
                         "bundled": True,
                         "dev": False,
+                        "missing_hash_in_file": None,
                     },
                 ],
                 "projectfiles": [
@@ -1039,6 +1079,7 @@ def test_resolve_npm_validation(
                     "purl": f"pkg:npm/foo@1.0.0?vcs_url={MOCK_REPO_VCS_URL}",
                     "bundled": False,
                     "dev": False,
+                    "missing_hash_in_file": None,
                 },
                 "dependencies": [
                     {
@@ -1047,6 +1088,7 @@ def test_resolve_npm_validation(
                         "purl": f"pkg:npm/not-bar@2.0.0?vcs_url={MOCK_REPO_VCS_URL}#bar",
                         "bundled": False,
                         "dev": False,
+                        "missing_hash_in_file": None,
                     }
                 ],
                 "projectfiles": [
@@ -1087,6 +1129,7 @@ def test_resolve_npm_validation(
                     "purl": f"pkg:npm/foo@1.0.0?vcs_url={MOCK_REPO_VCS_URL}#subpath",
                     "bundled": False,
                     "dev": False,
+                    "missing_hash_in_file": None,
                 },
                 "dependencies": [
                     {
@@ -1095,6 +1138,7 @@ def test_resolve_npm_validation(
                         "purl": f"pkg:npm/not-bar@2.0.0?vcs_url={MOCK_REPO_VCS_URL}#subpath/bar",
                         "bundled": False,
                         "dev": False,
+                        "missing_hash_in_file": None,
                     }
                 ],
                 "projectfiles": [
@@ -1143,6 +1187,7 @@ def test_resolve_npm_validation(
                     "purl": f"pkg:npm/foo@1.0.0?vcs_url={MOCK_REPO_VCS_URL}",
                     "bundled": False,
                     "dev": False,
+                    "missing_hash_in_file": None,
                 },
                 "dependencies": [
                     {
@@ -1151,6 +1196,7 @@ def test_resolve_npm_validation(
                         "purl": "pkg:npm/bar@2.0.0?checksum=sha512:24207c0ba4a70e841f&download_url=https://foohub.org/bar/-/bar-2.0.0.tgz",
                         "bundled": False,
                         "dev": False,
+                        "missing_hash_in_file": None,
                     },
                     {
                         "name": "spam",
@@ -1158,6 +1204,7 @@ def test_resolve_npm_validation(
                         "purl": f"pkg:npm/spam@3.0.0?vcs_url={urlq('git+ssh://git@github.com/spam/spam.git@deadbeef')}",
                         "bundled": False,
                         "dev": False,
+                        "missing_hash_in_file": None,
                     },
                 ],
                 "projectfiles": [
@@ -1182,7 +1229,6 @@ def test_resolve_npm_validation(
                     "node_modules/@bar/baz": {
                         "version": "2.0.0",
                         "resolved": "https://registry.npmjs.org/@bar/baz/-/baz-2.0.0.tgz",
-                        "integrity": "sha512-JCB8C6SnDoQf",
                     },
                 },
                 "dependencies": {
@@ -1200,6 +1246,7 @@ def test_resolve_npm_validation(
                     "purl": f"pkg:npm/foo@1.0.0?vcs_url={MOCK_REPO_VCS_URL}",
                     "bundled": False,
                     "dev": False,
+                    "missing_hash_in_file": None,
                 },
                 "dependencies": [
                     {
@@ -1208,6 +1255,7 @@ def test_resolve_npm_validation(
                         "purl": "pkg:npm/%40bar/baz@2.0.0",
                         "bundled": False,
                         "dev": False,
+                        "missing_hash_in_file": Path("package-lock.json"),
                     }
                 ],
                 "projectfiles": [
@@ -1232,7 +1280,6 @@ def test_resolve_npm_validation(
                     "node_modules/bar": {
                         "version": "2.0.0",
                         "resolved": "https://registry.npmjs.org/bar/-/bar-2.0.0.tgz",
-                        "integrity": "sha512-JCB8C6SnDoQf",
                     },
                 },
             },
@@ -1243,6 +1290,7 @@ def test_resolve_npm_validation(
                     "purl": f"pkg:npm/foo@1.0.0?vcs_url={MOCK_REPO_VCS_URL}",
                     "bundled": False,
                     "dev": False,
+                    "missing_hash_in_file": None,
                 },
                 "dependencies": [
                     {
@@ -1251,6 +1299,7 @@ def test_resolve_npm_validation(
                         "purl": "pkg:npm/bar@2.0.0",
                         "bundled": False,
                         "dev": False,
+                        "missing_hash_in_file": Path("package-lock.json"),
                     }
                 ],
                 "projectfiles": [
@@ -1259,6 +1308,87 @@ def test_resolve_npm_validation(
                 ],
             },
             id="npm_v3_lockfile",
+        ),
+        pytest.param(
+            ".",
+            {
+                "name": "foo",
+                "version": "1.0.0",
+                "lockfileVersion": 3,
+                "packages": {
+                    "": {
+                        "name": "foo",
+                        "version": "1.0.0",
+                        "dependencies": {"bar": "^2.0.0"},
+                    },
+                    "node_modules/bar": {
+                        "version": "2.0.0",
+                        "resolved": "https://registry.npmjs.org/bar/-/bar-2.0.0.tgz",
+                    },
+                    "node_modules/baz": {
+                        "version": "4.2.3",
+                        "resolved": "file:baz-4.2.3.tgz",
+                        "license": "MIT",
+                    },
+                    "node_modules/spam": {
+                        "version": "3.1.0",
+                        "resolved": "git+ssh://git@github.com/spamming/spam.git#97edff6f525f192a3f83cea1944765f769ae2678",
+                    },
+                    "node_modules/eggs": {
+                        "version": "1.0.0",
+                        "resolved": "https://github.com/omelette/ham/raw/tarball/eggs-1.0.0.tgz",
+                    },
+                },
+            },
+            {
+                "package": {
+                    "name": "foo",
+                    "version": "1.0.0",
+                    "purl": f"pkg:npm/foo@1.0.0?vcs_url={MOCK_REPO_VCS_URL}",
+                    "bundled": False,
+                    "dev": False,
+                    "missing_hash_in_file": None,
+                },
+                "dependencies": [
+                    {
+                        "name": "bar",
+                        "version": "2.0.0",
+                        "purl": "pkg:npm/bar@2.0.0",
+                        "bundled": False,
+                        "dev": False,
+                        "missing_hash_in_file": Path("package-lock.json"),
+                    },
+                    {
+                        "name": "baz",
+                        "version": "4.2.3",
+                        "purl": "pkg:npm/baz@4.2.3?vcs_url=git%2Bhttps://github.com/foolish/bar.git%40abcdef1234#baz-4.2.3.tgz",
+                        "bundled": False,
+                        "dev": False,
+                        "missing_hash_in_file": None,
+                    },
+                    {
+                        "name": "spam",
+                        "version": "3.1.0",
+                        "purl": "pkg:npm/spam@3.1.0?vcs_url=git%2Bssh://git%40github.com/spamming/spam.git%4097edff6f525f192a3f83cea1944765f769ae2678",
+                        "bundled": False,
+                        "dev": False,
+                        "missing_hash_in_file": None,
+                    },
+                    {
+                        "name": "eggs",
+                        "version": "1.0.0",
+                        "purl": "pkg:npm/eggs@1.0.0?download_url=https://github.com/omelette/ham/raw/tarball/eggs-1.0.0.tgz",
+                        "bundled": False,
+                        "dev": False,
+                        "missing_hash_in_file": Path("package-lock.json"),
+                    },
+                ],
+                "projectfiles": [
+                    ProjectFile(abspath="/some/path", template="some text"),
+                    ProjectFile(abspath="/some/other/path", template="some other text"),
+                ],
+            },
+            id="npm_v3_missing_hash",
         ),
     ],
 )
