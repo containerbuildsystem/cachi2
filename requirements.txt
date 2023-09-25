@@ -421,9 +421,9 @@ pydantic==1.10.9 \
     # via
     #   cachi2 (pyproject.toml)
     #   pypi-simple
-pypi-simple==1.1.0 \
-    --hash=sha256:d393c23b841637e34038723291b4bcfd19e342ef47205e9eaa5fe4642ccd4763 \
-    --hash=sha256:f50bdf61b914ffa48c5cf2c3998552fad1ce285a71ae898f56342b338d4bf771
+pypi-simple==1.2.0 \
+    --hash=sha256:9f8fda101f71467ce9c7920fda99e1dd5a9907e693ec4c28430a14e3519cae86 \
+    --hash=sha256:d41bdf9978b96c1bb8eebf7975e54e1d789b30bc71a80902ddca1a11a2a18adf
     # via cachi2 (pyproject.toml)
 pyyaml==6.0.1 \
     --hash=sha256:062582fca9fabdd2c8b54a3ef1c978d786e0f6b3a1510e0ac93ef59e0ddae2bc \
