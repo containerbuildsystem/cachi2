@@ -34,4 +34,4 @@ def set_config(path: Path) -> None:
     """Set global config variable using input from file."""
     global config
 
-    config = parse_user_input(Config.parse_obj, yaml.safe_load(path.read_text()))
+    config = parse_user_input(Config.model_validate, yaml.safe_load(path.read_text()))

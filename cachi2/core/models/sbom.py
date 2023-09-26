@@ -32,7 +32,7 @@ class Component(pydantic.BaseModel):
     name: str
     purl: str
     version: Optional[str] = None
-    properties: list[Property] = []
+    properties: list[Property] = pydantic.Field(default_factory=list, validate_default=True)
     type: Literal["library"] = "library"
 
     def key(self) -> str:
@@ -42,7 +42,7 @@ class Component(pydantic.BaseModel):
         """
         return self.purl
 
-    @pydantic.validator("properties", always=True)
+    @pydantic.field_validator("properties")
     def _add_found_by_property(cls, properties: list[Property]) -> list[Property]:
         if FOUND_BY_CACHI2_PROPERTY not in properties:
             properties.append(FOUND_BY_CACHI2_PROPERTY)
@@ -88,7 +88,7 @@ class Sbom(pydantic.BaseModel):
     spec_version: str = pydantic.Field(alias="specVersion", default="1.4")
     version: int = 1
 
-    @pydantic.validator("components")
+    @pydantic.field_validator("components")
     def _unique_components(cls, components: list[Component]) -> list[Component]:
         """Sort and de-duplicate components."""
         return unique_sorted(components, by=lambda component: component.key())

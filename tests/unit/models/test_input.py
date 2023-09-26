@@ -1,6 +1,6 @@
 import re
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import pydantic
 import pytest as pytest
@@ -18,13 +18,9 @@ from cachi2.core.rooted_path import RootedPath
 
 
 def test_parse_user_input() -> None:
-    expect_error = re.compile(
-        r"1 validation error for user input\n"
-        r"type\n"
-        r"  unexpected value; permitted: .* \(given=go-package; permitted=[^;]*\)"
-    )
+    expect_error = re.compile(r"1 validation error for user input\ntype\n  Input should be 'gomod'")
     with pytest.raises(InvalidInput, match=expect_error):
-        parse_user_input(GomodPackageInput.parse_obj, {"type": "go-package"})
+        parse_user_input(GomodPackageInput.model_validate, {"type": "go-package"})
 
 
 class TestPackageInput:
@@ -67,55 +63,55 @@ class TestPackageInput:
         ],
     )
     def test_valid_packages(self, input_data: dict[str, Any], expect_data: dict[str, Any]) -> None:
-        # doesn't pass type check: https://github.com/pydantic/pydantic/issues/1847
-        package = pydantic.parse_obj_as(PackageInput, input_data)  # type: ignore
-        assert package.dict() == expect_data
+        adapter = pydantic.TypeAdapter(PackageInput)
+        package = cast(PackageInput, adapter.validate_python(input_data))
+        assert package.model_dump() == expect_data
 
     @pytest.mark.parametrize(
         "input_data, expect_error",
         [
             (
                 {},
-                r"Discriminator 'type' is missing",
+                r"Unable to extract tag using discriminator 'type'",
             ),
             (
                 {"type": "go-package"},
-                r"No match for discriminator 'type' and value 'go-package' \(allowed values: .*",
+                r"Input tag 'go-package' found using 'type' does not match any of the expected tags: 'gomod', 'npm', 'pip', 'yarn'",
             ),
             (
                 {"type": "gomod", "path": "/absolute"},
-                r"path\n  path must be relative: /absolute",
+                r"Value error, path must be relative: /absolute",
             ),
             (
                 {"type": "gomod", "path": ".."},
-                r"path\n  path contains ..: ..",
+                r"Value error, path contains ..: ..",
             ),
             (
                 {"type": "gomod", "path": "weird/../subpath"},
-                r"path\n  path contains ..: weird/../subpath",
+                r"Value error, path contains ..: weird/../subpath",
             ),
             (
                 {"type": "pip", "requirements_files": ["weird/../subpath"]},
-                r"requirements_files -> 0\n  path contains ..: weird/../subpath",
+                r"pip.requirements_files\n  Value error, path contains ..: weird/../subpath",
             ),
             (
                 {"type": "pip", "requirements_build_files": ["weird/../subpath"]},
-                r"requirements_build_files -> 0\n  path contains ..: weird/../subpath",
+                r"pip.requirements_build_files\n  Value error, path contains ..: weird/../subpath",
             ),
             (
                 {"type": "pip", "requirements_files": None},
-                r"requirements_files\n  none is not an allowed value",
+                r"none is not an allowed value",
             ),
             (
                 {"type": "pip", "requirements_build_files": None},
-                r"requirements_build_files\n  none is not an allowed value",
+                r"none is not an allowed value",
             ),
         ],
     )
     def test_invalid_packages(self, input_data: dict[str, Any], expect_error: str) -> None:
         with pytest.raises(pydantic.ValidationError, match=expect_error):
-            # doesn't pass type check: https://github.com/pydantic/pydantic/issues/1847
-            pydantic.parse_obj_as(PackageInput, input_data)  # type: ignore
+            adapter = pydantic.TypeAdapter(PackageInput)
+            adapter.validate_python(input_data)
 
 
 class TestRequest:
@@ -126,29 +122,35 @@ class TestRequest:
             source_dir=str(tmp_path),
             output_dir=str(tmp_path),
             packages=[
-                {"type": "gomod"},
-                {"type": "gomod", "path": "subpath"},
-                {"type": "npm"},
-                {"type": "npm", "path": "subpath"},
-                {"type": "pip", "requirements_build_files": []},
-                # check de-duplication
-                {"type": "gomod"},
-                {"type": "gomod", "path": "subpath"},
-                {"type": "npm"},
-                {"type": "npm", "path": "subpath"},
-                {"type": "pip", "requirements_build_files": []},
-            ],
-        )
-
-        assert request.dict() == {
-            "source_dir": RootedPath(tmp_path),
-            "output_dir": RootedPath(tmp_path),
-            "packages": [
                 GomodPackageInput(type="gomod"),
                 GomodPackageInput(type="gomod", path="subpath"),
                 NpmPackageInput(type="npm"),
                 NpmPackageInput(type="npm", path="subpath"),
                 PipPackageInput(type="pip", requirements_build_files=[]),
+                # check de-duplication
+                GomodPackageInput(type="gomod"),
+                GomodPackageInput(type="gomod", path="subpath"),
+                NpmPackageInput(type="npm"),
+                NpmPackageInput(type="npm", path="subpath"),
+                PipPackageInput(type="pip", requirements_build_files=[]),
+            ],
+        )
+
+        assert request.model_dump() == {
+            "source_dir": RootedPath(tmp_path),
+            "output_dir": RootedPath(tmp_path),
+            "packages": [
+                {"type": "gomod", "path": Path(".")},
+                {"type": "gomod", "path": Path("subpath")},
+                {"type": "npm", "path": Path(".")},
+                {"type": "npm", "path": Path("subpath")},
+                {
+                    "type": "pip",
+                    "path": Path("."),
+                    "requirements_files": None,
+                    "requirements_build_files": [],
+                    "allow_binary": False,
+                },
             ],
             "flags": frozenset(),
         }
@@ -170,12 +172,12 @@ class TestRequest:
             which_path: "relative/path",
             "packages": [],
         }
-        expect_error = f"{which_path}\n  path must be absolute: relative/path"
+        expect_error = "Value error, path must be absolute: relative/path"
         with pytest.raises(pydantic.ValidationError, match=expect_error):
-            Request.parse_obj(input_data)
+            Request.model_validate(input_data)
 
     def test_conflicting_packages(self, tmp_path: Path) -> None:
-        expect_error = f"packages\n  conflict by {('pip', Path('.'))}"
+        expect_error = f"Value error, conflict by {('pip', Path('.'))}"
         with pytest.raises(pydantic.ValidationError, match=re.escape(expect_error)):
             Request(
                 source_dir=tmp_path,
@@ -209,7 +211,7 @@ class TestRequest:
             )
 
     def test_invalid_flags(self) -> None:
-        expect_error = r"flags -> 0\n  unexpected value; permitted: .* given=no-such-flag"
+        expect_error = r"Input should be 'cgo-disable', 'force-gomod-tidy', 'gomod-vendor' or 'gomod-vendor-check'"
         with pytest.raises(pydantic.ValidationError, match=expect_error):
             Request(
                 source_dir="/source",
@@ -219,7 +221,7 @@ class TestRequest:
             )
 
     def test_empty_packages(self) -> None:
-        expect_error = r"packages\n  at least one package must be defined, got an empty list"
+        expect_error = r"Value error, at least one package must be defined, got an empty list"
         with pytest.raises(pydantic.ValidationError, match=expect_error):
             Request(
                 source_dir="/source",

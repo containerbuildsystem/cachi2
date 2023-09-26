@@ -225,10 +225,10 @@ def fetch_deps(
 
         return flags
 
-    input = parse_user_input(_Input.parse_obj, normalize_input())
+    input = parse_user_input(_Input.model_validate, normalize_input())
 
     request = parse_user_input(
-        Request.parse_obj,
+        Request.model_validate,
         {
             "source_dir": source,
             "output_dir": output,
@@ -241,13 +241,13 @@ def fetch_deps(
 
     request.output_dir.path.mkdir(parents=True, exist_ok=True)
     request.output_dir.join_within_root(".build-config.json").path.write_text(
-        request_output.build_config.json()
+        request_output.build_config.model_dump_json()
     )
 
     sbom = request_output.generate_sbom()
     request.output_dir.join_within_root("bom.json").path.write_text(
         # the Sbom model has camelCase aliases in some fields
-        sbom.json(by_alias=True, exclude_none=True)
+        sbom.model_dump_json(by_alias=True, exclude_none=True)
     )
 
     log.info(r"All dependencies fetched successfully \o/")
@@ -328,4 +328,4 @@ def _get_build_config(output_dir: Path) -> BuildConfig:
             f"No .build-config.json found in {output_dir}. "
             "Please use a directory populated by a previous fetch-deps command."
         )
-    return BuildConfig.parse_raw(build_config_json.read_text())
+    return BuildConfig.model_validate_json(build_config_json.read_text())

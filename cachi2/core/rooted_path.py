@@ -1,6 +1,8 @@
 from os import PathLike
 from pathlib import Path
-from typing import Any, Callable, Iterator, TypeVar, Union
+from typing import Any, TypeVar, Union
+
+from pydantic_core import CoreSchema, core_schema
 
 from cachi2.core.errors import UsageError
 
@@ -115,13 +117,14 @@ class RootedPath(PathLike[str]):
         new._root = self.root
         return new
 
-    # pydantic integration
     @classmethod
-    def __get_validators__(cls: type[RootedPathT]) -> Iterator[Callable[[Any], RootedPathT]]:
-        yield cls._validate
+    def __get_pydantic_core_schema__(cls, source: Any, handler: Any) -> CoreSchema:
+        return core_schema.no_info_before_validator_function(
+            cls._validate, core_schema.any_schema()
+        )
 
-    @classmethod
-    def _validate(cls: type[RootedPathT], v: Any) -> RootedPathT:
-        if not isinstance(v, (str, PathLike)):
-            raise TypeError(f"expected str or os.PathLike, got {type(v).__name__}")
-        return cls(v)
+    @staticmethod
+    def _validate(value: Any) -> "RootedPath":
+        if not isinstance(value, (str, PathLike)):
+            raise ValueError(f"expected str or os.PathLike, got {type(value).__name__}")
+        return RootedPath(path=value)
