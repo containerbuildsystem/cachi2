@@ -145,12 +145,12 @@ def test_pydantic_integration() -> None:
     class SomeModel(pydantic.BaseModel):
         path: RootedPath
 
-    x = SomeModel.parse_obj({"path": "/foo"})
+    x = SomeModel.model_validate({"path": "/foo"})
     assert isinstance(x.path, RootedPath)
     assert_attrs(x.path, root=Path("/foo"), path=Path("/foo"))
 
     with pytest.raises(pydantic.ValidationError, match="expected str or os.PathLike, got bytes"):
-        SomeModel.parse_obj({"path": b"/foo"})
+        SomeModel.model_validate({"path": b"/foo"})
 
     with pytest.raises(pydantic.ValidationError, match="path must be absolute: foo/bar"):
-        SomeModel.parse_obj({"path": "foo/bar"})
+        SomeModel.model_validate({"path": "foo/bar"})

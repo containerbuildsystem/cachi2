@@ -140,13 +140,13 @@ class TestTopLevelOpts:
                 True,
                 "config.yaml",
                 "goproxy_url",
-                "Error: InvalidInput: 1 validation error for user input\nConfig expected dict not str\n",
+                "Error: InvalidInput: 1 validation error for user input\n\n  Input should be a valid dictionary or instance of Config",
             ),
             (
                 True,
                 "config.yaml",
                 "non_existing_option: True",
-                "Error: InvalidInput: 1 validation error for user input\nnon_existing_option\n  extra fields not permitted\n",
+                "Error: InvalidInput: 1 validation error for user input\nnon_existing_option\n  Extra inputs are not permitted\n",
             ),
             (
                 False,
@@ -355,42 +355,42 @@ class TestFetchDeps:
             (
                 "idk",
                 [
-                    "1 validation error for user input",
+                    "Error: InvalidInput: 1 validation error for user input",
                     "packages -> 0",
-                    "No match for discriminator 'type' and value 'idk' (allowed values:",
+                    "Input tag 'idk' found using 'type' does not match any of the expected tags: 'gomod', 'npm', 'pip', 'yarn'",
                 ],
             ),
             (
                 '[{"type": "idk"}]',
                 [
-                    "1 validation error for user input",
+                    "Error: InvalidInput: 1 validation error for user input",
                     "packages -> 0",
-                    "No match for discriminator 'type' and value 'idk' (allowed values:",
+                    "Input tag 'idk' found using 'type' does not match any of the expected tags: 'gomod', 'npm', 'pip', 'yarn'",
                 ],
             ),
             (
                 '{"packages": [{"type": "idk"}]}',
                 [
-                    "1 validation error for user input",
+                    "Error: InvalidInput: 1 validation error for user input",
                     "packages -> 0",
-                    "No match for discriminator 'type' and value 'idk' (allowed values:",
+                    "Input tag 'idk' found using 'type' does not match any of the expected tags: 'gomod', 'npm', 'pip', 'yarn'",
                 ],
             ),
             # Missing package type
             (
                 "{}",
                 [
-                    "1 validation error for user input",
+                    "Error: InvalidInput: 1 validation error for user input",
                     "packages -> 0",
-                    "Discriminator 'type' is missing",
+                    "Unable to extract tag using discriminator 'type'",
                 ],
             ),
             (
                 '[{"type": "gomod"}, {}]',
                 [
-                    "1 validation error for user input",
+                    "Error: InvalidInput: 1 validation error for user input",
                     "packages -> 1",
-                    "Discriminator 'type' is missing",
+                    "Unable to extract tag using discriminator 'type'",
                 ],
             ),
             (
@@ -398,82 +398,82 @@ class TestFetchDeps:
                 [
                     "1 validation error for user input",
                     "packages -> 0",
-                    "Discriminator 'type' is missing",
+                    "Unable to extract tag using discriminator 'type'",
                 ],
             ),
             # Invalid path
             (
                 '{"type": "gomod", "path": "/absolute"}',
                 [
-                    "1 validation error for user input",
-                    "packages -> 0 -> GomodPackageInput -> path",
-                    "path must be relative: /absolute",
+                    "Error: InvalidInput: 1 validation error for user input",
+                    "packages -> 0 -> gomod -> path",
+                    "Value error, path must be relative: /absolute",
                 ],
             ),
             (
                 '{"type": "gomod", "path": "weird/../subpath"}',
                 [
-                    "1 validation error for user input",
-                    "packages -> 0 -> GomodPackageInput -> path",
-                    "path contains ..: weird/../subpath",
+                    "Error: InvalidInput: 1 validation error for user input",
+                    "packages -> 0 -> gomod -> path",
+                    "Value error, path contains ..: weird/../subpath",
                 ],
             ),
             (
                 '{"type": "gomod", "path": "suspicious-symlink"}',
                 [
-                    "1 validation error for user input",
-                    "packages -> 0",
-                    "package path (a symlink?) leads outside source directory: suspicious-symlink",
+                    "Error: InvalidInput: 1 validation error for user input",
+                    "packages",
+                    "Value error, package path (a symlink?) leads outside source directory: suspicious-symlink",
                 ],
             ),
             (
                 '{"type": "gomod", "path": "no-such-dir"}',
                 [
-                    "1 validation error for user input",
-                    "packages -> 0",
-                    "package path does not exist (or is not a directory): no-such-dir",
+                    "Error: InvalidInput: 1 validation error for user input",
+                    "packages",
+                    "Value error, package path does not exist (or is not a directory): no-such-dir",
                 ],
             ),
             # Extra fields
             (
                 '{"type": "gomod", "what": "dunno"}',
                 [
-                    "1 validation error for user input",
-                    "packages -> 0 -> GomodPackageInput -> what",
-                    "extra fields not permitted",
+                    "Error: InvalidInput: 1 validation error for user input",
+                    "packages -> 0 -> gomod -> what",
+                    "Extra inputs are not permitted",
                 ],
             ),
             # Invalid format using 'packages' key
             (
                 '{"packages": "gomod"}',
                 [
-                    "1 validation error for user input",
+                    "Error: InvalidInput: 1 validation error for user input",
                     "packages",
-                    "value is not a valid list",
+                    "Input should be a valid list",
                 ],
             ),
             (
                 '{"packages": {"type":"gomod"}}',
                 [
-                    "1 validation error for user input",
+                    "Error: InvalidInput: 1 validation error for user input",
                     "packages",
-                    "value is not a valid list",
+                    "Input should be a valid list",
                 ],
             ),
             (
                 '{"packages": ["gomod"]}',
                 [
-                    "1 validation error for user input",
+                    "Error: InvalidInput: 1 validation error for user input",
                     "packages -> 0",
-                    "Discriminator 'type' is missing",
+                    "Input should be a valid dictionary or object to extract fields from",
                 ],
             ),
             (
                 '{"packages": [{"type": "gomod"}], "what": "dunno"}',
                 [
-                    "1 validation error for user input",
+                    "Error: InvalidInput: 1 validation error for user input",
                     "what",
-                    "extra fields not permitted",
+                    "Extra inputs are not permitted",
                 ],
             ),
         ],
@@ -552,27 +552,15 @@ class TestFetchDeps:
             (["gomod", "--no-such-flag"], "No such option: --no-such-flag"),
             (
                 ['{"packages": [{"type": "gomod"}], "flags": "not-a-list"}'],
-                re.compile(
-                    r"1 validation error for user input\n"
-                    r"flags\n"
-                    r"  value is not a valid list",
-                ),
+                "Input should be a valid list",
             ),
             (
                 ['{"packages": [{"type": "gomod"}], "flags": {"dict": "no-such-flag"}}'],
-                re.compile(
-                    r"1 validation error for user input\n"
-                    r"flags\n"
-                    r"  value is not a valid list",
-                ),
+                "Input should be a valid list",
             ),
             (
                 ['{"packages": [{"type": "gomod"}], "flags": ["no-such-flag"]}'],
-                re.compile(
-                    r"1 validation error for user input\n"
-                    r"flags -> 0\n"
-                    r"  unexpected value; permitted: .*\(given=no-such-flag",
-                ),
+                "Input should be 'cgo-disable', 'force-gomod-tidy', 'gomod-vendor' or 'gomod-vendor-check'",
             ),
         ],
     )
@@ -607,8 +595,8 @@ class TestFetchDeps:
         build_config_path = tmp_cwd / DEFAULT_OUTPUT / ".build-config.json"
         sbom_path = tmp_cwd / DEFAULT_OUTPUT / "bom.json"
 
-        written_build_config = BuildConfig.parse_file(build_config_path)
-        written_sbom = Sbom.parse_file(sbom_path)
+        written_build_config = BuildConfig.model_validate_json(build_config_path.read_text())
+        written_sbom = Sbom.model_validate_json(sbom_path.read_text())
 
         assert written_build_config == request_output.build_config
         assert written_sbom == request_output.generate_sbom()
@@ -639,7 +627,7 @@ class TestGenerateEnv:
     def tmp_cwd_as_output_dir(self, tmp_cwd: Path) -> Path:
         """Change working directory to a tmpdir and write .build-config.json into it."""
         build_config = BuildConfig(environment_variables=self.ENV_VARS, project_files=[])
-        tmp_cwd.joinpath(".build-config.json").write_text(build_config.json())
+        tmp_cwd.joinpath(".build-config.json").write_text(build_config.model_dump_json())
         return tmp_cwd
 
     @pytest.mark.parametrize("use_relative_path", [True, False])
@@ -747,7 +735,7 @@ class TestInjectFiles:
             },
         ]
         build_config = BuildConfig(environment_variables=[], project_files=project_files)
-        tmp_cwd.joinpath(".build-config.json").write_text(build_config.json())
+        tmp_cwd.joinpath(".build-config.json").write_text(build_config.model_dump_json())
         return tmp_cwd
 
     @pytest.mark.parametrize("for_output_dir", [None, "/cachi2/output"])

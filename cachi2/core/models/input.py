@@ -62,7 +62,7 @@ class _PackageInputBase(pydantic.BaseModel, extra="forbid"):
     type: PackageManagerType
     path: Path = Path(".")
 
-    @pydantic.validator("path")
+    @pydantic.field_validator("path")
     def _path_is_relative(cls, path: Path) -> Path:
         return check_sane_relpath(path)
 
@@ -87,17 +87,19 @@ class PipPackageInput(_PackageInputBase):
     requirements_build_files: Optional[list[Path]] = None
     allow_binary: bool = False
 
-    @pydantic.validator("requirements_files", "requirements_build_files")
+    @pydantic.field_validator("requirements_files", "requirements_build_files")
     def _no_explicit_none(cls, paths: Optional[list[Path]]) -> list[Path]:
         """Fail if the user explicitly passes None."""
         if paths is None:
             # Note: same error message as pydantic's default
-            raise TypeError("none is not an allowed value")
+            raise ValueError("none is not an allowed value")
         return paths
 
-    @pydantic.validator("requirements_files", "requirements_build_files", each_item=True)
-    def _requirements_file_path_is_relative(cls, path: Path) -> Path:
-        return check_sane_relpath(path)
+    @pydantic.field_validator("requirements_files", "requirements_build_files")
+    def _requirements_file_path_is_relative(cls, paths: list[Path]) -> list[Path]:
+        for p in paths:
+            check_sane_relpath(p)
+        return paths
 
 
 class YarnPackageInput(_PackageInputBase):
@@ -121,30 +123,32 @@ class Request(pydantic.BaseModel):
     packages: list[PackageInput]
     flags: frozenset[Flag] = frozenset()
 
-    @pydantic.validator("packages")
+    @pydantic.field_validator("packages")
     def _unique_packages(cls, packages: list[PackageInput]) -> list[PackageInput]:
         """De-duplicate the packages to be processed."""
         return unique(packages, by=lambda pkg: (pkg.type, pkg.path))
 
-    @pydantic.validator("packages", each_item=True)
-    def _check_package_paths(cls, package: PackageInput, values: dict) -> PackageInput:
+    @pydantic.field_validator("packages")
+    def _check_packages_paths(
+        cls, packages: list[PackageInput], info: pydantic.ValidationInfo
+    ) -> list[PackageInput]:
         """Check that package paths are existing subdirectories."""
-        source_dir = values.get("source_dir")
-        # Don't run validation if source_dir failed to validate
+        source_dir: RootedPath = info.data.get("source_dir", None)
         if source_dir is not None:
-            try:
-                abspath = source_dir.join_within_root(package.path).path
-            except PathOutsideRoot:
-                raise ValueError(
-                    f"package path (a symlink?) leads outside source directory: {package.path}"
-                )
-            if not abspath.is_dir():
-                raise ValueError(
-                    f"package path does not exist (or is not a directory): {package.path}"
-                )
-        return package
+            for p in packages:
+                try:
+                    abspath = source_dir.join_within_root(p.path)
+                except PathOutsideRoot:
+                    raise ValueError(
+                        f"package path (a symlink?) leads outside source directory: {p.path}"
+                    )
+                if not abspath.path.is_dir():
+                    raise ValueError(
+                        f"package path does not exist (or is not a directory): {p.path}"
+                    )
+        return packages
 
-    @pydantic.validator("packages")
+    @pydantic.field_validator("packages")
     def _packages_not_empty(cls, packages: list[PackageInput]) -> list[PackageInput]:
         """Check that the packages list is not empty."""
         if len(packages) == 0:

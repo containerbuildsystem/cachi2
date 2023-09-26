@@ -58,7 +58,7 @@ class _ParsedModel(pydantic.BaseModel):
     >>> class SomeModel(_GolangModel):
             some_attribute: str
 
-    >>> SomeModel.parse_obj({"SomeAttribute": "hello"})
+    >>> SomeModel.model_validate({"SomeAttribute": "hello"})
     SomeModel(some_attribute="hello")
     """
 
@@ -68,7 +68,7 @@ class _ParsedModel(pydantic.BaseModel):
             return "".join(word.capitalize() for word in attr_name.split("_"))
 
         # allow SomeModel(some_attribute="hello"), not just SomeModel(SomeAttribute="hello")
-        allow_population_by_field_name = True
+        populate_by_name = True
 
 
 class ParsedModule(_ParsedModel):
@@ -94,7 +94,7 @@ class ParsedPackage(_ParsedModel):
 
     import_path: str
     standard: bool = False
-    module: Optional[ParsedModule]
+    module: Optional[ParsedModule] = None
 
 
 class ResolvedGoModule(NamedTuple):
@@ -569,7 +569,7 @@ def _resolve_gomod(
         log.info("Downloading the gomod dependencies")
         download_cmd = ["go", "mod", "download", "-json"]
         downloaded_modules = (
-            ParsedModule.parse_obj(obj)
+            ParsedModule.model_validate(obj)
             for obj in load_json_stream(_run_download_cmd(download_cmd, run_params))
         )
 
@@ -597,7 +597,7 @@ def _resolve_gomod(
         complete module list (roughly matching the list of downloaded modules).
         """
         cmd = [*go_list, "-deps", "-json=ImportPath,Module,Standard,Deps", pattern]
-        return map(ParsedPackage.parse_obj, load_json_stream(_run_gomod_cmd(cmd, run_params)))
+        return map(ParsedPackage.model_validate, load_json_stream(_run_gomod_cmd(cmd, run_params)))
 
     package_modules = (
         module for pkg in go_list_deps("all") if (module := pkg.module) and not module.main

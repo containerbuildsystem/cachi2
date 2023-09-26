@@ -19,7 +19,7 @@ def merge_component_properties(components: Iterable[Component]) -> list[Componen
         prop_sets = (PropertySet.from_properties(c.properties) for c in component_group)
         merged_prop_set = functools.reduce(PropertySet.merge, prop_sets)
         component = component_group[0]
-        return component.copy(update={"properties": merged_prop_set.to_properties()})
+        return component.model_copy(update={"properties": merged_prop_set.to_properties()})
 
     return [merge_component_group(g) for _, g in grouped_components]
 

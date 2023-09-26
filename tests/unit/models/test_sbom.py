@@ -44,11 +44,11 @@ class TestComponent:
         [
             (
                 {"purl": "pkg:generic/x"},
-                "1 validation error for Component\nname\n  field required",
+                "1 validation error for Component\nname\n  Field required",
             ),
             (
                 {"name": "x"},
-                "1 validation error for Component\npurl\n  field required",
+                "1 validation error for Component\npurl\n  Field required",
             ),
             (
                 {
@@ -56,7 +56,7 @@ class TestComponent:
                     "name": "github.com/org/cool-dep",
                     "purl": "pkg:golang/github.com/org/cool-dep",
                 },
-                "1 validation error for Component\ntype\n  unexpected value",
+                "1 validation error for Component\ntype\n  Input should be 'library'",
             ),
         ],
     )
