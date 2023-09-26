@@ -11,11 +11,16 @@ from pathlib import Path
 from typing import Any, NamedTuple, Optional
 
 import semver
+import yaml
 
-from cachi2.core.errors import UnexpectedFormat
+from cachi2.core.errors import PackageRejected, UnexpectedFormat
 from cachi2.core.rooted_path import RootedPath
 
 log = logging.getLogger(__name__)
+
+
+DEFAULT_CACHE_FOLDER = "./.yarn/cache"
+DEFAULT_REGISTRY = "https://registry.yarnpkg.com"
 
 
 class YarnRc:
@@ -35,12 +40,12 @@ class YarnRc:
         self._data = data
 
     @property
-    def cache_path(self) -> str:
+    def cache_folder(self) -> str:
         """Get the configured location for the yarn cache folder.
 
         Fallback to the default path in case the configuration key is missing.
         """
-        return NotImplemented
+        return self._data.get("cacheFolder", DEFAULT_CACHE_FOLDER)
 
     @property
     def registry_server(self) -> str:
@@ -48,20 +53,12 @@ class YarnRc:
 
         Fallback to the default server in case the configuration key is missing.
         """
-        return NotImplemented
+        return self._data.get("npmRegistryServer", DEFAULT_REGISTRY)
 
     @property
     def yarn_path(self) -> Optional[str]:
         """Path to the yarn script present in this directory."""
-        return NotImplemented
-
-    @property
-    def yarn_version(self) -> Optional[str]:
-        """Yarn version used in this project.
-
-        Extracted from the contents of the yarnPath configuration, if it is present.
-        """
-        return NotImplemented
+        return self._data.get("yarnPath")
 
     def registry_server_for_scope(self, scope: str) -> str:
         """Get the configured registry server for a scoped package.
@@ -71,12 +68,29 @@ class YarnRc:
 
         See: https://v3.yarnpkg.com/configuration/yarnrc#npmScopes
         """
-        return NotImplemented
+        registry = self._data.get("npmScopes", {}).get(scope, {}).get("npmRegistryServer")
+
+        return registry or self.registry_server
 
     @classmethod
     def from_file(cls, file_path: RootedPath) -> "YarnRc":
         """Parse the content of a yarnrc file."""
-        return NotImplemented
+        try:
+            with file_path.path.open("r") as f:
+                yarnrc_data = yaml.safe_load(f)
+        except yaml.YAMLError as e:
+            raise PackageRejected(
+                f"Can't parse the {file_path.subpath_from_root} file. Parser error: {e}",
+                solution=(
+                    "The yarnrc file must contain valid YAML. "
+                    "Refer to the parser error and fix the contents of the file."
+                ),
+            )
+
+        if yarnrc_data is None:
+            yarnrc_data = {}
+
+        return cls(file_path, yarnrc_data)
 
 
 class PackageJson:
@@ -98,7 +112,7 @@ class PackageJson:
     @property
     def package_manager(self) -> Optional[str]:
         """Get the package manager string."""
-        return NotImplemented
+        return self._data.get("packageManager")
 
     @package_manager.setter
     def package_manager(self, package_manager: str) -> None:
@@ -108,7 +122,27 @@ class PackageJson:
     @classmethod
     def from_file(cls, file_path: RootedPath) -> "PackageJson":
         """Parse the content of a package.json file."""
-        return NotImplemented
+        try:
+            with file_path.path.open("r") as f:
+                package_json_data = json.load(f)
+        except FileNotFoundError:
+            raise PackageRejected(
+                "The package.json file must be present for the yarn package manager",
+                solution=(
+                    "Please double-check that you have specified the correct path "
+                    "to the package directory containing this file"
+                ),
+            )
+        except json.decoder.JSONDecodeError as e:
+            raise PackageRejected(
+                f"Can't parse the {file_path.subpath_from_root} file. {e}",
+                solution=(
+                    "The package.json file must contain valid JSON. "
+                    "Refer to the parser error and fix the contents of the file."
+                ),
+            )
+
+        return cls(file_path, package_json_data)
 
     def write_to_file(self) -> None:
         """Write the data to the package.json file."""
@@ -121,7 +155,7 @@ class Project(NamedTuple):
     """A directory containing yarn sources."""
 
     source_dir: RootedPath
-    yarn_rc: YarnRc
+    yarn_rc: Optional[YarnRc]
     package_json: PackageJson
 
     @property
@@ -131,7 +165,12 @@ class Project(NamedTuple):
         This is determined by the existence of a non-empty yarn cache folder. For more details on
         zero-installs, see: https://v3.yarnpkg.com/features/zero-installs.
         """
-        return False
+        dir = self.yarn_cache
+
+        if not dir.path.is_dir():
+            return False
+
+        return any(file.suffix == ".zip" for file in dir.path.iterdir())
 
     @property
     def yarn_cache(self) -> RootedPath:
@@ -140,12 +179,23 @@ class Project(NamedTuple):
         The cache location is affected by the cacheFolder configuration in yarnrc. See:
         https://v3.yarnpkg.com/configuration/yarnrc#cacheFolder.
         """
-        return NotImplemented
+        if self.yarn_rc:
+            return self.source_dir.join_within_root(self.yarn_rc.cache_folder)
+
+        return self.source_dir.join_within_root(DEFAULT_CACHE_FOLDER)
 
     @classmethod
     def from_source_dir(cls, source_dir: RootedPath) -> "Project":
         """Create a Project from a sources directory path."""
-        return cls(source_dir, NotImplemented, NotImplemented)
+        yarn_rc_path = source_dir.join_within_root(".yarnrc.yml")
+
+        if yarn_rc_path.path.exists():
+            yarn_rc = YarnRc.from_file(source_dir.join_within_root(".yarnrc.yml"))
+        else:
+            yarn_rc = None
+
+        package_json = PackageJson.from_file(source_dir.join_within_root("package.json"))
+        return cls(source_dir, yarn_rc, package_json)
 
 
 def get_semver_from_yarn_path(yarn_path: Optional[str]) -> Optional[semver.version.Version]:
