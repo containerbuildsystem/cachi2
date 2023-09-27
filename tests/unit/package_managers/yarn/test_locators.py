@@ -1,11 +1,21 @@
+import re
+from pathlib import Path
+
 import pytest
 
-from cachi2.core.errors import UnexpectedFormat
+from cachi2.core.errors import UnexpectedFormat, UnsupportedFeature
 from cachi2.core.package_managers.yarn.locators import (
+    FileLocator,
+    HttpsLocator,
+    Locator,
+    NpmLocator,
+    PatchLocator,
+    WorkspaceLocator,
     _parse_locator,
     _parse_reference,
     _ParsedLocator,
     _ParsedReference,
+    parse_locator,
 )
 
 SUPPORTED_LOCATORS = [
@@ -308,6 +318,69 @@ PARSED_LOCATORS_AND_REFERENCES = [
     ),
 ]
 
+PARSED_SUPPORTED_LOCATORS = [
+    NpmLocator(scope="isaacs", name="cliui", version="8.0.2"),
+    NpmLocator(scope="npmcli", name="fs", version="3.1.0"),
+    NpmLocator(scope=None, name="abbrev", version="1.1.1"),
+    NpmLocator(scope=None, name="agent-base", version="6.0.2"),
+    WorkspaceLocator(scope="montypython", name="brian", relpath=Path("packages/the-life-of/brian")),
+    WorkspaceLocator(scope=None, name="the-answer", relpath=Path("packages/the-answer")),
+    FileLocator(
+        relpath=Path("external-packages/ansi-regex"),
+        locator=WorkspaceLocator(scope=None, name="berryscary", relpath=Path(".")),
+    ),
+    FileLocator(
+        relpath=Path("external-packages/once"),
+        locator=WorkspaceLocator(scope=None, name="berryscary", relpath=Path(".")),
+    ),
+    FileLocator(
+        relpath=Path("external-packages/supports-hyperlinks"),
+        locator=WorkspaceLocator(scope=None, name="berryscary", relpath=Path(".")),
+    ),
+    FileLocator(
+        relpath=Path("../../external-packages/strip-ansi-4.0.0.tgz"),
+        locator=WorkspaceLocator(
+            scope=None, name="the-answer", relpath=Path("packages/the-answer")
+        ),
+    ),
+    FileLocator(
+        relpath=Path("external-packages/strip-ansi-4.0.0.tgz"),
+        locator=WorkspaceLocator(scope=None, name="berryscary", relpath=Path(".")),
+    ),
+    HttpsLocator(
+        url="https://bitbucket.org/cachi-testing/cachi2-without-deps-second/get/09992d418fc44a2895b7a9ff27c4e32d6f74a982.tar.gz"
+    ),
+    NpmLocator(scope=None, name="left-pad", version="1.3.0"),
+    PatchLocator(
+        package=NpmLocator(scope=None, name="left-pad", version="1.3.0"),
+        patches=[Path("my-patches/left-pad.patch")],
+        locator=WorkspaceLocator(scope=None, name="berryscary", relpath=Path(".")),
+    ),
+    NpmLocator(scope=None, name="fsevents", version="2.3.2"),
+    PatchLocator(
+        package=NpmLocator(scope=None, name="fsevents", version="2.3.2"),
+        patches=["builtin<compat/fsevents>"],
+        locator=None,
+    ),
+    NpmLocator(scope=None, name="typescript", version="5.1.6"),
+    PatchLocator(
+        package=NpmLocator(scope=None, name="typescript", version="5.1.6"),
+        patches=["builtin<compat/typescript>"],
+        locator=None,
+    ),
+    NpmLocator(scope=None, name="is-positive", version="3.1.0"),
+    PatchLocator(
+        package=NpmLocator(scope=None, name="is-positive", version="3.1.0"),
+        patches=[
+            "builtin<foo>",
+            Path("my-patches/is-positive.patch"),
+            "builtin<bar>",
+            Path("baz.patch"),
+        ],
+        locator=WorkspaceLocator(scope=None, name="berryscary", relpath=Path(".")),
+    ),
+]
+
 
 @pytest.mark.parametrize(
     "locator_str, expect_parsed_locator, expect_parsed_reference",
@@ -357,3 +430,96 @@ def test_unexpected_reference_format() -> None:
         # kudos to hypothesis: https://hypothesis.readthedocs.io/en/latest/index.html
         # ^<empty protocol>:<no source><empty selector>::<empty params>$ - and 'x' is left unmatched
         _parse_reference(":::\nx")
+
+
+@pytest.mark.parametrize(
+    "locator_str, expect_locator", zip(SUPPORTED_LOCATORS, PARSED_SUPPORTED_LOCATORS)
+)
+def test_parse_locator(locator_str: str, expect_locator: Locator) -> None:
+    assert parse_locator(locator_str) == expect_locator
+
+
+@pytest.mark.parametrize("locator_str", UNSUPPORTED_LOCATORS)
+def test_parse_unsupported_locator(locator_str: str) -> None:
+    with pytest.raises(
+        UnsupportedFeature, match="Cachi2 does not support Git or Exec dependencies"
+    ):
+        parse_locator(locator_str)
+
+
+@pytest.mark.parametrize(
+    "locator_str",
+    [
+        "name@no-protocol",
+        "name@yarn:1.0.0",
+        "name@https://not-a-tarball.com",
+        "name@git+ssh://no-commit-hash.com",
+    ],
+)
+def test_parse_unknown_protocol(locator_str: str) -> None:
+    with pytest.raises(
+        UnexpectedFormat, match=re.escape(f"parsing {locator_str!r}: unknown protocol")
+    ):
+        parse_locator(locator_str)
+
+
+@pytest.mark.parametrize(
+    "locator_str, expect_err",
+    [
+        (
+            "name@patch:#builtin<foo>",
+            UnexpectedFormat("parsing 'name@patch:#builtin<foo>': missing source in locator"),
+        ),
+        (
+            "name@patch:npm%3A1.0.0#builtin<foo>",
+            UnexpectedFormat(
+                "parsing 'name@patch:npm%3A1.0.0#builtin<foo>': "
+                "parsing 'npm:1.0.0': could not parse locator (expected [@scope/]name@reference)"
+            ),
+        ),
+        (
+            "name@patch:name@npm%3A1.0.0#builtin<foo>::locator=workspace%3A.",
+            UnexpectedFormat(
+                "parsing 'name@patch:name@npm%3A1.0.0#builtin<foo>::locator=workspace%3A.': "
+                "parsing 'workspace:.': could not parse locator (expected [@scope/]name@reference)"
+            ),
+        ),
+        (
+            "name@patch:name@npm%3A1.0.0#builtin<foo>::locator=foo&locator=bar",
+            UnexpectedFormat(
+                "parsing 'name@patch:name@npm%3A1.0.0#builtin<foo>::locator=foo&locator=bar': expected 1 'locator' param, got 2"
+            ),
+        ),
+        (
+            "name@patch:name@git@github.com/foo/bar%23commit=abcdef#builtin<foo>",
+            UnsupportedFeature(
+                "Cachi2 does not support Git or Exec dependencies for Yarn Berry: name@git@github.com/foo/bar#commit=abcdef"
+            ),
+        ),
+    ],
+)
+def test_fail_to_parse_patch_locator(locator_str: str, expect_err: Exception) -> None:
+    with pytest.raises(type(expect_err), match=re.escape(str(expect_err))):
+        parse_locator(locator_str)
+
+
+@pytest.mark.parametrize(
+    "locator_str, expect_err",
+    [
+        (
+            "name@file:./path/to/dir#./path/to/different/dir::locator=foo@workspace%3A.",
+            "parsing 'name@file:./path/to/dir#./path/to/different/dir::locator=foo@workspace%3A.': conflicting paths in locator",
+        ),
+        (
+            "name@file:./path/to/file.tar.gz",
+            "parsing 'name@file:./path/to/file.tar.gz': missing 'locator' param",
+        ),
+        (
+            "name@portal:./path/to/directory::locator=workspace%3A.",
+            "parsing 'name@portal:./path/to/directory::locator=workspace%3A.': parsing 'workspace:.': could not parse locator",
+        ),
+    ],
+)
+def test_fail_to_parse_file_locator(locator_str: str, expect_err: str) -> None:
+    with pytest.raises(UnexpectedFormat, match=re.escape(expect_err)):
+        parse_locator(locator_str)
