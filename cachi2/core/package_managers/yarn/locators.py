@@ -1,10 +1,14 @@
 import re
 from dataclasses import dataclass
 from functools import cached_property
-from typing import NamedTuple, Optional, Union
+from pathlib import Path
+from typing import NamedTuple, Optional, Sequence, Union
 from urllib.parse import parse_qs, unquote
 
-from cachi2.core.errors import UnexpectedFormat
+from cachi2.core.errors import UnexpectedFormat, UnsupportedFeature
+
+# https://github.com/yarnpkg/berry/blob/b6026842dfec4b012571b5982bb74420c7682a73/packages/plugin-http/sources/constants.ts
+TARBALL_RE = re.compile(r"^[^?]*\.(?:tar\.gz|tgz)(?:\?.*)?(?:#.*)?$")
 
 # --- Locator types ---
 
@@ -14,7 +18,16 @@ class NpmLocator(NamedTuple):
 
     Sample locator string:
         [@scope/]name@npm:version
+
+    Attributes:
+        scope: the scope of the dependency (without '@')
+        name: the name of the dependency
+        version: the semver version of the dependency
     """
+
+    scope: Optional[str]
+    name: str
+    version: str
 
 
 class WorkspaceLocator(NamedTuple):
@@ -22,7 +35,18 @@ class WorkspaceLocator(NamedTuple):
 
     Sample locator string:
         [@scope/]name@workspace:path/to/dir
+
+    Attributes:
+        scope: the scope of the dependency (without '@')
+        name: the name of the dependency
+        relpath: relative path from the project root to the workspace
     """
+
+    # The scope and name in a workspace locator seem reliable, yarnberry won't let you use an
+    # arbitrary name (it must match the workspace's package.json)
+    scope: Optional[str]
+    name: str
+    relpath: Path
 
 
 class PatchLocator(NamedTuple):
@@ -31,7 +55,20 @@ class PatchLocator(NamedTuple):
     Sample locator string:
         [@scope/]name@patch:<patched-dep-locator>#path/to/patch::version=1.0.0&hash=abc123&locator=<workspace-locator>
         [@scope/]name@patch:<patched-dep-locator>#~builtin<compat/patch-name>::version=1.0.0&hash=abc123
+
+    Attributes:
+        package: the dependency that gets patched
+        patches: a list of paths (relative to a parent locator) or builtin patch identifiers
+            (e.g. "builtin<compat/typescript>")
+        locator: relative paths (if any) are relative to this locator
     """
+
+    # The scope and name in a patch locator (and most locators other than Npm and Workspace) are
+    # not reliable. Yarnberry *will* let you use a completely arbitrary name.
+
+    package: "Locator"
+    patches: Sequence[Union[str, Path]]
+    locator: Optional["Locator"]
 
 
 class FileLocator(NamedTuple):
@@ -42,7 +79,14 @@ class FileLocator(NamedTuple):
         [@scope/]name@file:path/to/directory#path/to/directory::hash=321cba&locator=<workspace-locator>
         [@scope/]name@link:path/to/directory::locator=<workspace-locator>
         [@scope/]name@portal:path/to/directory::locator=<workspace-locator>
+
+    Attributes:
+        relpath: relative path to a file or directory
+        locator: the path is relative to this locator
     """
+
+    relpath: Path
+    locator: "Locator"
 
 
 class HttpsLocator(NamedTuple):
@@ -50,7 +94,12 @@ class HttpsLocator(NamedTuple):
 
     Sample locator string:
         [@scope/]name@https://domain.com/url/to/file.tar.gz
+
+    Attributes:
+        url: the URL of the remote file
     """
+
+    url: str
 
 
 Locator = Union[
@@ -62,15 +111,88 @@ Locator = Union[
 ]
 
 
-def parse_locator(locator: str) -> Locator:
-    """Parse a Locator object based on a locator string from the 'yarn info' command.
+# --- Parsing locator types ---
 
-    :raises PackageRejected: if a locator can't be parsed, or if it contains an protocol that is
-        not supported.
+
+def parse_locator(locator_str: str) -> Locator:
+    """Parse a locator, determine its type and return the data relevant for said type.
+
+    :raises UnexpectedFormat:
+        if the locator or the reference in the locator doesn't match the expected format
+        if the type of the locator cannot be determined
+        if the locator doesn't follow the form we expect for the locator's type
+    :raises UnsupportedFeature: if the locator has a type that Cachi2 does not support
     """
-    # we should raise a different type of error for unsparseable/unknown locators, and banned
-    # locators (such as ones that resolve to a Git dependency or containing the exec protocol)
-    return NotImplemented
+    try:
+        locator = _parse_locator(locator_str)
+        parsed_reference = locator.parsed_reference
+        protocol = (
+            parsed_reference.protocol.removesuffix(":") if parsed_reference.protocol else None
+        )
+
+        if "commit" in parse_qs(parsed_reference.selector) or protocol == "exec":
+            raise UnsupportedFeature(
+                f"Cachi2 does not support Git or Exec dependencies for Yarn Berry: {locator_str}",
+                docs=None,  # TODO: docs needed
+            )
+        elif protocol == "npm":
+            return NpmLocator(locator.scope, locator.name, version=parsed_reference.selector)
+        elif protocol == "workspace":
+            relpath = Path(parsed_reference.selector)
+            return WorkspaceLocator(locator.scope, locator.name, relpath)
+        elif protocol == "patch":
+            return _parse_patch_locator(locator)
+        elif protocol in ("file", "link", "portal"):
+            return _parse_file_locator(locator)
+        elif protocol in ("http", "https") and TARBALL_RE.match(locator.raw_reference):
+            return HttpsLocator(url=locator.raw_reference)
+    except UnexpectedFormat as e:
+        raise UnexpectedFormat(f"parsing {locator_str!r}: {e}") from e
+
+    raise UnexpectedFormat(f"parsing {locator_str!r}: unknown protocol")
+
+
+def _parse_patch_locator(locator: "_ParsedLocator") -> PatchLocator:
+    # https://github.com/yarnpkg/berry/blob/b6026842dfec4b012571b5982bb74420c7682a73/packages/plugin-patch/sources/patchUtils.ts#L13
+    reference = locator.parsed_reference
+    if not reference.source:
+        raise UnexpectedFormat("missing source in locator")
+
+    original_package = parse_locator(reference.source)
+
+    # https://github.com/yarnpkg/berry/blob/b6026842dfec4b012571b5982bb74420c7682a73/packages/plugin-patch/sources/patchUtils.ts#L92
+    def process_patch_path(patch: str) -> Union[str, Path]:
+        # '~' denotes an optional patch (failing to apply the patch is not fatal, only a warning)
+        patch = patch.removeprefix("~")
+        if re.match(r"^builtin<([^>]+)>$", patch):
+            return patch
+        else:
+            return Path(patch)
+
+    patches = [process_patch_path(p) for p in reference.selector.split("&")]
+    if locator_param := reference.get_param("locator"):
+        parent_locator = parse_locator(locator_param)
+    else:
+        parent_locator = None
+
+    return PatchLocator(original_package, patches, parent_locator)
+
+
+def _parse_file_locator(locator: "_ParsedLocator") -> FileLocator:
+    reference = locator.parsed_reference
+
+    relpath = Path(reference.selector)
+    # for 'file:' directories, Yarnberry uses the path as both source and selector
+    # https://github.com/yarnpkg/berry/blob/b6026842dfec4b012571b5982bb74420c7682a73/packages/plugin-file/sources/fileUtils.ts#L16
+    if reference.source and Path(reference.source) != relpath:
+        raise UnexpectedFormat("conflicting paths in locator")
+
+    locator_param = reference.get_param("locator")
+    if not locator_param:
+        raise UnexpectedFormat("missing 'locator' param")
+
+    parent_locator = parse_locator(locator_param)
+    return FileLocator(relpath, parent_locator)
 
 
 # --- Parsing locators generically ---
@@ -99,6 +221,13 @@ class _ParsedReference(NamedTuple):
     source: Optional[str]
     selector: str
     params: Optional[dict[str, list[str]]]
+
+    def get_param(self, param_name: str) -> Optional[str]:
+        if not self.params or not (param_value := self.params.get(param_name)):
+            return None
+        if len(param_value) != 1:
+            raise UnexpectedFormat(f"expected 1 {param_name!r} param, got {len(param_value)}")
+        return param_value[0]
 
 
 def _parse_locator(locator_str: str) -> _ParsedLocator:
