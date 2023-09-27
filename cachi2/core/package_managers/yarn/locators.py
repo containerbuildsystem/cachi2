@@ -9,6 +9,31 @@ from cachi2.core.errors import UnexpectedFormat
 # --- Locator types ---
 
 
+class NpmLocator(NamedTuple):
+    """Locator that handles registry dependencies.
+
+    Sample locator string:
+        [@scope/]name@npm:version
+    """
+
+
+class WorkspaceLocator(NamedTuple):
+    """Locator that handles workspace dependencies.
+
+    Sample locator string:
+        [@scope/]name@workspace:path/to/dir
+    """
+
+
+class PatchLocator(NamedTuple):
+    """Locator that handles patched dependencies.
+
+    Sample locator string:
+        [@scope/]name@patch:<patched-dep-locator>#path/to/patch::version=1.0.0&hash=abc123&locator=<workspace-locator>
+        [@scope/]name@patch:<patched-dep-locator>#~builtin<compat/patch-name>::version=1.0.0&hash=abc123
+    """
+
+
 class FileLocator(NamedTuple):
     """Locator that handles file, portal and link protocols.
 
@@ -28,37 +53,12 @@ class HttpsLocator(NamedTuple):
     """
 
 
-class NpmLocator(NamedTuple):
-    """Locator that handles registry dependencies.
-
-    Sample locator string:
-        [@scope/]name@npm:version
-    """
-
-
-class PatchLocator(NamedTuple):
-    """Locator that handles patched dependencies.
-
-    Sample locator string:
-        [@scope/]name@patch:<patched-dep-locator>#path/to/patch::version=1.0.0&hash=abc123&locator=<workspace-locator>
-        [@scope/]name@patch:<patched-dep-locator>#~builtin<compat/patch-name>::version=1.0.0&hash=abc123
-    """
-
-
-class WorkspaceLocator(NamedTuple):
-    """Locator that handles workspace dependencies.
-
-    Sample locator string:
-        [@scope/]name@workspace:path/to/dir
-    """
-
-
 Locator = Union[
+    NpmLocator,
+    WorkspaceLocator,
+    PatchLocator,
     FileLocator,
     HttpsLocator,
-    NpmLocator,
-    PatchLocator,
-    WorkspaceLocator,
 ]
 
 
