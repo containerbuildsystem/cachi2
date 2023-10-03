@@ -42,6 +42,8 @@ SUPPORTED_LOCATORS = [
     # optional builtin patch
     "fsevents@npm:2.3.2",
     "fsevents@patch:fsevents@npm%3A2.3.2#~builtin<compat/fsevents>::version=2.3.2&hash=df0bf1",
+    # patched patch dependency
+    "fsevents@patch:fsevents@patch%3Afsevents@npm%253A2.3.2%23./my-patches/fsevents.patch%3A%3Aversion=2.3.2&hash=cf0bf0&locator=berryscary%2540workspace%253A.#~builtin<compat/fsevents>::version=2.3.2&hash=df0bf1",
     # non-optional builtin patch (in reality, the typescript patch is optional)
     "typescript@npm:5.1.6",
     "typescript@patch:typescript@npm%3A5.1.6#builtin<compat/typescript>::version=5.1.6&hash=5da071",
@@ -214,6 +216,19 @@ PARSED_LOCATORS_AND_REFERENCES = [
         ),
     ),
     (
+        _ParsedLocator(
+            scope=None,
+            name="fsevents",
+            raw_reference="patch:fsevents@patch%3Afsevents@npm%253A2.3.2%23./my-patches/fsevents.patch%3A%3Aversion=2.3.2&hash=cf0bf0&locator=berryscary%2540workspace%253A.#~builtin<compat/fsevents>::version=2.3.2&hash=df0bf1",
+        ),
+        _ParsedReference(
+            protocol="patch:",
+            source="fsevents@patch:fsevents@npm%3A2.3.2#./my-patches/fsevents.patch::version=2.3.2&hash=cf0bf0&locator=berryscary%40workspace%3A.",
+            selector="~builtin<compat/fsevents>",
+            params={"version": ["2.3.2"], "hash": ["df0bf1"]},
+        ),
+    ),
+    (
         _ParsedLocator(scope=None, name="typescript", raw_reference="npm:5.1.6"),
         _ParsedReference(protocol="npm:", source=None, selector="5.1.6", params=None),
     ),
@@ -359,6 +374,15 @@ PARSED_SUPPORTED_LOCATORS = [
     NpmLocator(scope=None, name="fsevents", version="2.3.2"),
     PatchLocator(
         package=NpmLocator(scope=None, name="fsevents", version="2.3.2"),
+        patches=["builtin<compat/fsevents>"],
+        locator=None,
+    ),
+    PatchLocator(
+        package=PatchLocator(
+            package=NpmLocator(scope=None, name="fsevents", version="2.3.2"),
+            patches=[Path("my-patches/fsevents.patch")],
+            locator=WorkspaceLocator(scope=None, name="berryscary", relpath=Path(".")),
+        ),
         patches=["builtin<compat/fsevents>"],
         locator=None,
     ),
