@@ -68,7 +68,7 @@ class PatchLocator(NamedTuple):
 
     package: "Locator"
     patches: Sequence[Union[str, Path]]
-    locator: Optional["Locator"]
+    locator: Optional["WorkspaceLocator"]
 
 
 class FileLocator(NamedTuple):
@@ -86,7 +86,7 @@ class FileLocator(NamedTuple):
     """
 
     relpath: Path
-    locator: "Locator"
+    locator: "WorkspaceLocator"
 
 
 class HttpsLocator(NamedTuple):
@@ -172,6 +172,11 @@ def _parse_patch_locator(locator: "_ParsedLocator") -> PatchLocator:
     patches = [process_patch_path(p) for p in reference.selector.split("&")]
     if locator_param := reference.get_param("locator"):
         parent_locator = parse_locator(locator_param)
+        if not isinstance(parent_locator, WorkspaceLocator):
+            raise UnsupportedFeature(
+                f"Cachi2 only supports Patch dependencies bound to a WorkspaceLocator, "
+                f"not to a(n) {type(parent_locator).__name__}: {locator}"
+            )
     else:
         parent_locator = None
 
@@ -192,6 +197,13 @@ def _parse_file_locator(locator: "_ParsedLocator") -> FileLocator:
         raise UnexpectedFormat("missing 'locator' param")
 
     parent_locator = parse_locator(locator_param)
+    if not isinstance(parent_locator, WorkspaceLocator):
+        protocol = locator.parsed_reference.protocol or "file:"
+        dep_type = protocol.removesuffix(":").title()
+        raise UnsupportedFeature(
+            f"Cachi2 only supports {dep_type} dependencies bound to a WorkspaceLocator, "
+            f"not to a(n) {type(parent_locator).__name__}: {locator}"
+        )
     return FileLocator(relpath, parent_locator)
 
 

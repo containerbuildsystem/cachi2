@@ -520,6 +520,13 @@ def test_parse_unknown_protocol(locator_str: str) -> None:
                 "Cachi2 does not support Git or Exec dependencies for Yarn Berry: name@git@github.com/foo/bar#commit=abcdef"
             ),
         ),
+        (
+            "name@patch:name@npm%3A1.0.0#./my-custom.patch::locator=name@npm%3A1.0.0",
+            UnsupportedFeature(
+                "Cachi2 only supports Patch dependencies bound to a WorkspaceLocator, not to a(n) NpmLocator: "
+                "name@patch:name@npm%3A1.0.0#./my-custom.patch::locator=name@npm%3A1.0.0"
+            ),
+        ),
     ],
 )
 def test_fail_to_parse_patch_locator(locator_str: str, expect_err: Exception) -> None:
@@ -532,18 +539,36 @@ def test_fail_to_parse_patch_locator(locator_str: str, expect_err: Exception) ->
     [
         (
             "name@file:./path/to/dir#./path/to/different/dir::locator=foo@workspace%3A.",
-            "parsing 'name@file:./path/to/dir#./path/to/different/dir::locator=foo@workspace%3A.': conflicting paths in locator",
+            UnexpectedFormat(
+                "parsing 'name@file:./path/to/dir#./path/to/different/dir::locator=foo@workspace%3A.': conflicting paths in locator"
+            ),
         ),
         (
             "name@file:./path/to/file.tar.gz",
-            "parsing 'name@file:./path/to/file.tar.gz': missing 'locator' param",
+            UnexpectedFormat("parsing 'name@file:./path/to/file.tar.gz': missing 'locator' param"),
         ),
         (
             "name@portal:./path/to/directory::locator=workspace%3A.",
-            "parsing 'name@portal:./path/to/directory::locator=workspace%3A.': parsing 'workspace:.': could not parse locator",
+            UnexpectedFormat(
+                "parsing 'name@portal:./path/to/directory::locator=workspace%3A.': parsing 'workspace:.': could not parse locator"
+            ),
+        ),
+        (
+            "name@file:./path/to/file.tar.gz::locator=name@npm%3A1.0.0",
+            UnsupportedFeature(
+                "Cachi2 only supports File dependencies bound to a WorkspaceLocator, not to a(n) NpmLocator: "
+                "name@file:./path/to/file.tar.gz::locator=name@npm%3A1.0.0"
+            ),
+        ),
+        (
+            "name@portal:./path/to/directory::locator=name@npm%3A1.0.0",
+            UnsupportedFeature(
+                "Cachi2 only supports Portal dependencies bound to a WorkspaceLocator, not to a(n) NpmLocator: "
+                "name@portal:./path/to/directory::locator=name@npm%3A1.0.0"
+            ),
         ),
     ],
 )
-def test_fail_to_parse_file_locator(locator_str: str, expect_err: str) -> None:
-    with pytest.raises(UnexpectedFormat, match=re.escape(expect_err)):
+def test_fail_to_parse_file_locator(locator_str: str, expect_err: Exception) -> None:
+    with pytest.raises(type(expect_err), match=re.escape(str(expect_err))):
         parse_locator(locator_str)
