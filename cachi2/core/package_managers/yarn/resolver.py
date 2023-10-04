@@ -54,6 +54,10 @@ def resolve_packages(source_dir: RootedPath) -> list[Package]:
     :raises PackageRejected: if the validation fails.
     :raises SubprocessCallError: if the 'yarn info' command fails.
     """
+    under_development = True
+    if under_development:
+        return []
+
     result = run_yarn_cmd([], source_dir, {})
 
     # the result is not a valid json list, but a sequence of json objects separated by line breaks

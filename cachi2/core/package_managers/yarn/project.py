@@ -125,4 +125,4 @@ class Project(NamedTuple):
     @classmethod
     def from_source_dir(cls, source_dir: RootedPath) -> "Project":
         """Create a Project from a sources directory path."""
-        return NotImplemented
+        return cls(source_dir, NotImplemented, NotImplemented)
