@@ -111,7 +111,7 @@ class Project(NamedTuple):
         This is determined by the existence of a non-empty yarn cache folder. For more details on
         zero-installs, see: https://v3.yarnpkg.com/features/zero-installs.
         """
-        return NotImplemented
+        return False
 
     @property
     def yarn_cache(self) -> RootedPath:
