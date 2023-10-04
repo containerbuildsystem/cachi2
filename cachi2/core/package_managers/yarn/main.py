@@ -99,4 +99,4 @@ def _undo_changes(project: Project) -> None:
 
 def _generate_environment_variables() -> list[EnvironmentVariable]:
     """Generate environment variables that will be used for building the project."""
-    return NotImplemented
+    return []
