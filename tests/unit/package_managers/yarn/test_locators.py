@@ -1,4 +1,5 @@
 import re
+from itertools import zip_longest
 from pathlib import Path
 
 import pytest
@@ -410,7 +411,7 @@ PARSED_SUPPORTED_LOCATORS = [
     "locator_str, expect_parsed_locator, expect_parsed_reference",
     [
         (locator_str, parsed_locator, parsed_reference)
-        for locator_str, (parsed_locator, parsed_reference) in zip(
+        for locator_str, (parsed_locator, parsed_reference) in zip_longest(
             ALL_LOCATORS, PARSED_LOCATORS_AND_REFERENCES
         )
     ],
@@ -457,7 +458,7 @@ def test_unexpected_reference_format() -> None:
 
 
 @pytest.mark.parametrize(
-    "locator_str, expect_locator", zip(SUPPORTED_LOCATORS, PARSED_SUPPORTED_LOCATORS)
+    "locator_str, expect_locator", zip_longest(SUPPORTED_LOCATORS, PARSED_SUPPORTED_LOCATORS)
 )
 def test_parse_locator(locator_str: str, expect_locator: Locator) -> None:
     assert parse_locator(locator_str) == expect_locator
