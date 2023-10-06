@@ -112,3 +112,17 @@ class GoModError(Cachi2Error):
         The output of the failing go command should provide more details, please check the logs.
         """
     ).strip()
+
+
+class YarnCommandError(Cachi2Error):
+    """The 'yarn' command used while processing a Yarn project returned an error."""
+
+    default_solution = textwrap.dedent(
+        """
+        The cause of the failure could be:
+        - something is broken in Cachi2
+        - something is wrong with your yarn project
+        - communication with an external service failed (please try again)
+        The output of the failing yarn command should provide more details, please check the logs.
+        """
+    ).strip()

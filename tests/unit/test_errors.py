@@ -54,6 +54,21 @@ def test_gomod_error_friendly_msg() -> None:
     assert err.friendly_msg() == expect_msg
 
 
+def test_yarn_command_error_friendly_msg() -> None:
+    err = errors.YarnCommandError("Some yarn command failed")
+    expect_msg = dedent(
+        """
+        Some yarn command failed
+          The cause of the failure could be:
+          - something is broken in Cachi2
+          - something is wrong with your yarn project
+          - communication with an external service failed (please try again)
+          The output of the failing yarn command should provide more details, please check the logs.
+        """
+    ).strip()
+    assert err.friendly_msg() == expect_msg
+
+
 def test_fetch_error_friendly_msg() -> None:
     err = errors.FetchError("Failed to fetch something")
     expect_msg = dedent(

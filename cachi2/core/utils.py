@@ -17,7 +17,7 @@ def run_cmd(cmd: Any, params: dict) -> str:
     :param dict params: keyword parameters for command execution
     :returns: the command output
     :rtype: str
-    :raises SubprocessCallError: if the command fails
+    :raises CalledProcessError: if the command fails
     """
     params.setdefault("capture_output", True)
     params.setdefault("universal_newlines", True)
