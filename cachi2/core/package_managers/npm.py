@@ -671,6 +671,17 @@ def fetch_npm_source(request: Request) -> RequestOutput:
     component_info: list[NpmComponentInfo] = []
     project_files: list[ProjectFile] = []
 
+    # Try to copy source directory to temp folder
+    import tempfile
+    import shutil
+
+    temp_dir = tempfile.mkdtemp()
+    try:
+        log.info(f"COPY folder: {request.source_dir}, {temp_dir}")
+        shutil.copytree(request.source_dir, os.path.join(temp_dir, "repo"))
+    finally:
+        shutil.rmtree(temp_dir)
+
     npm_deps_dir = request.output_dir.join_within_root("deps", "npm")
     npm_deps_dir.path.mkdir(parents=True, exist_ok=True)
 

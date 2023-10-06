@@ -1,0 +1,97 @@
+---
+apiVersion: tekton.dev/v1beta1
+kind: PipelineRun
+metadata:
+  name: cachi2-test-rhtap-latest
+  annotations:
+    build.appstudio.redhat.com/commit_sha: "{{revision}}"
+    build.appstudio.redhat.com/target_branch: "{{target_branch}}"
+    pipelinesascode.tekton.dev/max-keep-runs: "3"
+    pipelinesascode.tekton.dev/on-event: "[pull_request]"
+    pipelinesascode.tekton.dev/on-target-branch: "[main]"
+spec:
+  params:
+    - name: revision
+      value: "{{revision}}"
+    - name: slack-webhook-notification-team
+      value: build
+  pipelineSpec:
+    params:
+      - name: revision
+    tasks:
+      - name: tag-with-latest
+        params:
+          - name: revision
+            value: "$(params.revision)"
+        timeout: "15m"
+        taskSpec:
+          params:
+            - name: revision
+          steps:
+            - name: tag-with-latest
+              image: registry.access.redhat.com/ubi9/skopeo:latest@sha256:23c9ed4af1f42614bdc56309452568b2110a67f23102f42f6a6582a63b63dcdb
+              script: |
+                #!/usr/bin/env bash
+                SIZE_OF_DATA=100000
+
+                TEMP_DIR=$(mktemp -d -t test-XXXX)
+
+                LARGE_FILE=${TEMP_DIR}/large-file
+                SMALL_FILES=${TEMP_DIR}/small-files
+
+                mkdir $LARGE_FILE
+                mkdir $SMALL_FILES
+
+                # Create a big file
+                cd $LARGE_FILE && fallocate -l ${SIZE_OF_DATA}M file.out
+                cd $SMALL_FILES
+
+                for (( c=1; c<=$SIZE_OF_DATA; c++ ))
+                do
+                    fallocate -l 1M file$c.out
+                done
+
+                echo "Temp dir: $TEMP_DIR"
+
+                COPY_LARGE_FILE=${TEMP_DIR}/COPY-large-file
+                COPY_SMALL_FILES=${TEMP_DIR}/COPY-small-files
+
+                mkdir $COPY_LARGE_FILE
+                mkdir $COPY_SMALL_FILES
+
+                # Simulate copy of large files
+                echo "1 large file:"
+                time ( cp -r ${LARGE_FILE}/* ${COPY_LARGE_FILE} )
+                du -b ${COPY_LARGE_FILE}
+
+                echo "Many small files:"
+                # Simulate copy of many small files
+                time ( cp -r ${SMALL_FILES}/* ${COPY_SMALL_FILES} )
+                du -b ${COPY_SMALL_FILES}
+
+                rm -rf ${TEMP_DIR}
+
+
+    finally:
+      - name: slack-webhook-notification
+        taskRef:
+          resolver: bundles
+          params:
+            - name: name
+              value: slack-webhook-notification
+            - name: bundle
+              value: quay.io/redhat-appstudio-tekton-catalog/task-slack-webhook-notification:0.1
+            - name: kind
+              value: task
+        when:
+        - input: $(tasks.status)
+          operator: in
+          values: ["Failed"]
+        params:
+        - name: message
+          value: |-
+            Tekton pipelineRun $(context.pipelineRun.name) failed.
+            See https://console-openshift-console.apps.stone-prd-rh01.pg1f.p1.openshiftapps.com/k8s/ns/tekton-ci/tekton.dev~v1beta1~PipelineRun/$(context.pipelineRun.name)
+            (Quick! It may disappear soon!)
+        - name: key-name
+          value: $(params.slack-webhook-notification-team)
