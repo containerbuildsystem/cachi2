@@ -7,6 +7,7 @@ from cachi2.core.package_managers.yarn.resolver import (
     create_component_from_package,
     resolve_packages,
 )
+from cachi2.core.package_managers.yarn.utils import run_yarn_cmd
 from cachi2.core.rooted_path import RootedPath
 
 log = logging.getLogger(__name__)
@@ -73,7 +74,7 @@ def _check_yarn_cache(source_dir: RootedPath) -> None:
     """Check the contents of the yarn cache using 'yarn install'.
 
     :param source_dir: the directory in which the yarn command will be called.
-    :raises SubprocessCallError: if the 'yarn install' command fails.
+    :raises YarnCommandError: if the 'yarn install' command fails.
     """
     # the yarn commands can be called by using the core.utils.run_cmd function
     pass
@@ -84,11 +85,12 @@ def _fetch_dependencies(source_dir: RootedPath, output_dir: RootedPath) -> None:
 
     :param source_dir: the directory in which the yarn command will be called.
     :param output_dir: the directory where the yarn dependencies will be downloaded to.
-    :raises SubprocessCallError: if the 'yarn install' command fails.
+    :raises YarnCommandError: if the 'yarn install' command fails.
     """
-    # the output_dir is where the globalFolder must be set to
-    # the yarn commands can be called by using the core.utils.run_cmd function
-    pass
+    cachi2_output = output_dir.join_within_root("deps", "yarn")
+
+    args = ["install", "--mode", "skip-build"]
+    run_yarn_cmd(args, source_dir, {"YARN_GLOBAL_FOLDER": str(cachi2_output)})
 
 
 def _undo_changes(project: Project) -> None:

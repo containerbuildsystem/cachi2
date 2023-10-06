@@ -52,7 +52,7 @@ def resolve_packages(source_dir: RootedPath) -> list[Package]:
     processed.
 
     :raises PackageRejected: if the validation fails.
-    :raises SubprocessCallError: if the 'yarn info' command fails.
+    :raises YarnCommandError: if the 'yarn info' command fails.
     """
     under_development = True
     if under_development:
