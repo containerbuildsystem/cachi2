@@ -15,19 +15,19 @@ venv:
 	venv/bin/pip install tox
 	venv/bin/pip install -e .
 
-test:
+test: venv
 	venv/bin/tox
 
-test-unit:
+test-unit: venv
 	venv/bin/tox -e $(TOX_ENVLIST) -- $(TOX_ARGS)
 
-test-integration:
+test-integration: venv
 	venv/bin/tox -e integration
 
 mock-unittest-data:
 	hack/mock-unittest-data/gomod.sh
 
-generate-test-data:
+generate-test-data: venv
 	CACHI2_GENERATE_TEST_DATA=true venv/bin/tox -e integration
 
 build-image:
@@ -38,7 +38,7 @@ build-image:
 build-pristine-image:
 	podman build --pull-always --no-cache -t localhost/cachi2:latest .
 
-pip-compile:
+pip-compile: venv
 	venv/bin/pip install -U pip-tools
 	# --allow-unsafe: we use pkg_resources (provided by setuptools) as a runtime dependency
 	venv/bin/pip-compile --allow-unsafe --generate-hashes --output-file=requirements.txt pyproject.toml
