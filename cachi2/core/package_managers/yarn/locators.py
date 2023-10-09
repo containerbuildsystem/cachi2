@@ -169,7 +169,7 @@ def _parse_patch_locator(locator: "_ParsedLocator") -> PatchLocator:
         else:
             return Path(patch)
 
-    patches = [process_patch_path(p) for p in reference.selector.split("&")]
+    patches = tuple(process_patch_path(p) for p in reference.selector.split("&"))
     if locator_param := reference.get_param("locator"):
         parent_locator = parse_locator(locator_param)
         if not isinstance(parent_locator, WorkspaceLocator):
