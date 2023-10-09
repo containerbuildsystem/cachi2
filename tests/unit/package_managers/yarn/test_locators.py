@@ -8,9 +8,11 @@ from cachi2.core.errors import UnexpectedFormat, UnsupportedFeature
 from cachi2.core.package_managers.yarn.locators import (
     FileLocator,
     HttpsLocator,
+    LinkLocator,
     Locator,
     NpmLocator,
     PatchLocator,
+    PortalLocator,
     WorkspaceLocator,
     _parse_locator,
     _parse_reference,
@@ -341,11 +343,13 @@ PARSED_SUPPORTED_LOCATORS = [
     NpmLocator(scope=None, name="agent-base", version="6.0.2"),
     WorkspaceLocator(scope="montypython", name="brian", relpath=Path("packages/the-life-of/brian")),
     WorkspaceLocator(scope=None, name="the-answer", relpath=Path("packages/the-answer")),
-    FileLocator(
+    LinkLocator(
+        scope=None,
+        name="ansi-regex-link",
         relpath=Path("external-packages/ansi-regex"),
         locator=WorkspaceLocator(scope=None, name="berryscary", relpath=Path(".")),
     ),
-    FileLocator(
+    PortalLocator(
         relpath=Path("external-packages/once"),
         locator=WorkspaceLocator(scope=None, name="berryscary", relpath=Path(".")),
     ),
