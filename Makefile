@@ -5,7 +5,7 @@ TOX_ARGS ?=
 all: venv
 
 clean:
-	rm -rf venv && rm -rf *.egg-info && rm -rf dist && rm -rf *.log* && rm -rf .tox
+	rm -rf dist venv .tox *.egg-info *.log*
 
 .PHONY: venv
 venv:
