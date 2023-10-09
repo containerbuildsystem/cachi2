@@ -4,8 +4,14 @@ Parse the relevant files of a yarn project.
 It also provides basic utility functions. The main logic to resolve and prefetch the dependencies
 should be implemented in other modules.
 """
+import json
+import re
+from pathlib import Path
 from typing import Any, NamedTuple, Optional
 
+import semver
+
+from cachi2.core.errors import UnexpectedFormat
 from cachi2.core.rooted_path import RootedPath
 
 
@@ -91,10 +97,21 @@ class PackageJson:
         """Get the package manager string."""
         return NotImplemented
 
+    @package_manager.setter
+    def package_manager(self, package_manager: str) -> None:
+        """Set the package manager string."""
+        self._data["packageManager"] = package_manager
+
     @classmethod
     def from_file(cls, file_path: RootedPath) -> "PackageJson":
         """Parse the content of a package.json file."""
         return NotImplemented
+
+    def to_file(self) -> None:
+        """Write the data to the package.json file."""
+        with open(self._path, "w") as f:
+            json.dump(self._data, f, indent=2)
+            f.write("\n")
 
 
 class Project(NamedTuple):
@@ -126,3 +143,54 @@ class Project(NamedTuple):
     def from_source_dir(cls, source_dir: RootedPath) -> "Project":
         """Create a Project from a sources directory path."""
         return NotImplemented
+
+
+def get_semver_from_yarn_path(yarn_path: Optional[str]) -> Optional[semver.version.Version]:
+    """Parse yarnPath from yarnrc and return a semver Version if possible else None."""
+    if not yarn_path:
+        return None
+
+    # https://github.com/yarnpkg/berry/blob/2dc59443e541098bc0104d97b5fc452781c64baf/packages/plugin-essentials/sources/commands/set/version.ts#L208
+    yarn_spec_pattern = re.compile(r"^yarn-(.+)\.cjs$")
+    match = yarn_spec_pattern.match(Path(yarn_path).name)
+    if not match:
+        return None
+
+    yarn_version = match.group(1)
+    try:
+        return semver.version.Version.parse(yarn_version)
+    except ValueError:
+        return None
+
+
+def get_semver_from_package_manager(
+    package_manager: Optional[str],
+) -> Optional[semver.version.Version]:
+    """Parse packageManager from package.json and return a semver Version if possible.
+
+    :raises UnexpectedFormat:
+        if packageManager doesn't match the name@semver format
+        if packageManager does not specify yarn
+        if packageManager version is not a valid semver
+    """
+    if not package_manager:
+        return None
+
+    # https://github.com/nodejs/corepack/blob/787e24df609513702eafcd8c6a5f03544d7d45cc/sources/specUtils.ts#L10
+    package_manager_spec_pattern = re.compile(r"^(?!_)(.+)@(.+)$")
+    match = package_manager_spec_pattern.match(package_manager)
+    if not match:
+        raise UnexpectedFormat(
+            "could not parse packageManager spec in package.json (expected name@semver)"
+        )
+
+    name, version = match.groups()
+    if name != "yarn":
+        raise UnexpectedFormat("packageManager in package.json must be yarn")
+
+    try:
+        return semver.version.Version.parse(version)
+    except ValueError as e:
+        raise UnexpectedFormat(
+            f"{version} is not a valid semver for packageManager in package.json"
+        ) from e
