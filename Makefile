@@ -7,7 +7,7 @@ all: venv
 clean:
 	rm -rf dist venv .tox *.egg-info *.log*
 
-.PHONY: venv
+.PHONY: clean
 venv:
 	virtualenv --python=${PYTHON_VERSION_VENV} venv
 	venv/bin/pip install --upgrade pip
