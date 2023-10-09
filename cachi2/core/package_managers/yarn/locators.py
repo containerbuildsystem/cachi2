@@ -72,12 +72,25 @@ class PatchLocator(NamedTuple):
 
 
 class FileLocator(NamedTuple):
-    """Locator that handles file, portal and link protocols.
+    """Locator that handles file dependencies.
 
     Sample locator string:
         [@scope/]name@file:path/to/tarball.tar.gz::locator=<workspace-locator>
         [@scope/]name@file:path/to/directory#path/to/directory::hash=321cba&locator=<workspace-locator>
-        [@scope/]name@link:path/to/directory::locator=<workspace-locator>
+
+    Attributes:
+        relpath: relative path to a file or directory
+        locator: the path is relative to this locator
+    """
+
+    relpath: Path
+    locator: "WorkspaceLocator"
+
+
+class PortalLocator(NamedTuple):
+    """Locator that handles portal dependencies.
+
+    Sample locator string:
         [@scope/]name@portal:path/to/directory::locator=<workspace-locator>
 
     Attributes:
@@ -85,6 +98,30 @@ class FileLocator(NamedTuple):
         locator: the path is relative to this locator
     """
 
+    relpath: Path
+    locator: "WorkspaceLocator"
+
+
+class LinkLocator(NamedTuple):
+    """Locator that handles link dependencies.
+
+    Sample locator string:
+        [@scope/]name@link:path/to/directory::locator=<workspace-locator>
+
+    Nearly identical to portal dependencies with an important difference. Portal dependencies have
+    a package.json, link dependencies do not (have to).
+
+    Attributes:
+        scope: the scope of the dependency (without '@')
+        name: the name of the dependency
+        relpath: relative path to a file or directory
+        locator: the path is relative to this locator
+    """
+
+    # Link dependencies don't need to have a package.json, we have no choice but to depend on the
+    # scope and name specified by the user.
+    scope: Optional[str]
+    name: str
     relpath: Path
     locator: "WorkspaceLocator"
 
@@ -107,6 +144,8 @@ Locator = Union[
     WorkspaceLocator,
     PatchLocator,
     FileLocator,
+    PortalLocator,
+    LinkLocator,
     HttpsLocator,
 ]
 
@@ -142,8 +181,14 @@ def parse_locator(locator_str: str) -> Locator:
             return WorkspaceLocator(locator.scope, locator.name, relpath)
         elif protocol == "patch":
             return _parse_patch_locator(locator)
-        elif protocol in ("file", "link", "portal"):
+        elif protocol == "file":
             return _parse_file_locator(locator)
+        elif protocol == "portal":
+            relpath, parent_locator = _parse_file_locator(locator)
+            return PortalLocator(relpath, parent_locator)
+        elif protocol == "link":
+            relpath, parent_locator = _parse_file_locator(locator)
+            return LinkLocator(locator.scope, locator.name, relpath, parent_locator)
         elif protocol in ("http", "https") and TARBALL_RE.match(locator.raw_reference):
             return HttpsLocator(url=locator.raw_reference)
     except UnexpectedFormat as e:
