@@ -369,39 +369,39 @@ PARSED_SUPPORTED_LOCATORS = [
     NpmLocator(scope=None, name="left-pad", version="1.3.0"),
     PatchLocator(
         package=NpmLocator(scope=None, name="left-pad", version="1.3.0"),
-        patches=[Path("my-patches/left-pad.patch")],
+        patches=(Path("my-patches/left-pad.patch"),),
         locator=WorkspaceLocator(scope=None, name="berryscary", relpath=Path(".")),
     ),
     NpmLocator(scope=None, name="fsevents", version="2.3.2"),
     PatchLocator(
         package=NpmLocator(scope=None, name="fsevents", version="2.3.2"),
-        patches=["builtin<compat/fsevents>"],
+        patches=("builtin<compat/fsevents>",),
         locator=None,
     ),
     PatchLocator(
         package=PatchLocator(
             package=NpmLocator(scope=None, name="fsevents", version="2.3.2"),
-            patches=[Path("my-patches/fsevents.patch")],
+            patches=(Path("my-patches/fsevents.patch"),),
             locator=WorkspaceLocator(scope=None, name="berryscary", relpath=Path(".")),
         ),
-        patches=["builtin<compat/fsevents>"],
+        patches=("builtin<compat/fsevents>",),
         locator=None,
     ),
     NpmLocator(scope=None, name="typescript", version="5.1.6"),
     PatchLocator(
         package=NpmLocator(scope=None, name="typescript", version="5.1.6"),
-        patches=["builtin<compat/typescript>"],
+        patches=("builtin<compat/typescript>",),
         locator=None,
     ),
     NpmLocator(scope=None, name="is-positive", version="3.1.0"),
     PatchLocator(
         package=NpmLocator(scope=None, name="is-positive", version="3.1.0"),
-        patches=[
+        patches=(
             "builtin<foo>",
             Path("my-patches/is-positive.patch"),
             "builtin<bar>",
             Path("baz.patch"),
-        ],
+        ),
         locator=WorkspaceLocator(scope=None, name="berryscary", relpath=Path(".")),
     ),
 ]
@@ -462,6 +462,8 @@ def test_unexpected_reference_format() -> None:
 )
 def test_parse_locator(locator_str: str, expect_locator: Locator) -> None:
     assert parse_locator(locator_str) == expect_locator
+    # test that all locator types are hashable
+    hash(expect_locator)
 
 
 @pytest.mark.parametrize("locator_str", UNSUPPORTED_LOCATORS)
