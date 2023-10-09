@@ -34,11 +34,7 @@ def _present_user_input_error(validation_error: pydantic.ValidationError) -> str
 
     def show_error(error: "ErrorDict") -> str:
         location = " -> ".join(map(str, error["loc"]))
-        context = "; ".join(f"{k}={v}" for k, v in error.get("ctx", {}).items())
         message = error["msg"]
-
-        if context:
-            message = f"{message} ({context})"
 
         if location != "__root__":
             message = f"{location}\n  {message}"
