@@ -1,8 +1,13 @@
 import logging
 
+from cachi2.core.errors import PackageRejected
 from cachi2.core.models.input import Request
 from cachi2.core.models.output import Component, EnvironmentVariable, RequestOutput
-from cachi2.core.package_managers.yarn.project import Project
+from cachi2.core.package_managers.yarn.project import (
+    Project,
+    get_semver_from_package_manager,
+    get_semver_from_yarn_path,
+)
 from cachi2.core.package_managers.yarn.resolver import (
     create_component_from_package,
     resolve_packages,
@@ -52,10 +57,41 @@ def _resolve_yarn_project(project: Project, output_dir: RootedPath) -> list[Comp
 def _configure_yarn_version(project: Project) -> None:
     """Resolve the yarn version and set it in the package.json file if needed.
 
-    :raises PackageRejected: in case the yarn version can't be determined, or if there is a
-        mismatch between the version in package.json and yarnrc.yml.
+    :raises PackageRejected:
+        if the yarn version can't be determined from either yarnPath or packageManager
+        if there is a mismatch between the yarn version specified by yarnPath and PackageManager
     """
-    pass
+    yarn_path_version = get_semver_from_yarn_path(project.yarn_rc.yarn_path)
+    package_manager_version = get_semver_from_package_manager(project.package_json.package_manager)
+
+    if not yarn_path_version and not package_manager_version:
+        raise PackageRejected(
+            "Unable to determine the yarn version to use to process the request",
+            solution=(
+                "Ensure that either yarnPath is defined in .yarnrc.yml or that packageManager "
+                "is defined in package.json"
+            ),
+        )
+
+    if (
+        yarn_path_version
+        and package_manager_version
+        and yarn_path_version != package_manager_version
+    ):
+        raise PackageRejected(
+            (
+                f"Mismatch between the yarn versions specified by yarnPath (yarn@{yarn_path_version}) "
+                f"and packageManager (yarn@{package_manager_version})"
+            ),
+            solution=(
+                "Ensure that the versions of yarn specified by yarnPath in .yarnrc.yml and "
+                "packageManager in package.json agree"
+            ),
+        )
+
+    if not package_manager_version:
+        project.package_json.package_manager = f"yarn@{yarn_path_version}"
+        project.package_json.write_to_file()
 
 
 def _set_yarnrc_configuration(project: Project, output_dir: RootedPath) -> None:
