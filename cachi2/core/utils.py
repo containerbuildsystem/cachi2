@@ -2,7 +2,7 @@ import json
 import logging
 import re
 import subprocess  # nosec
-from typing import Any, Iterator
+from typing import Any, Iterator, Optional
 
 from cachi2.core.config import get_config
 
@@ -31,10 +31,20 @@ def run_cmd(cmd: Any, params: dict) -> str:
     try:
         response.check_returncode()
     except subprocess.CalledProcessError:
-        log.error('The command "%s" failed with: %s', " ".join(cmd), response.stderr)
+        log.error('The command "%s" failed', " ".join(cmd))
+        _log_error_output("STDERR", response.stderr)
+        if not response.stderr:
+            _log_error_output("STDOUT", response.stdout)
         raise
 
     return response.stdout
+
+
+def _log_error_output(out_or_err: str, output: Optional[str]) -> None:
+    if output:
+        log.error("%s:\n%s", out_or_err, output.rstrip())
+    else:
+        log.error("%s: <empty>", out_or_err)
 
 
 def load_json_stream(s: str) -> Iterator:
