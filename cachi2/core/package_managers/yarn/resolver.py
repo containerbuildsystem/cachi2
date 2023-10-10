@@ -5,10 +5,14 @@ It also performs the necessary validations to avoid allowing an invalid project 
 processed.
 """
 import logging
-from typing import NamedTuple
+from dataclasses import dataclass
+from functools import cached_property
 
+import pydantic
+
+from cachi2.core.errors import UnsupportedFeature
 from cachi2.core.models.sbom import Component
-from cachi2.core.package_managers.yarn.locators import Locator
+from cachi2.core.package_managers.yarn.locators import Locator, parse_locator
 from cachi2.core.package_managers.yarn.project import Optional, Project
 from cachi2.core.package_managers.yarn.utils import run_yarn_cmd
 from cachi2.core.rooted_path import RootedPath
@@ -16,54 +20,105 @@ from cachi2.core.rooted_path import RootedPath
 log = logging.getLogger(__name__)
 
 
-class Cache(NamedTuple):
-    """Cache information for a package."""
-
-    checksum: str
-    path: str
-
-
-class Package(NamedTuple):
+@dataclass(frozen=True)
+class Package:
     """A package listed by the yarn info command.
 
     See the output for 'yarn info -AR --json --cache'.
 
-    Note that the attributes present in the json vary a little depending on the type of
-    dependency.
+    {
+      "value": "{locator}"
+      "children": {
+        "Version": "{version}" or "0.0.0-use.local"
+        "Cache": {
+          "Checksum": "{cache_key}/{checksum}" or null
+          "Path": "{cache_path}" or null
+        }
+      }
+    }
+
+    Note:
+    - version will be None if yarn info reports 0.0.0-use.local (as it does for soft-link* deps).
+    - checksum will be None for soft-link deps or deps that are missing the 'checksum' key in
+      yarn.lock.
+    - cache_path will be None for soft-link deps or, in some cases, deps that are missing the
+      'checksum' key
+
+    *soft-link = workspace, portal and link dependencies
     """
 
-    # cache seems to be optional for portal, link and workspace protocols.
-    # 'yarn info' returns a cache object with empty keys.
-    cache: Optional[Cache]
-    locator: Locator
-    version: str
+    raw_locator: str
+    version: Optional[str]
+    checksum: Optional[str]
+    cache_path: Optional[str]
 
     @classmethod
     def from_info_string(cls, info: str) -> "Package":
         """Create a Package from the output of yarn info."""
-        # this should use the locators.parse_locator function
-        return NotImplemented
+        entry = _YarnInfoEntry.model_validate_json(info)
+        locator = entry.value
+        version: Optional[str] = entry.children.version
+        if version == "0.0.0-use.local":
+            version = None
+
+        cache = entry.children.cache
+        if cache.checksum:
+            checksum = cache.checksum.split("/", 1)[-1]
+        else:
+            checksum = None
+
+        return cls(locator, version, checksum, cache.path)
+
+    @cached_property
+    def parsed_locator(self) -> Locator:
+        """Parse the raw_locator, store the parsed value for later re-use and return it."""
+        return parse_locator(self.raw_locator)
+
+
+class _YarnInfoCache(pydantic.BaseModel):
+    checksum: Optional[str] = pydantic.Field(alias="Checksum")
+    path: Optional[str] = pydantic.Field(alias="Path")
+
+
+class _YarnInfoChildren(pydantic.BaseModel):
+    version: str = pydantic.Field(alias="Version")
+    cache: _YarnInfoCache = pydantic.Field(alias="Cache")
+
+
+class _YarnInfoEntry(pydantic.BaseModel):
+    value: str
+    children: _YarnInfoChildren
 
 
 def resolve_packages(source_dir: RootedPath) -> list[Package]:
     """Fetch and parse package data from the 'yarn info' output.
 
-    This function also performs a validation to ensure that the current yarn project can be
+    This function also performs validation to ensure that the current yarn project can be
     processed.
 
-    :raises PackageRejected: if the validation fails.
+    :raises UnsupportedFeature: if an unsupported locator type is found in 'yarn info' output
     :raises YarnCommandError: if the 'yarn info' command fails.
     """
-    under_development = True
-    if under_development:
-        return []
-
-    result = run_yarn_cmd([], source_dir, {})
+    # --all: report dependencies of all workspaces, not just the active workspace
+    # --recursive: report transitive dependencies, not just direct ones
+    # --cache: include info about the cache entry for each dependency
+    result = run_yarn_cmd(["info", "--all", "--recursive", "--cache", "--json"], source_dir, env={})
 
     # the result is not a valid json list, but a sequence of json objects separated by line breaks
     packages = [Package.from_info_string(info) for info in result.splitlines()]
 
-    _vet_git_dependencies(packages)
+    n_unsupported = 0
+    for package in packages:
+        try:
+            _ = package.parsed_locator
+        except UnsupportedFeature as e:
+            log.error(e)
+            n_unsupported += 1
+
+    if n_unsupported > 0:
+        raise UnsupportedFeature(
+            f"Found {n_unsupported} unsupported dependencies, more details in the logs."
+        )
 
     return packages
 
@@ -78,17 +133,6 @@ def create_component_from_package(package: Package, project: Project) -> Compone
     return Component(
         name=name, version=package.version, purl=_generate_purl_for_package(package, name, project)
     )
-
-
-def _vet_git_dependencies(packages: list[Package]) -> None:
-    """Stop the request processing if a Git dependency is found.
-
-    Git dependencies will cause the execution of existing js lifecycle scripts when 'yarn install'
-    is called, which results in arbitrary code execution in Cachi2.
-
-    :raises PackageRejected: if a git dependency is found.
-    """
-    pass
 
 
 def _resolve_package_name(package: Package) -> str:
