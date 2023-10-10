@@ -197,21 +197,21 @@ For finer control over which tests get executed, e.g. to run all tests in a spec
 the [virtualenv](#virtualenv) and run:
 
 ```shell
-tox -e python3.9 -- tests/unit/test_cli.py
+tox -e py39 -- tests/unit/test_cli.py
 ```
 
 Even better, run it stepwise (exit on first failure, re-start from the failed test next time):
 
 ```shell
-tox -e python3.9 -- tests/unit/test_cli.py --stepwise
+tox -e py39 -- tests/unit/test_cli.py --stepwise
 ```
 
 You can also run a single test class or a single test method:
 
 ```shell
-tox -e python3.9 -- tests/unit/test_cli.py::TestGenerateEnv
-tox -e python3.9 -- tests/unit/test_cli.py::TestGenerateEnv::test_invalid_format
-tox -e python3.9 -- tests/unit/extras/test_envfile.py::test_cannot_determine_format
+tox -e py39 -- tests/unit/test_cli.py::TestGenerateEnv
+tox -e py39 -- tests/unit/test_cli.py::TestGenerateEnv::test_invalid_format
+tox -e py39 -- tests/unit/extras/test_envfile.py::test_cannot_determine_format
 ```
 
 In short, tox passes all arguments to the right of `--` directly to pytest.
