@@ -128,7 +128,7 @@ when downloading Go modules. See [Go environment variables](https://go.dev/ref/m
 
 ## Development
 
-### Virtualenv
+### Virtual environment
 
 Set up a virtual environment that has everything you will need for development:
 
@@ -140,10 +140,10 @@ source venv/bin/activate
 This installs the Cachi2 CLI in [editable mode](https://setuptools.pypa.io/en/latest/userguide/development_mode.html),
 which means changes to the source code will reflect in the behavior of the CLI without the need for reinstalling.
 
-You may need to install the following dependencies before creating the virtualenv:
+You may need to install the following dependencies before creating the virtual environment:
 
 ```shell
-dnf install python3.9 python3-virtualenv
+dnf install python3.9
 ```
 
 The CLI also depends on the following non-Python dependencies:
