@@ -5,15 +5,22 @@ TOX_ARGS ?=
 .PHONY: clean
 all: venv
 
+define make_venv
+	$(PYTHON_BIN) -m venv $(VENV)
+	$(VENV)/bin/pip install --upgrade pip
+endef
+
 clean:
 	rm -rf dist venv .tox *.egg-info *.log*
 
+
+venv: PYTHON_BIN := $(shell which $(PYTHON_VERSION_VENV))
+venv: VENV := venv
 venv:
-	$(shell which $(PYTHON_VERSION_VENV)) -m venv venv
-	venv/bin/pip install --upgrade pip
-	venv/bin/pip install -r requirements.txt
-	venv/bin/pip install tox
-	venv/bin/pip install -e .
+	$(call make_venv)
+	$(VENV)/bin/pip install -r requirements.txt
+	$(VENV)/bin/pip install tox
+	$(VENV)/bin/pip install -e .
 
 test: venv
 	venv/bin/tox
