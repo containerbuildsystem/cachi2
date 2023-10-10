@@ -1,4 +1,4 @@
-PYTHON_VERSION_VENV ?= python3.9
+PYTHON_VERSION_VENV ?= python3
 TOX_ENVLIST ?= py39
 TOX_ARGS ?=
 
@@ -45,8 +45,12 @@ build-image:
 build-pristine-image:
 	podman build --pull-always --no-cache -t localhost/cachi2:latest .
 
-pip-compile: venv
-	venv/bin/pip install -U pip-tools
+pip-compile: PYTHON_BIN := $(shell which python3.9)
+pip-compile: VENV := $(shell mktemp -d -u --tmpdir --suffix .venv pip_compileXXX)
+pip-compile:
+	$(call make_venv)
+	$(VENV)/bin/pip install -U pip-tools
 	# --allow-unsafe: we use pkg_resources (provided by setuptools) as a runtime dependency
-	venv/bin/pip-compile --allow-unsafe --generate-hashes --output-file=requirements.txt pyproject.toml
-	venv/bin/pip-compile --all-extras --allow-unsafe --generate-hashes --output-file=requirements-extras.txt pyproject.toml
+	$(VENV)/bin/pip-compile --allow-unsafe --generate-hashes --output-file=requirements.txt pyproject.toml
+	$(VENV)/bin/pip-compile --all-extras --allow-unsafe --generate-hashes --output-file=requirements-extras.txt pyproject.toml
+	rm -rf $(VENV)
