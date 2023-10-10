@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from functools import cached_property
 
 import pydantic
+from packageurl import PackageURL
 
 from cachi2.core.errors import UnsupportedFeature
 from cachi2.core.models.sbom import Component
@@ -143,7 +144,7 @@ def _resolve_package_name(package: Package) -> str:
 
     Look at the package.json name for every non-registry dependency.
     """
-    return NotImplemented
+    return "placeholder"
 
 
 def _generate_purl_for_package(package: Package, name: str, project: Project) -> str:
@@ -157,4 +158,11 @@ def _generate_purl_for_package(package: Package, name: str, project: Project) ->
     """
     # registry url can be accessed in project.yarnrc
     # paths for file dependencies are relative to project.source_dir
-    return NotImplemented
+    return PackageURL(
+        type="npm",
+        name=name.lower(),
+        version="placeholder",
+        # TODO: used to make sure purls are unique even for an incomplete implementation
+        #   remove raw_locator when no longer needed
+        qualifiers={"raw_locator": package.raw_locator},
+    ).to_string()
