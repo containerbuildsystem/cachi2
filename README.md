@@ -140,7 +140,10 @@ source venv/bin/activate
 This installs the Cachi2 CLI in [editable mode](https://setuptools.pypa.io/en/latest/userguide/development_mode.html),
 which means changes to the source code will reflect in the behavior of the CLI without the need for reinstalling.
 
-You may need to install the following dependencies before creating the virtual environment:
+You may need to install Python 3.9 in case you're adding new dependencies to
+the project as the requirements files are locked to 3.9 by pip-compile or if
+you simply want to test your changes against Python 3.9 locally before
+submitting a pull request.
 
 ```shell
 dnf install python3.9
