@@ -2,12 +2,12 @@ PYTHON_VERSION_VENV ?= python3.9
 TOX_ENVLIST ?= py39
 TOX_ARGS ?=
 
+.PHONY: clean
 all: venv
 
 clean:
 	rm -rf dist venv .tox *.egg-info *.log*
 
-.PHONY: clean
 venv:
 	virtualenv --python=${PYTHON_VERSION_VENV} venv
 	venv/bin/pip install --upgrade pip
