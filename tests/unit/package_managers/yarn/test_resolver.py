@@ -30,7 +30,7 @@ def mock_yarn_info_output(yarn_info_outputs: list[dict[str, Any]]) -> str:
     return yarn_info_string_output + "\n"
 
 
-# re-generate using hack/mock-unittest-data/yarn.sh
+# re-generate using hack/mock-unittest-data/yarn.py
 YARN_INFO_OUTPUTS = [
     {
         "value": "@isaacs/cliui@npm:8.0.2",
