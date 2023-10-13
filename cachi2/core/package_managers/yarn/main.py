@@ -38,6 +38,8 @@ def _resolve_yarn_project(project: Project, output_dir: RootedPath) -> list[Comp
     :param project: the directory to be processed.
     :param output_dir: the directory where the prefetched dependencies will be placed.
     """
+    log.info(f"Fetching the yarn dependencies at the subpath {output_dir.subpath_from_root}")
+
     _configure_yarn_version(project)
 
     try:
