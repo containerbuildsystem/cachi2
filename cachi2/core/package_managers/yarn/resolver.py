@@ -103,7 +103,7 @@ def resolve_packages(source_dir: RootedPath) -> list[Package]:
     # --all: report dependencies of all workspaces, not just the active workspace
     # --recursive: report transitive dependencies, not just direct ones
     # --cache: include info about the cache entry for each dependency
-    result = run_yarn_cmd(["info", "--all", "--recursive", "--cache", "--json"], source_dir, env={})
+    result = run_yarn_cmd(["info", "--all", "--recursive", "--cache", "--json"], source_dir)
 
     # the result is not a valid json list, but a sequence of json objects separated by line breaks
     packages = [Package.from_info_string(info) for info in result.splitlines()]
