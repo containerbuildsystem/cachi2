@@ -3,6 +3,7 @@ import itertools
 import json
 import pprint
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -17,11 +18,11 @@ def print_banner(content: str) -> None:
     print("-" * 80)
 
 
-def clone_repo(tmpdir: Path) -> Path:
+def clone_repo(git_executable: str, tmpdir: Path) -> Path:
     repo_dir = tmpdir / "cachi2-yarn-berry"
     subprocess.run(
         [
-            "git",
+            git_executable,
             "clone",
             "https://github.com/cachito-testing/cachi2-yarn-berry",
             "--depth=1",
@@ -34,9 +35,9 @@ def clone_repo(tmpdir: Path) -> Path:
     return repo_dir
 
 
-def run_yarninfo(repo_dir: Path) -> str:
+def run_yarninfo(yarn_executable: str, repo_dir: Path) -> str:
     proc = subprocess.run(
-        ["yarn", "info", "--all", "--recursive", "--json", "--cache"],
+        [yarn_executable, "info", "--all", "--recursive", "--json", "--cache"],
         cwd=repo_dir,
         stdout=subprocess.PIPE,
         text=True,
@@ -111,12 +112,22 @@ def _filter_pkgs_by_pattern(
     return _filter_pkgs(matches_pattern, pkgs, max_items)
 
 
+def need_command(name: str) -> str:
+    cmd_path = shutil.which(name)
+    if not cmd_path:
+        raise ValueError(f"Command not found in PATH: {name}")
+    return cmd_path
+
+
 def main() -> None:
     print_banner("Generating mock data for yarn unit tests")
 
+    git_executable = need_command("git")
+    yarn_executable = need_command("yarn")
+
     with tempfile.TemporaryDirectory() as tmpdir:
-        repo_dir = clone_repo(Path(tmpdir))
-        yarninfo_output = run_yarninfo(repo_dir)
+        repo_dir = clone_repo(git_executable, Path(tmpdir))
+        yarninfo_output = run_yarninfo(yarn_executable, repo_dir)
 
     selected_packages = process_yarninfo(yarninfo_output, repo_dir)
 
