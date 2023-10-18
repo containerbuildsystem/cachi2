@@ -10,7 +10,7 @@ import zipfile
 from dataclasses import dataclass
 from functools import cached_property
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Union
+from typing import TYPE_CHECKING, Any, Mapping, Union
 
 import pydantic
 from packageurl import PackageURL
@@ -148,8 +148,9 @@ def create_components(
     packages: list[Package], project: Project, output_dir: RootedPath
 ) -> list[Component]:
     """Create SBOM components for all the packages parsed from the 'yarn info' output."""
-    component_resolver = _ComponentResolver(project, output_dir)
-    return [component_resolver.get_component(package) for package in packages]
+    package_mapping = {package.parsed_locator: package for package in packages}
+    component_resolver = _ComponentResolver(package_mapping, project, output_dir)
+    return [component_resolver.get_component(package) for package in package_mapping.values()]
 
 
 @dataclass(frozen=True)
@@ -176,9 +177,12 @@ class _CouldNotResolve(ValueError):
 
 
 class _ComponentResolver:
-    def __init__(self, project: Project, output_dir: RootedPath) -> None:
+    def __init__(
+        self, package_mapping: Mapping[Locator, Package], project: Project, output_dir: RootedPath
+    ) -> None:
         self._project = project
         self._output_dir = output_dir
+        self._package_mapping = package_mapping
 
     def get_component(self, package: Package) -> Component:
         """Create an SBOM component for a yarn Package."""
@@ -217,7 +221,7 @@ class _ComponentResolver:
             # workspace dependencies have reliable names but report '0.0.0-use.local' as the version
             name = self._scoped_name(locator)
             _, version = self._read_name_version_from_packjson(packjson)
-        elif isinstance(locator, (PatchLocator, FileLocator, HttpsLocator)):
+        elif isinstance(locator, (FileLocator, HttpsLocator)):
             if not package.cache_path:
                 raise _CouldNotResolve(
                     "expected a zip archive in the cache but 'yarn info' says there is none",
@@ -228,7 +232,7 @@ class _ComponentResolver:
                     f"cache archive does not exist: {cache_path.subpath_from_root}"
                 )
             log_for_locator("reading package name from %s", cache_path.subpath_from_root)
-            # patch, file and https dependencies have reliable versions but unreliable names
+            # file and https dependencies have reliable versions but unreliable names
             name = self._read_name_from_cache(cache_path)
             version = package.version
         elif isinstance(locator, (PortalLocator, LinkLocator)):
@@ -247,6 +251,24 @@ class _ComponentResolver:
                     "reading package name and version from %s", packjson.subpath_from_root
                 )
                 name, version = self._read_name_version_from_packjson(packjson)
+        elif isinstance(locator, PatchLocator):
+            if (
+                package.cache_path
+                # yarn info seems to always report the cache path for patch dependencies,
+                # but the path doesn't always exist
+                and (cache_path := self._cache_path_as_rooted(package.cache_path)).path.exists()
+            ):
+                log_for_locator("reading package name from %s", cache_path.subpath_from_root)
+                name = self._read_name_from_cache(cache_path)
+            elif orig_package := self._package_mapping.get(locator.package):
+                log_for_locator("resolving the name of the original package")
+                name = self._resolve_package(orig_package).name
+            else:
+                raise _CouldNotResolve(
+                    "the 'yarn info' output does not include either an existing zip archive "
+                    "or the original unpatched package",
+                )
+            version = package.version
         else:
             # This line can never be reached assuming type-checker checks are passing
             # https://typing.readthedocs.io/en/latest/source/unreachable.html#assert-never-and-exhaustiveness-checking
