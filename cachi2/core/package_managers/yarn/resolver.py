@@ -126,16 +126,8 @@ def resolve_packages(source_dir: RootedPath) -> list[Package]:
 
 def create_components(packages: list[Package], project: Project) -> list[Component]:
     """Create SBOM components for all the packages parsed from the 'yarn info' output."""
-    components = []
-    for package in packages:
-        resolved_package = _resolve_package(package)
-        component = Component(
-            name=resolved_package.name,
-            version=resolved_package.version,
-            purl=_generate_purl_for_package(resolved_package, project),
-        )
-        components.append(component)
-    return components
+    component_resolver = _ComponentResolver(project)
+    return [component_resolver.get_component(package) for package in packages]
 
 
 @dataclass(frozen=True)
@@ -157,14 +149,27 @@ class _ResolvedPackage:
     raw_locator: str
 
 
-def _resolve_package(package: Package) -> _ResolvedPackage:
-    """Resolve the real name and version of the package."""
-    return _ResolvedPackage(
-        locator=package.parsed_locator,
-        name="placeholder",
-        version=package.version,
-        raw_locator=package.raw_locator,
-    )
+class _ComponentResolver:
+    def __init__(self, project: Project) -> None:
+        self._project = project
+
+    def get_component(self, package: Package) -> Component:
+        """Create an SBOM component for a yarn Package."""
+        resolved_package = self._resolve_package(package)
+        return Component(
+            name=resolved_package.name,
+            version=resolved_package.version,
+            purl=_generate_purl_for_package(resolved_package, self._project),
+        )
+
+    def _resolve_package(self, package: Package) -> _ResolvedPackage:
+        """Resolve the real name and version of the package."""
+        return _ResolvedPackage(
+            locator=package.parsed_locator,
+            name="placeholder",
+            version=package.version,
+            raw_locator=package.raw_locator,
+        )
 
 
 def _generate_purl_for_package(package: _ResolvedPackage, project: Project) -> str:
