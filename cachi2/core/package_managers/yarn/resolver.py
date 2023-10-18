@@ -4,19 +4,39 @@ Resolve the dependency list for a yarn project.
 It also performs the necessary validations to avoid allowing an invalid project to keep being
 processed.
 """
+import json
 import logging
+import zipfile
 from dataclasses import dataclass
 from functools import cached_property
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, Union
 
 import pydantic
 from packageurl import PackageURL
 
-from cachi2.core.errors import UnsupportedFeature
+from cachi2.core.errors import PackageRejected, UnsupportedFeature
 from cachi2.core.models.sbom import Component
-from cachi2.core.package_managers.yarn.locators import Locator, parse_locator
+from cachi2.core.package_managers.yarn.locators import (
+    FileLocator,
+    HttpsLocator,
+    LinkLocator,
+    Locator,
+    NpmLocator,
+    PatchLocator,
+    PortalLocator,
+    WorkspaceLocator,
+    parse_locator,
+)
 from cachi2.core.package_managers.yarn.project import Optional, Project
 from cachi2.core.package_managers.yarn.utils import run_yarn_cmd
 from cachi2.core.rooted_path import RootedPath
+
+if TYPE_CHECKING:
+    # Import conditionally so that we don't have to introduce a runtime dependency on
+    # typing-extensions. This is only imported when a type-checker is running.
+    # In python 3.11, it can be imported directly from the stdlib 'typing' module.
+    from typing_extensions import assert_never
 
 log = logging.getLogger(__name__)
 
@@ -151,6 +171,10 @@ class _ResolvedPackage:
     raw_locator: str
 
 
+class _CouldNotResolve(ValueError):
+    """_ComponentResolver failed to resolve the name or version of a package."""
+
+
 class _ComponentResolver:
     def __init__(self, project: Project, output_dir: RootedPath) -> None:
         self._project = project
@@ -158,7 +182,17 @@ class _ComponentResolver:
 
     def get_component(self, package: Package) -> Component:
         """Create an SBOM component for a yarn Package."""
-        resolved_package = self._resolve_package(package)
+        try:
+            resolved_package = self._resolve_package(package)
+        except _CouldNotResolve as e:
+            raise PackageRejected(
+                f"Failed to resolve the name and version for {package.raw_locator}: {e}",
+                solution=(
+                    "Please try running 'yarn install' to see if yarn makes any changes.\n"
+                    "If yarn succeeds and doesn't make any changes, please report this Cachi2 bug."
+                ),
+            ) from e
+
         return Component(
             name=resolved_package.name,
             version=resolved_package.version,
@@ -167,12 +201,118 @@ class _ComponentResolver:
 
     def _resolve_package(self, package: Package) -> _ResolvedPackage:
         """Resolve the real name and version of the package."""
-        return _ResolvedPackage(
-            locator=package.parsed_locator,
-            name="placeholder",
-            version=package.version,
-            raw_locator=package.raw_locator,
-        )
+
+        def log_for_locator(msg: str, *args: Any, level: int = logging.DEBUG) -> None:
+            log.log(level, f"%s: {msg}", package.raw_locator, *args)
+
+        locator = package.parsed_locator
+
+        if isinstance(locator, NpmLocator):
+            # npm dependencies have reliable names and versions in yarn info output
+            name = self._scoped_name(locator)
+            version = package.version
+        elif isinstance(locator, WorkspaceLocator):
+            packjson = self._project_subpath(locator.relpath, "package.json")
+            log_for_locator("reading package version from %s", packjson.subpath_from_root)
+            # workspace dependencies have reliable names but report '0.0.0-use.local' as the version
+            name = self._scoped_name(locator)
+            _, version = self._read_name_version_from_packjson(packjson)
+        elif isinstance(locator, (PatchLocator, FileLocator, HttpsLocator)):
+            if not package.cache_path:
+                raise _CouldNotResolve(
+                    "expected a zip archive in the cache but 'yarn info' says there is none",
+                )
+            cache_path = self._cache_path_as_rooted(package.cache_path)
+            if not cache_path.path.exists():
+                raise _CouldNotResolve(
+                    f"cache archive does not exist: {cache_path.subpath_from_root}"
+                )
+            log_for_locator("reading package name from %s", cache_path.subpath_from_root)
+            # patch, file and https dependencies have reliable versions but unreliable names
+            name = self._read_name_from_cache(cache_path)
+            version = package.version
+        elif isinstance(locator, (PortalLocator, LinkLocator)):
+            parent_locator = locator.locator
+            packjson = self._project_subpath(
+                parent_locator.relpath, locator.relpath, "package.json"
+            )
+            if isinstance(locator, LinkLocator) and not packjson.path.exists():
+                # if a link dependency doesn't have a package.json, we have to rely on the locator
+                name = self._scoped_name(locator)
+                version = None
+            else:
+                # otherwise, take both the name and the version from package.json
+                # (name is unreliable, version is '0.0.0-use.local')
+                log_for_locator(
+                    "reading package name and version from %s", packjson.subpath_from_root
+                )
+                name, version = self._read_name_version_from_packjson(packjson)
+        else:
+            # This line can never be reached assuming type-checker checks are passing
+            # https://typing.readthedocs.io/en/latest/source/unreachable.html#assert-never-and-exhaustiveness-checking
+            assert_never(locator)
+
+        return _ResolvedPackage(locator, name, version, package.raw_locator)
+
+    def _read_name_from_cache(self, cache_path: RootedPath) -> str:
+        with zipfile.ZipFile(cache_path) as zf:
+            packjson_paths = (
+                filename
+                for filename in zf.namelist()
+                # node_modules/@scope/name/package.json
+                # node_modules/name/package.json
+                if (path := Path(filename)).parts[0] == "node_modules"
+                and len(path.parts) in (3, 4)
+                and path.parts[-1] == "package.json"
+            )
+            packjson_path = next(packjson_paths, None)
+            if packjson_path is None:
+                raise _CouldNotResolve(f"{cache_path.subpath_from_root}: no package.json")
+
+            packjson_content = zf.read(packjson_path)
+
+        try:
+            packjson = json.loads(packjson_content)
+        except json.JSONDecodeError as e:
+            raise _CouldNotResolve(
+                f"{cache_path.subpath_from_root}::{packjson_path}: invalid JSON ({e})"
+            ) from e
+
+        if not (name := packjson.get("name")):
+            raise _CouldNotResolve(
+                f"{cache_path.subpath_from_root}::{packjson_path}: no 'name' attribute"
+            )
+
+        return name
+
+    def _scoped_name(self, locator: Union[NpmLocator, WorkspaceLocator, LinkLocator]) -> str:
+        if locator.scope:
+            return f"@{locator.scope}/{locator.name}"
+        return locator.name
+
+    def _read_name_version_from_packjson(
+        self, packjson_path: RootedPath
+    ) -> tuple[str, Optional[str]]:
+        try:
+            packjson = json.loads(packjson_path.path.read_text())
+        except FileNotFoundError as e:
+            raise _CouldNotResolve(f"missing {packjson_path.subpath_from_root}") from e
+        except json.JSONDecodeError as e:
+            raise _CouldNotResolve(f"{packjson_path.subpath_from_root}: invalid JSON ({e})") from e
+
+        if not (name := packjson.get("name")):
+            raise _CouldNotResolve(f"{packjson_path.subpath_from_root}: no 'name' attribute")
+
+        return name, packjson.get("version")
+
+    def _project_subpath(self, *parts: Union[str, Path]) -> RootedPath:
+        return self._project.source_dir.join_within_root(*parts)
+
+    def _cache_path_as_rooted(self, cache_path: str) -> RootedPath:
+        if Path(cache_path).is_relative_to(self._project.source_dir):
+            return self._project_subpath(cache_path)
+        else:
+            return self._output_dir.join_within_root(cache_path)
 
 
 def _generate_purl_for_package(package: _ResolvedPackage, project: Project) -> str:
