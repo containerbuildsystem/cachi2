@@ -50,7 +50,7 @@ def _resolve_yarn_project(project: Project, output_dir: RootedPath) -> list[Comp
     finally:
         _undo_changes(project)
 
-    return create_components(packages, project)
+    return create_components(packages, project, output_dir)
 
 
 def _configure_yarn_version(project: Project) -> None:
