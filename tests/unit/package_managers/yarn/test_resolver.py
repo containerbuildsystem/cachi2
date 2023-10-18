@@ -467,28 +467,6 @@ def mock_project(project_dir: RootedPath) -> Project:
             ],
             id="https_package",
         ),
-        # Patch package
-        pytest.param(
-            MockedPackage(
-                Package(
-                    raw_locator="fsevents@patch:fsevents@npm%3A2.3.2#./my-patches/fsevents.patch::version=2.3.2&hash=cf0bf0&locator=berryscary%40workspace%3A.",
-                    version="2.3.2",
-                    checksum="f73215b04b52395389a612af4d30f7f412752cdfba1580c9e32c7ec259e448b57b464a4d0474427d6142f5ed9a6260fc1841d61834caf44706d77874fba6f17f",
-                    cache_path="cache/directory/fsevents-patch-9d1204d729-f73215b04b.zip",
-                ),
-                is_hardlink=True,
-                packjson_path="node_modules/fsevents/package.json",
-                packjson_content=json.dumps({"name": "fsevents"}),
-            ),
-            Component(name="fsevents", version="2.3.2", purl=""),
-            [
-                (
-                    "fsevents@patch:fsevents@npm%3A2.3.2#./my-patches/fsevents.patch::version=2.3.2&hash=cf0bf0&locator=berryscary%40workspace%3A.: "
-                    "reading package name from cache/directory/fsevents-patch-9d1204d729-f73215b04b.zip"
-                ),
-            ],
-            id="patch_package",
-        ),
     ],
 )
 @pytest.mark.parametrize("project_uses_zero_installs", [True, False])
@@ -514,6 +492,79 @@ def test_create_components_single_package(
     # TODO: just assert that components[0] == expect_component once purls are implemented
     assert components[0].name == expect_component.name
     assert components[0].version == expect_component.version
+
+    assert caplog.messages == expect_logs
+
+
+def test_create_components_patched_packages(
+    rooted_tmp_path: RootedPath,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    project_dir = rooted_tmp_path
+
+    mocked_packages = [
+        MockedPackage(
+            Package(
+                raw_locator="fsevents@patch:fsevents@npm%3A2.3.2#./my-patches/fsevents.patch::version=2.3.2&hash=cf0bf0&locator=berryscary%40workspace%3A.",
+                version="2.3.2",
+                checksum="f73215b04b52395389a612af4d30f7f412752cdfba1580c9e32c7ec259e448b57b464a4d0474427d6142f5ed9a6260fc1841d61834caf44706d77874fba6f17f",
+                cache_path=project_dir.join_within_root(
+                    ".yarn/cache/fsevents-patch-9d1204d729-f73215b04b.zip"
+                ).path.as_posix(),
+            ),
+            is_hardlink=True,
+            packjson_path="node_modules/fsevents/package.json",
+            packjson_content=json.dumps({"name": "@patch1/fsevents"}),
+        ),
+        MockedPackage(
+            Package(
+                # Note: this package patches the patched package above
+                raw_locator="fsevents@patch:fsevents@patch%3Afsevents@npm%253A2.3.2%23./my-patches/fsevents.patch%3A%3Aversion=2.3.2&hash=cf0bf0&locator=berryscary%2540workspace%253A.#~builtin<compat/fsevents>::version=2.3.2&hash=df0bf1",
+                # normally, the versions would almost certainly be the same, but we need something
+                #   to tell the two packages apart
+                version="2.3.2-patch2",
+                checksum=None,
+                cache_path=project_dir.join_within_root(
+                    ".yarn/cache/fsevents-patch-e4409ad759-8.zip"
+                ).path.as_posix(),
+            ),
+            is_hardlink=True,
+        ),
+    ]
+
+    # the first package has a zip archive in the cache
+    mock_package_json(mocked_packages[0], project_dir)
+    # the second one does not
+    # ~~mock_package_json(mocked_packages[1], project_dir)~~
+
+    components = create_components(
+        [mocked_package.package for mocked_package in mocked_packages],
+        mock_project(project_dir),
+        output_dir=RootedPath("/unused"),
+    )
+
+    expect_components = [
+        Component(name="@patch1/fsevents", version="2.3.2", purl=""),
+        Component(name="@patch1/fsevents", version="2.3.2-patch2", purl=""),
+    ]
+
+    # TODO: just assert that components == expect_components once purls are implemented
+    assert len(components) == len(expect_components)
+    for component, expect_component in zip(components, expect_components):
+        assert component.name == expect_component.name
+        assert component.version == expect_component.version
+
+    patch_locator = "fsevents@patch:fsevents@npm%3A2.3.2#./my-patches/fsevents.patch::version=2.3.2&hash=cf0bf0&locator=berryscary%40workspace%3A."
+    patchpatch_locator = "fsevents@patch:fsevents@patch%3Afsevents@npm%253A2.3.2%23./my-patches/fsevents.patch%3A%3Aversion=2.3.2&hash=cf0bf0&locator=berryscary%2540workspace%253A.#~builtin<compat/fsevents>::version=2.3.2&hash=df0bf1"
+
+    expect_logs = [
+        # the first package has an archive in the cache
+        f"{patch_locator}: reading package name from .yarn/cache/fsevents-patch-9d1204d729-f73215b04b.zip",
+        # the second one does not, so we fall back to the original package
+        f"{patchpatch_locator}: resolving the name of the original package",
+        # ...which is the first package
+        f"{patch_locator}: reading package name from .yarn/cache/fsevents-patch-9d1204d729-f73215b04b.zip",
+    ]
 
     assert caplog.messages == expect_logs
 
@@ -693,6 +744,24 @@ def test_create_components_single_package(
                 "expected a zip archive in the cache but 'yarn info' says there is none"
             ),
             id="https_no_cache_path",
+        ),
+        # No cache_path for a Patch package, missing original package
+        pytest.param(
+            MockedPackage(
+                Package(
+                    raw_locator="fsevents@patch:fsevents@npm%3A2.3.2#./my-patches/fsevents.patch::version=2.3.2&hash=cf0bf0&locator=berryscary%40workspace%3A.",
+                    version="2.3.2",
+                    checksum="f73215b04b52395389a612af4d30f7f412752cdfba1580c9e32c7ec259e448b57b464a4d0474427d6142f5ed9a6260fc1841d61834caf44706d77874fba6f17f",
+                    cache_path=None,
+                ),
+                is_hardlink=True,
+            ),
+            (
+                "Failed to resolve the name and version for "
+                "fsevents@patch:fsevents@npm%3A2.3.2#./my-patches/fsevents.patch::version=2.3.2&hash=cf0bf0&locator=berryscary%40workspace%3A.: "
+                "the 'yarn info' output does not include either an existing zip archive or the original unpatched package"
+            ),
+            id="patch_no_cache_path_no_orig_package",
         ),
     ],
 )
