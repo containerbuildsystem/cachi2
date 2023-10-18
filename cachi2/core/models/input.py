@@ -49,7 +49,9 @@ def _present_user_input_error(validation_error: pydantic.ValidationError) -> str
 # Supported package managers
 PackageManagerType = Literal["gomod", "npm", "pip", "yarn"]
 
-Flag = Literal["cgo-disable", "force-gomod-tidy", "gomod-vendor", "gomod-vendor-check"]
+Flag = Literal[
+    "cgo-disable", "dev-package-managers", "force-gomod-tidy", "gomod-vendor", "gomod-vendor-check"
+]
 
 
 class _PackageInputBase(pydantic.BaseModel, extra="forbid"):

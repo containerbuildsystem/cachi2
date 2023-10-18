@@ -560,7 +560,7 @@ class TestFetchDeps:
             ),
             (
                 ['{"packages": [{"type": "gomod"}], "flags": ["no-such-flag"]}'],
-                "Input should be 'cgo-disable', 'force-gomod-tidy', 'gomod-vendor' or 'gomod-vendor-check'",
+                "Input should be 'cgo-disable', 'dev-package-managers', 'force-gomod-tidy', 'gomod-vendor' or 'gomod-vendor-check'",
             ),
         ],
     )

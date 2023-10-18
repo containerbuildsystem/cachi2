@@ -132,6 +132,7 @@ def fetch_deps(
         resolve_path=True,
         help="Write output files to this directory.",
     ),
+    dev_package_managers: bool = typer.Option(False, "--dev-package-managers", hidden=True),
     cgo_disable: bool = typer.Option(
         False, "--cgo-disable", help="Set CGO_ENABLED=0 while processing gomod packages."
     ),
@@ -216,8 +217,20 @@ def fetch_deps(
             return {"packages": [{"type": raw_input}]}
 
     def combine_option_and_json_flags(json_flags: list[Flag]) -> list[str]:
-        flag_names = ["cgo-disable", "force-gomod-tidy", "gomod-vendor", "gomod-vendor-check"]
-        flag_values = [cgo_disable, force_gomod_tidy, gomod_vendor, gomod_vendor_check]
+        flag_names = [
+            "cgo-disable",
+            "dev-package-managers",
+            "force-gomod-tidy",
+            "gomod-vendor",
+            "gomod-vendor-check",
+        ]
+        flag_values = [
+            cgo_disable,
+            dev_package_managers,
+            force_gomod_tidy,
+            gomod_vendor,
+            gomod_vendor_check,
+        ]
         flags = [name for name, value in zip(flag_names, flag_values) if value]
 
         if json_flags:
