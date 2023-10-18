@@ -504,71 +504,34 @@ podman build . \
 ### Prefetch dependencies (cargo)
 
 ```shell
-mkdir -p playground/pure-rust
-cd playground/pure-rust
+mkdir -p /tmp/playground/pure-rust
+cd /tmp/playground/pure-rust
 git clone git@github.com:sharkdp/bat.git --branch=v0.22.1
 cachi2 fetch-deps --source bat '{"type": "cargo"}'
 ```
 
 ### Generate environment variables (cargo)
 
-#### Alternative crates.io
-Cargo must be configured differently when crates.io will be replaced with an alternative registry to crates.io (or at least similar way - something that the [cargo plugin for nexus](https://github.com/sonatype-nexus-community/nexus-repository-cargo) seems to handle) or from a local path.
-
-For enabling an alternative crates.io registry the only required env is 
-
-```
-CARGO_REGISTRIES_MY_REGISTRY_INDEX=https://my-intranet:8080/git/index
-```
-
-[cargo docs on using an alternate registry](https://doc.rust-lang.org/cargo/reference/registries.html#using-an-alternate-registry)
-
-Unfortunately I'm still clueless on how to run an alternative registry (and this don't seem to align with cachi2 ethos), so I'm skipping this option.
-
-#### Replacing crates.io with a local path
-
-TLDR: not possible through environment variables; will need to inject a config file to a specific location
-
-Unfortunately this method does not work with environment variables (see [this cargo issue](https://github.com/rust-lang/cargo/issues/5416)) and requires a .cargo/config.toml file.
-
-It must be placed somewhere relative to where "cargo install/build" will run following the hierarchical structure below
-
->Cargo allows local configuration for a particular package as well as global configuration. It looks for configuration files in the current directory and all parent directories. If, for example, Cargo were invoked in `/projects/foo/bar/baz`, then the following configuration files would be probed for and unified in this order:
->-   `/projects/foo/bar/baz/.cargo/config.toml`
->-   `/projects/foo/bar/.cargo/config.toml`
->-   `/projects/foo/.cargo/config.toml`
->-   `/projects/.cargo/config.toml`
->-   `/.cargo/config.toml`
->-   `$CARGO_HOME/config.toml` which defaults to:
- >   -   Windows: `%USERPROFILE%\.cargo\config.toml`
->    -   Unix: `$HOME/.cargo/config.toml`
-
-Source: [cargo docs](https://doc.rust-lang.org/cargo/reference/config.html#hierarchical-structure)
-
-This is how I configured mine:
-
-cargo_config.toml
-```
-[source.crates-io]
-replace-with = "local"
-
-[source.local]
-local-registry = "/tmp/cachi2-output"
-```
-local-registry also requires a index of all packages downloaded exactly like what's in https://github.com/rust-lang/crates.io-index. For this POC I just git cloned this repo locally and placed it at `./cachi2-output/index` (NOTE: this is definitely overkill; the final version should use only indexes for the packages we have)
+At the moment no env var is generated for cargo, but let's do this step for compatibility
+with other integrations.
 
 ```shell
-git clone git@github.com:rust-lang/crates.io-index.git --depth 1 cachi2-output/index
+cachi2 generate-env ./cachi2-output -o ./cachi2.env --for-output-dir /tmp/cachi2-output
 ```
 
-There's a [cargo local registry package](https://crates.io/crates/cargo-local-registry) that prepares  dependencies like this, but it is pretty buggy and fails for some packages I played around (including the one used on this PoC).
+### Inject project files (cargo)
+
+```shell
+$ cachi2 inject-files $(realpath cachi2-output) --for-output-dir /tmp/cachi2-output
+2023-10-18 14:51:01,936 INFO Creating /tmp/playground/pure-rust/bat/.cargo/config.toml
+```
 
 ### Build the base image (cargo)
 
 
 Containerfile.baseimage
 ```Dockerfile
-FROM registry.redhat.io/ubi9/ubi
+FROM registry.access.redhat.com/ubi9/ubi
 
 RUN dnf install cargo rust rust-std-static -y &&\
     dnf clean all
@@ -584,10 +547,10 @@ Containerfile
 ```Dockerfile
 FROM bat-base-image:latest
 
-COPY cargo_config.toml /app/.cargo/config.toml
 COPY bat /app
 WORKDIR /app
-RUN cargo install --locked --path .
+RUN source /tmp/cachi2.env && \
+    cargo install --locked --path .
 ENV PATH="/root/.cargo/bin:$PATH"
 CMD bat
 ```
@@ -595,6 +558,79 @@ CMD bat
 ```shell
 podman build . \
   --volume "$(realpath ./cachi2-output)":/tmp/cachi2-output:Z \
+  --volume "$(realpath ./cachi2.env)":/tmp/cachi2.env:Z \
   --network none \
   --tag bat
+```
+
+## Example: pip with indirect cargo dependencies
+
+### Prefetch dependencies (pip + cargo)
+
+```shell
+mkdir -p /tmp/playground/python-cargo
+cd /tmp/playground/python-cargo
+git clone git@github.com:/bruno-fs/simple-python-rust-project --branch=0.0.1 dummy
+cachi2 fetch-deps --source dummy '[{"type": "pip"}, {"type": "cargo", "lock_file": "merged-cargo.lock", "pkg_name": "dummy", "pkg_version": "0.0.1"}]'
+```
+
+### Generate environment variables (pip + cargo)
+
+```shell
+cachi2 generate-env ./cachi2-output -o ./cachi2.env --for-output-dir /tmp/cachi2-output
+```
+
+### Inject project files (pip + cargo)
+
+```shell
+$ cachi2 inject-files $(realpath cachi2-output) --for-output-dir /tmp/cachi2-output
+2023-10-18 14:51:01,936 INFO Creating /tmp/playground/python-cargo/dummy/.cargo/config.toml
+```
+
+### Build the base image (pip + cargo)
+
+
+Containerfile.baseimage
+```Dockerfile
+FROM quay.io/centos/centos:stream8
+
+RUN dnf -y install \
+        python3.11 \
+        python3.11-pip \
+        python3.11-devel \
+        gcc \
+        libffi-devel \
+        openssl-devel \
+        cargo \
+        rust \
+        rust-std-static &&\
+    dnf clean all
+```
+
+```shell
+podman build --tag dummy-base-image -f Containerfile.baseimage .
+```
+
+### Build the application image (pip + cargo)
+
+Containerfile
+```Dockerfile
+FROM dummy-base-image:latest
+
+COPY dummy /app
+# we don't have a way to control where pip will build
+# cargo dependencies, so we need to move cargo configuration
+# to the place where python run builds
+COPY dummy/.cargo/config.toml /tmp/.cargo/config.toml
+WORKDIR /app
+RUN source /tmp/cachi2.env && \
+    pip3 install -r requirements.txt
+```
+
+```shell
+podman build . \
+  --volume "$(realpath ./cachi2-output)":/tmp/cachi2-output:Z \
+  --volume "$(realpath ./cachi2.env)":/tmp/cachi2.env:Z \
+  --network none \
+  --tag dummy
 ```
