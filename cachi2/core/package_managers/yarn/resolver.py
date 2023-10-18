@@ -124,16 +124,18 @@ def resolve_packages(source_dir: RootedPath) -> list[Package]:
     return packages
 
 
-def create_component_from_package(package: Package, project: Project) -> Component:
-    """Create a SBOM component from a yarn Package."""
-    # if the SBOM generation code grows too much, it may be a good idea to split it into a dedicated
-    # module.
-
-    name = _resolve_package_name(package)
-
-    return Component(
-        name=name, version=package.version, purl=_generate_purl_for_package(package, name, project)
-    )
+def create_components(packages: list[Package], project: Project) -> list[Component]:
+    """Create SBOM components for all the packages parsed from the 'yarn info' output."""
+    components = []
+    for package in packages:
+        name = _resolve_package_name(package)
+        component = Component(
+            name=name,
+            version=package.version,
+            purl=_generate_purl_for_package(package, name, project),
+        )
+        components.append(component)
+    return components
 
 
 def _resolve_package_name(package: Package) -> str:

@@ -8,10 +8,7 @@ from cachi2.core.package_managers.yarn.project import (
     get_semver_from_package_manager,
     get_semver_from_yarn_path,
 )
-from cachi2.core.package_managers.yarn.resolver import (
-    create_component_from_package,
-    resolve_packages,
-)
+from cachi2.core.package_managers.yarn.resolver import create_components, resolve_packages
 from cachi2.core.package_managers.yarn.utils import run_yarn_cmd
 from cachi2.core.rooted_path import RootedPath
 
@@ -53,7 +50,7 @@ def _resolve_yarn_project(project: Project, output_dir: RootedPath) -> list[Comp
     finally:
         _undo_changes(project)
 
-    return [create_component_from_package(package, project) for package in packages]
+    return create_components(packages, project)
 
 
 def _configure_yarn_version(project: Project) -> None:
