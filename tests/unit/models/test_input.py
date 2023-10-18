@@ -211,7 +211,7 @@ class TestRequest:
             )
 
     def test_invalid_flags(self) -> None:
-        expect_error = r"Input should be 'cgo-disable', 'force-gomod-tidy', 'gomod-vendor' or 'gomod-vendor-check'"
+        expect_error = r"Input should be 'cgo-disable', 'dev-package-managers', 'force-gomod-tidy', 'gomod-vendor' or 'gomod-vendor-check'"
         with pytest.raises(pydantic.ValidationError, match=expect_error):
             Request(
                 source_dir="/source",
