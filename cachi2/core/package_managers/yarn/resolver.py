@@ -124,9 +124,11 @@ def resolve_packages(source_dir: RootedPath) -> list[Package]:
     return packages
 
 
-def create_components(packages: list[Package], project: Project) -> list[Component]:
+def create_components(
+    packages: list[Package], project: Project, output_dir: RootedPath
+) -> list[Component]:
     """Create SBOM components for all the packages parsed from the 'yarn info' output."""
-    component_resolver = _ComponentResolver(project)
+    component_resolver = _ComponentResolver(project, output_dir)
     return [component_resolver.get_component(package) for package in packages]
 
 
@@ -150,8 +152,9 @@ class _ResolvedPackage:
 
 
 class _ComponentResolver:
-    def __init__(self, project: Project) -> None:
+    def __init__(self, project: Project, output_dir: RootedPath) -> None:
         self._project = project
+        self._output_dir = output_dir
 
     def get_component(self, package: Package) -> Component:
         """Create an SBOM component for a yarn Package."""
