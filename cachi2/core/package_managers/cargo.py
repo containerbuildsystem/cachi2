@@ -1,18 +1,22 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
+from pathlib import Path
+from textwrap import dedent
+from typing import Any
 import hashlib
 import json
 import logging
 import tarfile
-from pathlib import Path
-from textwrap import dedent
+import urllib
 
+from packageurl import PackageURL
 import tomli
 
 from cachi2.core.checksum import ChecksumInfo, must_match_any_checksum
-from cachi2.core.models.input import Request
+from cachi2.core.models.input import CargoPackageInput, Request
 from cachi2.core.models.output import Component, ProjectFile, RequestOutput
 from cachi2.core.package_managers.general import download_binary_file
 from cachi2.core.rooted_path import RootedPath
+from cachi2.core.scm import get_repo_id
 
 log = logging.getLogger(__name__)
 
@@ -24,20 +28,20 @@ def fetch_cargo_source(request: Request) -> RequestOutput:
     """Resolve and fetch cargo dependencies for the given request."""
     components: list[Component] = []
     for package in request.cargo_packages:
-        info = _resolve_cargo(
-            request.source_dir / package.path,
-            request.output_dir,
-            package.lock_file,
-            package.pkg_name,
-            package.pkg_version,
-        )
+        info = _resolve_cargo(request.source_dir, request.output_dir, package)
         components.append(Component.from_package_dict(info["package"]))
-
         for dependency in info["dependencies"]:
-            components.append(Component.from_package_dict(dependency))
+            dep_purl = _generate_purl_dependency(dependency)
+            components.append(
+                Component(
+                    name=dependency["name"],
+                    version=dependency["version"],
+                    purl=dep_purl,
+                )
+            )
 
     cargo_config = ProjectFile(
-        abspath=request.source_dir.join_within_root(".cargo/config.toml"),
+        abspath=Path(request.source_dir.join_within_root(".cargo/config.toml")),
         template=dedent(
             """
             [source.crates-io]
@@ -56,18 +60,21 @@ def fetch_cargo_source(request: Request) -> RequestOutput:
     )
 
 
-def _resolve_cargo(
-    app_path: Path, output_dir: Path, lock_file=None, pkg_name=None, pkg_version=None
-):
+def _resolve_cargo(source_dir: Path, output_dir: Path, package: CargoPackageInput):
     """
     Resolve and fetch cargo dependencies for the given cargo application.
     """
+    app_path = source_dir / package.path
+    pkg_name = package.pkg_name
+    pkg_version = package.pkg_version
     if pkg_name is None and pkg_version is None:
         pkg_name, pkg_version = _get_cargo_metadata(app_path)
     assert pkg_name and pkg_version, "INVALID PACKAGE"
 
+    purl = _generate_purl_main_package(pkg_name, pkg_version, source_dir)
+
     dependencies = []
-    lock_file = app_path / (lock_file or DEFAULT_LOCK_FILE)
+    lock_file = app_path / (package.lock_file or DEFAULT_LOCK_FILE)
 
     cargo_lock_dict = tomli.load(lock_file.open("rb"))
     for dependency in cargo_lock_dict["package"]:
@@ -78,7 +85,7 @@ def _resolve_cargo(
 
     dependencies = _download_cargo_dependencies(output_dir, dependencies)
     return {
-        "package": {"name": pkg_name, "version": pkg_version, "type": "cargo"},
+        "package": {"name": pkg_name, "version": pkg_version, "type": "cargo", "purl": purl},
         "dependencies": dependencies,
         "lock_file": lock_file,
     }
@@ -90,7 +97,9 @@ def _get_cargo_metadata(package_dir: Path):
     return metadata["package"]["name"], metadata["package"]["version"]
 
 
-def _download_cargo_dependencies(output_path: RootedPath, cargo_dependencies: list[dict]):
+def _download_cargo_dependencies(
+    output_path: RootedPath, cargo_dependencies: list[dict]
+) -> list[dict[str, Any]]:
     downloads = []
     for dep in cargo_dependencies:
         checksum_info = ChecksumInfo(algorithm="sha256", hexdigest=dep["checksum"])
@@ -112,12 +121,15 @@ def _download_cargo_dependencies(output_path: RootedPath, cargo_dependencies: li
                 "path": vendored_dep,
                 "type": "cargo",
                 "dev": False,
+                "kind": "cratesio",
             }
         )
     return downloads
 
+
 def _calc_sha256(content: bytes):
     return hashlib.sha256(content).hexdigest()
+
 
 def generate_cargo_checksum(crate_path: Path):
     """Generate Cargo checksums
@@ -156,3 +168,55 @@ def prepare_crate_as_vendored_dep(crate_path: Path) -> Path:
     cargo_checksum = crate_path.parent / folder_name / ".cargo-checksum.json"
     json.dump(checksums, cargo_checksum.open("w"))
     return crate_path.parent / folder_name
+
+
+def _generate_purl_main_package(name: str, version: str, package_path: RootedPath) -> str:
+    """Get the purl for this package."""
+    type = "cargo"
+    url = get_repo_id(package_path.root).as_vcs_url_qualifier()
+    qualifiers = {"vcs_url": url}
+    if package_path.subpath_from_root != Path("."):
+        subpath = package_path.subpath_from_root.as_posix()
+    else:
+        subpath = None
+
+    purl = PackageURL(
+        type=type,
+        name=name,
+        version=version,
+        qualifiers=qualifiers,
+        subpath=subpath,
+    )
+
+    return purl.to_string()
+
+
+def _generate_purl_dependency(package: dict[str, Any]) -> str:
+    """Get the purl for this dependency."""
+    type = "cargo"
+    name = package["name"]
+    dependency_kind = package.get("kind", None)
+    version = None
+    qualifiers = None
+
+    if dependency_kind == "cratesio":
+        version = package["version"]
+    elif dependency_kind == "vcs":
+        qualifiers = {"vcs_url": package["version"]}
+    elif dependency_kind == "url":
+        parsed_url = urllib.parse.urldefrag(package["version"])
+        fragments = urllib.parse.parse_qs(parsed_url.fragment)
+        checksum = fragments["cachito_hash"][0]
+        qualifiers = {"download_url": parsed_url.url, "checksum": checksum}
+    else:
+        # Should not happen
+        raise RuntimeError(f"Unexpected requirement kind: {dependency_kind}")
+
+    purl = PackageURL(
+        type=type,
+        name=name,
+        version=version,
+        qualifiers=qualifiers,
+    )
+
+    return purl.to_string()
