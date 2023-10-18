@@ -128,33 +128,49 @@ def create_components(packages: list[Package], project: Project) -> list[Compone
     """Create SBOM components for all the packages parsed from the 'yarn info' output."""
     components = []
     for package in packages:
-        name = _resolve_package_name(package)
+        resolved_package = _resolve_package(package)
         component = Component(
-            name=name,
-            version=package.version,
-            purl=_generate_purl_for_package(package, name, project),
+            name=resolved_package.name,
+            version=resolved_package.version,
+            purl=_generate_purl_for_package(resolved_package, project),
         )
         components.append(component)
     return components
 
 
-def _resolve_package_name(package: Package) -> str:
-    """Resolve the package's real name based on its protocol.
+@dataclass(frozen=True)
+class _ResolvedPackage:
+    """A resolved package.
 
-    Non-registry deps might have names in their locator string that differ from the one in their
-    package.json file.
-
-    Look at the package.json name for every non-registry dependency.
+    Compared to the Package class:
+    - has a name attribute even if the locator doesn't include a reliable name
+      (the name is resolved from the package.json of the package)
+    - has a reliable version (resolved from package.json when necessary)
     """
-    return "placeholder"
+
+    locator: Locator
+    name: str
+    version: Optional[str]
+
+    # TODO: used to make sure purls are unique even for an incomplete implementation
+    #   remove raw_locator when no longer needed
+    raw_locator: str
 
 
-def _generate_purl_for_package(package: Package, name: str, project: Project) -> str:
+def _resolve_package(package: Package) -> _ResolvedPackage:
+    """Resolve the real name and version of the package."""
+    return _ResolvedPackage(
+        locator=package.parsed_locator,
+        name="placeholder",
+        version=package.version,
+        raw_locator=package.raw_locator,
+    )
+
+
+def _generate_purl_for_package(package: _ResolvedPackage, project: Project) -> str:
     """Create a purl for a package based on its protocol.
 
-    :param package: the package to be used in the purl generation.
-    :param name: the real name of the package, resolved from its package.json file in case of
-        non-registry dependencies.
+    :param package: the resolved package to be used in the purl generation.
     :param project: the project object to resolve the configured registry url and file paths
         for file dependencies.
     """
@@ -162,8 +178,8 @@ def _generate_purl_for_package(package: Package, name: str, project: Project) ->
     # paths for file dependencies are relative to project.source_dir
     return PackageURL(
         type="npm",
-        name=name.lower(),
-        version="placeholder",
+        name=package.name.lower(),
+        version=package.version,
         # TODO: used to make sure purls are unique even for an incomplete implementation
         #   remove raw_locator when no longer needed
         qualifiers={"raw_locator": package.raw_locator},
