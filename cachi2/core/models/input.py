@@ -99,7 +99,7 @@ class PipPackageInput(_PackageInputBase):
 
 
 class YarnPackageInput(_PackageInputBase):
-    """Accepted input for a npm package."""
+    """Accepted input for a yarn package."""
 
     type: Literal["yarn"]
 
@@ -168,7 +168,7 @@ class Request(pydantic.BaseModel):
 
     @property
     def yarn_packages(self) -> list[YarnPackageInput]:
-        """Get the gomod packages specified for this request."""
+        """Get the yarn packages specified for this request."""
         return self._packages_by_type(YarnPackageInput)
 
     def _packages_by_type(self, pkgtype: type[T]) -> list[T]:
