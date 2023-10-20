@@ -1,10 +1,14 @@
+import re
 from pathlib import Path
 from typing import Callable
 from unittest import mock
 
+import pytest
+
 from cachi2.core import resolver
+from cachi2.core.errors import UnsupportedFeature
 from cachi2.core.models.input import Request
-from cachi2.core.models.output import EnvironmentVariable, ProjectFile, RequestOutput
+from cachi2.core.models.output import BuildConfig, EnvironmentVariable, ProjectFile, RequestOutput
 from cachi2.core.models.sbom import Component
 
 GOMOD_OUTPUT = RequestOutput.from_obj_list(
@@ -93,3 +97,74 @@ def test_resolve_packages(tmp_path: Path) -> None:
         assert resolver.resolve_packages(request) == COMBINED_OUTPUT
 
     assert calls_by_pkgtype == ["gomod", "npm", "pip"]
+
+
+@pytest.mark.parametrize(
+    "flags",
+    [
+        pytest.param(["dev-package-managers"], id="dev-package-managers-true"),
+        pytest.param([], id="dev-package-managers-false"),
+    ],
+)
+def test_dev_mode(flags: list[str]) -> None:
+    mock_resolver = mock.Mock()
+    mock_resolver.return_value = RequestOutput.empty()
+    with (
+        mock.patch.dict(
+            resolver._package_managers,
+            values={"gomod": mock_resolver},
+            clear=True,
+        ),
+        mock.patch.dict(
+            resolver._dev_package_managers,
+            values={"shrubbery": mock_resolver},
+            clear=True,
+        ),
+    ):
+        dev_package_input = mock.Mock()
+        dev_package_input.type = "shrubbery"
+
+        request = mock.Mock()
+        request.flags = flags
+        request.packages = [dev_package_input]
+
+        if flags:
+            assert resolver.resolve_packages(request) == RequestOutput(
+                components=[], build_config=BuildConfig(environment_variables=[], project_files=[])
+            )
+        else:
+            expected_error = re.escape("Package manager(s) not yet supported: shrubbery")
+            with pytest.raises(UnsupportedFeature, match=expected_error):
+                resolver.resolve_packages(request)
+
+
+def test_resolve_with_released_and_dev_package_managers() -> None:
+    mock_resolve_gomod = mock.Mock(return_value=RequestOutput.empty())
+    mock_resolve_pip = mock.Mock(return_value=RequestOutput.empty())
+
+    with (
+        mock.patch.dict(
+            resolver._package_managers,
+            values={"gomod": mock_resolve_gomod},
+            clear=True,
+        ),
+        mock.patch.dict(
+            resolver._dev_package_managers,
+            values={"pip": mock_resolve_pip},
+            clear=True,
+        ),
+    ):
+        dev_package_input = mock.Mock()
+        dev_package_input.type = "pip"
+
+        released_package_input = mock.Mock()
+        released_package_input.type = "gomod"
+
+        request = mock.Mock()
+        request.flags = ["dev-package-managers"]
+        request.packages = [released_package_input, dev_package_input]
+
+        resolver.resolve_packages(request)
+
+        mock_resolve_gomod.assert_has_calls([mock.call(request)])
+        mock_resolve_pip.assert_has_calls([mock.call(request)])

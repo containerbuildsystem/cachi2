@@ -532,6 +532,13 @@ class TestFetchDeps:
                     "force-gomod-tidy",
                 },
             ),
+            (
+                [
+                    '{"packages": [{"type":"gomod"}]}',
+                    "--dev-package-managers",
+                ],
+                {"dev-package-managers"},
+            ),
         ],
     )
     def test_specify_flags(
