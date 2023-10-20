@@ -17,18 +17,16 @@ from cachi2.core.rooted_path import RootedPath
         ({"PATH": "/bin"}, "/bin"),
     ],
 )
-@mock.patch("subprocess.run")
+@mock.patch("cachi2.core.package_managers.yarn.utils.run_cmd")
 def test_run_yarn_cmd(
-    mock_subprocess_run: mock.Mock,
+    mock_run_cmd: mock.Mock,
     env: Optional[dict[str, str]],
     expect_path: str,
     rooted_tmp_path: RootedPath,
 ) -> None:
     run_yarn_cmd(["info", "--json"], rooted_tmp_path, env)
 
-    mock_subprocess_run.assert_called_once()
-
-    call = mock_subprocess_run.call_args_list[0]
-    assert call.args[0] == ["yarn", "info", "--json"]
-    assert call.kwargs["cwd"] == rooted_tmp_path
-    assert call.kwargs["env"] == (env or {}) | {"PATH": expect_path}
+    expect_env = (env or {}) | {"PATH": expect_path}
+    mock_run_cmd.assert_called_once_with(
+        cmd=["yarn", "info", "--json"], params={"cwd": rooted_tmp_path, "env": expect_env}
+    )

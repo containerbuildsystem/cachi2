@@ -6,7 +6,7 @@ import subprocess
 import textwrap
 from pathlib import Path
 from textwrap import dedent
-from typing import Any, Optional, Union
+from typing import Any, Iterator, Optional, Union
 from unittest import mock
 
 import git
@@ -43,11 +43,26 @@ from cachi2.core.package_managers.gomod import (
 from cachi2.core.rooted_path import PathOutsideRoot, RootedPath
 from tests.common_utils import write_file_tree
 
+GO_CMD_PATH = "/usr/bin/go"
+
 
 def setup_module() -> None:
     """Re-enable logging that was disabled at some point in previous tests."""
     gomod.log.disabled = False
     gomod.log.setLevel("DEBUG")
+
+
+@pytest.fixture(scope="module", autouse=True)
+def mock_which_go() -> Iterator[None]:
+    """Make shutil.which return GO_CMD_PATH for all the tests in this file.
+
+    Whenever we execute a command, we use shutil.which to look for it first. To ensure
+    that these tests don't depend on the state of the developer's machine, the returned
+    go path must be mocked.
+    """
+    with mock.patch("shutil.which") as mock_which:
+        mock_which.return_value = GO_CMD_PATH
+        yield
 
 
 @pytest.fixture
@@ -160,11 +175,11 @@ def test_resolve_gomod(
     resolve_result = _resolve_gomod(module_dir, gomod_request, tmp_path, mock_version_resolver)
 
     if force_gomod_tidy:
-        assert mock_run.call_args_list[1][0][0] == ("go", "mod", "tidy")
+        assert mock_run.call_args_list[1][0][0] == [GO_CMD_PATH, "mod", "tidy"]
 
     # when not vendoring, go list should be called with -mod readonly
     listdeps_cmd = [
-        "go",
+        GO_CMD_PATH,
         "list",
         "-e",
         "-mod",
@@ -254,10 +269,10 @@ def test_resolve_gomod_vendor_dependencies(
 
     resolve_result = _resolve_gomod(module_dir, gomod_request, tmp_path, mock_version_resolver)
 
-    assert mock_run.call_args_list[0][0][0] == ("go", "mod", "vendor")
+    assert mock_run.call_args_list[0][0][0] == [GO_CMD_PATH, "mod", "vendor"]
     # when vendoring, go list should be called without -mod readonly
     assert mock_run.call_args_list[-2][0][0] == [
-        "go",
+        GO_CMD_PATH,
         "list",
         "-e",
         "-deps",

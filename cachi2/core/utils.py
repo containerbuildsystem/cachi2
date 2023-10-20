@@ -1,10 +1,12 @@
 import json
 import logging
 import re
+import shutil
 import subprocess  # nosec
 from typing import Any, Iterator, Optional
 
 from cachi2.core.config import get_config
+from cachi2.core.errors import Cachi2Error
 
 log = logging.getLogger(__name__)
 
@@ -26,7 +28,18 @@ def run_cmd(cmd: Any, params: dict) -> str:
     conf = get_config()
     params.setdefault("timeout", conf.subprocess_timeout)
 
-    response = subprocess.run(cmd, **params)  # nosec
+    executable, *args = cmd
+    executable_path = shutil.which(executable)
+    if executable_path is None:
+        raise Cachi2Error(
+            f"{executable!r} executable not found in PATH",
+            solution=(
+                f"Please make sure that the {executable!r} executable is installed in your PATH.\n"
+                "If you are using Cachi2 via its container image, this should not happen - please report this bug."
+            ),
+        )
+
+    response = subprocess.run([executable_path, *args], **params)  # nosec
 
     try:
         response.check_returncode()
