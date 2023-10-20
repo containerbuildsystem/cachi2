@@ -19,6 +19,7 @@ from typing import (
     NamedTuple,
     NoReturn,
     Optional,
+    Sequence,
     Tuple,
     Type,
     Union,
@@ -332,7 +333,7 @@ def _create_packages_from_parsed_data(
     return [_create_package(package) for package in parsed_packages]
 
 
-def _run_gomod_cmd(cmd: Iterable[str], params: dict[str, Any]) -> str:
+def _run_gomod_cmd(cmd: Sequence[str], params: dict[str, Any]) -> str:
     try:
         return run_cmd(cmd, params)
     except subprocess.CalledProcessError as e:
@@ -689,7 +690,7 @@ class GoCacheTemporaryDirectory(tempfile.TemporaryDirectory[str]):
             super().__exit__(exc, value, tb)
 
 
-def _run_download_cmd(cmd: Iterable[str], params: Dict[str, Any]) -> str:
+def _run_download_cmd(cmd: Sequence[str], params: Dict[str, Any]) -> str:
     """Run gomod command that downloads dependencies.
 
     Such commands may fail due to network errors (go is bad at retrying), so the entire operation
@@ -708,7 +709,7 @@ def _run_download_cmd(cmd: Iterable[str], params: Dict[str, Any]) -> str:
         max_tries=n_tries,
         logger=log,
     )
-    def run_go(_cmd: Iterable[str], _params: Dict[str, Any]) -> str:
+    def run_go(_cmd: Sequence[str], _params: Dict[str, Any]) -> str:
         log.debug(f"Running {_cmd}")
         return _run_gomod_cmd(_cmd, _params)
 

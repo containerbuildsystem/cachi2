@@ -3,7 +3,7 @@ import logging
 import re
 import shutil
 import subprocess  # nosec
-from typing import Any, Iterator, Optional
+from typing import Iterator, Optional, Sequence
 
 from cachi2.core.config import get_config
 from cachi2.core.errors import Cachi2Error
@@ -11,7 +11,7 @@ from cachi2.core.errors import Cachi2Error
 log = logging.getLogger(__name__)
 
 
-def run_cmd(cmd: Any, params: dict) -> str:
+def run_cmd(cmd: Sequence[str], params: dict) -> str:
     """
     Run the given command with provided parameters.
 
