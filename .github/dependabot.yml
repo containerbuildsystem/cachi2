@@ -12,6 +12,11 @@ updates:
     directory: "/"
     schedule:
       interval: "daily"
+    groups:
+      dep-patch-updates:
+        update-types:
+          - "patch"
+
   - package-ecosystem: "npm"
     directory: "/js-deps"
     schedule:
