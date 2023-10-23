@@ -8,7 +8,7 @@ import json
 import logging
 import re
 from pathlib import Path
-from typing import Any, NamedTuple, Optional
+from typing import Any, Literal, NamedTuple, Optional, TypedDict
 
 import semver
 import yaml
@@ -21,6 +21,16 @@ log = logging.getLogger(__name__)
 
 DEFAULT_CACHE_FOLDER = "./.yarn/cache"
 DEFAULT_REGISTRY = "https://registry.yarnpkg.com"
+
+ChecksumBehavior = Literal["throw", "update", "ignore"]
+PnpMode = Literal["strict", "loose"]
+
+
+class Plugin(TypedDict):
+    """A plugin defined in the yarnrc file."""
+
+    path: str
+    spec: str
 
 
 class YarnRc:
@@ -46,6 +56,72 @@ class YarnRc:
         Fallback to the default path in case the configuration key is missing.
         """
         return self._data.get("cacheFolder", DEFAULT_CACHE_FOLDER)
+
+    @property
+    def checksum_behavior(self) -> Optional[ChecksumBehavior]:
+        """Get the checksumBehavior configuration."""
+        return self._data.get("checksumBehavior", None)
+
+    @checksum_behavior.setter
+    def checksum_behavior(self, checksum_behavior: Optional[ChecksumBehavior]) -> None:
+        self._data["checksumBehavior"] = checksum_behavior
+
+    @property
+    def enable_immutable_cache(self) -> Optional[bool]:
+        """Get the enableImmutableCache configuration."""
+        return self._data.get("enableImmutableCache", None)
+
+    @enable_immutable_cache.setter
+    def enable_immutable_cache(self, enable_immutable_cache: Optional[bool]) -> None:
+        self._data["enableImmutableCache"] = enable_immutable_cache
+
+    @property
+    def enable_immutable_installs(self) -> Optional[bool]:
+        """Get the enableImmutableInstalls configuration."""
+        return self._data.get("enableImmutableInstalls", None)
+
+    @enable_immutable_installs.setter
+    def enable_immutable_installs(self, enable_immutable_installs: Optional[bool]) -> None:
+        self._data["enableImmutableInstalls"] = enable_immutable_installs
+
+    @property
+    def enable_mirror(self) -> Optional[bool]:
+        """Get the enableMirror configuration."""
+        return self._data.get("enableMirror", None)
+
+    @enable_mirror.setter
+    def enable_mirror(self, enable_mirror: Optional[bool]) -> None:
+        self._data["enableMirror"] = enable_mirror
+
+    @property
+    def global_folder(self) -> Optional[str]:
+        """Get the global folder."""
+        return self._data.get("globalFolder", None)
+
+    @global_folder.setter
+    def global_folder(self, global_folder: Optional[str]) -> None:
+        self._data["globalFolder"] = global_folder
+
+    @property
+    def pnp_mode(self) -> Optional[PnpMode]:
+        """Get the pnpMode configuration."""
+        return self._data.get("pnpMode", None)
+
+    @pnp_mode.setter
+    def pnp_mode(self, mode: Optional[PnpMode]) -> None:
+        self._data["pnpMode"] = mode
+
+    @property
+    def plugins(self) -> list[Plugin]:
+        """Get the configured plugins.
+
+        Returns an empty array in case there are none defined.
+        """
+        return self._data.get("plugins", [])
+
+    @plugins.setter
+    def plugins(self, plugins: list[Plugin]) -> None:
+        self._data["plugins"] = plugins
 
     @property
     def registry_server(self) -> str:

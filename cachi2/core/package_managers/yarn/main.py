@@ -22,6 +22,7 @@ def fetch_yarn_source(request: Request) -> RequestOutput:
     for package in request.yarn_packages:
         path = request.source_dir.join_within_root(package.path)
         project = Project.from_source_dir(path)
+
         components.extend(_resolve_yarn_project(project, request.output_dir))
 
     return RequestOutput.from_obj_list(
@@ -101,8 +102,20 @@ def _set_yarnrc_configuration(project: Project, output_dir: RootedPath) -> None:
     :param output_dir: in case the dependencies need to be fetched, this is where they will be
         downloaded to.
     """
-    # the plugins should be disabled here regardless of the project workflow.
-    pass
+    yarn_rc = project.yarn_rc
+
+    yarn_rc.plugins = []
+    yarn_rc.checksum_behavior = "throw"
+    yarn_rc.enable_immutable_installs = True
+    yarn_rc.pnp_mode = "strict"
+
+    if project.is_zero_installs:
+        yarn_rc.enable_immutable_cache = True
+    else:
+        yarn_rc.enable_mirror = True
+        yarn_rc.global_folder = str(output_dir)
+
+    yarn_rc.write()
 
 
 def _check_yarn_cache(source_dir: RootedPath) -> None:

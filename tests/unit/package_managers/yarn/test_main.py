@@ -6,7 +6,12 @@ import pytest
 import semver
 
 from cachi2.core.errors import PackageRejected, UnexpectedFormat, YarnCommandError
-from cachi2.core.package_managers.yarn.main import _configure_yarn_version, _fetch_dependencies
+from cachi2.core.package_managers.yarn.main import (
+    _configure_yarn_version,
+    _fetch_dependencies,
+    _set_yarnrc_configuration,
+)
+from cachi2.core.package_managers.yarn.project import YarnRc
 from cachi2.core.rooted_path import RootedPath
 
 
@@ -115,3 +120,39 @@ def test_fetch_dependencies(mock_yarn_cmd: mock.Mock, rooted_tmp_path: RootedPat
     )
 
     assert str(exc_info.value) == "berryscary"
+
+
+@pytest.mark.parametrize(
+    "is_zero_installs",
+    (
+        pytest.param(True, id="zero-installs-project"),
+        pytest.param(False, id="regular-workflow-project"),
+    ),
+)
+@mock.patch("cachi2.core.package_managers.yarn.project.YarnRc.write")
+def test_set_yarnrc_configuration(mock_write: mock.Mock, is_zero_installs: bool) -> None:
+    yarn_rc = YarnRc(RootedPath("/tmp/.yarnrc.yml"), {})
+
+    project = mock.Mock()
+    project.is_zero_installs = is_zero_installs
+    project.yarn_rc = yarn_rc
+
+    output_dir = RootedPath("/tmp/output")
+
+    _set_yarnrc_configuration(project, output_dir)
+
+    expected_data = {
+        "checksumBehavior": "throw",
+        "enableImmutableInstalls": True,
+        "pnpMode": "strict",
+        "plugins": [],
+    }
+
+    if project.is_zero_installs:
+        expected_data["enableImmutableCache"] = True
+    else:
+        expected_data["enableMirror"] = True
+        expected_data["globalFolder"] = "/tmp/output"
+
+    assert yarn_rc._data == expected_data
+    assert mock_write.called_once()
