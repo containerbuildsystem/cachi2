@@ -72,6 +72,11 @@ class YarnRc:
 
         return registry or self.registry_server
 
+    def write(self) -> None:
+        """Write the data to the yarnrc file."""
+        with self._path.path.open("w") as f:
+            yaml.safe_dump(self._data, f)
+
     @classmethod
     def from_file(cls, file_path: RootedPath) -> "YarnRc":
         """Parse the content of a yarnrc file."""
