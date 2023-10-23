@@ -1,4 +1,5 @@
 import re
+import textwrap
 from typing import Optional
 
 import pytest
@@ -88,6 +89,35 @@ def test_parse_empty_yarnrc(rooted_tmp_path: RootedPath) -> None:
 def test_parse_invalid_yarnrc(rooted_tmp_path: RootedPath) -> None:
     with pytest.raises(PackageRejected, match="Can't parse the .yarnrc.yml file"):
         _prepare_yarnrc_file(rooted_tmp_path, INVALID_YML)
+
+
+def test_write_yarnrc(rooted_tmp_path: RootedPath) -> None:
+    data = {
+        "cacheFolder": ".cache/folder",
+        "plugins": {
+            "path": ".path/to/plugin",
+            "spec": "@yarnpkg/nice-plugin",
+        },
+    }
+
+    expected_yaml = textwrap.dedent(
+        """
+        cacheFolder: .cache/folder
+        plugins:
+          path: .path/to/plugin
+          spec: '@yarnpkg/nice-plugin'
+        """
+    ).lstrip()
+
+    file_path = rooted_tmp_path.join_within_root(".yarnrc.yml")
+
+    yarn_rc = YarnRc(file_path, data)
+    yarn_rc.write()
+
+    with open(file_path, "r") as f:
+        actual_yaml = f.read()
+
+    assert actual_yaml == expected_yaml
 
 
 # --- PackageJson tests ---
