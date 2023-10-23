@@ -16,6 +16,9 @@ updates:
       dep-patch-updates:
         update-types:
           - "patch"
+      dep-minor-updates:
+        update-types:
+          - "minor"
 
   - package-ecosystem: "npm"
     directory: "/js-deps"
