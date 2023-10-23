@@ -4,7 +4,7 @@ from typing import Callable
 from cachi2.core.errors import UnsupportedFeature
 from cachi2.core.models.input import PackageManagerType, Request
 from cachi2.core.models.output import RequestOutput
-from cachi2.core.package_managers import gomod, npm, pip
+from cachi2.core.package_managers import gomod, npm, pip, yarn
 
 Handler = Callable[[Request], RequestOutput]
 
@@ -15,7 +15,7 @@ _package_managers: dict[PackageManagerType, Handler] = {
 }
 
 _dev_package_managers: dict[PackageManagerType, Handler] = {
-
+    "yarn": yarn.fetch_yarn_source,
 }
 
 # This is *only* used to provide a list for `cachi2 --version`
