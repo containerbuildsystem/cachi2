@@ -129,6 +129,16 @@ class YarnRc:
     def pnp_mode(self, mode: Optional[PnpMode]) -> None:
         self._data["pnpMode"] = mode
 
+    @property
+    def ignore_path(self) -> Optional[bool]:
+        """Get the ignorePath configuration."""
+        return self._data.get("ignorePath", None)
+
+    @ignore_path.setter
+    def ignore_path(self, ignore_path: Optional[bool]) -> None:
+        self._data["ignorePath"] = ignore_path
+
+    @property
     def unsafe_http_whitelist(self) -> list[str]:
         """Get the whitelisted urls that can be accessed via http.
 

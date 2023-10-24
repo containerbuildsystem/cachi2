@@ -110,6 +110,7 @@ def _set_yarnrc_configuration(project: Project, output_dir: RootedPath) -> None:
     yarn_rc.pnp_mode = "strict"
     yarn_rc.enable_strict_ssl = True
     yarn_rc.enable_telemetry = False
+    yarn_rc.ignore_path = True
     yarn_rc.unsafe_http_whitelist = []
 
     if project.is_zero_installs:
