@@ -27,6 +27,7 @@ enableMirror: false
 enableStrictSsl: false
 enableTelemetry: false
 globalFolder: /a/global/folder
+ignorePath: true
 npmRegistryServer: https://registry.alternative.com
 npmScopes:
     foobar:
@@ -85,6 +86,7 @@ def test_parse_yarnrc(rooted_tmp_path: RootedPath) -> None:
     assert yarn_rc.enable_strict_ssl is False
     assert yarn_rc.enable_telemetry is False
     assert yarn_rc.global_folder == "/a/global/folder"
+    assert yarn_rc.ignore_path is True
     assert yarn_rc.pnp_mode == "loose"
     assert yarn_rc.registry_server == "https://registry.alternative.com"
     assert yarn_rc.registry_server_for_scope("foobar") == "https://registry.foobar.com"
@@ -104,6 +106,7 @@ def test_parse_empty_yarnrc(rooted_tmp_path: RootedPath) -> None:
     assert yarn_rc.enable_strict_ssl is None
     assert yarn_rc.enable_telemetry is None
     assert yarn_rc.global_folder is None
+    assert yarn_rc.ignore_path is None
     assert yarn_rc.pnp_mode is None
     assert yarn_rc.registry_server == "https://registry.yarnpkg.com"
     assert yarn_rc.registry_server_for_scope("foobar") == "https://registry.yarnpkg.com"
