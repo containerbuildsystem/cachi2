@@ -103,6 +103,15 @@ class YarnRc:
         self._data["enableStrictSsl"] = enable_strict_ssl
 
     @property
+    def enable_telemetry(self) -> Optional[bool]:
+        """Get the enableTelemetry configuration."""
+        return self._data.get("enableTelemetry", None)
+
+    @enable_telemetry.setter
+    def enable_telemetry(self, enable_telemetry: Optional[bool]) -> None:
+        self._data["enableTelemetry"] = enable_telemetry
+
+    @property
     def global_folder(self) -> Optional[str]:
         """Get the global folder."""
         return self._data.get("globalFolder", None)
