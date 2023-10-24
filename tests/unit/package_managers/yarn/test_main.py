@@ -145,6 +145,7 @@ def test_set_yarnrc_configuration(mock_write: mock.Mock, is_zero_installs: bool)
         "checksumBehavior": "throw",
         "enableImmutableInstalls": True,
         "enableStrictSsl": True,
+        "enableTelemetry": False,
         "unsafeHttpWhitelist": [],
         "pnpMode": "strict",
         "plugins": [],
