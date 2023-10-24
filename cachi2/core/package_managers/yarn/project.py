@@ -94,6 +94,15 @@ class YarnRc:
         self._data["enableMirror"] = enable_mirror
 
     @property
+    def enable_scripts(self) -> Optional[bool]:
+        """Get the enableScripts configuration."""
+        return self._data.get("enableScripts", None)
+
+    @enable_scripts.setter
+    def enable_scripts(self, enable_scripts: Optional[bool]) -> None:
+        self._data["enableScripts"] = enable_scripts
+
+    @property
     def enable_strict_ssl(self) -> Optional[bool]:
         """Get the enableStrictSsl configuration."""
         return self._data.get("enableStrictSsl", None)

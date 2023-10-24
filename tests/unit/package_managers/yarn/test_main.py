@@ -156,6 +156,7 @@ def test_set_yarnrc_configuration(mock_write: mock.Mock, is_zero_installs: bool)
         expected_data["enableImmutableCache"] = True
     else:
         expected_data["enableMirror"] = True
+        expected_data["enableScripts"] = False
         expected_data["globalFolder"] = "/tmp/output"
 
     assert yarn_rc._data == expected_data

@@ -24,6 +24,7 @@ enableImmutableCache: true
 enableImmutableInstalls: true
 enableInlineBuilds: true
 enableMirror: false
+enableScripts: false
 enableStrictSsl: false
 enableTelemetry: false
 globalFolder: /a/global/folder
@@ -83,6 +84,7 @@ def test_parse_yarnrc(rooted_tmp_path: RootedPath) -> None:
     assert yarn_rc.enable_immutable_cache is True
     assert yarn_rc.enable_immutable_installs is True
     assert yarn_rc.enable_mirror is False
+    assert yarn_rc.enable_scripts is False
     assert yarn_rc.enable_strict_ssl is False
     assert yarn_rc.enable_telemetry is False
     assert yarn_rc.global_folder == "/a/global/folder"
@@ -103,6 +105,7 @@ def test_parse_empty_yarnrc(rooted_tmp_path: RootedPath) -> None:
     assert yarn_rc.enable_immutable_cache is None
     assert yarn_rc.enable_immutable_installs is None
     assert yarn_rc.enable_mirror is None
+    assert yarn_rc.enable_scripts is None
     assert yarn_rc.enable_strict_ssl is None
     assert yarn_rc.enable_telemetry is None
     assert yarn_rc.global_folder is None
