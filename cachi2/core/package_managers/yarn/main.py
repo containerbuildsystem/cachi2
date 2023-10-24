@@ -108,6 +108,8 @@ def _set_yarnrc_configuration(project: Project, output_dir: RootedPath) -> None:
     yarn_rc.checksum_behavior = "throw"
     yarn_rc.enable_immutable_installs = True
     yarn_rc.pnp_mode = "strict"
+    yarn_rc.enable_strict_ssl = True
+    yarn_rc.unsafe_http_whitelist = []
 
     if project.is_zero_installs:
         yarn_rc.enable_immutable_cache = True

@@ -24,6 +24,7 @@ enableImmutableCache: true
 enableImmutableInstalls: true
 enableInlineBuilds: true
 enableMirror: false
+enableStrictSsl: false
 globalFolder: /a/global/folder
 npmRegistryServer: https://registry.alternative.com
 npmScopes:
@@ -38,6 +39,9 @@ plugins:
 supportedArchitectures:
   os:
     - "linux"
+unsafeHttpWhitelist:
+  - example.org
+  - foo.bar
 yarnPath: .custom/path/yarn-3.6.1.cjs
 """
 
@@ -77,11 +81,13 @@ def test_parse_yarnrc(rooted_tmp_path: RootedPath) -> None:
     assert yarn_rc.enable_immutable_cache is True
     assert yarn_rc.enable_immutable_installs is True
     assert yarn_rc.enable_mirror is False
+    assert yarn_rc.enable_strict_ssl is False
     assert yarn_rc.global_folder == "/a/global/folder"
     assert yarn_rc.pnp_mode == "loose"
     assert yarn_rc.registry_server == "https://registry.alternative.com"
     assert yarn_rc.registry_server_for_scope("foobar") == "https://registry.foobar.com"
     assert yarn_rc.registry_server_for_scope("barfoo") == "https://registry.alternative.com"
+    assert yarn_rc.unsafe_http_whitelist == ["example.org", "foo.bar"]
     assert yarn_rc.yarn_path == ".custom/path/yarn-3.6.1.cjs"
 
 
@@ -93,10 +99,12 @@ def test_parse_empty_yarnrc(rooted_tmp_path: RootedPath) -> None:
     assert yarn_rc.enable_immutable_cache is None
     assert yarn_rc.enable_immutable_installs is None
     assert yarn_rc.enable_mirror is None
+    assert yarn_rc.enable_strict_ssl is None
     assert yarn_rc.global_folder is None
     assert yarn_rc.pnp_mode is None
     assert yarn_rc.registry_server == "https://registry.yarnpkg.com"
     assert yarn_rc.registry_server_for_scope("foobar") == "https://registry.yarnpkg.com"
+    assert yarn_rc.unsafe_http_whitelist == []
     assert yarn_rc.yarn_path is None
 
 
