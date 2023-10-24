@@ -94,6 +94,15 @@ class YarnRc:
         self._data["enableMirror"] = enable_mirror
 
     @property
+    def enable_strict_ssl(self) -> Optional[bool]:
+        """Get the enableStrictSsl configuration."""
+        return self._data.get("enableStrictSsl", None)
+
+    @enable_strict_ssl.setter
+    def enable_strict_ssl(self, enable_strict_ssl: Optional[bool]) -> None:
+        self._data["enableStrictSsl"] = enable_strict_ssl
+
+    @property
     def global_folder(self) -> Optional[str]:
         """Get the global folder."""
         return self._data.get("globalFolder", None)
@@ -110,6 +119,17 @@ class YarnRc:
     @pnp_mode.setter
     def pnp_mode(self, mode: Optional[PnpMode]) -> None:
         self._data["pnpMode"] = mode
+
+    def unsafe_http_whitelist(self) -> list[str]:
+        """Get the whitelisted urls that can be accessed via http.
+
+        Returns an empty array in case there are none defined.
+        """
+        return self._data.get("unsafeHttpWhitelist", [])
+
+    @unsafe_http_whitelist.setter
+    def unsafe_http_whitelist(self, urls: list[str]) -> None:
+        self._data["unsafeHttpWhitelist"] = urls
 
     @property
     def plugins(self) -> list[Plugin]:
