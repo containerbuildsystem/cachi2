@@ -117,6 +117,7 @@ def _set_yarnrc_configuration(project: Project, output_dir: RootedPath) -> None:
         yarn_rc.enable_immutable_cache = True
     else:
         yarn_rc.enable_mirror = True
+        yarn_rc.enable_scripts = False
         yarn_rc.global_folder = str(output_dir)
 
     yarn_rc.write()
