@@ -74,9 +74,9 @@ class Package:
     cache_path: Optional[str]
 
     @classmethod
-    def from_info_string(cls, info: str) -> "Package":
+    def from_dict(cls, info: dict[str, Any]) -> "Package":
         """Create a Package from the output of yarn info."""
-        entry = _YarnInfoEntry.model_validate_json(info)
+        entry = _YarnInfoEntry.model_validate(info)
         locator = entry.value
         version: Optional[str] = entry.children.version
         if version == "0.0.0-use.local":
@@ -125,8 +125,7 @@ def resolve_packages(source_dir: RootedPath) -> list[Package]:
     # --cache: include info about the cache entry for each dependency
     result = run_yarn_cmd(["info", "--all", "--recursive", "--cache", "--json"], source_dir)
 
-    # the result is not a valid json list, but a sequence of json objects separated by line breaks
-    packages = [Package.from_info_string(info) for info in result.splitlines()]
+    packages = [Package.from_dict(info) for info in json.loads(result)]
 
     n_unsupported = 0
     for package in packages:

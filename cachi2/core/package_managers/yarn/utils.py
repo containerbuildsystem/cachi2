@@ -24,7 +24,12 @@ def run_yarn_cmd(
     if "PATH" not in env and (self_path := os.environ.get("PATH")):
         env = env | {"PATH": self_path}
     try:
-        return run_cmd(cmd=["yarn", *cmd], params={"cwd": source_dir, "env": env})
+        stdout = run_cmd(cmd=["yarn", *cmd], params={"cwd": source_dir, "env": env})
+
+        # Fix Yarn's JSON output
+        if "--json" in cmd:
+            return _jsonify(stdout)
+        return stdout
     except subprocess.CalledProcessError:
         raise YarnCommandError(f"Yarn command failed: {' '.join(cmd)}")
 

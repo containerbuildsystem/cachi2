@@ -37,12 +37,15 @@ INVALID_JSON = "definitely not JSON"
     ],
 )
 @mock.patch("cachi2.core.package_managers.yarn.utils.run_cmd")
+@mock.patch("cachi2.core.package_managers.yarn.utils._jsonify")
 def test_run_yarn_cmd(
+    mock_yarn_jsonify: mock.Mock,
     mock_run_cmd: mock.Mock,
     env: Optional[dict[str, str]],
     expect_path: str,
     rooted_tmp_path: RootedPath,
 ) -> None:
+    mock_yarn_jsonify.return_value = None
     run_yarn_cmd(["info", "--json"], rooted_tmp_path, env)
 
     expect_env = (env or {}) | {"PATH": expect_path}

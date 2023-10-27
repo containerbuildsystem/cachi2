@@ -180,10 +180,10 @@ EXPECT_PACKAGES = [
 ]
 
 
-@mock.patch("cachi2.core.package_managers.yarn.resolver.run_yarn_cmd")
-def test_resolve_packages(mock_run_yarn_cmd: mock.Mock, rooted_tmp_path: RootedPath) -> None:
+@mock.patch("cachi2.core.package_managers.yarn.utils.run_cmd")
+def test_resolve_packages(mock_run_cmd: mock.Mock, rooted_tmp_path: RootedPath) -> None:
     yarn_info_output = mock_yarn_info_output(YARN_INFO_OUTPUTS)
-    mock_run_yarn_cmd.return_value = yarn_info_output
+    mock_run_cmd.return_value = yarn_info_output
     packages = resolve_packages(rooted_tmp_path)
     assert packages == EXPECT_PACKAGES
 
@@ -191,9 +191,9 @@ def test_resolve_packages(mock_run_yarn_cmd: mock.Mock, rooted_tmp_path: RootedP
         assert package.parsed_locator == parse_locator(package.raw_locator)
 
 
-@mock.patch("cachi2.core.package_managers.yarn.resolver.run_yarn_cmd")
+@mock.patch("cachi2.core.package_managers.yarn.utils.run_cmd")
 def test_validate_unsupported_locators(
-    mock_run_yarn_cmd: mock.Mock, rooted_tmp_path: RootedPath, caplog: pytest.LogCaptureFixture
+    mock_run_cmd: mock.Mock, rooted_tmp_path: RootedPath, caplog: pytest.LogCaptureFixture
 ) -> None:
     unsupported_outputs = [
         {
@@ -231,7 +231,7 @@ def test_validate_unsupported_locators(
         },
     ]
     yarn_info_output = mock_yarn_info_output(unsupported_outputs)
-    mock_run_yarn_cmd.return_value = yarn_info_output
+    mock_run_cmd.return_value = yarn_info_output
 
     with pytest.raises(
         UnsupportedFeature, match="Found 3 unsupported dependencies, more details in the logs."
