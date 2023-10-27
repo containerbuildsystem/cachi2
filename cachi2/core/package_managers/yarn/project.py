@@ -7,6 +7,7 @@ should be implemented in other modules.
 import json
 import logging
 import re
+from collections import UserDict
 from pathlib import Path
 from typing import Any, NamedTuple, Optional
 
@@ -23,18 +24,19 @@ DEFAULT_CACHE_FOLDER = "./.yarn/cache"
 DEFAULT_REGISTRY = "https://registry.yarnpkg.com"
 
 
-class YarnRc:
+class YarnRc(UserDict):
     """A yarnrc file.
 
-    This class abstracts the underlying attributes and only exposes what
-    is relevant for the request processing.
+    This class abstracts the underlying attributes of a .yarnrc YAML
+    configuration file.
     """
 
     def __init__(self, data: dict[str, Any]) -> None:
-        """Initialize a YarnRc object.
+        """Initialize a YarnRc dictionary.
 
         :param data: the raw data for the yarnrc file.
         """
+        super().__init__(data)
         self._data = data
 
     @property
