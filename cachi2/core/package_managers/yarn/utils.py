@@ -1,3 +1,4 @@
+import json
 import os
 import subprocess  # nosec
 from typing import Optional
@@ -26,3 +27,29 @@ def run_yarn_cmd(
         return run_cmd(cmd=["yarn", *cmd], params={"cwd": source_dir, "env": env})
     except subprocess.CalledProcessError:
         raise YarnCommandError(f"Yarn command failed: {' '.join(cmd)}")
+
+
+def _jsonify(yarn_output: str) -> str:
+    """Return a properly serialized JSON array.
+
+    Yarn's --json command line option doesn't actually return a valid JSON,
+    instead it returns a sequence of (hopefully valid) JSON objects delimited
+    by line breaks. We'll accept this output and convert it to a properly
+    serialized JSON array.
+
+    :param yarn_output: this is the Yarn command's raw output
+    :raises json.JSONDecodeError: if JSON fails to deserialize Yarn's
+                                  representation of an object
+    :returns: properly formatted JSON array
+    """
+    try:
+        _ = json.loads(yarn_output)
+        if isinstance(_, list):
+            return yarn_output
+
+        # Yarn can return a single JSON object in which case we need to convert it to an array
+        return json.dumps([_])
+    except json.JSONDecodeError:
+        # fall back to fixing Yarn's newline delimited JSON objects
+        objs = [json.loads(line) for line in yarn_output.splitlines()]
+        return json.dumps(objs)
