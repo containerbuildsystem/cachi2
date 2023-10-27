@@ -15,6 +15,7 @@ import semver
 import yaml
 
 from cachi2.core.errors import PackageRejected, UnexpectedFormat
+from cachi2.core.package_managers.yarn.utils import run_yarn_cmd
 from cachi2.core.rooted_path import RootedPath
 
 log = logging.getLogger(__name__)
@@ -31,13 +32,21 @@ class YarnRc(UserDict):
     configuration file.
     """
 
-    def __init__(self, data: dict[str, Any]) -> None:
+    def __init__(self, data: dict[str, Any], defaults: Optional[dict[str, Any]] = None) -> None:
         """Initialize a YarnRc dictionary.
 
         :param data: the raw data for the yarnrc file.
         """
         super().__init__(data)
         self._data = data
+        self._defaults = defaults if defaults else {}
+
+    def __getitem__(self, key: str) -> Any:
+        try:
+            return self.data[key]
+        except KeyError:
+            # try the defaults potentially raising KeyError
+            return self._defaults[key]
 
     @property
     def cache_folder(self) -> str:
@@ -72,8 +81,24 @@ class YarnRc(UserDict):
 
         return registry or self.registry_server
 
+    @staticmethod
+    def load_defaults(source_dir: RootedPath) -> dict[str, Any]:
+        """Load Yarn RC defaults.
+
+        :param source_dir: directory context used to determine the right yarn binary to execute,
+                           e.g. yarn v1 doesn't support the 'config' subcommand
+        :returns: dictionary containing Yarn RC defaults if form of {"<option>": "<default_value>"}
+        """
+        yarn_config = json.loads(
+            run_yarn_cmd(["config", "--json"], source_dir, env={"YARN_IGNORE_PATH": "1"})
+        )
+
+        return {opt["key"]: opt["default"] for opt in yarn_config if "default" in opt}
+
     @classmethod
-    def from_file(cls, file_path: RootedPath) -> "YarnRc":
+    def from_file(
+        cls, file_path: RootedPath, defaults: Optional[dict[str, Any]] = None
+    ) -> "YarnRc":
         """Parse the content of a yarnrc file.
 
         :param path: the path to the yarnrc file, relative to the request source dir.
@@ -93,7 +118,7 @@ class YarnRc(UserDict):
         if yarnrc_data is None:
             yarnrc_data = {}
 
-        return cls(yarnrc_data)
+        return cls(yarnrc_data, defaults)
 
 
 class PackageJson:
@@ -193,7 +218,9 @@ class Project(NamedTuple):
         yarn_rc_path = source_dir.join_within_root(".yarnrc.yml")
 
         if yarn_rc_path.path.exists():
-            yarn_rc = YarnRc.from_file(source_dir.join_within_root(".yarnrc.yml"))
+            yarn_rc = YarnRc.from_file(
+                source_dir.join_within_root(".yarnrc.yml"), YarnRc.load_defaults(source_dir)
+            )
         else:
             yarn_rc = None
 

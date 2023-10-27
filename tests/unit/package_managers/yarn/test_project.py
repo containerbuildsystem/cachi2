@@ -1,5 +1,6 @@
 import re
 from typing import Optional
+from unittest import mock
 
 import pytest
 import semver
@@ -38,6 +39,14 @@ npmScopes:
         npmRegistryServer: https://registry.foobar.com
 """
 
+YARN_CONFIG_OUTPUT = """\
+{"key":"cacheFolder", "default":"./.yarn/cache", "effective":"", "source":"", "description":"", "type":""}
+{"key":"npmRegistryServer", "default":"https://registry.yarnpkg.com", "effective":"", "source":"", "description":"", "type":""}
+{"key":"yarnPath", "default":null, "effective":null, "source":"", "description":"", "type":""}
+{"key":"nmMode","effective":"","source":"","description":"","type":"","values":[],"default":""}
+{"key":"supportedArchitectures","effective":{},"source":"","description":"","type":"","properties":{},"isArray":true}
+"""
+
 EMPTY_YML_FILE = ""
 
 INVALID_YML = "this: is: not: valid: yaml"
@@ -66,7 +75,9 @@ def _prepare_yarnrc_file(rooted_tmp_path: RootedPath, data: str) -> YarnRc:
     return YarnRc.from_file(path)
 
 
-def test_parse_yarnrc(rooted_tmp_path: RootedPath) -> None:
+@mock.patch("cachi2.core.package_managers.yarn.utils.run_cmd")
+def test_parse_yarnrc(mock_run_cmd: mock.Mock, rooted_tmp_path: RootedPath) -> None:
+    mock_run_cmd.return_value = YARN_CONFIG_OUTPUT
     yarn_rc = _prepare_yarnrc_file(rooted_tmp_path, VALID_YARNRC_FILE)
 
     assert yarn_rc.cache_folder == "./.custom/cache"
@@ -76,7 +87,9 @@ def test_parse_yarnrc(rooted_tmp_path: RootedPath) -> None:
     assert yarn_rc.yarn_path == ".custom/path/yarn-3.6.1.cjs"
 
 
-def test_parse_empty_yarnrc(rooted_tmp_path: RootedPath) -> None:
+@mock.patch("cachi2.core.package_managers.yarn.utils.run_cmd")
+def test_parse_empty_yarnrc(mock_run_cmd: mock.Mock, rooted_tmp_path: RootedPath) -> None:
+    mock_run_cmd.return_value = YARN_CONFIG_OUTPUT
     yarn_rc = _prepare_yarnrc_file(rooted_tmp_path, EMPTY_YML_FILE)
 
     assert yarn_rc.cache_folder == "./.yarn/cache"
@@ -133,7 +146,11 @@ def _add_mock_yarn_cache_file(cache_path: RootedPath) -> None:
         pytest.param(False, id="regular-workflow-project"),
     ),
 )
-def test_parse_project_folder(rooted_tmp_path: RootedPath, is_zero_installs: bool) -> None:
+@mock.patch("cachi2.core.package_managers.yarn.utils.run_cmd")
+def test_parse_project_folder(
+    mock_run_cmd: mock.Mock, rooted_tmp_path: RootedPath, is_zero_installs: bool
+) -> None:
+    mock_run_cmd.return_value = YARN_CONFIG_OUTPUT
     _prepare_package_json_file(rooted_tmp_path, VALID_PACKAGE_JSON_FILE)
     _prepare_yarnrc_file(rooted_tmp_path, VALID_YARNRC_FILE)
 
@@ -181,9 +198,12 @@ def test_parse_empty_folder(rooted_tmp_path: RootedPath) -> None:
         Project.from_source_dir(rooted_tmp_path)
 
 
+@mock.patch("cachi2.core.package_managers.yarn.utils.run_cmd")
 def test_parsing_cache_folder_that_resolves_outside_of_the_repository(
+    mock_run_cmd: mock.Mock,
     rooted_tmp_path: RootedPath,
 ) -> None:
+    mock_run_cmd.return_value = YARN_CONFIG_OUTPUT
     yarn_rc = VALID_YARNRC_FILE.replace("./.custom/cache", "../.custom/cache")
 
     _prepare_yarnrc_file(rooted_tmp_path, yarn_rc)

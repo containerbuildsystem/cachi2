@@ -470,7 +470,9 @@ def mock_project(project_dir: RootedPath) -> Project:
     ],
 )
 @pytest.mark.parametrize("project_uses_zero_installs", [True, False])
+@mock.patch("cachi2.core.package_managers.yarn.project.YarnRc.load_defaults")
 def test_create_components_single_package(
+    mock_yarn_rc_load_defaults: mock.Mock,
     mocked_package: MockedPackage,
     expect_component: Component,
     expect_logs: list[str],
@@ -478,6 +480,7 @@ def test_create_components_single_package(
     tmp_path: Path,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
+    mock_yarn_rc_load_defaults.return_value = {}
     project_dir = RootedPath(tmp_path / "project")
     output_dir = RootedPath(tmp_path / "output")
 
@@ -496,10 +499,13 @@ def test_create_components_single_package(
     assert caplog.messages == expect_logs
 
 
+@mock.patch("cachi2.core.package_managers.yarn.project.YarnRc.load_defaults")
 def test_create_components_patched_packages(
+    mock_yarn_rc_load_defaults: mock.Mock,
     rooted_tmp_path: RootedPath,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
+    mock_yarn_rc_load_defaults.return_value = {}
     project_dir = rooted_tmp_path
 
     mocked_packages = [
@@ -765,11 +771,14 @@ def test_create_components_patched_packages(
         ),
     ],
 )
+@mock.patch("cachi2.core.package_managers.yarn.project.YarnRc.load_defaults")
 def test_create_components_failed_to_resolve(
+    mock_yarn_rc_load_defaults: mock.Mock,
     mocked_package: MockedPackage,
     expect_err_msg: str,
     rooted_tmp_path: RootedPath,
 ) -> None:
+    mock_yarn_rc_load_defaults.return_value = {}
     project_dir = rooted_tmp_path
     mocked_package = mocked_package.resolve_cache_path(project_dir)
     mock_package_json(mocked_package, project_dir)
@@ -782,7 +791,12 @@ def test_create_components_failed_to_resolve(
         )
 
 
-def test_create_components_cache_path_reported_but_missing(rooted_tmp_path: RootedPath) -> None:
+@mock.patch("cachi2.core.package_managers.yarn.project.YarnRc.load_defaults")
+def test_create_components_cache_path_reported_but_missing(
+    mock_yarn_rc_load_defaults: mock.Mock,
+    rooted_tmp_path: RootedPath,
+) -> None:
+    mock_yarn_rc_load_defaults.return_value = {}
     package = Package(
         raw_locator="strip-ansi-tarball@file:external-packages/strip-ansi-4.0.0.tgz::locator=berryscary%40workspace%3A.",
         version="4.0.0",
