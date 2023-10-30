@@ -734,9 +734,9 @@ pytest-cov==4.1.0 \
     --hash=sha256:3904b13dfbfec47f003b8e77fd5b589cd11904a21ddf1ab38a64f204d6a10ef6 \
     --hash=sha256:6ba70b9e97e69fcc3fb45bfeab2d0a138fb65c4d0d6a41ef33983ad114be8c3a
     # via cachi2 (pyproject.toml)
-pytest-env==1.0.1 \
-    --hash=sha256:603fe216e8e03a5d134989cb41317c59aabef013d2250c71b864ab0798fbe6f6 \
-    --hash=sha256:e8faf927c6fcdbbc8fe3317506acc116713c9708d01652a0fd945f9ae27b71aa
+pytest-env==1.1.0 \
+    --hash=sha256:33a630a3db07068528c16f061350664d0146519824bd8c87b4cb120fff202ad9 \
+    --hash=sha256:86f2dbc05a78cfbb42a4be19e04fd7b4ef364127d0118af2f59b4dcccfd773bf
     # via cachi2 (pyproject.toml)
 pyyaml==6.0.1 \
     --hash=sha256:04ac92ad1925b2cff1db0cfebffb6ffc43457495c9b3c39d3fcae417d7125dc5 \
