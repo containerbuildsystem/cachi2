@@ -24,6 +24,7 @@ def run_cmd(cmd: Sequence[str], params: dict) -> str:
     params.setdefault("capture_output", True)
     params.setdefault("universal_newlines", True)
     params.setdefault("encoding", "utf-8")
+    params.setdefault("text", True)
 
     conf = get_config()
     params.setdefault("timeout", conf.subprocess_timeout)
