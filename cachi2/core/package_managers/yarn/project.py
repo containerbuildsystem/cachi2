@@ -21,10 +21,6 @@ from cachi2.core.rooted_path import RootedPath
 log = logging.getLogger(__name__)
 
 
-DEFAULT_CACHE_FOLDER = "./.yarn/cache"
-DEFAULT_REGISTRY = "https://registry.yarnpkg.com"
-
-
 class YarnRc(UserDict):
     """A yarnrc file.
 
@@ -40,7 +36,6 @@ class YarnRc(UserDict):
         :param data: the raw data for the yarnrc file.
         """
         super().__init__(data)
-        self._data = data
         self._defaults = defaults if defaults else {}
 
     def __getitem__(self, key: str) -> Any:
@@ -49,27 +44,6 @@ class YarnRc(UserDict):
         except KeyError:
             # try the defaults potentially raising KeyError
             return self._defaults[key]
-
-    @property
-    def cache_folder(self) -> str:
-        """Get the configured location for the yarn cache folder.
-
-        Fallback to the default path in case the configuration key is missing.
-        """
-        return self._data.get("cacheFolder", DEFAULT_CACHE_FOLDER)
-
-    @property
-    def registry_server(self) -> str:
-        """Get the globally configured registry server.
-
-        Fallback to the default server in case the configuration key is missing.
-        """
-        return self._data.get("npmRegistryServer", DEFAULT_REGISTRY)
-
-    @property
-    def yarn_path(self) -> Optional[str]:
-        """Path to the yarn script present in this directory."""
-        return self._data.get("yarnPath")
 
     def registry_server_for_scope(self, scope: str) -> str:
         """Get the configured registry server for a scoped package.
@@ -201,18 +175,6 @@ class Project(NamedTuple):
             return False
 
         return any(file.suffix == ".zip" for file in cache_rooted_path.path.iterdir())
-
-    @property
-    def yarn_cache(self) -> RootedPath:
-        """The path to the yarn cache folder.
-
-        The cache location is affected by the cacheFolder configuration in yarnrc. See:
-        https://v3.yarnpkg.com/configuration/yarnrc#cacheFolder.
-        """
-        if self.yarn_rc:
-            return self.source_dir.join_within_root(self.yarn_rc["cacheFolder"])
-
-        return self.source_dir.join_within_root(DEFAULT_CACHE_FOLDER)
 
     @classmethod
     def from_source_dir(cls, source_dir: RootedPath) -> "Project":
