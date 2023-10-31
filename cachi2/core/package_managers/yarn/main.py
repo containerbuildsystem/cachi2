@@ -61,7 +61,7 @@ def _configure_yarn_version(project: Project) -> None:
         if there is a mismatch between the yarn version specified by yarnPath and PackageManager
     """
     if project.yarn_rc:
-        yarn_path_version = get_semver_from_yarn_path(project.yarn_rc.yarn_path)
+        yarn_path_version = get_semver_from_yarn_path(project.yarn_rc["yarnPath"])
     else:
         yarn_path_version = None
 

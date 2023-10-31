@@ -72,7 +72,7 @@ def _prepare_yarnrc_file(rooted_tmp_path: RootedPath, data: str) -> YarnRc:
     with open(path, "w") as f:
         f.write(data)
 
-    return YarnRc.from_file(path)
+    return YarnRc.from_file(path, YarnRc.load_defaults(rooted_tmp_path))
 
 
 @mock.patch("cachi2.core.package_managers.yarn.utils.run_cmd")
@@ -80,11 +80,11 @@ def test_parse_yarnrc(mock_run_cmd: mock.Mock, rooted_tmp_path: RootedPath) -> N
     mock_run_cmd.return_value = YARN_CONFIG_OUTPUT
     yarn_rc = _prepare_yarnrc_file(rooted_tmp_path, VALID_YARNRC_FILE)
 
-    assert yarn_rc.cache_folder == "./.custom/cache"
-    assert yarn_rc.registry_server == "https://registry.alternative.com"
+    assert yarn_rc["cacheFolder"] == "./.custom/cache"
+    assert yarn_rc["npmRegistryServer"] == "https://registry.alternative.com"
+    assert yarn_rc["yarnPath"] == ".custom/path/yarn-3.6.1.cjs"
     assert yarn_rc.registry_server_for_scope("foobar") == "https://registry.foobar.com"
     assert yarn_rc.registry_server_for_scope("barfoo") == "https://registry.alternative.com"
-    assert yarn_rc.yarn_path == ".custom/path/yarn-3.6.1.cjs"
 
 
 @mock.patch("cachi2.core.package_managers.yarn.utils.run_cmd")
@@ -92,13 +92,15 @@ def test_parse_empty_yarnrc(mock_run_cmd: mock.Mock, rooted_tmp_path: RootedPath
     mock_run_cmd.return_value = YARN_CONFIG_OUTPUT
     yarn_rc = _prepare_yarnrc_file(rooted_tmp_path, EMPTY_YML_FILE)
 
-    assert yarn_rc.cache_folder == "./.yarn/cache"
-    assert yarn_rc.registry_server == "https://registry.yarnpkg.com"
+    assert yarn_rc["cacheFolder"] == "./.yarn/cache"
+    assert yarn_rc["npmRegistryServer"] == "https://registry.yarnpkg.com"
+    assert yarn_rc["yarnPath"] is None
     assert yarn_rc.registry_server_for_scope("foobar") == "https://registry.yarnpkg.com"
-    assert yarn_rc.yarn_path is None
 
 
-def test_parse_invalid_yarnrc(rooted_tmp_path: RootedPath) -> None:
+@mock.patch("cachi2.core.package_managers.yarn.utils.run_cmd")
+def test_parse_invalid_yarnrc(mock_run_cmd: mock.Mock, rooted_tmp_path: RootedPath) -> None:
+    mock_run_cmd.return_value = YARN_CONFIG_OUTPUT
     with pytest.raises(PackageRejected, match="Can't parse the .yarnrc.yml file"):
         _prepare_yarnrc_file(rooted_tmp_path, INVALID_YML)
 
@@ -162,9 +164,10 @@ def test_parse_project_folder(
     project = Project.from_source_dir(rooted_tmp_path)
 
     assert project.is_zero_installs == is_zero_installs
-    assert project.yarn_cache == rooted_tmp_path.join_within_root(cache_path)
-
     assert project.yarn_rc is not None
+
+    rc_cache_path = rooted_tmp_path.join_within_root(project.yarn_rc["cacheFolder"])
+    assert rc_cache_path == rooted_tmp_path.join_within_root(cache_path)
     assert project.package_json._path == rooted_tmp_path.join_within_root("package.json")
 
 
@@ -188,7 +191,6 @@ def test_parse_project_folder_without_yarnrc(
     project = Project.from_source_dir(rooted_tmp_path)
 
     assert project.is_zero_installs == is_zero_installs
-    assert project.yarn_cache == rooted_tmp_path.join_within_root("./.yarn/cache")
 
     rc_cache_path = rooted_tmp_path.join_within_root(project.yarn_rc["cacheFolder"])
     assert rc_cache_path == rooted_tmp_path.join_within_root("./.yarn/cache")
@@ -220,7 +222,7 @@ def test_parsing_cache_folder_that_resolves_outside_of_the_repository(
     project = Project.from_source_dir(rooted_tmp_path)
 
     with pytest.raises(PathOutsideRoot):
-        project.yarn_cache
+        rooted_tmp_path.join_within_root(project.yarn_rc["cacheFolder"])
 
 
 # --- Semver parsing tests ---

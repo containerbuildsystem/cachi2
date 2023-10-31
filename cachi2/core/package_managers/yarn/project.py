@@ -79,9 +79,9 @@ class YarnRc(UserDict):
 
         See: https://v3.yarnpkg.com/configuration/yarnrc#npmScopes
         """
-        registry = self._data.get("npmScopes", {}).get(scope, {}).get("npmRegistryServer")
+        registry = self.get("npmScopes", {}).get(scope, {}).get("npmRegistryServer")
 
-        return registry or self.registry_server
+        return registry or self["npmRegistryServer"]
 
     @staticmethod
     def load_defaults(source_dir: RootedPath) -> dict[str, Any]:
@@ -195,12 +195,12 @@ class Project(NamedTuple):
         This is determined by the existence of a non-empty yarn cache folder. For more details on
         zero-installs, see: https://v3.yarnpkg.com/features/zero-installs.
         """
-        dir = self.yarn_cache
+        cache_rooted_path = self.source_dir.join_within_root(self.yarn_rc["cacheFolder"])
 
-        if not dir.path.is_dir():
+        if not cache_rooted_path.path.is_dir():
             return False
 
-        return any(file.suffix == ".zip" for file in dir.path.iterdir())
+        return any(file.suffix == ".zip" for file in cache_rooted_path.path.iterdir())
 
     @property
     def yarn_cache(self) -> RootedPath:
@@ -210,7 +210,7 @@ class Project(NamedTuple):
         https://v3.yarnpkg.com/configuration/yarnrc#cacheFolder.
         """
         if self.yarn_rc:
-            return self.source_dir.join_within_root(self.yarn_rc.cache_folder)
+            return self.source_dir.join_within_root(self.yarn_rc["cacheFolder"])
 
         return self.source_dir.join_within_root(DEFAULT_CACHE_FOLDER)
 

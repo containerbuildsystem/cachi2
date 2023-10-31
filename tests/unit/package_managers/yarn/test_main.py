@@ -39,6 +39,7 @@ def test_configure_yarn_version(
 ) -> None:
     mock_project = mock.Mock()
     mock_project.package_json.package_manager = None
+    mock_project.yarn_rc = {"yarnPath": None}
     mock_yarn_path_semver.return_value = yarn_path_version
     mock_package_manager_semver.return_value = package_manager_version
 
@@ -91,6 +92,7 @@ def test_configure_yarn_version_fail(
     expected_error: Exception,
 ) -> None:
     mock_project = mock.Mock()
+    mock_project.yarn_rc = {"yarnPath": None}
     mock_yarn_path_semver.return_value = yarn_path_version
     mock_package_manager_semver.side_effect = [package_manager_version]
 
