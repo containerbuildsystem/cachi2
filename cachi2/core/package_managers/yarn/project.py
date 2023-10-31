@@ -32,7 +32,9 @@ class YarnRc(UserDict):
     configuration file.
     """
 
-    def __init__(self, data: dict[str, Any], defaults: Optional[dict[str, Any]] = None) -> None:
+    def __init__(
+        self, data: dict[str, Any] = {}, defaults: Optional[dict[str, Any]] = None
+    ) -> None:
         """Initialize a YarnRc dictionary.
 
         :param data: the raw data for the yarnrc file.
@@ -183,7 +185,7 @@ class Project(NamedTuple):
     """A directory containing yarn sources."""
 
     source_dir: RootedPath
-    yarn_rc: Optional[YarnRc]
+    yarn_rc: YarnRc
     package_json: PackageJson
 
     @property
@@ -222,7 +224,8 @@ class Project(NamedTuple):
                 source_dir.join_within_root(".yarnrc.yml"), YarnRc.load_defaults(source_dir)
             )
         else:
-            yarn_rc = None
+            # defaults only
+            yarn_rc = YarnRc(YarnRc.load_defaults(source_dir))
 
         package_json = PackageJson.from_file(source_dir.join_within_root("package.json"))
         return cls(source_dir, yarn_rc, package_json)

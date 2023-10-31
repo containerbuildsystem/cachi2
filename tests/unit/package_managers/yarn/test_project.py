@@ -175,9 +175,11 @@ def test_parse_project_folder(
         pytest.param(False, id="regular-workflow-project"),
     ),
 )
+@mock.patch("cachi2.core.package_managers.yarn.utils.run_cmd")
 def test_parse_project_folder_without_yarnrc(
-    rooted_tmp_path: RootedPath, is_zero_installs: bool
+    mock_run_cmd: mock.Mock, rooted_tmp_path: RootedPath, is_zero_installs: bool
 ) -> None:
+    mock_run_cmd.return_value = YARN_CONFIG_OUTPUT
     _prepare_package_json_file(rooted_tmp_path, VALID_PACKAGE_JSON_FILE)
 
     if is_zero_installs:
@@ -188,11 +190,17 @@ def test_parse_project_folder_without_yarnrc(
     assert project.is_zero_installs == is_zero_installs
     assert project.yarn_cache == rooted_tmp_path.join_within_root("./.yarn/cache")
 
-    assert project.yarn_rc is None
+    rc_cache_path = rooted_tmp_path.join_within_root(project.yarn_rc["cacheFolder"])
+    assert rc_cache_path == rooted_tmp_path.join_within_root("./.yarn/cache")
     assert project.package_json._path == rooted_tmp_path.join_within_root("package.json")
 
 
-def test_parse_empty_folder(rooted_tmp_path: RootedPath) -> None:
+@mock.patch("cachi2.core.package_managers.yarn.project.YarnRc.load_defaults")
+def test_parse_empty_folder(
+    mock_yarnrc_load_defaults: mock.Mock,
+    rooted_tmp_path: RootedPath,
+) -> None:
+    mock_yarnrc_load_defaults.return_value = {}
     message = "The package.json file must be present for the yarn package manager"
     with pytest.raises(PackageRejected, match=message):
         Project.from_source_dir(rooted_tmp_path)
