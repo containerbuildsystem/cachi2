@@ -1298,7 +1298,11 @@ def test_run_download_cmd_failure(
         {"foo": {}, "bar": {"go.mod": ""}},
     ),
 )
-def test_missing_gomod_file(file_tree: dict[str, Any], tmp_path: Path) -> None:
+@mock.patch("cachi2.core.package_managers.gomod.run_cmd")
+def test_missing_gomod_file(
+    mock_run_cmd: mock.Mock, file_tree: dict[str, Any], tmp_path: Path
+) -> None:
+    mock_run_cmd.return_value = "go version go0.0.1"
     write_file_tree(file_tree, tmp_path, exist_ok=True)
 
     packages = [{"path": path, "type": "gomod"} for path, _ in file_tree.items()]
@@ -1446,7 +1450,9 @@ def test_missing_gomod_file(file_tree: dict[str, Any], tmp_path: Path) -> None:
 @mock.patch("cachi2.core.package_managers.gomod._resolve_gomod")
 @mock.patch("cachi2.core.package_managers.gomod.GoCacheTemporaryDirectory")
 @mock.patch("cachi2.core.package_managers.gomod.ModuleVersionResolver.from_repo_path")
+@mock.patch("cachi2.core.package_managers.gomod.run_cmd")
 def test_fetch_gomod_source(
+    mock_run_cmd: mock.Mock,
     mock_version_resolver: mock.Mock,
     mock_tmp_dir: mock.Mock,
     mock_resolve_gomod: mock.Mock,
@@ -1468,6 +1474,7 @@ def test_fetch_gomod_source(
             app_dir.path.relative_to(gomod_request.source_dir).as_posix()
         ]
 
+    mock_run_cmd.return_value = "go version go0.0.1"
     mock_resolve_gomod.side_effect = resolve_gomod_mocked
     mock_find_missing_gomod_files.return_value = []
     mock_get_repository_name.return_value = "github.com/my-org/my-repo"
