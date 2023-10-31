@@ -301,15 +301,23 @@ class Project(NamedTuple):
     def is_zero_installs(self) -> bool:
         """If a project is using the zero-installs workflow or not.
 
-        This is determined by the existence of a non-empty yarn cache folder. For more details on
-        zero-installs, see: https://v3.yarnpkg.com/features/zero-installs.
+        This is determined either by the existence of a non-empty yarn cache folder
+        (default PnP mode) or by a presence of an expanded node_modules directory which would work
+        similarly or exactly the same way as with the NPM ecosystem.
+        For more details on zero-installs, see: https://v3.yarnpkg.com/features/zero-installs.
         """
-        dir = self.yarn_cache
+        node_linker = self.yarn_rc.node_linker
+        if node_linker is None or node_linker == "pnp":
+            if self.yarn_cache.path.exists() and self.yarn_cache.path.is_dir():
+                # in this case the cache folder will be populated with downloaded ZIP dependencies
+                return any(file.suffix == ".zip" for file in self.yarn_cache.path.iterdir())
 
-        if not dir.path.is_dir():
-            return False
+        elif node_linker == "pnpm" or node_linker == "node-modules":
+            # in this case the cache may or may not be populated with ZIP files because an expanded
+            # node_modules directory tree just like with NPM is enough for zero installs to work
+            return self.source_dir.join_within_root("node_modules").path.exists()
 
-        return any(file.suffix == ".zip" for file in dir.path.iterdir())
+        return False
 
     @property
     def yarn_cache(self) -> RootedPath:
@@ -318,10 +326,7 @@ class Project(NamedTuple):
         The cache location is affected by the cacheFolder configuration in yarnrc. See:
         https://v3.yarnpkg.com/configuration/yarnrc#cacheFolder.
         """
-        if self.yarn_rc:
-            return self.source_dir.join_within_root(self.yarn_rc.cache_folder)
-
-        return self.source_dir.join_within_root(DEFAULT_CACHE_FOLDER)
+        return self.source_dir.join_within_root(self.yarn_rc.cache_folder)
 
     @classmethod
     def from_source_dir(cls, source_dir: RootedPath) -> "Project":
