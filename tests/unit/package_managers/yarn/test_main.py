@@ -9,6 +9,7 @@ from cachi2.core.errors import PackageRejected, UnexpectedFormat, YarnCommandErr
 from cachi2.core.package_managers.yarn.main import (
     _configure_yarn_version,
     _fetch_dependencies,
+    _resolve_yarn_project,
     _set_yarnrc_configuration,
 )
 from cachi2.core.package_managers.yarn.project import YarnRc
@@ -122,19 +123,27 @@ def test_fetch_dependencies(mock_yarn_cmd: mock.Mock, rooted_tmp_path: RootedPat
     assert str(exc_info.value) == "berryscary"
 
 
-@pytest.mark.parametrize(
-    "is_zero_installs",
-    (
-        pytest.param(True, id="zero-installs-project"),
-        pytest.param(False, id="regular-workflow-project"),
-    ),
-)
+@mock.patch("cachi2.core.package_managers.yarn.main._configure_yarn_version")
+def test_resolve_zero_installs_fail(
+    mock_configure_yarn_version: mock.Mock, rooted_tmp_path: RootedPath
+) -> None:
+    mock_configure_yarn_version.return_value = None
+    project = mock.Mock()
+    project.is_zero_installs = True
+    output_dir = rooted_tmp_path.join_within_root("cachi2-output")
+
+    with pytest.raises(
+        PackageRejected,
+        match=("Yarn zero install detected, PnP zero installs are unsupported by cachi2"),
+    ):
+        _resolve_yarn_project(project, output_dir)
+
+
 @mock.patch("cachi2.core.package_managers.yarn.project.YarnRc.write")
-def test_set_yarnrc_configuration(mock_write: mock.Mock, is_zero_installs: bool) -> None:
+def test_set_yarnrc_configuration(mock_write: mock.Mock) -> None:
     yarn_rc = YarnRc(RootedPath("/tmp/.yarnrc.yml"), {})
 
     project = mock.Mock()
-    project.is_zero_installs = is_zero_installs
     project.yarn_rc = yarn_rc
 
     output_dir = RootedPath("/tmp/output")
@@ -144,20 +153,16 @@ def test_set_yarnrc_configuration(mock_write: mock.Mock, is_zero_installs: bool)
     expected_data = {
         "checksumBehavior": "throw",
         "enableImmutableInstalls": True,
+        "enableMirror": True,
+        "enableScripts": False,
         "enableStrictSsl": True,
         "enableTelemetry": False,
+        "globalFolder": "/tmp/output",
         "ignorePath": True,
         "unsafeHttpWhitelist": [],
         "pnpMode": "strict",
         "plugins": [],
     }
-
-    if project.is_zero_installs:
-        expected_data["enableImmutableCache"] = True
-    else:
-        expected_data["enableMirror"] = True
-        expected_data["enableScripts"] = False
-        expected_data["globalFolder"] = "/tmp/output"
 
     assert yarn_rc._data == expected_data
     assert mock_write.called_once()
