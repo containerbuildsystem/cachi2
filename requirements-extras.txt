@@ -419,9 +419,9 @@ isort[colors]==5.12.0 \
     --hash=sha256:8bef7dde241278824a6d83f44a544709b065191b95b6e50894bdc722fcba0504 \
     --hash=sha256:f84c2818376e66cf843d497486ea8fed8700b340f308f076c6fb1229dff318b6
     # via cachi2 (pyproject.toml)
-jsonschema==4.19.1 \
-    --hash=sha256:cd5f1f9ed9444e554b38ba003af06c0a8c2868131e56bfbef0550fb450c0330e \
-    --hash=sha256:ec84cc37cfa703ef7cd4928db24f9cb31428a5d0fa77747b8b51a847458e0bbf
+jsonschema==4.19.2 \
+    --hash=sha256:c9ff4d7447eed9592c23a12ccee508baf0dd0d59650615e847feb6cdca74f392 \
+    --hash=sha256:eee9e502c788e89cb166d4d37f43084e3b64ab405c795c03d343a4dbc2c810fc
     # via cachi2 (pyproject.toml)
 jsonschema-specifications==2023.7.1 \
     --hash=sha256:05adf340b659828a004220a9613be00fa3f223f2b82002e273dee62fd50524b1 \
@@ -718,9 +718,9 @@ pypi-simple==1.2.0 \
     --hash=sha256:9f8fda101f71467ce9c7920fda99e1dd5a9907e693ec4c28430a14e3519cae86 \
     --hash=sha256:d41bdf9978b96c1bb8eebf7975e54e1d789b30bc71a80902ddca1a11a2a18adf
     # via cachi2 (pyproject.toml)
-pytest==7.4.2 \
-    --hash=sha256:1d881c6124e08ff0a1bb75ba3ec0bfd8b5354a01c194ddd5a0a870a48d99b002 \
-    --hash=sha256:a766259cfab564a2ad52cb1aae1b881a75c3eb7e34ca3779697c23ed47c47069
+pytest==7.4.3 \
+    --hash=sha256:0d009c083ea859a71b76adf7c1d502e4bc170b80a8ef002da5806527b9591fac \
+    --hash=sha256:d989d136982de4e3b29dabcc838ad581c64e8ed52c11fbe86ddebd9da0818cd5
     # via
     #   cachi2 (pyproject.toml)
     #   pytest-asyncio
@@ -734,9 +734,9 @@ pytest-cov==4.1.0 \
     --hash=sha256:3904b13dfbfec47f003b8e77fd5b589cd11904a21ddf1ab38a64f204d6a10ef6 \
     --hash=sha256:6ba70b9e97e69fcc3fb45bfeab2d0a138fb65c4d0d6a41ef33983ad114be8c3a
     # via cachi2 (pyproject.toml)
-pytest-env==1.1.0 \
-    --hash=sha256:33a630a3db07068528c16f061350664d0146519824bd8c87b4cb120fff202ad9 \
-    --hash=sha256:86f2dbc05a78cfbb42a4be19e04fd7b4ef364127d0118af2f59b4dcccfd773bf
+pytest-env==1.1.1 \
+    --hash=sha256:1efb8acce1f6431196150f3b30673443ff05a6fabff64539a9495cd2248adf9e \
+    --hash=sha256:2b71b37c6810f28bec790a7b373c777af87352b3a359b3de0edb9d24df5cf8b3
     # via cachi2 (pyproject.toml)
 pyyaml==6.0.1 \
     --hash=sha256:04ac92ad1925b2cff1db0cfebffb6ffc43457495c9b3c39d3fcae417d7125dc5 \
