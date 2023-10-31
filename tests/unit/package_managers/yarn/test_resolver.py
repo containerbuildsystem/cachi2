@@ -296,7 +296,7 @@ def mock_package_json(
 def mock_project(project_dir: RootedPath) -> Project:
     return Project(
         project_dir,
-        YarnRc(project_dir.join_within_root(".yarnrc.yml"), {}),
+        YarnRc({}),
         PackageJson(project_dir.join_within_root("package.json"), {}),
     )
 

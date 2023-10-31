@@ -148,7 +148,6 @@ def test_parse_project_folder(rooted_tmp_path: RootedPath, is_zero_installs: boo
     assert project.yarn_cache == rooted_tmp_path.join_within_root(cache_path)
 
     assert project.yarn_rc is not None
-    assert project.yarn_rc._path == rooted_tmp_path.join_within_root(".yarnrc.yml")
     assert project.package_json._path == rooted_tmp_path.join_within_root("package.json")
 
 

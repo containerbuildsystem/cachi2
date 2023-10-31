@@ -30,13 +30,11 @@ class YarnRc:
     is relevant for the request processing.
     """
 
-    def __init__(self, path: RootedPath, data: dict[str, Any]) -> None:
+    def __init__(self, data: dict[str, Any]) -> None:
         """Initialize a YarnRc object.
 
-        :param path: the path to the yarnrc file, relative to the request source dir.
         :param data: the raw data for the yarnrc file.
         """
-        self._path = path
         self._data = data
 
     @property
@@ -74,7 +72,10 @@ class YarnRc:
 
     @classmethod
     def from_file(cls, file_path: RootedPath) -> "YarnRc":
-        """Parse the content of a yarnrc file."""
+        """Parse the content of a yarnrc file.
+
+        :param path: the path to the yarnrc file, relative to the request source dir.
+        """
         try:
             with file_path.path.open("r") as f:
                 yarnrc_data = yaml.safe_load(f)
@@ -90,7 +91,7 @@ class YarnRc:
         if yarnrc_data is None:
             yarnrc_data = {}
 
-        return cls(file_path, yarnrc_data)
+        return cls(yarnrc_data)
 
 
 class PackageJson:
