@@ -190,25 +190,21 @@ def _add_mock_yarn_cache_file(cache_path: RootedPath) -> None:
     file.path.touch()
 
 
-@pytest.mark.parametrize(
-    "is_zero_installs",
-    (
-        pytest.param(True, id="zero-installs-project"),
-        pytest.param(False, id="regular-workflow-project"),
-    ),
-)
-def test_parse_project_folder(rooted_tmp_path: RootedPath, is_zero_installs: bool) -> None:
+def _setup_zero_installs(nodeLinker: str, rooted_tmp_path: RootedPath) -> None:
+    if nodeLinker == "pnp" or nodeLinker == "":
+        _add_mock_yarn_cache_file(rooted_tmp_path.join_within_root("./.custom/cache"))
+    else:
+        rooted_tmp_path.join_within_root("node_modules").path.mkdir()
+
+
+def test_parse_project_folder(rooted_tmp_path: RootedPath) -> None:
     _prepare_package_json_file(rooted_tmp_path, VALID_PACKAGE_JSON_FILE)
     _prepare_yarnrc_file(rooted_tmp_path, VALID_YARNRC_FILE)
 
     cache_path = "./.custom/cache"
 
-    if is_zero_installs:
-        _add_mock_yarn_cache_file(rooted_tmp_path.join_within_root(cache_path))
-
     project = Project.from_source_dir(rooted_tmp_path)
 
-    assert project.is_zero_installs == is_zero_installs
     assert project.yarn_cache == rooted_tmp_path.join_within_root(cache_path)
 
     assert project.yarn_rc is not None
@@ -216,24 +212,11 @@ def test_parse_project_folder(rooted_tmp_path: RootedPath, is_zero_installs: boo
     assert project.package_json._path == rooted_tmp_path.join_within_root("package.json")
 
 
-@pytest.mark.parametrize(
-    "is_zero_installs",
-    (
-        pytest.param(True, id="zero-installs-project"),
-        pytest.param(False, id="regular-workflow-project"),
-    ),
-)
-def test_parse_project_folder_without_yarnrc(
-    rooted_tmp_path: RootedPath, is_zero_installs: bool
-) -> None:
+def test_parse_project_folder_without_yarnrc(rooted_tmp_path: RootedPath) -> None:
     _prepare_package_json_file(rooted_tmp_path, VALID_PACKAGE_JSON_FILE)
-
-    if is_zero_installs:
-        _add_mock_yarn_cache_file(rooted_tmp_path.join_within_root("./.yarn/cache"))
 
     project = Project.from_source_dir(rooted_tmp_path)
 
-    assert project.is_zero_installs == is_zero_installs
     assert project.yarn_cache == rooted_tmp_path.join_within_root("./.yarn/cache")
 
     assert project.yarn_rc._data == {}
@@ -374,3 +357,27 @@ def test_get_semver_from_package_manager(
 def test_get_semver_from_package_manager_fail(package_manager: str, expected_error: str) -> None:
     with pytest.raises(UnexpectedFormat, match=re.escape(expected_error)):
         get_semver_from_package_manager(package_manager)
+
+
+@pytest.mark.parametrize(
+    "is_zero_installs, nodeLinker",
+    [
+        pytest.param(True, "pnp", id="nodeLinker-pnp"),
+        pytest.param(True, "pnpm", id="nodeLinker-pnpm"),
+        pytest.param(True, "node-modules", id="nodeLinker-node-modules"),
+        pytest.param(True, "", id="nodeLinker-empty-use-default"),
+        pytest.param(False, "", id="regular-workflow"),
+    ],
+)
+def test_zero_installs_detection(
+    rooted_tmp_path: RootedPath, is_zero_installs: bool, nodeLinker: str
+) -> None:
+    yarn_rc = VALID_YARNRC_FILE.replace("nodeLinker: pnp", f"nodeLinker: {nodeLinker}")
+
+    _prepare_package_json_file(rooted_tmp_path, VALID_PACKAGE_JSON_FILE)
+    _prepare_yarnrc_file(rooted_tmp_path, yarn_rc)
+    project = Project.from_source_dir(rooted_tmp_path)
+
+    if is_zero_installs:
+        _setup_zero_installs(nodeLinker, rooted_tmp_path)
+    assert project.is_zero_installs is is_zero_installs

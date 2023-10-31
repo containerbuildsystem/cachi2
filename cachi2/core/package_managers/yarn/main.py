@@ -40,14 +40,20 @@ def _resolve_yarn_project(project: Project, output_dir: RootedPath) -> list[Comp
 
     _configure_yarn_version(project)
 
+    if project.is_zero_installs:
+        raise PackageRejected(
+            ("Yarn zero install detected, PnP zero installs are unsupported by cachi2"),
+            solution=(
+                "Please convert your project to a regular install-based one.\n"
+                "Depending on whether you use Yarn's PnP or a different node linker Yarn setting "
+                "make sure to remove '.yarn/cache' or 'node_modules' directories respectively."
+            ),
+        )
+
     try:
         _set_yarnrc_configuration(project, output_dir)
         packages = resolve_packages(project.source_dir)
-
-        if project.is_zero_installs:
-            _check_yarn_cache(project.source_dir)
-        else:
-            _fetch_dependencies(project.source_dir, output_dir)
+        _fetch_dependencies(project.source_dir, output_dir)
     finally:
         _undo_changes(project)
 
@@ -97,8 +103,7 @@ def _configure_yarn_version(project: Project) -> None:
 def _set_yarnrc_configuration(project: Project, output_dir: RootedPath) -> None:
     """Set all the necessary configuration in yarnrc for the project processing.
 
-    :param project: the configuration changes dependending on if the project uses the zero-installs
-        or the regular workflow.
+    :param project: a Project instance
     :param output_dir: in case the dependencies need to be fetched, this is where they will be
         downloaded to.
     """
@@ -112,13 +117,9 @@ def _set_yarnrc_configuration(project: Project, output_dir: RootedPath) -> None:
     yarn_rc.enable_telemetry = False
     yarn_rc.ignore_path = True
     yarn_rc.unsafe_http_whitelist = []
-
-    if project.is_zero_installs:
-        yarn_rc.enable_immutable_cache = True
-    else:
-        yarn_rc.enable_mirror = True
-        yarn_rc.enable_scripts = False
-        yarn_rc.global_folder = str(output_dir)
+    yarn_rc.enable_mirror = True
+    yarn_rc.enable_scripts = False
+    yarn_rc.global_folder = str(output_dir)
 
     yarn_rc.write()
 
