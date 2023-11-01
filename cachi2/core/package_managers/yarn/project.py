@@ -155,7 +155,7 @@ class Project(NamedTuple):
     """A directory containing yarn sources."""
 
     source_dir: RootedPath
-    yarn_rc: Optional[YarnRc]
+    yarn_rc: YarnRc
     package_json: PackageJson
 
     @property
@@ -190,9 +190,9 @@ class Project(NamedTuple):
         yarn_rc_path = source_dir.join_within_root(".yarnrc.yml")
 
         if yarn_rc_path.path.exists():
-            yarn_rc = YarnRc.from_file(source_dir.join_within_root(".yarnrc.yml"))
+            yarn_rc = YarnRc.from_file(yarn_rc_path)
         else:
-            yarn_rc = None
+            yarn_rc = YarnRc(yarn_rc_path, {})
 
         package_json = PackageJson.from_file(source_dir.join_within_root("package.json"))
         return cls(source_dir, yarn_rc, package_json)

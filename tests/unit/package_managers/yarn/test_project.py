@@ -172,7 +172,8 @@ def test_parse_project_folder_without_yarnrc(
     assert project.is_zero_installs == is_zero_installs
     assert project.yarn_cache == rooted_tmp_path.join_within_root("./.yarn/cache")
 
-    assert project.yarn_rc is None
+    assert project.yarn_rc._data == {}
+    assert project.yarn_rc._path == rooted_tmp_path.join_within_root(".yarnrc.yml")
     assert project.package_json._path == rooted_tmp_path.join_within_root("package.json")
 
 
