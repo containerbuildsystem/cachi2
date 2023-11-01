@@ -149,7 +149,7 @@ class PackageJson:
 
         return cls(file_path, package_json_data)
 
-    def write_to_file(self) -> None:
+    def write(self) -> None:
         """Write the data to the package.json file."""
         with self._path.path.open("w") as f:
             json.dump(self._data, f, indent=2)
