@@ -90,7 +90,7 @@ def _configure_yarn_version(project: Project) -> None:
 
     if not package_manager_version:
         project.package_json.package_manager = f"yarn@{yarn_path_version}"
-        project.package_json.write_to_file()
+        project.package_json.write()
 
 
 def _set_yarnrc_configuration(project: Project, output_dir: RootedPath) -> None:

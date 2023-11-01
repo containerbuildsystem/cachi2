@@ -46,10 +46,10 @@ def test_configure_yarn_version(
 
     if package_manager_version is None:
         assert mock_project.package_json.package_manager == f"yarn@{yarn_path_version}"
-        mock_project.package_json.write_to_file.assert_called_once()
+        mock_project.package_json.write.assert_called_once()
     else:
         assert mock_project.package_json.package_manager is None
-        mock_project.package_json.write_to_file.assert_not_called()
+        mock_project.package_json.write.assert_not_called()
 
 
 @pytest.mark.parametrize(
