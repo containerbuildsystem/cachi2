@@ -514,9 +514,9 @@ pydantic-core==2.10.1 \
     --hash=sha256:fa7db7558607afeccb33c0e4bf1c9a9a835e26599e76af6fe2fcea45904083a6 \
     --hash=sha256:fcb83175cc4936a5425dde3356f079ae03c0802bbdf8ff82c035f8a54b333521
     # via pydantic
-pypi-simple==1.2.0 \
-    --hash=sha256:9f8fda101f71467ce9c7920fda99e1dd5a9907e693ec4c28430a14e3519cae86 \
-    --hash=sha256:d41bdf9978b96c1bb8eebf7975e54e1d789b30bc71a80902ddca1a11a2a18adf
+pypi-simple==1.4.0 \
+    --hash=sha256:2d92fe0c0eab03f9515bceacbdb32ca194b31632d992bf26a2634a3bc6d29d5f \
+    --hash=sha256:f0a2bce892bf6a878fb0975e245310187e888a2bfb374ecdb6377aa3c3540cd6
     # via cachi2 (pyproject.toml)
 pyyaml==6.0.1 \
     --hash=sha256:04ac92ad1925b2cff1db0cfebffb6ffc43457495c9b3c39d3fcae417d7125dc5 \
