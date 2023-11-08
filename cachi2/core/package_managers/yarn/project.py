@@ -24,6 +24,7 @@ DEFAULT_REGISTRY = "https://registry.yarnpkg.com"
 
 ChecksumBehavior = Literal["throw", "update", "ignore"]
 PnpMode = Literal["strict", "loose"]
+NodeLinker = Literal["pnp", "pnpm", "node-modules"]
 
 
 class Plugin(TypedDict):
@@ -158,6 +159,15 @@ class YarnRc:
     @unsafe_http_whitelist.setter
     def unsafe_http_whitelist(self, urls: list[str]) -> None:
         self._data["unsafeHttpWhitelist"] = urls
+
+    @property
+    def node_linker(self) -> NodeLinker:
+        """Get the nodeLinker configuration."""
+        return self._data.get("nodeLinker", None)
+
+    @node_linker.setter
+    def node_linker(self, node_linker: Optional[NodeLinker]) -> None:
+        self._data["nodeLinker"] = node_linker
 
     @property
     def plugins(self) -> list[Plugin]:
