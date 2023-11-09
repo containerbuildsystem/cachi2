@@ -18,6 +18,8 @@ _package_managers: dict[PackageManagerType, Handler] = {
     "pip": pip.fetch_pip_source,
 }
 
+# This is where we put package managers currently under development in order to
+# invoke them via CLI
 _dev_package_managers: dict[PackageManagerType, Handler] = {
     "yarn": yarn.fetch_yarn_source,
 }
