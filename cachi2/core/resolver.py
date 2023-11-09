@@ -4,7 +4,7 @@ from typing import Callable
 from cachi2.core.errors import UnsupportedFeature
 from cachi2.core.models.input import PackageManagerType, Request
 from cachi2.core.models.output import RequestOutput
-from cachi2.core.package_managers import gomod, npm, pip
+from cachi2.core.package_managers import cargo, gomod, npm, pip
 
 Handler = Callable[[Request], RequestOutput]
 
@@ -12,6 +12,7 @@ _package_managers: dict[PackageManagerType, Handler] = {
     "gomod": gomod.fetch_gomod_source,
     "npm": npm.fetch_npm_source,
     "pip": pip.fetch_pip_source,
+    "cargo": cargo.fetch_cargo_source,
 }
 
 

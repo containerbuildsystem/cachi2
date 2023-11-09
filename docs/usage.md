@@ -15,6 +15,7 @@ The second section goes through each of these steps for the supported package ma
   * [Example with Go modules](#example-go-modules)
   * [Example with pip](#example-pip)
   * [Example with npm](#example-npm)
+  * [Example with cargo](#example-cargo)
 
 ## General Process
 
@@ -495,4 +496,141 @@ podman build . \
   --volume "$(realpath ./cachi2.env)":/tmp/cachi2.env:Z \
   --network none \
   --tag sample-nodejs-app
+```
+
+
+## Example: cargo
+
+### Prefetch dependencies (cargo)
+
+```shell
+mkdir -p /tmp/playground/pure-rust
+cd /tmp/playground/pure-rust
+git clone git@github.com:sharkdp/bat.git --branch=v0.22.1
+cachi2 fetch-deps --source bat '{"type": "cargo"}'
+```
+
+### Generate environment variables (cargo)
+
+At the moment no env var is generated for cargo, but let's do this step for compatibility
+with other integrations.
+
+```shell
+cachi2 generate-env ./cachi2-output -o ./cachi2.env --for-output-dir /tmp/cachi2-output
+```
+
+### Inject project files (cargo)
+
+```shell
+$ cachi2 inject-files $(realpath cachi2-output) --for-output-dir /tmp/cachi2-output
+2023-10-18 14:51:01,936 INFO Creating /tmp/playground/pure-rust/bat/.cargo/config.toml
+```
+
+### Build the base image (cargo)
+
+
+Containerfile.baseimage
+```Dockerfile
+FROM registry.access.redhat.com/ubi9/ubi
+
+RUN dnf install cargo rust rust-std-static -y &&\
+    dnf clean all
+```
+
+```shell
+podman build --tag bat-base-image -f Containerfile.baseimage .
+```
+
+### Build the application image (cargo)
+
+Containerfile
+```Dockerfile
+FROM bat-base-image:latest
+
+COPY bat /app
+WORKDIR /app
+RUN source /tmp/cachi2.env && \
+    cargo install --locked --path .
+ENV PATH="/root/.cargo/bin:$PATH"
+CMD bat
+```
+
+```shell
+podman build . \
+  --volume "$(realpath ./cachi2-output)":/tmp/cachi2-output:Z \
+  --volume "$(realpath ./cachi2.env)":/tmp/cachi2.env:Z \
+  --network none \
+  --tag bat
+```
+
+## Example: pip with indirect cargo dependencies
+
+### Prefetch dependencies (pip + cargo)
+
+```shell
+mkdir -p /tmp/playground/python-cargo
+cd /tmp/playground/python-cargo
+git clone git@github.com:/bruno-fs/simple-python-rust-project --branch=0.0.1 dummy
+cachi2 fetch-deps --source dummy '[{"type": "pip"}, {"type": "cargo", "lock_file": "merged-cargo.lock", "pkg_name": "dummy", "pkg_version": "0.0.1"}]'
+```
+
+### Generate environment variables (pip + cargo)
+
+```shell
+cachi2 generate-env ./cachi2-output -o ./cachi2.env --for-output-dir /tmp/cachi2-output
+```
+
+### Inject project files (pip + cargo)
+
+```shell
+$ cachi2 inject-files $(realpath cachi2-output) --for-output-dir /tmp/cachi2-output
+2023-10-18 14:51:01,936 INFO Creating /tmp/playground/python-cargo/dummy/.cargo/config.toml
+```
+
+### Build the base image (pip + cargo)
+
+
+Containerfile.baseimage
+```Dockerfile
+FROM quay.io/centos/centos:stream8
+
+RUN dnf -y install \
+        python3.11 \
+        python3.11-pip \
+        python3.11-devel \
+        gcc \
+        libffi-devel \
+        openssl-devel \
+        cargo \
+        rust \
+        rust-std-static &&\
+    dnf clean all
+```
+
+```shell
+podman build --tag dummy-base-image -f Containerfile.baseimage .
+```
+
+### Build the application image (pip + cargo)
+
+Containerfile
+```Dockerfile
+FROM dummy-base-image:latest
+
+COPY dummy /app
+# we don't have a way to control where pip will build
+# cargo dependencies, so we need to move cargo configuration
+# to the place where python run builds
+COPY dummy/.cargo/config.toml /tmp/.cargo/config.toml
+WORKDIR /app
+RUN source /tmp/cachi2.env && \
+    pip3 install -r requirements.txt
+```
+
+```shell
+podman build . \
+  --volume "$(realpath ./cachi2-output)":/tmp/cachi2-output:Z \
+  --volume "$(realpath ./cachi2.env)":/tmp/cachi2.env:Z \
+  --network none \
+  --tag dummy
 ```
