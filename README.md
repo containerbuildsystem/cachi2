@@ -158,6 +158,19 @@ dnf install golang-bin git
 You should now have everything needed to [try out](#basic-usage) the CLI or hack on the code in ~~vim~~ your favorite
 editor.
 
+### Developer flags
+
+* `--dev-package-managers` (hidden): enables in-development package manager(s)
+  for test. Please refer to other existing package managers to see how they're
+  enabled and wired to the CLI.
+
+  Invoke it as `cachi2 fetch-deps --dev-package-managers FOO`
+
+  More explicitly
+
+  * `--dev-package-managers` is a *flag for* `fetch-deps`
+  * `FOO` is an *argument to* `fetch-deps` (i.e. the language to fetch for)
+
 ### Coding standards
 
 Cachi2's codebase conforms to standards enforced by a collection of formatters, linters and other code checkers:
