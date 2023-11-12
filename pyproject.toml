@@ -30,6 +30,7 @@ dependencies = [
   "pydantic",
   "pypi-simple",
   "pyyaml",
+  "reflink",
   "requests",
   "semver",
   "setuptools",

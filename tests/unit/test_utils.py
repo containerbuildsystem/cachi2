@@ -1,11 +1,14 @@
+import shutil
 import subprocess
-from typing import Optional
+from pathlib import Path
+from typing import Callable, Optional
 from unittest import mock
 
 import pytest
+import reflink  # type: ignore
 
 from cachi2.core.errors import Cachi2Error
-from cachi2.core.utils import run_cmd
+from cachi2.core.utils import copy_directory, run_cmd
 
 
 @mock.patch("subprocess.run")
@@ -79,3 +82,73 @@ def test_run_cmd_executable_not_found(
 
     with pytest.raises(Cachi2Error, match="'foo' executable not found in PATH"):
         run_cmd(["foo"], params={})
+
+
+@mock.patch("shutil.copytree")
+@mock.patch("reflink.supported_at")
+@pytest.mark.parametrize(
+    "reflink_supported",
+    (True, False),
+)
+def test_copy_directory(
+    mock_reflink_supported_at: mock.Mock, mock_shutil_copytree: mock.Mock, reflink_supported: bool
+) -> None:
+    mock_reflink_supported_at.return_value = reflink_supported
+
+    origin = Path("/fake")
+    destination = Path("/phony")
+
+    copy_directory(origin, destination)
+
+    if reflink_supported:
+        copy_function = reflink.reflink
+    else:
+        copy_function = shutil.copy2
+
+    mock_shutil_copytree.assert_called_with(
+        origin, destination, copy_function=copy_function, dirs_exist_ok=True, symlinks=True
+    )
+
+
+@mock.patch("shutil.copytree")
+@mock.patch("reflink.supported_at")
+def test_copy_directory_with_reflink_failure(
+    mock_reflink_supported_at: mock.Mock,
+    mock_shutil_copytree: mock.Mock,
+) -> None:
+    def raise_reflink_error(
+        origin: Path,
+        destination: Path,
+        copy_function: Callable,
+        dirs_exist_ok: bool,
+        symlinks: bool,
+    ) -> None:
+        raise reflink.ReflinkImpossibleError()
+
+    mock_reflink_supported_at.return_value = True
+    mock_shutil_copytree.side_effect = raise_reflink_error
+
+    origin = Path("/fake")
+    destination = Path("/phony")
+
+    with pytest.raises(reflink.ReflinkImpossibleError):
+        copy_directory(origin, destination)
+
+    mock_shutil_copytree.assert_has_calls(
+        [
+            mock.call(
+                origin,
+                destination,
+                copy_function=reflink.reflink,
+                dirs_exist_ok=True,
+                symlinks=True,
+            ),
+            mock.call(
+                origin,
+                destination,
+                copy_function=shutil.copy2,
+                dirs_exist_ok=True,
+                symlinks=True,
+            ),
+        ]
+    )
