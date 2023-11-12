@@ -3,7 +3,10 @@ import logging
 import re
 import shutil
 import subprocess  # nosec
-from typing import Iterator, Optional, Sequence
+from pathlib import Path
+from typing import Callable, Iterator, Optional, Sequence
+
+import reflink  # type: ignore
 
 from cachi2.core.config import get_config
 from cachi2.core.errors import Cachi2Error
@@ -74,3 +77,32 @@ def load_json_stream(s: str) -> Iterator:
     while match := non_whitespace.search(s, i):
         obj, i = decoder.raw_decode(s, match.start())
         yield obj
+
+
+def copy_directory(origin: Path, destination: Path) -> Path:
+    """
+    Recursively copy directory to another path.
+
+    Use reflinks by default if the file system supports it.
+
+    :raise FileExistsError: if the destination path already exists.
+    :raise FileNotFoundError: if the origin directory does not exist.
+    """
+
+    def _copy_using(copy_function: Callable) -> None:
+        shutil.copytree(
+            origin, destination, copy_function=copy_function, dirs_exist_ok=True, symlinks=True
+        )
+
+    if reflink.supported_at(origin):
+        try:
+            log.debug(f"Copying {origin} to {destination} using reflinks.")
+            _copy_using(reflink.reflink)
+        except reflink.ReflinkImpossibleError:
+            log.debug("Reflink copy failed, falling back to standard copy.")
+            _copy_using(shutil.copy2)
+    else:
+        log.debug(f"Copying {origin} to {destination} using a standard copy.")
+        _copy_using(shutil.copy2)
+
+    return destination

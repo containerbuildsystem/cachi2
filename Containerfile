@@ -5,11 +5,13 @@ WORKDIR /src
 RUN microdnf -y install \
     --setopt install_weak_deps=0 \
     --nodocs \
+    gcc \
     golang \
     git-core \
     nodejs \
     nodejs-npm \
     python3 \
+    python3-devel \
     python3-pip \
     && microdnf clean all
 
