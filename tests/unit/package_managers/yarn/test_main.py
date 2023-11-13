@@ -19,17 +19,17 @@ from cachi2.core.rooted_path import RootedPath
 @pytest.mark.parametrize(
     "yarn_path_version, package_manager_version",
     [
-        pytest.param(semver.VersionInfo(1, 0, 0), None, id="valid-yarnpath-no-packagemanager"),
-        pytest.param(None, semver.VersionInfo(1, 0, 0), id="no-yarnpath-valid-packagemanager"),
+        pytest.param(semver.VersionInfo(3, 0, 0), None, id="valid-yarnpath-no-packagemanager"),
+        pytest.param(None, semver.VersionInfo(3, 0, 0), id="no-yarnpath-valid-packagemanager"),
         pytest.param(
-            semver.VersionInfo(1, 0, 0),
-            semver.VersionInfo(1, 0, 0),
+            semver.VersionInfo(3, 0, 0),
+            semver.VersionInfo(3, 0, 0),
             id="matching-yarnpath-and-packagemanager",
         ),
         pytest.param(
-            semver.VersionInfo(1, 0, 0),
+            semver.VersionInfo(3, 0, 0),
             semver.VersionInfo(
-                1, 0, 0, build="sha224.953c8233f7a92884eee2de69a1b92d1f2ec1655e66d08071ba9a02fa"
+                3, 0, 0, build="sha224.953c8233f7a92884eee2de69a1b92d1f2ec1655e66d08071ba9a02fa"
             ),
             id="matching-yarnpath-and-packagemanager-with-build",
         ),
@@ -77,10 +77,10 @@ def test_configure_yarn_version(
             id="exception-parsing-packagemanager",
         ),
         pytest.param(
-            semver.VersionInfo(1, 0, 1),
-            semver.VersionInfo(1, 0, 0),
+            semver.VersionInfo(3, 0, 1),
+            semver.VersionInfo(3, 0, 0),
             PackageRejected(
-                "Mismatch between the yarn versions specified by yarnPath (yarn@1.0.1) and packageManager (yarn@1.0.0)",
+                "Mismatch between the yarn versions specified by yarnPath (yarn@3.0.1) and packageManager (yarn@3.0.0)",
                 solution="Ensure that the yarnPath version in .yarnrc and the packageManager version in package.json agree",
             ),
             id="yarnpath-packagemanager-mismatch",
