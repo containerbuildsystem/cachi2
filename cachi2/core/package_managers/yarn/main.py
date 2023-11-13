@@ -79,6 +79,14 @@ def _configure_yarn_version(project: Project) -> None:
             ),
         )
 
+    # Note (mypy): version cannot be None anymore after the next statement
+    version = yarn_path_version if yarn_path_version else package_manager_version
+    if version.compare("3.0.0") < 0 or version.major == 4:  # type: ignore
+        raise PackageRejected(
+            f"Unsupported Yarn version '{version}' detected",
+            solution="Please pick a different version of Yarn (3.0.0<= Yarn version <4.0.0)",
+        )
+
     if (
         yarn_path_version
         and package_manager_version
