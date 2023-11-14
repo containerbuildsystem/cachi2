@@ -160,4 +160,11 @@ def _undo_changes(project: Project) -> None:
 
 def _generate_environment_variables() -> list[EnvironmentVariable]:
     """Generate environment variables that will be used for building the project."""
-    return []
+    env_vars = {
+        "YARN_ENABLE_GLOBAL_CACHE": {"value": "false", "kind": "literal"},
+        "YARN_ENABLE_IMMUTABLE_CACHE": {"value": "false", "kind": "literal"},
+        "YARN_ENABLE_MIRROR": {"value": "true", "kind": "literal"},
+        "YARN_GLOBAL_FOLDER": {"value": "deps/yarn", "kind": "path"},
+    }
+
+    return [EnvironmentVariable(name=name, **obj) for name, obj in env_vars.items()]

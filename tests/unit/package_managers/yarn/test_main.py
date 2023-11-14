@@ -8,14 +8,26 @@ import pytest
 import semver
 
 from cachi2.core.errors import PackageRejected, UnexpectedFormat, YarnCommandError
+from cachi2.core.models.output import EnvironmentVariable
 from cachi2.core.package_managers.yarn.main import (
     _configure_yarn_version,
     _fetch_dependencies,
+    _generate_environment_variables,
     _resolve_yarn_project,
     _set_yarnrc_configuration,
 )
 from cachi2.core.package_managers.yarn.project import YarnRc
 from cachi2.core.rooted_path import RootedPath
+
+
+@pytest.fixture()
+def yarn_env_variables() -> list[EnvironmentVariable]:
+    return [
+        EnvironmentVariable(name="YARN_ENABLE_GLOBAL_CACHE", value="false", kind="literal"),
+        EnvironmentVariable(name="YARN_ENABLE_IMMUTABLE_CACHE", value="false", kind="literal"),
+        EnvironmentVariable(name="YARN_ENABLE_MIRROR", value="true", kind="literal"),
+        EnvironmentVariable(name="YARN_GLOBAL_FOLDER", value="deps/yarn", kind="path"),
+    ]
 
 
 class YarnVersions(Enum):
@@ -212,3 +224,8 @@ def test_set_yarnrc_configuration(mock_write: mock.Mock) -> None:
 
     assert yarn_rc._data == expected_data
     assert mock_write.called_once()
+
+
+def test_generate_environment_variables(yarn_env_variables: list[EnvironmentVariable]) -> None:
+    result = _generate_environment_variables()
+    assert result == yarn_env_variables
