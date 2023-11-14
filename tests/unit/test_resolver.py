@@ -10,6 +10,7 @@ from cachi2.core.errors import UnsupportedFeature
 from cachi2.core.models.input import Request
 from cachi2.core.models.output import BuildConfig, EnvironmentVariable, ProjectFile, RequestOutput
 from cachi2.core.models.sbom import Component
+from cachi2.core.rooted_path import RootedPath
 
 GOMOD_OUTPUT = RequestOutput.from_obj_list(
     components=[
@@ -99,6 +100,30 @@ def test_resolve_packages(tmp_path: Path) -> None:
     assert calls_by_pkgtype == ["gomod", "npm", "pip"]
 
 
+@mock.patch("cachi2.core.resolver._resolve_packages")
+def test_source_dir_copy(mock_resolve_packages: mock.Mock, tmp_path: Path) -> None:
+    request = Request(
+        source_dir=tmp_path,
+        output_dir=tmp_path,
+        packages=[{"type": "yarn"}],
+    )
+
+    def _resolve_packages(request: Request) -> None:
+        tmp_dir_name = request.source_dir.path.name
+
+        # assert a temporary directory is being used
+        assert tmp_dir_name != tmp_path.name
+        assert tmp_dir_name.startswith("tmp")
+        assert tmp_dir_name.endswith(".cachi2-source-copy")
+
+    mock_resolve_packages.side_effect = _resolve_packages
+
+    resolver.resolve_packages(request)
+
+    # assert source_dir is restored to the original value
+    assert request.source_dir == RootedPath(tmp_path)
+
+
 @pytest.mark.parametrize(
     "flags",
     [
@@ -106,7 +131,7 @@ def test_resolve_packages(tmp_path: Path) -> None:
         pytest.param([], id="dev-package-managers-false"),
     ],
 )
-def test_dev_mode(flags: list[str]) -> None:
+def test_dev_mode(flags: list[str], tmp_path: Path) -> None:
     mock_resolver = mock.Mock()
     mock_resolver.return_value = RequestOutput.empty()
     with (
@@ -125,6 +150,7 @@ def test_dev_mode(flags: list[str]) -> None:
         dev_package_input.type = "shrubbery"
 
         request = mock.Mock()
+        request.source_dir = RootedPath(tmp_path)
         request.flags = flags
         request.packages = [dev_package_input]
 
@@ -138,7 +164,7 @@ def test_dev_mode(flags: list[str]) -> None:
                 resolver.resolve_packages(request)
 
 
-def test_resolve_with_released_and_dev_package_managers() -> None:
+def test_resolve_with_released_and_dev_package_managers(tmp_path: Path) -> None:
     mock_resolve_gomod = mock.Mock(return_value=RequestOutput.empty())
     mock_resolve_pip = mock.Mock(return_value=RequestOutput.empty())
 
@@ -161,6 +187,7 @@ def test_resolve_with_released_and_dev_package_managers() -> None:
         released_package_input.type = "gomod"
 
         request = mock.Mock()
+        request.source_dir = RootedPath(tmp_path)
         request.flags = ["dev-package-managers"]
         request.packages = [released_package_input, dev_package_input]
 

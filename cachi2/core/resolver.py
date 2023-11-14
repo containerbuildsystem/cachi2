@@ -1,10 +1,14 @@
 from collections.abc import Iterable
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from typing import Callable
 
 from cachi2.core.errors import UnsupportedFeature
 from cachi2.core.models.input import PackageManagerType, Request
 from cachi2.core.models.output import RequestOutput
 from cachi2.core.package_managers import gomod, npm, pip, yarn
+from cachi2.core.rooted_path import RootedPath
+from cachi2.core.utils import copy_directory
 
 Handler = Callable[[Request], RequestOutput]
 
@@ -23,6 +27,25 @@ supported_package_managers = list(_package_managers)
 
 
 def resolve_packages(request: Request) -> RequestOutput:
+    """
+    Resolve all packages specified in a request.
+
+    This function performs the operations in a working copy of the source directory to avoid
+    modifications.
+    """
+    original_source_dir = request.source_dir
+
+    with TemporaryDirectory(".cachi2-source-copy", dir=".") as temp_dir:
+        source_backup = copy_directory(original_source_dir.path, Path(temp_dir).resolve())
+
+        request.source_dir = RootedPath(source_backup)
+        output = _resolve_packages(request)
+        request.source_dir = original_source_dir
+
+        return output
+
+
+def _resolve_packages(request: Request) -> RequestOutput:
     """Run all requested package managers, return their combined output."""
     _supported_package_managers = _package_managers
     requested_types = set(pkg.type for pkg in request.packages)
