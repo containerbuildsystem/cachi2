@@ -582,7 +582,40 @@ def _resolve_gomod(
         # Make Go ignore the vendor dir even if there is one
         go_list.extend(["-mod", "readonly"])
 
-    main_module_name = _run_gomod_cmd([*go_list, "-m"], run_params).rstrip()
+    go_list_modules = _run_gomod_cmd([*go_list, "-m", "-json"], run_params).rstrip()
+    module_list = list(load_json_stream(go_list_modules))
+    raw_main_module = module_list.pop(0)
+    main_module_name = raw_main_module["Path"]
+
+    workspace_modules = []
+
+    # TODO: make sure we don't check outside of rooted path
+    def get_relative_path(path1: Path, path2: Path) -> str:
+        current_folder = path1.parent
+        depth = 1
+        while current_folder != Path("/"):
+            if relative_path := path2.relative_to(current_folder):
+                dots = "/".join([".." for _ in range(depth)])
+
+                return f"{dots}/{relative_path}"
+
+            current_folder = current_folder.parent
+
+        raise Exception("Paths are not relative")
+
+    if len(module_list) > 0:
+
+        for module in module_list:
+            workspace_modules.append(
+                ParsedModule(
+                    path=module["Path"],
+                    version=version_resolver.get_golang_version(main_module_name, app_dir),
+                    replace=ParsedModule(
+                        path=get_relative_path(Path(raw_main_module["Dir"]), Path(module["Dir"]))
+                    ),
+                )
+            )
+
     main_module = ParsedModule(
         path=main_module_name,
         version=version_resolver.get_golang_version(main_module_name, app_dir),
@@ -600,10 +633,10 @@ def _resolve_gomod(
         cmd = [*go_list, "-deps", "-json=ImportPath,Module,Standard,Deps", pattern]
         return map(ParsedPackage.model_validate, load_json_stream(_run_gomod_cmd(cmd, run_params)))
 
-    package_modules = (
+    package_modules = [
         module for pkg in go_list_deps("all") if (module := pkg.module) and not module.main
-    )
-
+    ]
+    package_modules.extend(workspace_modules)
     all_modules = _deduplicate_resolved_modules(package_modules, downloaded_modules)
 
     log.info("Retrieving the list of packages")
