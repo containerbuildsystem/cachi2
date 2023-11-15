@@ -1,6 +1,8 @@
+import itertools
 import re
 from enum import Enum
 from itertools import zip_longest
+from pathlib import Path
 from typing import List, Optional, Union
 from unittest import mock
 
@@ -8,16 +10,37 @@ import pytest
 import semver
 
 from cachi2.core.errors import PackageRejected, UnexpectedFormat, YarnCommandError
-from cachi2.core.models.output import EnvironmentVariable
+from cachi2.core.models.input import Request
+from cachi2.core.models.output import BuildConfig, Component, EnvironmentVariable, RequestOutput
 from cachi2.core.package_managers.yarn.main import (
     _configure_yarn_version,
     _fetch_dependencies,
     _generate_environment_variables,
     _resolve_yarn_project,
     _set_yarnrc_configuration,
+    fetch_yarn_source,
 )
 from cachi2.core.package_managers.yarn.project import YarnRc
 from cachi2.core.rooted_path import RootedPath
+
+
+@pytest.fixture
+def yarn_input_packages(request: pytest.FixtureRequest) -> list[dict[str, str]]:
+    return request.param
+
+
+@pytest.fixture
+def yarn_request(tmp_path: Path, yarn_input_packages: list[dict[str, str]]) -> Request:
+    # Create folder in the specified path, otherwise Request validation would fail
+    for package in yarn_input_packages:
+        if "path" in package:
+            (tmp_path / package["path"]).mkdir(exist_ok=True)
+
+    return Request(
+        source_dir=tmp_path,
+        output_dir=tmp_path / "output",
+        packages=yarn_input_packages,
+    )
 
 
 @pytest.fixture()
@@ -229,3 +252,91 @@ def test_set_yarnrc_configuration(mock_write: mock.Mock) -> None:
 def test_generate_environment_variables(yarn_env_variables: list[EnvironmentVariable]) -> None:
     result = _generate_environment_variables()
     assert result == yarn_env_variables
+
+
+@pytest.mark.parametrize(
+    "yarn_input_packages, package_components",
+    (
+        pytest.param(
+            [{"type": "yarn", "path": "."}],
+            [
+                [
+                    Component(
+                        name="foo",
+                        purl="pkg:npm/foo@1.0.0",
+                        version="1.0.0",
+                    ),
+                    Component(
+                        name="bar",
+                        purl="pkg:npm/bar@2.0.0",
+                        version="2.0.0",
+                    ),
+                ],
+            ],
+            id="single_input_package",
+        ),
+        pytest.param(
+            [{"type": "yarn", "path": "."}, {"type": "yarn", "path": "./path"}],
+            [
+                [
+                    Component(
+                        name="foo",
+                        purl="pkg:npm/foo@1.0.0",
+                        version="1.0.0",
+                    ),
+                ],
+                [
+                    Component(
+                        name="bar",
+                        purl="pkg:npm/bar@2.0.0",
+                        version="2.0.0",
+                    ),
+                    Component(
+                        name="baz",
+                        purl="pkg:npm/baz@3.0.0",
+                        version="3.0.0",
+                    ),
+                ],
+            ],
+            id="multiple_input_packages",
+        ),
+    ),
+    indirect=["yarn_input_packages"],
+)
+@mock.patch("cachi2.core.package_managers.yarn.main._resolve_yarn_project")
+@mock.patch("cachi2.core.package_managers.yarn.project.Project.from_source_dir")
+def test_fetch_yarn_source(
+    mock_project_from_source_dir: mock.Mock,
+    mock_resolve_yarn: mock.Mock,
+    package_components: list[Component],
+    yarn_request: Request,
+    yarn_env_variables: list[EnvironmentVariable],
+) -> None:
+    mock_project = [mock.Mock() for _ in yarn_request.packages]
+    mock_project_from_source_dir.side_effect = mock_project
+    mock_resolve_yarn.side_effect = package_components
+
+    output = fetch_yarn_source(yarn_request)
+
+    calls = [
+        mock.call(
+            yarn_request.source_dir.join_within_root(package.path),
+        )
+        for package in yarn_request.packages
+    ]
+    mock_project_from_source_dir.assert_has_calls(calls)
+
+    calls = [
+        mock.call(
+            project,
+            yarn_request.output_dir,
+        )
+        for project in mock_project
+    ]
+    mock_resolve_yarn.assert_has_calls(calls)
+
+    expected_output = RequestOutput(
+        components=list(itertools.chain.from_iterable(package_components)),
+        build_config=BuildConfig(environment_variables=yarn_env_variables),
+    )
+    assert output == expected_output
