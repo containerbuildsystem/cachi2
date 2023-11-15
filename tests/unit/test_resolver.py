@@ -100,21 +100,37 @@ def test_resolve_packages(tmp_path: Path) -> None:
     assert calls_by_pkgtype == ["gomod", "npm", "pip"]
 
 
+@pytest.mark.parametrize(
+    "packages, copy_exists",
+    [
+        ([{"type": "yarn"}], True),
+        ([{"type": "gomod"}, {"type": "pip"}, {"type": "npm"}], False),
+    ],
+)
 @mock.patch("cachi2.core.resolver._resolve_packages")
-def test_source_dir_copy(mock_resolve_packages: mock.Mock, tmp_path: Path) -> None:
+def test_source_dir_copy(
+    mock_resolve_packages: mock.Mock,
+    packages: list[dict[str, str]],
+    copy_exists: bool,
+    tmp_path: Path,
+) -> None:
     request = Request(
         source_dir=tmp_path,
         output_dir=tmp_path,
-        packages=[{"type": "yarn"}],
+        packages=packages,
     )
 
     def _resolve_packages(request: Request) -> None:
-        tmp_dir_name = request.source_dir.path.name
+        if copy_exists:
+            tmp_dir_name = request.source_dir.path.name
 
-        # assert a temporary directory is being used
-        assert tmp_dir_name != tmp_path.name
-        assert tmp_dir_name.startswith("tmp")
-        assert tmp_dir_name.endswith(".cachi2-source-copy")
+            # assert a temporary directory is being used
+            assert tmp_dir_name != tmp_path.name
+            assert tmp_dir_name.startswith("tmp")
+            assert tmp_dir_name.endswith(".cachi2-source-copy")
+        else:
+            # assert the original source_dir is being used
+            assert request.source_dir == RootedPath(tmp_path)
 
     mock_resolve_packages.side_effect = _resolve_packages
 
