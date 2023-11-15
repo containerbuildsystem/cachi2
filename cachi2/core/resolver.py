@@ -30,19 +30,22 @@ def resolve_packages(request: Request) -> RequestOutput:
     """
     Resolve all packages specified in a request.
 
-    This function performs the operations in a working copy of the source directory to avoid
-    modifications.
+    This function performs the operations in a working copy of the source directory in case
+    a package manager that can make unwanted modifications will be used.
     """
-    original_source_dir = request.source_dir
+    if not request.yarn_packages:
+        return _resolve_packages(request)
+    else:
+        original_source_dir = request.source_dir
 
-    with TemporaryDirectory(".cachi2-source-copy", dir=".") as temp_dir:
-        source_backup = copy_directory(original_source_dir.path, Path(temp_dir).resolve())
+        with TemporaryDirectory(".cachi2-source-copy", dir=".") as temp_dir:
+            source_backup = copy_directory(original_source_dir.path, Path(temp_dir).resolve())
 
-        request.source_dir = RootedPath(source_backup)
-        output = _resolve_packages(request)
-        request.source_dir = original_source_dir
+            request.source_dir = RootedPath(source_backup)
+            output = _resolve_packages(request)
+            request.source_dir = original_source_dir
 
-        return output
+            return output
 
 
 def _resolve_packages(request: Request) -> RequestOutput:
