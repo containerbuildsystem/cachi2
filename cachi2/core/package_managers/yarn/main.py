@@ -35,6 +35,7 @@ def _resolve_yarn_project(project: Project, output_dir: RootedPath) -> list[Comp
 
     :param project: the directory to be processed.
     :param output_dir: the directory where the prefetched dependencies will be placed.
+    :raises YarnCommandError: if fetching dependencies fails
     """
     log.info(f"Fetching the yarn dependencies at the subpath {output_dir.subpath_from_root}")
 
@@ -53,7 +54,7 @@ def _resolve_yarn_project(project: Project, output_dir: RootedPath) -> list[Comp
     try:
         _set_yarnrc_configuration(project, output_dir)
         packages = resolve_packages(project.source_dir)
-        _fetch_dependencies(project.source_dir, output_dir)
+        _fetch_dependencies(project.source_dir)
     finally:
         _undo_changes(project)
 
@@ -142,17 +143,13 @@ def _check_yarn_cache(source_dir: RootedPath) -> None:
     pass
 
 
-def _fetch_dependencies(source_dir: RootedPath, output_dir: RootedPath) -> None:
+def _fetch_dependencies(source_dir: RootedPath) -> None:
     """Fetch dependencies using 'yarn install'.
 
     :param source_dir: the directory in which the yarn command will be called.
-    :param output_dir: the directory where the yarn dependencies will be downloaded to.
     :raises YarnCommandError: if the 'yarn install' command fails.
     """
-    cachi2_output = output_dir.join_within_root("deps", "yarn")
-
-    args = ["install", "--mode", "skip-build"]
-    run_yarn_cmd(args, source_dir, {"YARN_GLOBAL_FOLDER": str(cachi2_output)})
+    run_yarn_cmd(["install", "--mode", "skip-build"], source_dir)
 
 
 def _undo_changes(project: Project) -> None:
