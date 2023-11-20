@@ -212,7 +212,7 @@ def test_set_yarnrc_configuration(mock_write: mock.Mock) -> None:
         "enableScripts": False,
         "enableStrictSsl": True,
         "enableTelemetry": False,
-        "globalFolder": "/tmp/output",
+        "globalFolder": "/tmp/output/deps/yarn",
         "ignorePath": True,
         "unsafeHttpWhitelist": [],
         "pnpMode": "strict",
