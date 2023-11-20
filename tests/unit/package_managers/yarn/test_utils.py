@@ -1,10 +1,11 @@
 import os
+from subprocess import CalledProcessError
 from typing import Optional
 from unittest import mock
 
 import pytest
 
-from cachi2.core.package_managers.yarn.utils import run_yarn_cmd
+from cachi2.core.package_managers.yarn.utils import YarnCommandError, run_yarn_cmd
 from cachi2.core.rooted_path import RootedPath
 
 
@@ -30,3 +31,15 @@ def test_run_yarn_cmd(
     mock_run_cmd.assert_called_once_with(
         cmd=["yarn", "info", "--json"], params={"cwd": rooted_tmp_path, "env": expect_env}
     )
+
+
+@mock.patch("cachi2.core.package_managers.yarn.utils.run_cmd")
+def test_run_yarn_cmd_fail(
+    mock_run_cmd: mock.Mock,
+    rooted_tmp_path: RootedPath,
+) -> None:
+    cmd = ["foo", "bar"]
+    mock_run_cmd.side_effect = CalledProcessError(1, cmd=cmd)
+
+    with pytest.raises(YarnCommandError, match=f"Yarn command failed: {' '.join(cmd)}"):
+        run_yarn_cmd(cmd, rooted_tmp_path)
