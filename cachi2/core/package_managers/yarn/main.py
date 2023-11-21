@@ -126,7 +126,7 @@ def _set_yarnrc_configuration(project: Project, output_dir: RootedPath) -> None:
     yarn_rc.enable_telemetry = False
     yarn_rc.ignore_path = True
     yarn_rc.unsafe_http_whitelist = []
-    yarn_rc.enable_mirror = True
+    yarn_rc.enable_mirror = False
     yarn_rc.enable_scripts = False
     yarn_rc.enable_global_cache = True
     yarn_rc.global_folder = str(output_dir.join_within_root("deps", "yarn"))
