@@ -20,6 +20,7 @@ from cachi2.core.rooted_path import PathOutsideRoot, RootedPath
 VALID_YARNRC_FILE = """
 cacheFolder: ./.custom/cache
 checksumBehavior: ignore
+enableGlobalCache: true
 enableImmutableCache: true
 enableImmutableInstalls: true
 enableInlineBuilds: true
@@ -82,6 +83,7 @@ def test_parse_yarnrc(rooted_tmp_path: RootedPath) -> None:
 
     assert yarn_rc.cache_folder == "./.custom/cache"
     assert yarn_rc.checksum_behavior == "ignore"
+    assert yarn_rc.enable_global_cache is True
     assert yarn_rc.enable_immutable_cache is True
     assert yarn_rc.enable_immutable_installs is True
     assert yarn_rc.enable_mirror is False
@@ -104,6 +106,7 @@ def test_parse_empty_yarnrc(rooted_tmp_path: RootedPath) -> None:
 
     assert yarn_rc.cache_folder == "./.yarn/cache"
     assert yarn_rc.checksum_behavior is None
+    assert yarn_rc.enable_global_cache is None
     assert yarn_rc.enable_immutable_cache is None
     assert yarn_rc.enable_immutable_installs is None
     assert yarn_rc.enable_mirror is None

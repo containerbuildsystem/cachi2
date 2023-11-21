@@ -128,6 +128,7 @@ def _set_yarnrc_configuration(project: Project, output_dir: RootedPath) -> None:
     yarn_rc.unsafe_http_whitelist = []
     yarn_rc.enable_mirror = True
     yarn_rc.enable_scripts = False
+    yarn_rc.enable_global_cache = True
     yarn_rc.global_folder = str(output_dir.join_within_root("deps", "yarn"))
 
     yarn_rc.write()

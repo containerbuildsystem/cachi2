@@ -233,6 +233,7 @@ def test_set_yarnrc_configuration(mock_write: mock.Mock) -> None:
 
     expected_data = {
         "checksumBehavior": "throw",
+        "enableGlobalCache": True,
         "enableImmutableInstalls": True,
         "enableMirror": True,
         "enableScripts": False,
