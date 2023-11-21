@@ -194,6 +194,15 @@ class YarnRc:
         """Path to the yarn script present in this directory."""
         return self._data.get("yarnPath")
 
+    @property
+    def enable_global_cache(self) -> Optional[bool]:
+        """Get the enableGlobalCache configuration."""
+        return self._data.get("enableGlobalCache", None)
+
+    @enable_global_cache.setter
+    def enable_global_cache(self, enable_global_cache: Optional[bool]) -> None:
+        self._data["enableGlobalCache"] = enable_global_cache
+
     def registry_server_for_scope(self, scope: str) -> str:
         """Get the configured registry server for a scoped package.
 
