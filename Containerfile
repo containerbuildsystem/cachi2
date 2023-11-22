@@ -1,20 +1,20 @@
-FROM registry.fedoraproject.org/fedora-minimal:39
+FROM docker.io/library/rockylinux:9@sha256:d7be1c094cc5845ee815d4632fe377514ee6ebcf8efaed6892889657e5ddaaa6
 LABEL maintainer="Red Hat"
 
 WORKDIR /src
-RUN microdnf -y install \
+RUN dnf -y install \
     --setopt install_weak_deps=0 \
     --nodocs \
     gcc \
     git-core \
     golang-bin \
     nodejs \
-    nodejs-npm \
+    npm \
     python3 \
     python3-devel \
     python3-pip \
     python3-setuptools \
-    && microdnf clean all
+    && dnf clean all
 
 COPY . .
 
@@ -27,7 +27,7 @@ WORKDIR /src/js-deps
 RUN npm install && \
     ln -s "${PWD}/node_modules/.bin/corepack" /usr/local/bin/corepack && \
     corepack enable yarn && \
-    microdnf -y remove nodejs-npm
+    dnf -y remove npm
 
 # Manual install of specific fixed Go SDK versions (1.20 & 1.21.0):
 #   - install Go's official shim
