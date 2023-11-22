@@ -1,4 +1,5 @@
-FROM registry.fedoraproject.org/fedora-minimal:39
+# hadolint global ignore=DL3007
+FROM registry.access.redhat.com/ubi9/ubi-minimal:latest
 LABEL maintainer="Red Hat"
 
 WORKDIR /src
@@ -9,7 +10,7 @@ RUN microdnf -y install \
     git-core \
     golang-bin \
     nodejs \
-    nodejs-npm \
+    npm \
     python3 \
     python3-devel \
     python3-pip \
@@ -27,7 +28,7 @@ WORKDIR /src/js-deps
 RUN npm install && \
     ln -s "${PWD}/node_modules/.bin/corepack" /usr/local/bin/corepack && \
     corepack enable yarn && \
-    microdnf -y remove nodejs-npm
+    microdnf -y remove npm
 
 # Manual install of specific fixed Go SDK versions (1.20 & 1.21.0):
 #   - install Go's official shim

@@ -178,6 +178,28 @@
       "type": "library"
     },
     {
+      "name": "crypto/internal/backend/bbig",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:golang/crypto/internal/backend/bbig?type=package",
+      "type": "library"
+    },
+    {
+      "name": "crypto/internal/backend",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:golang/crypto/internal/backend?type=package",
+      "type": "library"
+    },
+    {
       "name": "crypto/internal/bigmod",
       "properties": [
         {
@@ -189,36 +211,25 @@
       "type": "library"
     },
     {
-      "name": "crypto/internal/boring/bbig",
+      "name": "crypto/internal/boring/bcache",
       "properties": [
         {
           "name": "cachi2:found_by",
           "value": "cachi2"
         }
       ],
-      "purl": "pkg:golang/crypto/internal/boring/bbig?type=package",
+      "purl": "pkg:golang/crypto/internal/boring/bcache?type=package",
       "type": "library"
     },
     {
-      "name": "crypto/internal/boring/sig",
+      "name": "crypto/internal/boring/fipstls",
       "properties": [
         {
           "name": "cachi2:found_by",
           "value": "cachi2"
         }
       ],
-      "purl": "pkg:golang/crypto/internal/boring/sig?type=package",
-      "type": "library"
-    },
-    {
-      "name": "crypto/internal/boring",
-      "properties": [
-        {
-          "name": "cachi2:found_by",
-          "value": "cachi2"
-        }
-      ],
-      "purl": "pkg:golang/crypto/internal/boring?type=package",
+      "purl": "pkg:golang/crypto/internal/boring/fipstls?type=package",
       "type": "library"
     },
     {
@@ -1643,6 +1654,17 @@
         }
       ],
       "purl": "pkg:golang/unsafe?type=package",
+      "type": "library"
+    },
+    {
+      "name": "vendor/github.com/golang-fips/openssl-fips/openssl",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:golang/vendor/github.com/golang-fips/openssl-fips/openssl?type=package",
       "type": "library"
     },
     {
