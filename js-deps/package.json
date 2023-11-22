@@ -9,6 +9,6 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "corepack": "^0.26.0"
+    "corepack": "^0.20.0"
   }
 }
