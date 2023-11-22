@@ -323,8 +323,11 @@ def mock_project(project_dir: RootedPath) -> Project:
                 ),
                 is_hardlink=True,
             ),
-            # TODO: test purls once they are implemented
-            Component(name="@isaacs/cliui", version="8.0.2", purl=""),
+            Component(
+                name="@isaacs/cliui",
+                version="8.0.2",
+                purl=f"pkg:npm/{quote('@isaacs')}/cliui@8.0.2",
+            ),
             [],
             id="scoped_npm_package",
         ),
@@ -339,7 +342,11 @@ def mock_project(project_dir: RootedPath) -> Project:
                 ),
                 is_hardlink=True,
             ),
-            Component(name="abbrev", version="1.1.1", purl=""),
+            Component(
+                name="abbrev",
+                version="1.1.1",
+                purl="pkg:npm/abbrev@1.1.1",
+            ),
             [],
             id="unscoped_npm_package",
         ),
@@ -356,7 +363,11 @@ def mock_project(project_dir: RootedPath) -> Project:
                 packjson_path="book/armaments/package.json",
                 packjson_content=json.dumps({"name": "armaments", "version": "42.0.0"}),
             ),
-            Component(name="armaments", version="42.0.0", purl=""),
+            Component(
+                name="armaments",
+                version="42.0.0",
+                purl=f"pkg:npm/armaments@42.0.0?vcs_url={MOCK_REPO_VCS_URL}#book/armaments",
+            ),
             [
                 "armaments@workspace:./book/armaments: reading package version from book/armaments/package.json"
             ],
@@ -378,7 +389,11 @@ def mock_project(project_dir: RootedPath) -> Project:
                     {"name": "@antioch/holy-hand-grenade", "version": "1.2.5-threesir"}
                 ),
             ),
-            Component(name="@antioch/holy-hand-grenade", version="1.2.5-threesir", purl=""),
+            Component(
+                name="@antioch/holy-hand-grenade",
+                version="1.2.5-threesir",
+                purl=f"pkg:npm/{quote('@antioch')}/holy-hand-grenade@1.2.5-threesir?vcs_url={MOCK_REPO_VCS_URL}#book/armaments/holy-hand-grenade",
+            ),
             [
                 (
                     "antioch@portal:holy-hand-grenade::locator=armaments%40workspace%3A./book/armaments: "
@@ -403,7 +418,11 @@ def mock_project(project_dir: RootedPath) -> Project:
                     {"name": "@antioch/holy-hand-grenade", "version": "1.2.5-threesir"}
                 ),
             ),
-            Component(name="@antioch/holy-hand-grenade", version="1.2.5-threesir", purl=""),
+            Component(
+                name="@antioch/holy-hand-grenade",
+                version="1.2.5-threesir",
+                purl=f"pkg:npm/{quote('@antioch')}/holy-hand-grenade@1.2.5-threesir?vcs_url={MOCK_REPO_VCS_URL}#book/armaments/holy-hand-grenade",
+            ),
             [
                 (
                     "antioch@link:holy-hand-grenade::locator=armaments%40workspace%3A./book/armaments: "
@@ -423,7 +442,11 @@ def mock_project(project_dir: RootedPath) -> Project:
                 ),
                 is_hardlink=False,
             ),
-            Component(name="antioch", version=None, purl=""),
+            Component(
+                name="antioch",
+                version=None,
+                purl=f"pkg:npm/antioch?vcs_url={MOCK_REPO_VCS_URL}#book/armaments/holy-hand-grenade",
+            ),
             [],
             id="link_package",
         ),
@@ -443,7 +466,11 @@ def mock_project(project_dir: RootedPath) -> Project:
                 packjson_path="node_modules/strip-ansi-tarball/package.json",
                 packjson_content=json.dumps({"name": "strip-ansi"}),
             ),
-            Component(name="strip-ansi", version="4.0.0", purl=""),
+            Component(
+                name="strip-ansi",
+                version="4.0.0",
+                purl=f"pkg:npm/strip-ansi@4.0.0?vcs_url={MOCK_REPO_VCS_URL}#external-packages/strip-ansi-4.0.0.tgz",
+            ),
             [
                 (
                     "strip-ansi-tarball@file:external-packages/strip-ansi-4.0.0.tgz::locator=berryscary%40workspace%3A.: "
@@ -451,6 +478,33 @@ def mock_project(project_dir: RootedPath) -> Project:
                 ),
             ],
             id="file_package",
+        ),
+        # File package in parent directory
+        # `purl` should be the same as above since the subpath is normalized
+        pytest.param(
+            MockedPackage(
+                Package(
+                    raw_locator="strip-ansi-tarball@file:../../external-packages/strip-ansi-4.0.0.tgz::locator=the-answer%40workspace%3Apackages%2Fthe-answer",
+                    version="4.0.0",
+                    checksum="d67629c87783bc1138a64f6495439b40f568424a05e068c341b4fc330745e8ba6e7f93536549883054c1da58761f0ce6ab039a233014b38240304d3c45f85ac6",
+                    cache_path="cache/directory/strip-ansi-tarball-file-489a50cded-d67629c877.zip",
+                ),
+                is_hardlink=True,
+                packjson_path="node_modules/strip-ansi-tarball/package.json",
+                packjson_content=json.dumps({"name": "strip-ansi"}),
+            ),
+            Component(
+                name="strip-ansi",
+                version="4.0.0",
+                purl=f"pkg:npm/strip-ansi@4.0.0?vcs_url={MOCK_REPO_VCS_URL}#external-packages/strip-ansi-4.0.0.tgz",
+            ),
+            [
+                (
+                    "strip-ansi-tarball@file:../../external-packages/strip-ansi-4.0.0.tgz::locator=the-answer%40workspace%3Apackages%2Fthe-answer: "
+                    "reading package name from cache/directory/strip-ansi-tarball-file-489a50cded-d67629c877.zip"
+                ),
+            ],
+            id="file_package_parent_dir",
         ),
         # Https package
         pytest.param(
@@ -465,7 +519,15 @@ def mock_project(project_dir: RootedPath) -> Project:
                 packjson_path="node_modules/@cachito/c2-wo-deps-2/package.json",
                 packjson_content=json.dumps({"name": "bitbucket-cachi2-npm-without-deps-second"}),
             ),
-            Component(name="bitbucket-cachi2-npm-without-deps-second", version="2.0.0", purl=""),
+            Component(
+                name="bitbucket-cachi2-npm-without-deps-second",
+                version="2.0.0",
+                purl=(
+                    "pkg:npm/bitbucket-cachi2-npm-without-deps-second@2.0.0"
+                    "?checksum=sha512:b194fd1f4a79472a332fec936818d1713a222157e845a8d466a239fdc950130a7ad9b77c212d69d2947c07bce0c911446496ff47dec5a73b4368f0a9c9432b1d"
+                    "&download_url=https://bitbucket.org/cachi-testing/cachi2-without-deps-second/get/09992d418fc44a2895b7a9ff27c4e32d6f74a982.tar.gz"
+                ),
+            ),
             [
                 (
                     "@cachito/c2-wo-deps-2@https://bitbucket.org/cachi-testing/cachi2-without-deps-second/get/09992d418fc44a2895b7a9ff27c4e32d6f74a982.tar.gz: "
@@ -499,10 +561,7 @@ def test_create_components_single_package(
     components = create_components([mocked_package.package], mock_project(project_dir), output_dir)
 
     assert len(components) == 1
-    # TODO: just assert that components[0] == expect_component once purls are implemented
-    assert components[0].name == expect_component.name
-    assert components[0].version == expect_component.version
-
+    assert components[0] == expect_component
     assert caplog.messages == expect_logs
 
 
@@ -554,15 +613,19 @@ def test_create_components_patched_packages(
     )
 
     expect_components = [
-        Component(name="@patch1/fsevents", version="2.3.2", purl=""),
-        Component(name="@patch1/fsevents", version="2.3.2-patch2", purl=""),
+        Component(
+            name="@patch1/fsevents",
+            version="2.3.2",
+            purl=f"pkg:npm/{quote('@patch1')}/fsevents@2.3.2",
+        ),
+        Component(
+            name="@patch1/fsevents",
+            version="2.3.2-patch2",
+            purl=f"pkg:npm/{quote('@patch1')}/fsevents@2.3.2-patch2",
+        ),
     ]
 
-    # TODO: just assert that components == expect_components once purls are implemented
-    assert len(components) == len(expect_components)
-    for component, expect_component in zip(components, expect_components):
-        assert component.name == expect_component.name
-        assert component.version == expect_component.version
+    assert components == expect_components
 
     patch_locator = "fsevents@patch:fsevents@npm%3A2.3.2#./my-patches/fsevents.patch::version=2.3.2&hash=cf0bf0&locator=berryscary%40workspace%3A."
     patchpatch_locator = "fsevents@patch:fsevents@patch%3Afsevents@npm%253A2.3.2%23./my-patches/fsevents.patch%3A%3Aversion=2.3.2&hash=cf0bf0&locator=berryscary%2540workspace%253A.#~builtin<compat/fsevents>::version=2.3.2&hash=df0bf1"
