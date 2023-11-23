@@ -18,7 +18,7 @@ RUN microdnf -y install \
 COPY . .
 
 RUN pip3 install -r requirements.txt --no-deps --no-cache-dir --require-hashes && \
-    pip3 install --no-cache-dir -e . && \
+    pip3 install --no-cache-dir . && \
     # the git folder is only needed to determine the package version
     rm -rf .git
 
