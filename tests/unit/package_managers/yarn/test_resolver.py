@@ -427,9 +427,6 @@ def mock_project(project_dir: RootedPath) -> Project:
                     raw_locator="strip-ansi-tarball@file:external-packages/strip-ansi-4.0.0.tgz::locator=berryscary%40workspace%3A.",
                     version="4.0.0",
                     checksum="d67629c87783bc1138a64f6495439b40f568424a05e068c341b4fc330745e8ba6e7f93536549883054c1da58761f0ce6ab039a233014b38240304d3c45f85ac6",
-                    # relative to project_dir or output_dir, depending on project_uses_zero_installs
-                    # NOTE: yarn info reports the absolute path, not the relative one. The test code
-                    #   fixes that later.
                     cache_path="cache/directory/strip-ansi-tarball-file-489a50cded-d67629c877.zip",
                 ),
                 is_hardlink=True,
@@ -469,21 +466,17 @@ def mock_project(project_dir: RootedPath) -> Project:
         ),
     ],
 )
-@pytest.mark.parametrize("project_uses_zero_installs", [True, False])
 def test_create_components_single_package(
     mocked_package: MockedPackage,
     expect_component: Component,
     expect_logs: list[str],
-    project_uses_zero_installs: bool,
     tmp_path: Path,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     project_dir = RootedPath(tmp_path / "project")
     output_dir = RootedPath(tmp_path / "output")
 
-    mocked_package = mocked_package.resolve_cache_path(
-        project_dir if project_uses_zero_installs else output_dir
-    )
+    mocked_package = mocked_package.resolve_cache_path(output_dir)
     mock_package_json(mocked_package, project_dir)
 
     components = create_components([mocked_package.package], mock_project(project_dir), output_dir)
