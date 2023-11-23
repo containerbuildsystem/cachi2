@@ -6,8 +6,8 @@ RUN microdnf -y install \
     --setopt install_weak_deps=0 \
     --nodocs \
     gcc \
-    golang \
     git-core \
+    golang-bin \
     nodejs \
     nodejs-npm \
     python3 \
