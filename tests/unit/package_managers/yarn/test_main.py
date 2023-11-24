@@ -161,19 +161,12 @@ def test_yarn_unsupported_version_fail(
 
 @mock.patch("cachi2.core.package_managers.yarn.main.run_yarn_cmd")
 def test_fetch_dependencies(mock_yarn_cmd: mock.Mock, rooted_tmp_path: RootedPath) -> None:
-    source_dir = rooted_tmp_path
-
     mock_yarn_cmd.side_effect = YarnCommandError("berryscary")
 
-    with pytest.raises(YarnCommandError) as exc_info:
-        _fetch_dependencies(source_dir)
+    with pytest.raises(YarnCommandError):
+        _fetch_dependencies(rooted_tmp_path)
 
-    mock_yarn_cmd.assert_called_once_with(
-        ["install", "--mode", "skip-build"],
-        source_dir,
-    )
-
-    assert str(exc_info.value) == "berryscary"
+    mock_yarn_cmd.assert_called_once_with(["install", "--mode", "skip-build"], rooted_tmp_path)
 
 
 @mock.patch("cachi2.core.package_managers.yarn.main._configure_yarn_version")
