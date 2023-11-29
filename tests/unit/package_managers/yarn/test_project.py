@@ -49,6 +49,7 @@ unsafeHttpWhitelist:
   - example.org
   - foo.bar
 yarnPath: .custom/path/yarn-3.6.1.cjs
+virtualFolder: /custom/__virtual__
 """
 
 EMPTY_YML_FILE = ""
@@ -101,6 +102,7 @@ def test_parse_yarnrc(rooted_tmp_path: RootedPath) -> None:
     assert yarn_rc.registry_server_for_scope("barfoo") == "https://registry.alternative.com"
     assert yarn_rc.unsafe_http_whitelist == ["example.org", "foo.bar"]
     assert yarn_rc.yarn_path == ".custom/path/yarn-3.6.1.cjs"
+    assert yarn_rc.virtual_folder == "/custom/__virtual__"
 
 
 def test_parse_empty_yarnrc(rooted_tmp_path: RootedPath) -> None:
@@ -124,6 +126,7 @@ def test_parse_empty_yarnrc(rooted_tmp_path: RootedPath) -> None:
     assert yarn_rc.registry_server_for_scope("foobar") == "https://registry.yarnpkg.com"
     assert yarn_rc.unsafe_http_whitelist == []
     assert yarn_rc.yarn_path is None
+    assert yarn_rc.virtual_folder is None
 
 
 def test_parse_invalid_yarnrc(rooted_tmp_path: RootedPath) -> None:

@@ -191,6 +191,15 @@ class YarnRc:
         self._data["plugins"] = plugins
 
     @property
+    def virtual_folder(self) -> Optional[str]:
+        """Get the virtualFolder configuration."""
+        return self._data.get("virtualFolder", None)
+
+    @virtual_folder.setter
+    def virtual_folder(self, folder: Optional[str]) -> None:
+        self._data["virtualFolder"] = folder
+
+    @property
     def registry_server(self) -> str:
         """Get the globally configured registry server.
 
