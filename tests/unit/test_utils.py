@@ -1,7 +1,7 @@
 import shutil
 import subprocess
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Optional
 from unittest import mock
 
 import pytest
@@ -110,45 +110,27 @@ def test_copy_directory(
     )
 
 
-@mock.patch("shutil.copytree")
+@mock.patch("shutil.copy2")
+@mock.patch("reflink.reflink")
 @mock.patch("reflink.supported_at")
-def test_copy_directory_with_reflink_failure(
+def test_copy_directory_fallback_on_reflink_fail(
     mock_reflink_supported_at: mock.Mock,
-    mock_shutil_copytree: mock.Mock,
+    mock_reflink: mock.Mock,
+    mock_shutil_copy2: mock.Mock,
+    tmp_path: Path,
 ) -> None:
-    def raise_reflink_error(
-        origin: Path,
-        destination: Path,
-        copy_function: Callable,
-        dirs_exist_ok: bool,
-        symlinks: bool,
-    ) -> None:
-        raise reflink.ReflinkImpossibleError()
-
     mock_reflink_supported_at.return_value = True
-    mock_shutil_copytree.side_effect = raise_reflink_error
+    mock_reflink.side_effect = reflink.ReflinkImpossibleError
+    mock_shutil_copy2.return_value = None
 
-    origin = Path("/fake")
-    destination = Path("/phony")
+    # prepare dummy copy data
+    destination = tmp_path.joinpath("dst")
+    origin = tmp_path.joinpath("src")
+    origin.mkdir()
+    origin.joinpath("foo").touch()
 
-    with pytest.raises(reflink.ReflinkImpossibleError):
-        copy_directory(origin, destination)
+    copy_directory(origin, destination)
 
-    mock_shutil_copytree.assert_has_calls(
-        [
-            mock.call(
-                origin,
-                destination,
-                copy_function=reflink.reflink,
-                dirs_exist_ok=True,
-                symlinks=True,
-            ),
-            mock.call(
-                origin,
-                destination,
-                copy_function=shutil.copy2,
-                dirs_exist_ok=True,
-                symlinks=True,
-            ),
-        ]
-    )
+    # check we called both copy_functions (reflink, copy2)
+    mock_reflink.assert_called_once()
+    mock_shutil_copy2.assert_called_once()
