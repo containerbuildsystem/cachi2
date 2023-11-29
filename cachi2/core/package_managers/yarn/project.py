@@ -140,6 +140,15 @@ class YarnRc:
         self._data["pnpMode"] = mode
 
     @property
+    def pnp_unplugged_folder(self) -> Optional[str]:
+        """Get the PnP unplugged folder."""
+        return self._data.get("pnpUnpluggedFolder", None)
+
+    @pnp_unplugged_folder.setter
+    def pnp_unplugged_folder(self, folder: Optional[str]) -> None:
+        self._data["pnpUnpluggedFolder"] = folder
+
+    @property
     def ignore_path(self) -> Optional[bool]:
         """Get the ignorePath configuration."""
         return self._data.get("ignorePath", None)

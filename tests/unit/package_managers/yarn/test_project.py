@@ -36,6 +36,7 @@ npmScopes:
     foobar:
         npmRegistryServer: https://registry.foobar.com
 pnpMode: loose
+pnpUnpluggedFolder: /some/unplugged/folder
 plugins:
   - path: .yarn/plugins/@yarnpkg/plugin-typescript.cjs
     spec: "@yarnpkg/plugin-typescript"
@@ -94,6 +95,7 @@ def test_parse_yarnrc(rooted_tmp_path: RootedPath) -> None:
     assert yarn_rc.ignore_path is True
     assert yarn_rc.node_linker == "pnp"
     assert yarn_rc.pnp_mode == "loose"
+    assert yarn_rc.pnp_unplugged_folder == "/some/unplugged/folder"
     assert yarn_rc.registry_server == "https://registry.alternative.com"
     assert yarn_rc.registry_server_for_scope("foobar") == "https://registry.foobar.com"
     assert yarn_rc.registry_server_for_scope("barfoo") == "https://registry.alternative.com"
@@ -117,6 +119,7 @@ def test_parse_empty_yarnrc(rooted_tmp_path: RootedPath) -> None:
     assert yarn_rc.ignore_path is None
     assert yarn_rc.node_linker is None
     assert yarn_rc.pnp_mode is None
+    assert yarn_rc.pnp_unplugged_folder is None
     assert yarn_rc.registry_server == "https://registry.yarnpkg.com"
     assert yarn_rc.registry_server_for_scope("foobar") == "https://registry.yarnpkg.com"
     assert yarn_rc.unsafe_http_whitelist == []
