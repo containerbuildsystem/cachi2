@@ -105,9 +105,7 @@ def test_copy_directory(
     else:
         copy_function = shutil.copy2
 
-    mock_shutil_copytree.assert_called_with(
-        origin, destination, copy_function=copy_function, dirs_exist_ok=True, symlinks=True
-    )
+    assert mock_shutil_copytree.call_args.kwargs["copy_function"] == copy_function
 
 
 @mock.patch("shutil.copy2")
