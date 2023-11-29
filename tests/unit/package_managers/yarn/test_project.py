@@ -30,6 +30,7 @@ enableStrictSsl: false
 enableTelemetry: false
 globalFolder: /a/global/folder
 ignorePath: true
+installStatePath: /custom/install-state.gz
 nodeLinker: pnp
 npmRegistryServer: https://registry.alternative.com
 npmScopes:
@@ -96,6 +97,7 @@ def test_parse_yarnrc(rooted_tmp_path: RootedPath) -> None:
     assert yarn_rc.enable_telemetry is False
     assert yarn_rc.global_folder == "/a/global/folder"
     assert yarn_rc.ignore_path is True
+    assert yarn_rc.install_state_path == "/custom/install-state.gz"
     assert yarn_rc.node_linker == "pnp"
     assert yarn_rc.patch_folder == "/custom/patches"
     assert yarn_rc.pnp_data_path == "/custom/.pnp.data.json"
@@ -123,6 +125,7 @@ def test_parse_empty_yarnrc(rooted_tmp_path: RootedPath) -> None:
     assert yarn_rc.enable_telemetry is None
     assert yarn_rc.global_folder is None
     assert yarn_rc.ignore_path is None
+    assert yarn_rc.install_state_path is None
     assert yarn_rc.node_linker is None
     assert yarn_rc.patch_folder is None
     assert yarn_rc.pnp_data_path is None

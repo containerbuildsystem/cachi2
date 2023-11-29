@@ -131,6 +131,15 @@ class YarnRc:
         self._data["globalFolder"] = global_folder
 
     @property
+    def install_state_path(self) -> Optional[str]:
+        """Get the installStatePath configuration."""
+        return self._data.get("installStatePath", None)
+
+    @install_state_path.setter
+    def install_state_path(self, path: Optional[str]) -> None:
+        self._data["installStatePath"] = path
+
+    @property
     def patch_folder(self) -> Optional[str]:
         """Get the patch folder."""
         return self._data.get("patchFolder")
