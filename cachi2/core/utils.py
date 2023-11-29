@@ -91,7 +91,12 @@ def copy_directory(origin: Path, destination: Path) -> Path:
 
     def _copy_using(copy_function: Callable) -> None:
         shutil.copytree(
-            origin, destination, copy_function=copy_function, dirs_exist_ok=True, symlinks=True
+            origin,
+            destination,
+            copy_function=copy_function,
+            dirs_exist_ok=True,
+            symlinks=True,
+            ignore=shutil.ignore_patterns(destination.name),
         )
 
     if reflink.supported_at(origin):
