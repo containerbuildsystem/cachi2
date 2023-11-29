@@ -131,6 +131,15 @@ class YarnRc:
         self._data["globalFolder"] = global_folder
 
     @property
+    def pnp_data_path(self) -> Optional[str]:
+        """Get the pnpDataPath configuration."""
+        return self._data.get("pnpDataPath", None)
+
+    @pnp_data_path.setter
+    def pnp_data_path(self, path: Optional[str]) -> None:
+        self._data["pnpDataPath"] = path
+
+    @property
     def pnp_mode(self) -> Optional[PnpMode]:
         """Get the pnpMode configuration."""
         return self._data.get("pnpMode", None)
