@@ -35,6 +35,7 @@ npmRegistryServer: https://registry.alternative.com
 npmScopes:
     foobar:
         npmRegistryServer: https://registry.foobar.com
+patchFolder: /custom/patches
 pnpDataPath: /custom/.pnp.data.json
 pnpMode: loose
 pnpUnpluggedFolder: /some/unplugged/folder
@@ -96,6 +97,7 @@ def test_parse_yarnrc(rooted_tmp_path: RootedPath) -> None:
     assert yarn_rc.global_folder == "/a/global/folder"
     assert yarn_rc.ignore_path is True
     assert yarn_rc.node_linker == "pnp"
+    assert yarn_rc.patch_folder == "/custom/patches"
     assert yarn_rc.pnp_data_path == "/custom/.pnp.data.json"
     assert yarn_rc.pnp_mode == "loose"
     assert yarn_rc.pnp_unplugged_folder == "/some/unplugged/folder"
@@ -122,6 +124,7 @@ def test_parse_empty_yarnrc(rooted_tmp_path: RootedPath) -> None:
     assert yarn_rc.global_folder is None
     assert yarn_rc.ignore_path is None
     assert yarn_rc.node_linker is None
+    assert yarn_rc.patch_folder is None
     assert yarn_rc.pnp_data_path is None
     assert yarn_rc.pnp_mode is None
     assert yarn_rc.pnp_unplugged_folder is None

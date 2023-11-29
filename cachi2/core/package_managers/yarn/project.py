@@ -131,6 +131,15 @@ class YarnRc:
         self._data["globalFolder"] = global_folder
 
     @property
+    def patch_folder(self) -> Optional[str]:
+        """Get the patch folder."""
+        return self._data.get("patchFolder")
+
+    @patch_folder.setter
+    def patch_folder(self, folder: Optional[str]) -> None:
+        self._data["patchFolder"] = folder
+
+    @property
     def pnp_data_path(self) -> Optional[str]:
         """Get the pnpDataPath configuration."""
         return self._data.get("pnpDataPath", None)
