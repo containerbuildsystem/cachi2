@@ -197,11 +197,32 @@ class _ComponentResolver:
                 ),
             ) from e
 
+        purl = self._generate_purl_for_package(resolved_package, self._project)
+
         return Component(
             name=resolved_package.name,
             version=resolved_package.version,
-            purl=_generate_purl_for_package(resolved_package, self._project),
+            purl=purl,
         )
+
+    @staticmethod
+    def _generate_purl_for_package(package: _ResolvedPackage, project: Project) -> str:
+        """Create a purl for a package based on its protocol.
+
+        :param package: the resolved package to be used in the purl generation.
+        :param project: the project object to resolve the configured registry url and file paths
+            for file dependencies.
+        """
+        # registry url can be accessed in project.yarnrc
+        # paths for file dependencies are relative to project.source_dir
+        return PackageURL(
+            type="npm",
+            name=package.name.lower(),
+            version=package.version,
+            # TODO: used to make sure purls are unique even for an incomplete implementation
+            #   remove raw_locator when no longer needed
+            qualifiers={"raw_locator": package.raw_locator},
+        ).to_string()
 
     def _resolve_package(self, package: Package) -> _ResolvedPackage:
         """Resolve the real name and version of the package."""
@@ -335,22 +356,3 @@ class _ComponentResolver:
             return self._project_subpath(cache_path)
         else:
             return self._output_dir.join_within_root(cache_path)
-
-
-def _generate_purl_for_package(package: _ResolvedPackage, project: Project) -> str:
-    """Create a purl for a package based on its protocol.
-
-    :param package: the resolved package to be used in the purl generation.
-    :param project: the project object to resolve the configured registry url and file paths
-        for file dependencies.
-    """
-    # registry url can be accessed in project.yarnrc
-    # paths for file dependencies are relative to project.source_dir
-    return PackageURL(
-        type="npm",
-        name=package.name.lower(),
-        version=package.version,
-        # TODO: used to make sure purls are unique even for an incomplete implementation
-        #   remove raw_locator when no longer needed
-        qualifiers={"raw_locator": package.raw_locator},
-    ).to_string()
