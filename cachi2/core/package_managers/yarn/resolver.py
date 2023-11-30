@@ -31,6 +31,7 @@ from cachi2.core.package_managers.yarn.locators import (
 from cachi2.core.package_managers.yarn.project import Optional, Project
 from cachi2.core.package_managers.yarn.utils import run_yarn_cmd
 from cachi2.core.rooted_path import RootedPath
+from cachi2.core.scm import get_repo_id
 
 if TYPE_CHECKING:
     # Import conditionally so that we don't have to introduce a runtime dependency on
@@ -166,10 +167,7 @@ class _ResolvedPackage:
     locator: Locator
     name: str
     version: Optional[str]
-
-    # TODO: used to make sure purls are unique even for an incomplete implementation
-    #   remove raw_locator when no longer needed
-    raw_locator: str
+    checksum: Optional[str]
 
 
 class _CouldNotResolve(ValueError):
@@ -213,15 +211,54 @@ class _ComponentResolver:
         :param project: the project object to resolve the configured registry url and file paths
             for file dependencies.
         """
-        # registry url can be accessed in project.yarnrc
-        # paths for file dependencies are relative to project.source_dir
+        qualifiers = dict()
+        subpath = None
+
+        if isinstance(package.locator, NpmLocator):
+            # package with NpmLocator doesn't need any qualifiers
+            pass
+
+        elif isinstance(package.locator, HttpsLocator):
+            qualifiers["download_url"] = package.locator.url
+            if package.checksum is not None:
+                # yarn berry (hopefully still) uses sha512 for checksums
+                # https://github.com/yarnpkg/berry/blob/017b94ae4eb20dea14ac673a053a1f2974b778ff/packages/yarnpkg-core/sources/hashUtils.ts#L84
+                qualifiers["checksum"] = f"sha512:{package.checksum}"
+
+        elif isinstance(package.locator, WorkspaceLocator):
+            project_path = project.source_dir
+            workspace_path = package.locator.relpath
+
+            repo = get_repo_id(project_path)
+
+            qualifiers["vcs_url"] = repo.as_vcs_url_qualifier()
+            subpath = str(workspace_path)
+
+        elif isinstance(package.locator, (FileLocator, LinkLocator, PortalLocator)):
+            project_path = project.source_dir
+            workspace_path = package.locator.locator.relpath
+            package_path = package.locator.relpath
+
+            normalized = project_path.join_within_root(workspace_path, package_path)
+
+            repo = get_repo_id(project_path)
+            qualifiers["vcs_url"] = repo.as_vcs_url_qualifier()
+            subpath = str(normalized.subpath_from_root)
+
+        elif isinstance(package.locator, PatchLocator):
+            # ignore patch locators
+            # the actual dependency that is patched is reported separately
+            # the patch itself will be reported via SBOM pedigree patches
+            pass
+        else:
+            assert_never(package.locator)
+
         return PackageURL(
             type="npm",
             name=package.name.lower(),
             version=package.version,
-            # TODO: used to make sure purls are unique even for an incomplete implementation
-            #   remove raw_locator when no longer needed
-            qualifiers={"raw_locator": package.raw_locator},
+            qualifiers=qualifiers,
+            subpath=subpath,
         ).to_string()
 
     def _resolve_package(self, package: Package) -> _ResolvedPackage:
@@ -231,6 +268,7 @@ class _ComponentResolver:
             log.log(level, f"%s: {msg}", package.raw_locator, *args)
 
         locator = package.parsed_locator
+        checksum = package.checksum
 
         if isinstance(locator, NpmLocator):
             # npm dependencies have reliable names and versions in yarn info output
@@ -295,7 +333,7 @@ class _ComponentResolver:
             # https://typing.readthedocs.io/en/latest/source/unreachable.html#assert-never-and-exhaustiveness-checking
             assert_never(locator)
 
-        return _ResolvedPackage(locator, name, version, package.raw_locator)
+        return _ResolvedPackage(locator, name, version, checksum)
 
     def _read_name_from_cache(self, cache_path: RootedPath) -> str:
         with zipfile.ZipFile(cache_path) as zf:
