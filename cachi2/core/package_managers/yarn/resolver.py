@@ -10,12 +10,13 @@ import zipfile
 from dataclasses import dataclass
 from functools import cached_property
 from pathlib import Path
+from textwrap import dedent
 from typing import TYPE_CHECKING, Any, Mapping, Union
 
 import pydantic
 from packageurl import PackageURL
 
-from cachi2.core.errors import PackageRejected, UnsupportedFeature
+from cachi2.core.errors import PackageManagerError, PackageRejected, UnsupportedFeature
 from cachi2.core.models.sbom import Component
 from cachi2.core.package_managers.yarn.locators import (
     FileLocator,
@@ -121,10 +122,24 @@ def resolve_packages(source_dir: RootedPath) -> list[Package]:
     :raises UnsupportedFeature: if an unsupported locator type is found in 'yarn info' output
     :raises PackageManagerError: if the 'yarn info' command fails.
     """
-    # --all: report dependencies of all workspaces, not just the active workspace
-    # --recursive: report transitive dependencies, not just direct ones
-    # --cache: include info about the cache entry for each dependency
-    result = run_yarn_cmd(["info", "--all", "--recursive", "--cache", "--json"], source_dir)
+    try:
+        # --all: report dependencies of all workspaces, not just the active workspace
+        # --recursive: report transitive dependencies, not just direct ones
+        # --cache: include info about the cache entry for each dependency
+        result = run_yarn_cmd(["info", "--all", "--recursive", "--cache", "--json"], source_dir)
+    except PackageManagerError as e:
+        if e.stderr and "isn't supported by any available resolver" in e.stderr:
+            raise UnsupportedFeature(
+                "Found an unsupported dependency, more details in the logs.",
+                solution=dedent(
+                    """
+                    Please note that Cachi2 disables all Yarn plugins, which might be needed for
+                    the correct processing of a dependency. This is done to avoid arbitrary code
+                    execution, which would affect the accuracy of the SBOM.
+                    """
+                ),
+            )
+        raise
 
     # the result is not a valid json list, but a sequence of json objects separated by line breaks
     packages = [Package.from_info_string(info) for info in result.splitlines()]
