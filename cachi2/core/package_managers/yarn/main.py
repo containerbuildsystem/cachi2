@@ -134,16 +134,6 @@ def _set_yarnrc_configuration(project: Project, output_dir: RootedPath) -> None:
     yarn_rc.write()
 
 
-def _check_yarn_cache(source_dir: RootedPath) -> None:
-    """Check the contents of the yarn cache using 'yarn install'.
-
-    :param source_dir: the directory in which the yarn command will be called.
-    :raises YarnCommandError: if the 'yarn install' command fails.
-    """
-    # the yarn commands can be called by using the core.utils.run_cmd function
-    pass
-
-
 def _fetch_dependencies(source_dir: RootedPath) -> None:
     """Fetch dependencies using 'yarn install'.
 
