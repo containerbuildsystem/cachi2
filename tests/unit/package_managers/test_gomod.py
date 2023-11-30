@@ -12,7 +12,7 @@ from unittest import mock
 import git
 import pytest
 
-from cachi2.core.errors import FetchError, GoModError, PackageRejected, UnexpectedFormat
+from cachi2.core.errors import FetchError, PackageManagerError, PackageRejected, UnexpectedFormat
 from cachi2.core.models.input import Flag, Request
 from cachi2.core.models.output import BuildConfig, RequestOutput
 from cachi2.core.models.sbom import Component, Property
@@ -766,7 +766,7 @@ def test_go_list_cmd_failure(
     else:
         expect_error += ". Cachi2 tried the go mod download -json command 1 times"
 
-    with pytest.raises(GoModError, match=expect_error):
+    with pytest.raises(PackageManagerError, match=expect_error):
         _resolve_gomod(module_path, gomod_request, tmp_path, version_resolver)
 
 
@@ -1277,7 +1277,7 @@ def test_run_download_cmd_failure(
         "Processing gomod dependencies failed. Cachi2 tried the go mod download command 5 times."
     )
 
-    with pytest.raises(GoModError, match=expect_msg):
+    with pytest.raises(PackageManagerError, match=expect_msg):
         _run_download_cmd(["go", "mod", "download"], {})
 
     assert mock_run.call_count == 5

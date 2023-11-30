@@ -36,7 +36,7 @@ if TYPE_CHECKING:
     from typing_extensions import Self
 
 from cachi2.core.config import get_config
-from cachi2.core.errors import FetchError, GoModError, PackageRejected, UnexpectedFormat
+from cachi2.core.errors import FetchError, PackageManagerError, PackageRejected, UnexpectedFormat
 from cachi2.core.models.input import Request
 from cachi2.core.models.output import EnvironmentVariable, RequestOutput
 from cachi2.core.models.property_semantics import PropertySet
@@ -338,7 +338,7 @@ def _run_gomod_cmd(cmd: Sequence[str], params: dict[str, Any]) -> str:
         return run_cmd(cmd, params)
     except subprocess.CalledProcessError as e:
         rc = e.returncode
-        raise GoModError(
+        raise PackageManagerError(
             f"Processing gomod dependencies failed: `{' '.join(cmd)}` failed with {rc=}"
         ) from e
 
@@ -349,7 +349,7 @@ def fetch_gomod_source(request: Request) -> RequestOutput:
 
     :param request: the request to process
     :raises PackageRejected: if a file is not present for the gomod package manager
-    :raises GoModError: if failed to fetch gomod dependencies
+    :raises PackageManagerError: if failed to fetch gomod dependencies
     """
     version_output = run_cmd(["go", "version"], {})
     log.info(f"Go version: {version_output.strip()}")
@@ -395,7 +395,7 @@ def fetch_gomod_source(request: Request) -> RequestOutput:
                 resolve_result = _resolve_gomod(
                     main_module_dir, request, Path(tmp_dir), version_resolver
                 )
-            except GoModError:
+            except PackageManagerError:
                 log.error("Failed to fetch gomod dependencies")
                 raise
 
@@ -535,7 +535,7 @@ def _resolve_gomod(
         representing the dependencies ("module_deps" key), the top package level dependency
         ("pkg" key), and a list of dictionaries representing the package level dependencies
         ("pkg_deps" key)
-    :raises GoModError: if fetching dependencies fails
+    :raises PackageManagerError: if fetching dependencies fails
     """
     _protect_against_symlinks(app_dir)
     modules_in_go_sum = _parse_go_sum(app_dir)
@@ -704,7 +704,7 @@ def _run_download_cmd(cmd: Sequence[str], params: Dict[str, Any]) -> str:
 
     @backoff.on_exception(
         backoff.expo,
-        GoModError,
+        PackageManagerError,
         jitter=None,  # use deterministic backoff, do not apply jitter
         max_tries=n_tries,
         logger=log,
@@ -715,12 +715,12 @@ def _run_download_cmd(cmd: Sequence[str], params: Dict[str, Any]) -> str:
 
     try:
         return run_go(cmd, params)
-    except GoModError:
+    except PackageManagerError:
         err_msg = (
             f"Processing gomod dependencies failed. Cachi2 tried the {' '.join(cmd)} command "
             f"{n_tries} times."
         )
-        raise GoModError(err_msg) from None
+        raise PackageManagerError(err_msg) from None
 
 
 def _should_vendor_deps(

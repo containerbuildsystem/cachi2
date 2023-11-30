@@ -2,7 +2,7 @@ import os
 import subprocess  # nosec
 from typing import Optional
 
-from cachi2.core.errors import YarnCommandError
+from cachi2.core.errors import PackageManagerError
 from cachi2.core.rooted_path import RootedPath
 from cachi2.core.utils import run_cmd
 
@@ -15,7 +15,7 @@ def run_yarn_cmd(
     :param cmd: the command that will be executed, split in a list of strings in every space.
     :param source_dir: the directory in the repository containing the yarn source files.
     :param env: environment variables to be set during the command's execution
-    :raises YarnCommandError: if the command fails.
+    :raises PackageManagerError: if the command fails.
     """
     env = env or {}
     # if the caller doesn't specify a PATH variable, then pass the PATH from the current
@@ -25,4 +25,4 @@ def run_yarn_cmd(
     try:
         return run_cmd(cmd=["yarn", *cmd], params={"cwd": source_dir, "env": env})
     except subprocess.CalledProcessError:
-        raise YarnCommandError(f"Yarn command failed: {' '.join(cmd)}")
+        raise PackageManagerError(f"Yarn command failed: {' '.join(cmd)}")

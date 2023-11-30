@@ -96,33 +96,19 @@ class FetchError(Cachi2Error):
     )
 
 
-class GoModError(Cachi2Error):
-    """The 'go' command used while processing a Go module returned an error.
+class PackageManagerError(Cachi2Error):
+    """The package manager subprocess returned an error.
 
-    Maybe the module is invalid, maybe the go tool was unable to fetch a dependency, maybe the
-    error is intermittent. We don't really know, but we do at least log the stderr.
+    Maybe some configuration is invalid, maybe the package manager was unable to fetch a dependency,
+    maybe the error is intermittent. We don't really know, but we do at least log the stderr.
     """
 
     default_solution = textwrap.dedent(
         """
         The cause of the failure could be:
         - something is broken in Cachi2
-        - something is wrong with your Go module
+        - something is wrong with your repository
         - communication with an external service failed (please try again)
-        The output of the failing go command should provide more details, please check the logs.
-        """
-    ).strip()
-
-
-class YarnCommandError(Cachi2Error):
-    """The 'yarn' command used while processing a Yarn project returned an error."""
-
-    default_solution = textwrap.dedent(
-        """
-        The cause of the failure could be:
-        - something is broken in Cachi2
-        - something is wrong with your yarn project
-        - communication with an external service failed (please try again)
-        The output of the failing yarn command should provide more details, please check the logs.
+        The output of the failing command should provide more details, please check the logs.
         """
     ).strip()

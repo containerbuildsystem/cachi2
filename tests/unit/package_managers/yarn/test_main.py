@@ -9,7 +9,7 @@ from unittest import mock
 import pytest
 import semver
 
-from cachi2.core.errors import PackageRejected, UnexpectedFormat, YarnCommandError
+from cachi2.core.errors import PackageManagerError, PackageRejected, UnexpectedFormat
 from cachi2.core.models.input import Request
 from cachi2.core.models.output import BuildConfig, Component, EnvironmentVariable, RequestOutput
 from cachi2.core.package_managers.yarn.main import (
@@ -196,9 +196,9 @@ def test_yarn_unsupported_version_fail(
 
 @mock.patch("cachi2.core.package_managers.yarn.main.run_yarn_cmd")
 def test_fetch_dependencies(mock_yarn_cmd: mock.Mock, rooted_tmp_path: RootedPath) -> None:
-    mock_yarn_cmd.side_effect = YarnCommandError("berryscary")
+    mock_yarn_cmd.side_effect = PackageManagerError("berryscary")
 
-    with pytest.raises(YarnCommandError):
+    with pytest.raises(PackageManagerError):
         _fetch_dependencies(rooted_tmp_path)
 
     mock_yarn_cmd.assert_called_once_with(["install", "--mode", "skip-build"], rooted_tmp_path)

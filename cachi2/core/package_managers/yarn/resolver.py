@@ -119,7 +119,7 @@ def resolve_packages(source_dir: RootedPath) -> list[Package]:
     processed.
 
     :raises UnsupportedFeature: if an unsupported locator type is found in 'yarn info' output
-    :raises YarnCommandError: if the 'yarn info' command fails.
+    :raises PackageManagerError: if the 'yarn info' command fails.
     """
     # --all: report dependencies of all workspaces, not just the active workspace
     # --recursive: report transitive dependencies, not just direct ones
