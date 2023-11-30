@@ -4,6 +4,7 @@ import zipfile
 from pathlib import Path
 from typing import Any, NamedTuple, Optional
 from unittest import mock
+from urllib.parse import quote
 
 import pytest
 
@@ -13,6 +14,7 @@ from cachi2.core.package_managers.yarn.locators import parse_locator
 from cachi2.core.package_managers.yarn.project import PackageJson, Project, YarnRc
 from cachi2.core.package_managers.yarn.resolver import Package, create_components, resolve_packages
 from cachi2.core.rooted_path import RootedPath
+from cachi2.core.scm import RepoID
 
 
 def setup_module() -> None:
@@ -21,6 +23,10 @@ def setup_module() -> None:
 
     yarn_resolver_logger.disabled = False
     yarn_resolver_logger.setLevel("DEBUG")
+
+
+MOCK_REPO_ID = RepoID("https://github.com/org/project.git", "fffffff")
+MOCK_REPO_VCS_URL = quote("git+https://github.com/org/project.git@fffffff", safe="://")
 
 
 def mock_yarn_info_output(yarn_info_outputs: list[dict[str, Any]]) -> str:
@@ -301,6 +307,7 @@ def mock_project(project_dir: RootedPath) -> Project:
     )
 
 
+@mock.patch("cachi2.core.package_managers.yarn.resolver.get_repo_id")
 @pytest.mark.parametrize(
     "mocked_package, expect_component, expect_logs",
     [
@@ -471,6 +478,7 @@ def mock_project(project_dir: RootedPath) -> Project:
 )
 @pytest.mark.parametrize("project_uses_zero_installs", [True, False])
 def test_create_components_single_package(
+    mock_get_repo_id: mock.Mock,
     mocked_package: MockedPackage,
     expect_component: Component,
     expect_logs: list[str],
@@ -478,6 +486,8 @@ def test_create_components_single_package(
     tmp_path: Path,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
+    mock_get_repo_id.return_value = MOCK_REPO_ID
+
     project_dir = RootedPath(tmp_path / "project")
     output_dir = RootedPath(tmp_path / "output")
 
