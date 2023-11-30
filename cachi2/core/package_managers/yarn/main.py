@@ -35,7 +35,7 @@ def _resolve_yarn_project(project: Project, output_dir: RootedPath) -> list[Comp
 
     :param project: the directory to be processed.
     :param output_dir: the directory where the prefetched dependencies will be placed.
-    :raises YarnCommandError: if fetching dependencies fails
+    :raises PackageManagerError: if fetching dependencies fails
     """
     log.info(f"Fetching the yarn dependencies at the subpath {output_dir.subpath_from_root}")
 
@@ -138,7 +138,7 @@ def _fetch_dependencies(source_dir: RootedPath) -> None:
     """Fetch dependencies using 'yarn install'.
 
     :param source_dir: the directory in which the yarn command will be called.
-    :raises YarnCommandError: if the 'yarn install' command fails.
+    :raises PackageManagerError: if the 'yarn install' command fails.
     """
     run_yarn_cmd(["install", "--mode", "skip-build"], source_dir)
 

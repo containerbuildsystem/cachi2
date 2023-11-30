@@ -39,31 +39,16 @@ def test_turn_off_default_solution() -> None:
     assert err.friendly_msg() == "This feature is not supported"
 
 
-def test_gomod_error_friendly_msg() -> None:
-    err = errors.GoModError("Some go command failed")
+def test_cli_command_error_friendly_msg() -> None:
+    err = errors.PackageManagerError("Some cli command failed")
     expect_msg = dedent(
         """
-        Some go command failed
+        Some cli command failed
           The cause of the failure could be:
           - something is broken in Cachi2
-          - something is wrong with your Go module
+          - something is wrong with your repository
           - communication with an external service failed (please try again)
-          The output of the failing go command should provide more details, please check the logs.
-        """
-    ).strip()
-    assert err.friendly_msg() == expect_msg
-
-
-def test_yarn_command_error_friendly_msg() -> None:
-    err = errors.YarnCommandError("Some yarn command failed")
-    expect_msg = dedent(
-        """
-        Some yarn command failed
-          The cause of the failure could be:
-          - something is broken in Cachi2
-          - something is wrong with your yarn project
-          - communication with an external service failed (please try again)
-          The output of the failing yarn command should provide more details, please check the logs.
+          The output of the failing command should provide more details, please check the logs.
         """
     ).strip()
     assert err.friendly_msg() == expect_msg

@@ -5,7 +5,7 @@ from unittest import mock
 
 import pytest
 
-from cachi2.core.package_managers.yarn.utils import YarnCommandError, run_yarn_cmd
+from cachi2.core.package_managers.yarn.utils import PackageManagerError, run_yarn_cmd
 from cachi2.core.rooted_path import RootedPath
 
 
@@ -41,5 +41,5 @@ def test_run_yarn_cmd_fail(
     cmd = ["foo", "bar"]
     mock_run_cmd.side_effect = CalledProcessError(1, cmd=cmd)
 
-    with pytest.raises(YarnCommandError, match=f"Yarn command failed: {' '.join(cmd)}"):
+    with pytest.raises(PackageManagerError, match=f"Yarn command failed: {' '.join(cmd)}"):
         run_yarn_cmd(cmd, rooted_tmp_path)
