@@ -24,5 +24,6 @@ def run_yarn_cmd(
         env = env | {"PATH": self_path}
     try:
         return run_cmd(cmd=["yarn", *cmd], params={"cwd": source_dir, "env": env})
-    except subprocess.CalledProcessError:
-        raise PackageManagerError(f"Yarn command failed: {' '.join(cmd)}")
+    except subprocess.CalledProcessError as e:
+        # the yarn command writes the errors to stdout
+        raise PackageManagerError(f"Yarn command failed: {' '.join(cmd)}", stderr=e.stdout)
