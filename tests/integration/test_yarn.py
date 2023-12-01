@@ -49,6 +49,18 @@ log = logging.getLogger(__name__)
             ),
             id="yarn_disallowed_protocols",
         ),
+        pytest.param(
+            utils.TestParameters(
+                repo="https://github.com/cachito-testing/cachi2-yarn-berry.git",
+                ref="712e2e1baff80f8ad6e493babf08318b9051b3c7",
+                packages=({"path": ".", "type": "yarn"},),
+                check_vendor_checksums=False,
+                expected_exit_code=0,
+                expected_output="Processing the request using yarn@3.6.1",
+                flags=["--dev-package-managers"],
+            ),
+            id="yarn_correct_version_installed_by_corepack",
+        ),
     ],
 )
 def test_yarn_packages(
