@@ -35,6 +35,20 @@ log = logging.getLogger(__name__)
             marks=pytest.mark.xfail,  # temporary
             id="yarn_no_zero_installs",
         ),
+        pytest.param(
+            utils.TestParameters(
+                repo="https://github.com/cachito-testing/cachi2-yarn-berry.git",
+                ref="ea24d50fcc20f44f74fc0e7beb482c18349b1002",
+                packages=({"path": ".", "type": "yarn"},),
+                check_output=False,
+                check_vendor_checksums=False,
+                check_deps_checksums=False,
+                flags=["--dev-package-managers"],
+                expected_exit_code=2,
+                expected_output="UnsupportedFeature: Found 8 unsupported dependencies, more details in the logs.",
+            ),
+            id="yarn_disallowed_protocols",
+        ),
     ],
 )
 def test_yarn_packages(
