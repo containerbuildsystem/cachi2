@@ -18,6 +18,7 @@ from cachi2.core.package_managers.yarn.main import (
     _generate_environment_variables,
     _resolve_yarn_project,
     _set_yarnrc_configuration,
+    _verify_corepack_yarn_version,
     fetch_yarn_source,
 )
 from cachi2.core.package_managers.yarn.project import Plugin, YarnRc
@@ -102,11 +103,13 @@ plugins:
         ),
     ],
 )
+@mock.patch("cachi2.core.package_managers.yarn.main._verify_corepack_yarn_version")
 @mock.patch("cachi2.core.package_managers.yarn.main.get_semver_from_package_manager")
 @mock.patch("cachi2.core.package_managers.yarn.main.get_semver_from_yarn_path")
 def test_configure_yarn_version(
     mock_yarn_path_semver: mock.Mock,
     mock_package_manager_semver: mock.Mock,
+    mock_verify_corepack: mock.Mock,
     yarn_path_version: Optional[semver.version.Version],
     package_manager_version: Optional[semver.version.Version],
 ) -> None:
@@ -123,6 +126,52 @@ def test_configure_yarn_version(
     else:
         assert mock_project.package_json.package_manager is None
         mock_project.package_json.write.assert_not_called()
+
+    mock_verify_corepack.assert_called_once_with(
+        yarn_path_version or package_manager_version, mock_project.source_dir
+    )
+
+
+@pytest.mark.parametrize(
+    "corepack_yarn_version",
+    [
+        pytest.param("1.0.0", id="yarn_versions_match"),
+        pytest.param("1.0.0\n", id="yarn_versions_match_with_whitespace"),
+    ],
+)
+@mock.patch("cachi2.core.package_managers.yarn.main.run_yarn_cmd")
+def test_corepack_installed_correct_yarn_version(
+    mock_run_yarn_cmd: mock.Mock,
+    corepack_yarn_version: str,
+    rooted_tmp_path: RootedPath,
+) -> None:
+    expected_yarn_version = YarnVersions.YARN_V1.value
+    mock_run_yarn_cmd.return_value = corepack_yarn_version
+
+    _verify_corepack_yarn_version(expected_yarn_version, rooted_tmp_path)
+    mock_run_yarn_cmd.assert_called_once_with(["--version"], rooted_tmp_path)
+
+
+@pytest.mark.parametrize(
+    "corepack_yarn_version",
+    [
+        pytest.param("2.0.0", id="yarn_versions_do_not_match"),
+        pytest.param("2", id="invalid_semver"),
+    ],
+)
+@mock.patch("cachi2.core.package_managers.yarn.main.run_yarn_cmd")
+def test_corepack_installed_correct_yarn_version_fail(
+    mock_run_yarn_cmd: mock.Mock,
+    corepack_yarn_version: str,
+    rooted_tmp_path: RootedPath,
+) -> None:
+    expected_yarn_version = YarnVersions.YARN_V1.value
+    mock_run_yarn_cmd.return_value = corepack_yarn_version
+
+    with pytest.raises(PackageManagerError):
+        _verify_corepack_yarn_version(expected_yarn_version, rooted_tmp_path)
+
+    mock_run_yarn_cmd.assert_called_once_with(["--version"], rooted_tmp_path)
 
 
 @pytest.mark.parametrize(
