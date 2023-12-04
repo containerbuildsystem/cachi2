@@ -1,6 +1,8 @@
 import logging
 
-from cachi2.core.errors import PackageRejected
+import semver
+
+from cachi2.core.errors import PackageManagerError, PackageRejected
 from cachi2.core.models.input import Request
 from cachi2.core.models.output import Component, EnvironmentVariable, RequestOutput
 from cachi2.core.package_managers.yarn.project import (
@@ -110,6 +112,9 @@ def _configure_yarn_version(project: Project) -> None:
         project.package_json.package_manager = f"yarn@{yarn_path_version}"
         project.package_json.write()
 
+    # Note (mypy): version cannot be None anymore
+    _verify_corepack_yarn_version(version, project.source_dir)  # type: ignore
+
 
 def _get_plugin_allowlist(yarn_rc: YarnRc) -> list[Plugin]:
     """Return a list of plugins that can be kept in .yarnrc.yml.
@@ -182,3 +187,21 @@ def _generate_environment_variables() -> list[EnvironmentVariable]:
     }
 
     return [EnvironmentVariable(name=name, **obj) for name, obj in env_vars.items()]
+
+
+def _verify_corepack_yarn_version(expected_version: semver.Version, source_dir: RootedPath) -> None:
+    """Verify that corepack installed the correct version of yarn by checking `yarn --version`."""
+    installed_yarn_version = run_yarn_cmd(["--version"], source_dir).strip()
+    try:
+        if installed_yarn_version != expected_version:
+            raise PackageManagerError(
+                f"Cachi2 expected corepack to install yarn@{expected_version} but instead "
+                f"found yarn@{installed_yarn_version}."
+            )
+    except ValueError as exc:
+        raise PackageManagerError(
+            f"Cachi2 expected corepack to install yarn@{expected_version}, but "
+            "the command `yarn --version` did not return a valid semver."
+        ) from exc
+
+    log.info("Processing the request using yarn@%s", installed_yarn_version)
