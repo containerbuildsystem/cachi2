@@ -71,7 +71,7 @@ def test_yarn_packages(
     request: pytest.FixtureRequest,
 ) -> None:
     """
-    Test fetched dependencies for yarn 2+.
+    Test fetched dependencies for yarn berry.
 
     :param test_params: Test case arguments
     :param tmp_path: Temp directory for pytest
