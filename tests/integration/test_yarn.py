@@ -28,18 +28,6 @@ log = logging.getLogger(__name__)
         pytest.param(
             utils.TestParameters(
                 repo="https://github.com/cachito-testing/cachi2-yarn-berry.git",
-                ref="452d7f530513206de63af402536e9ff736c2aa79",
-                packages=({"path": ".", "type": "yarn"},),
-                check_vendor_checksums=False,
-                expected_exit_code=0,
-                expected_output="All dependencies fetched successfully",
-            ),
-            marks=pytest.mark.xfail,  # temporary
-            id="yarn_no_zero_installs",
-        ),
-        pytest.param(
-            utils.TestParameters(
-                repo="https://github.com/cachito-testing/cachi2-yarn-berry.git",
                 ref="ea24d50fcc20f44f74fc0e7beb482c18349b1002",
                 packages=({"path": ".", "type": "yarn"},),
                 check_output=False,
