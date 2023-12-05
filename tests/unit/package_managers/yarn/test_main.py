@@ -19,6 +19,7 @@ from cachi2.core.package_managers.yarn.main import (
     _resolve_yarn_project,
     _set_yarnrc_configuration,
     _verify_corepack_yarn_version,
+    _verify_yarnrc_paths,
     fetch_yarn_source,
 )
 from cachi2.core.package_managers.yarn.project import Plugin, YarnRc
@@ -329,6 +330,39 @@ def test_set_yarnrc_configuration(
 
     assert yarn_rc._data == expected_data
     assert mock_write.called_once()
+
+
+def test_verify_yarnrc_paths() -> None:
+    output_dir = RootedPath("/tmp/output")
+    yarn_rc = YarnRc(RootedPath("/tmp/.yarnrc.yml"), {})
+    project = mock.Mock()
+    project.yarn_rc = yarn_rc
+
+    _set_yarnrc_configuration(project, output_dir)
+    _verify_yarnrc_paths(project)
+
+
+@pytest.mark.parametrize(
+    "opt_path",
+    [
+        pytest.param("/custom/path", id="installStatePath"),
+        pytest.param("/custom/path", id="patchFolder"),
+        pytest.param("/custom/path", id="pnpDataPath"),
+        pytest.param("/custom/path", id="pnpUnpluggedFolder"),
+        pytest.param("/custom/path", id="virtualFolder"),
+    ],
+)
+def test_verify_yarnrc_paths_fail(
+    request: pytest.FixtureRequest, tmp_path: Path, opt_path: str
+) -> None:
+    project = mock.Mock()
+    project.source_dir = tmp_path
+    project.yarn_rc = YarnRc(
+        RootedPath(tmp_path / ".yarnrc.yml"), {request.node.callspec.id: opt_path}
+    )
+
+    with pytest.raises(PackageRejected):
+        _verify_yarnrc_paths(project)
 
 
 def test_generate_environment_variables(yarn_env_variables: list[EnvironmentVariable]) -> None:
