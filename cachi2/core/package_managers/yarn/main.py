@@ -34,6 +34,32 @@ def fetch_yarn_source(request: Request) -> RequestOutput:
     )
 
 
+def _verify_yarnrc_paths(project: Project) -> None:
+    paths_conf_opts = {
+        project.yarn_rc.pnp_data_path: "pnpDataPath",
+        project.yarn_rc.pnp_unplugged_folder: "pnpUnpluggedFolder",
+        project.yarn_rc.install_state_path: "installStatePath",
+        project.yarn_rc.patch_folder: "patchFolder",
+        project.yarn_rc.virtual_folder: "virtualFolder",
+    }
+
+    for path in paths_conf_opts:
+        if path is not None:
+            try:
+                project.source_dir.join_within_root(path)
+            except Exception:
+                raise PackageRejected(
+                    (
+                        f"YarnRC '{paths_conf_opts[path]}={path}' property: path points "
+                        "outside of the source directory"
+                    ),
+                    solution=(
+                        "Make sure that all Yarn RC configuration options specifying a path "
+                        "point to a relative location inside the main repository"
+                    ),
+                )
+
+
 def _resolve_yarn_project(project: Project, output_dir: RootedPath) -> list[Component]:
     """Process a request for a single yarn source directory.
 
@@ -44,6 +70,7 @@ def _resolve_yarn_project(project: Project, output_dir: RootedPath) -> list[Comp
     log.info(f"Fetching the yarn dependencies at the subpath {output_dir.subpath_from_root}")
 
     _configure_yarn_version(project)
+    _verify_yarnrc_paths(project)
 
     if project.is_zero_installs:
         raise PackageRejected(
