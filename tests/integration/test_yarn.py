@@ -14,13 +14,15 @@ log = logging.getLogger(__name__)
         pytest.param(
             utils.TestParameters(
                 repo="https://github.com/cachito-testing/cachi2-yarn-berry.git",
-                ref="4b77c878694e656e7d0ceac6771131273f98f5df",
+                ref="08f09b9340c85fbb84c8fb46fc19a235056a178b",
                 packages=({"path": ".", "type": "yarn"},),
+                check_output=False,
+                check_deps_checksums=False,
                 check_vendor_checksums=False,
-                expected_exit_code=0,
-                expected_output="All dependencies fetched successfully",
+                flags=["--dev-package-managers"],
+                expected_exit_code=2,
+                expected_output="PackageRejected: Yarn zero install detected, PnP zero installs are unsupported by cachi2",
             ),
-            marks=pytest.mark.xfail,  # temporary
             id="yarn_zero_installs",
         ),
         pytest.param(
