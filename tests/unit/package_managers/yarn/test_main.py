@@ -20,7 +20,7 @@ from cachi2.core.package_managers.yarn.main import (
     _set_yarnrc_configuration,
     fetch_yarn_source,
 )
-from cachi2.core.package_managers.yarn.project import YarnRc
+from cachi2.core.package_managers.yarn.project import Plugin, YarnRc
 from cachi2.core.rooted_path import RootedPath
 
 
@@ -71,6 +71,15 @@ class YarnVersions(Enum):
     @classmethod
     def unsupported(cls) -> List["YarnVersions"]:
         return list(set(cls.__members__.values()).difference(set(cls.supported())))
+
+
+SAMPLE_PLUGINS = """
+plugins:
+  - path: .yarn/plugins/@yarnpkg/plugin-typescript.cjs
+    spec: "@yarnpkg/plugin-typescript"
+  - path: .yarn/plugins/@yarnpkg/plugin-exec.cjs
+    spec: "@yarnpkg/plugin-exec"
+"""
 
 
 @pytest.mark.parametrize(
@@ -220,13 +229,36 @@ def test_resolve_zero_installs_fail(
         _resolve_yarn_project(project, output_dir)
 
 
+@pytest.mark.parametrize(
+    "yarn_rc_content, expected_plugins",
+    [
+        pytest.param("", [], id="empty_yarn_rc"),
+        pytest.param(
+            SAMPLE_PLUGINS,
+            [
+                {
+                    "path": ".yarn/plugins/@yarnpkg/plugin-exec.cjs",
+                    "spec": "@yarnpkg/plugin-exec",
+                },
+            ],
+            id="yarn_rc_with_default_plugins",
+        ),
+    ],
+)
 @mock.patch("cachi2.core.package_managers.yarn.project.YarnRc.write")
-def test_set_yarnrc_configuration(mock_write: mock.Mock) -> None:
-    yarn_rc = YarnRc(RootedPath("/tmp/.yarnrc.yml"), {})
+def test_set_yarnrc_configuration(
+    mock_write: mock.Mock,
+    yarn_rc_content: str,
+    expected_plugins: list[Plugin],
+    rooted_tmp_path: RootedPath,
+) -> None:
+    yarn_rc_path = rooted_tmp_path.join_within_root(".yarnrc.yml")
+    with open(yarn_rc_path, "w") as f:
+        f.write(yarn_rc_content)
+    yarn_rc = YarnRc.from_file(yarn_rc_path)
 
     project = mock.Mock()
     project.yarn_rc = yarn_rc
-
     output_dir = RootedPath("/tmp/output")
 
     _set_yarnrc_configuration(project, output_dir)
@@ -243,7 +275,7 @@ def test_set_yarnrc_configuration(mock_write: mock.Mock) -> None:
         "ignorePath": True,
         "unsafeHttpWhitelist": [],
         "pnpMode": "strict",
-        "plugins": [],
+        "plugins": expected_plugins,
     }
 
     assert yarn_rc._data == expected_data

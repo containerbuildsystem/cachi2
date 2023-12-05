@@ -4,7 +4,9 @@ from cachi2.core.errors import PackageRejected
 from cachi2.core.models.input import Request
 from cachi2.core.models.output import Component, EnvironmentVariable, RequestOutput
 from cachi2.core.package_managers.yarn.project import (
+    Plugin,
     Project,
+    YarnRc,
     get_semver_from_package_manager,
     get_semver_from_yarn_path,
 )
@@ -109,6 +111,27 @@ def _configure_yarn_version(project: Project) -> None:
         project.package_json.write()
 
 
+def _get_plugin_allowlist(yarn_rc: YarnRc) -> list[Plugin]:
+    """Return a list of plugins that can be kept in .yarnrc.yml.
+
+    Some plugins are required for processing a specific protocol (e.g. exec), and their absence
+    would make yarn commands such as 'install' and 'info' fail. Keeping this whitelist allows
+    Cachi2 to get the list of packages from 'yarn info' and properly inform the user if his request
+    is not processable in case it contains disallowed protocols.
+
+    This list should only have official plugins that add new protocols and that also do not
+    implement the 'fetchPackageInfo' hook, since it would allow arbitrary code execution.
+
+    See https://v3.yarnpkg.com/advanced/plugin-tutorial#hook-fetchPackageInfo.
+    """
+    # NOTE: Revisit the allowlisted plugins when adding v4 support
+    default_plugins = [
+        Plugin(path=".yarn/plugins/@yarnpkg/plugin-exec.cjs", spec="@yarnpkg/plugin-exec"),
+    ]
+
+    return [plugin for plugin in default_plugins if plugin in yarn_rc.plugins]
+
+
 def _set_yarnrc_configuration(project: Project, output_dir: RootedPath) -> None:
     """Set all the necessary configuration in yarnrc for the project processing.
 
@@ -118,7 +141,7 @@ def _set_yarnrc_configuration(project: Project, output_dir: RootedPath) -> None:
     """
     yarn_rc = project.yarn_rc
 
-    yarn_rc.plugins = []
+    yarn_rc.plugins = _get_plugin_allowlist(yarn_rc)
     yarn_rc.checksum_behavior = "throw"
     yarn_rc.enable_immutable_installs = True
     yarn_rc.pnp_mode = "strict"
