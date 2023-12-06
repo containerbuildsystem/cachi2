@@ -148,7 +148,7 @@ def test_e2e_pip(
     request: pytest.FixtureRequest,
 ) -> None:
     """
-    End to end test for gomod.
+    End to end test for pip.
 
     :param test_params: Test case arguments
     :param tmp_path: Temp directory for pytest
