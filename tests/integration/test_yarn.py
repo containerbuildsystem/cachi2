@@ -75,3 +75,53 @@ def test_yarn_packages(
     utils.fetch_deps_and_check_output(
         tmp_path, test_case, test_params, source_folder, test_data_dir, cachi2_image
     )
+
+
+@pytest.mark.parametrize(
+    "test_params, check_cmd, expected_cmd_output",
+    [
+        pytest.param(
+            utils.TestParameters(
+                repo="https://github.com/cachito-testing/cachi2-yarn-berry.git",
+                ref="70515793108df42547d3320c7ea4cd6b6e505c46",
+                packages=({"path": ".", "type": "yarn"},),
+                check_vendor_checksums=False,
+                flags=["--dev-package-managers"],
+                expected_exit_code=0,
+                expected_output="All dependencies fetched successfully",
+            ),
+            ["yarn", "berryscary"],
+            "Hello, World!",
+            id="yarn_e2e_test",
+        ),
+    ],
+)
+def test_e2e_yarn(
+    test_params: utils.TestParameters,
+    check_cmd: list[str],
+    expected_cmd_output: str,
+    cachi2_image: utils.ContainerImage,
+    tmp_path: Path,
+    test_data_dir: Path,
+    request: pytest.FixtureRequest,
+) -> None:
+    """End to end test for yarn berry."""
+    test_case = request.node.callspec.id
+
+    source_folder = utils.clone_repository(
+        test_params.repo, test_params.ref, f"{test_case}-source", tmp_path
+    )
+
+    output_folder = utils.fetch_deps_and_check_output(
+        tmp_path, test_case, test_params, source_folder, test_data_dir, cachi2_image
+    )
+
+    utils.build_image_and_check_cmd(
+        tmp_path,
+        output_folder,
+        test_data_dir,
+        test_case,
+        check_cmd,
+        expected_cmd_output,
+        cachi2_image,
+    )
