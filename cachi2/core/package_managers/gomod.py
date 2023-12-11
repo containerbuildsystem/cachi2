@@ -551,6 +551,7 @@ def fetch_gomod_source(request: Request) -> RequestOutput:
         "GOCACHE": {"value": "deps/gomod", "kind": "path"},
         "GOPATH": {"value": "deps/gomod", "kind": "path"},
         "GOMODCACHE": {"value": "deps/gomod/pkg/mod", "kind": "path"},
+        "GOTOOLCHAIN": {"value": "local", "kind": "literal"},
     }
     env_vars.update(config.default_environment_variables.get("gomod", {}))
 
@@ -744,6 +745,7 @@ def _resolve_gomod(
         "PATH": os.environ.get("PATH", ""),
         "GOMODCACHE": "{}/pkg/mod".format(tmp_dir),
         "GOSUMDB": "sum.golang.org",
+        "GOTOOLCHAIN": "local",
     }
 
     if config.goproxy_url:
