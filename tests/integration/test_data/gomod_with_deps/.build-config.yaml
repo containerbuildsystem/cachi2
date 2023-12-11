@@ -8,4 +8,7 @@ environment_variables:
 - kind: path
   name: GOPATH
   value: deps/gomod
+- kind: literal
+  name: GOTOOLCHAIN
+  value: local
 project_files: []
