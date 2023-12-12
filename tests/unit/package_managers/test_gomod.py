@@ -52,6 +52,15 @@ def setup_module() -> None:
     gomod.log.setLevel("DEBUG")
 
 
+@pytest.fixture(scope="module")
+def env_variables() -> list[dict[str, str]]:
+    return [
+        {"name": "GOCACHE", "value": "deps/gomod", "kind": "path"},
+        {"name": "GOMODCACHE", "value": "deps/gomod/pkg/mod", "kind": "path"},
+        {"name": "GOPATH", "value": "deps/gomod", "kind": "path"},
+    ]
+
+
 @pytest.fixture(scope="module", autouse=True)
 def mock_which_go() -> Iterator[None]:
     """Make shutil.which return GO_CMD_PATH for all the tests in this file.
