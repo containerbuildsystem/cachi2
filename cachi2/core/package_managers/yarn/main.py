@@ -82,12 +82,9 @@ def _resolve_yarn_project(project: Project, output_dir: RootedPath) -> list[Comp
             ),
         )
 
-    try:
-        _set_yarnrc_configuration(project, output_dir)
-        packages = resolve_packages(project.source_dir)
-        _fetch_dependencies(project.source_dir)
-    finally:
-        _undo_changes(project)
+    _set_yarnrc_configuration(project, output_dir)
+    packages = resolve_packages(project.source_dir)
+    _fetch_dependencies(project.source_dir)
 
     return create_components(packages, project, output_dir)
 
@@ -196,12 +193,6 @@ def _fetch_dependencies(source_dir: RootedPath) -> None:
     :raises PackageManagerError: if the 'yarn install' command fails.
     """
     run_yarn_cmd(["install", "--mode", "skip-build"], source_dir)
-
-
-def _undo_changes(project: Project) -> None:
-    """Undo any changes that were made to the files during the request's processing."""
-    # restore the disabled plugins here, as well as undo any additional changes
-    pass
 
 
 def _generate_environment_variables() -> list[EnvironmentVariable]:
