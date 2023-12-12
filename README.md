@@ -295,10 +295,10 @@ Supported:
 * [gomod](#gomod)
 * [pip](#pip)
 * [npm](#npm)
+* [yarn](#yarn)
 
 Planned:
 
-* yarn
 * rubygems
 
 *Based on the [supported package managers](https://github.com/containerbuildsystem/cachito#package-managers) in the
@@ -361,6 +361,21 @@ you can use [npm install](https://docs.npmjs.com/cli/v9/commands/npm-install?v=t
 Make sure lockfile version is higher than v1 (Node.js 15 or higher).
 
 See [docs/npm.md](docs/npm.md) for more details.
+
+### yarn
+
+<https://v3.yarnpkg.com/>
+
+Current version: v3
+
+Unlike NPM, cachi2 merely drives the underlying ``yarn`` CLI command operations, that is, cachi2
+leaves most of the heavy lifting to Yarn itself and it mainly focuses on post-process validation.
+Note that having a Yarn lockfile (``yarn.lock``) checked into the repository is paramount for
+cachi2 to process a project successfully. If missing, you can easily generate one by running [yarn
+install](https://v3.yarnpkg.com/getting-started/usage#installing-all-the-dependencies)
+prior to pointing cachi2 to your project.
+
+See [docs/yarn.md](docs/yarn.md) for more details.
 
 ## Project status
 

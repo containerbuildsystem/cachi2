@@ -15,6 +15,7 @@ The second section goes through each of these steps for the supported package ma
   * [Example with Go modules](#example-go-modules)
   * [Example with pip](#example-pip)
   * [Example with npm](#example-npm)
+  * [Example with yarn](#example-yarn)
 
 ## General Process
 
@@ -485,6 +486,86 @@ RUN . /tmp/cachi2.env && npm i && npm ls
 EXPOSE 9000
 
 CMD ["node", "index.js"]
+```
+
+We can then build the image as before while mounting the required Cachi2 data!
+
+```shell
+podman build . \
+  --volume "$(realpath ./cachi2-output)":/tmp/cachi2-output:Z \
+  --volume "$(realpath ./cachi2.env)":/tmp/cachi2.env:Z \
+  --network none \
+  --tag sample-nodejs-app
+```
+
+### Example: yarn
+
+For the Yarn example let's use the same sample Node.js
+[project](https://github.com/cachito-testing/sample-nodejs-app/tree/yarn), but this time modified
+to use Yarn as the package manager. Get the repo if you want to try for yourself:
+
+
+```shell
+git clone -b yarn https://github.com/cachito-testing/sample-nodejs-app.git
+```
+
+#### Pre-fetch dependencies (yarn)
+
+The steps for pre-fetching the dependencies are very similar to the previous examples, this time
+using the Yarn package manager. Like with the previous examples the default path for the package
+we assume is `.`.
+
+See [the Yarn documentation](yarn.md) for more details about running Cachi2 for pre-fetching yarn
+dependencies.
+
+```shell
+cachi2 fetch-deps --source ./sample-yarn-app --output ./cachi2-output '{"type": "yarn"}'
+```
+
+OR more simply (without the need of a JSON formatted argument) just 
+
+```shell
+cachi2 fetch-deps --source ./sample-yarn-app --output ./cachi2-output yarn
+```
+
+#### Generate environment variables (yarn)
+There are a few environment variables we'll have to set for Yarn during the hermetic build, so we
+need to generate an environment file.
+
+```shell
+$ cachi2 generate-env ./cachi2-output -o ./cachi2.env --for-output-dir /tmp/cachi2-output
+$ cat ./cachi2.env
+export YARN_ENABLE_GLOBAL_CACHE=false
+export YARN_ENABLE_IMMUTABLE_CACHE=false
+export YARN_ENABLE_MIRROR=true
+export YARN_GLOBAL_FOLDER=/tmp/cachi2-output/deps/yarn
+```
+
+#### Inject project files (yarn)
+
+Like the `gomod` package manager Yarn does not _currently_ need to modify any content in the source
+directory for the cached dependencies to be used in a hermetic build, however that might change in
+the future.
+
+#### Build the application image (yarn)
+
+Yarn is installed using a Node.js tool called
+[Corepack](https://nodejs.org/api/corepack.html#corepack) which has been shipped by Node.js by
+default since v16.9.0 and v14.19.0. Therefore, we'll use the `node:18` base image in our example
+which definitely has Corepack and we can start using Yarn right away.
+
+```Containerfile
+FROM node:18
+
+COPY sample-yarn-app/ /src/sample-yarn-app
+WORKDIR /src/sample-yarn-app
+
+# Run yarn install command and list installed packages
+RUN . /tmp/cachi2.env && yarn install
+
+EXPOSE 9000
+
+CMD ["yarn", "run", "start"]
 ```
 
 We can then build the image as before while mounting the required Cachi2 data!
