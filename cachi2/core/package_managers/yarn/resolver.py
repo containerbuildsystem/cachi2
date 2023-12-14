@@ -244,7 +244,7 @@ class _ComponentResolver:
             project_path = project.source_dir
             workspace_path = package.locator.relpath
 
-            repo = get_repo_id(project_path)
+            repo = get_repo_id(project_path.root)
 
             qualifiers["vcs_url"] = repo.as_vcs_url_qualifier()
             subpath = str(workspace_path)
@@ -256,7 +256,7 @@ class _ComponentResolver:
 
             normalized = project_path.join_within_root(workspace_path, package_path)
 
-            repo = get_repo_id(project_path)
+            repo = get_repo_id(project_path.root)
             qualifiers["vcs_url"] = repo.as_vcs_url_qualifier()
             subpath = str(normalized.subpath_from_root)
 
