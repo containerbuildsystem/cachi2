@@ -67,7 +67,7 @@ def _resolve_yarn_project(project: Project, output_dir: RootedPath) -> list[Comp
     :param output_dir: the directory where the prefetched dependencies will be placed.
     :raises PackageManagerError: if fetching dependencies fails
     """
-    log.info(f"Fetching the yarn dependencies at the subpath {output_dir.subpath_from_root}")
+    log.info(f"Fetching the yarn dependencies at the subpath {project.source_dir}")
 
     _configure_yarn_version(project)
     _verify_yarnrc_paths(project)
