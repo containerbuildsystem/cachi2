@@ -129,6 +129,22 @@ def test_yarn_packages(
             "Hello, World!",
             id="yarn_e2e_test",
         ),
+        pytest.param(
+            utils.TestParameters(
+                repo="https://github.com/cachito-testing/cachi2-yarn-berry.git",
+                ref="b6f47bd07e669c8d2eced8015c4bfb06db499493",
+                packages=(
+                    {"path": "first-pkg", "type": "yarn"},
+                    {"path": "second-pkg", "type": "yarn"},
+                ),
+                check_vendor_checksums=False,
+                expected_exit_code=0,
+                expected_output="All dependencies fetched successfully",
+            ),
+            ["yarn", "node", "index.js"],
+            "Hello from first package!",
+            id="yarn_e2e_test_multiple_packages",
+        ),
     ],
 )
 def test_e2e_yarn(
