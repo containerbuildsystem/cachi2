@@ -65,6 +65,20 @@ log = logging.getLogger(__name__)
             ),
             id="yarn_immutable_installs",
         ),
+        pytest.param(
+            utils.TestParameters(
+                repo="https://github.com/cachito-testing/cachi2-yarn-berry.git",
+                ref="c5268f91f0a0b68fa72d4f2c3a570d348d194241",
+                packages=({"path": ".", "type": "yarn"},),
+                check_output=False,
+                check_deps_checksums=False,
+                check_vendor_checksums=False,
+                flags=["--dev-package-managers"],
+                expected_exit_code=1,
+                expected_output="typescript@npm:5.3.3: The remote archive doesn't match the expected checksum",
+            ),
+            id="yarn_incorrect_checksum",
+        ),
     ],
 )
 def test_yarn_packages(
