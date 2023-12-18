@@ -433,9 +433,9 @@ multidict==6.0.4 \
     # via
     #   aiohttp
     #   yarl
-packageurl-python==0.11.2 \
-    --hash=sha256:01fbf74a41ef85cf413f1ede529a1411f658bda66ed22d45d27280ad9ceba471 \
-    --hash=sha256:799acfe8d9e6e3534bbc19660be97d5b66754bc033e62c39f1e2f16323fcfa84
+packageurl-python==0.13.1 \
+    --hash=sha256:84f8053f4b85294b98b3b78715475847fb48f4525ec302d06dc35b26a9b3078a \
+    --hash=sha256:d35090c7ec1d7afc611679912151b2157f28f68e729b6fa56f8ea5422819eaed
     # via cachi2 (pyproject.toml)
 packaging==23.2 \
     --hash=sha256:048fb0e9405036518eaaf48a55953c750c11e1a1b68e0dd1a9d62ed0c092cfc5 \
@@ -647,9 +647,9 @@ typer==0.9.0 \
     --hash=sha256:50922fd79aea2f4751a8e0408ff10d2662bd0c8bbfa84755a699f3bada2978b2 \
     --hash=sha256:5d96d986a21493606a358cae4461bd8cdf83cbf33a5aa950ae629ca3b51467ee
     # via cachi2 (pyproject.toml)
-typing-extensions==4.8.0 \
-    --hash=sha256:8f92fc8806f9a6b641eaa5318da32b44d401efaac0f6678c9bc448ba3605faa0 \
-    --hash=sha256:df8e4339e9cb77357558cbdbceca33c303714cf861d1eef15e1070055ae8b7ef
+typing-extensions==4.9.0 \
+    --hash=sha256:23478f88c37f27d76ac8aee6c905017a143b0b1b886c3c9f66bc2fd94f9f5783 \
+    --hash=sha256:af72aea155e91adfc61c3ae9e0e342dbc0cba726d6cba4b6c72c1f34e47291cd
     # via
     #   pydantic
     #   pydantic-core
