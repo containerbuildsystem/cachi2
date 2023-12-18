@@ -51,6 +51,20 @@ log = logging.getLogger(__name__)
             ),
             id="yarn_correct_version_installed_by_corepack",
         ),
+        pytest.param(
+            utils.TestParameters(
+                repo="https://github.com/cachito-testing/cachi2-yarn-berry.git",
+                ref="9d6a941220a1dfb14a6bdb6f3c52d7204a939688",
+                packages=({"path": ".", "type": "yarn"},),
+                check_output=False,
+                check_vendor_checksums=False,
+                check_deps_checksums=False,
+                flags=["--dev-package-managers"],
+                expected_exit_code=1,
+                expected_output="The lockfile would have been modified by this install, which is explicitly forbidden.",
+            ),
+            id="yarn_immutable_installs",
+        ),
     ],
 )
 def test_yarn_packages(
