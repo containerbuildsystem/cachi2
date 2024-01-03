@@ -13,6 +13,7 @@ from cachi2.core.errors import PackageManagerError, PackageRejected, UnexpectedF
 from cachi2.core.models.input import Request
 from cachi2.core.models.output import BuildConfig, Component, EnvironmentVariable, RequestOutput
 from cachi2.core.package_managers.yarn.main import (
+    _check_lockfile,
     _check_zero_installs,
     _configure_yarn_version,
     _fetch_dependencies,
@@ -335,6 +336,18 @@ def test_verify_yarnrc_paths() -> None:
 
     _set_yarnrc_configuration(project, output_dir)
     _verify_yarnrc_paths(project)
+
+
+def test_check_missing_lockfile(rooted_tmp_path: RootedPath) -> None:
+    project = mock.Mock()
+    project.source_dir = rooted_tmp_path
+    project.yarn_rc = YarnRc(project.source_dir.join_within_root(".yarnrc.yml"), {})
+
+    with pytest.raises(
+        PackageRejected,
+        match=f"Yarn lockfile '{project.yarn_rc.lockfilename}' missing, refusing to continue",
+    ):
+        _check_lockfile(project)
 
 
 @pytest.mark.parametrize(

@@ -72,6 +72,17 @@ def _check_zero_installs(project: Project) -> None:
         )
 
 
+def _check_lockfile(project: Project) -> None:
+    if not project.source_dir.join_within_root(project.yarn_rc.lockfilename).path.exists():
+        raise PackageRejected(
+            f"Yarn lockfile '{project.yarn_rc.lockfilename}' missing, refusing to continue",
+            solution=(
+                "Make sure your repository has a Yarn lockfile (e.g. yarn.lock) checked in "
+                "to the repository"
+            ),
+        )
+
+
 def _resolve_yarn_project(project: Project, output_dir: RootedPath) -> list[Component]:
     """Process a request for a single yarn source directory.
 
@@ -84,6 +95,7 @@ def _resolve_yarn_project(project: Project, output_dir: RootedPath) -> list[Comp
     _configure_yarn_version(project)
     _verify_yarnrc_paths(project)
     _check_zero_installs(project)
+    _check_lockfile(project)
 
     _set_yarnrc_configuration(project, output_dir)
     packages = resolve_packages(project.source_dir)
