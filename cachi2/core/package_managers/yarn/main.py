@@ -60,6 +60,18 @@ def _verify_yarnrc_paths(project: Project) -> None:
                 )
 
 
+def _check_zero_installs(project: Project) -> None:
+    if project.is_zero_installs:
+        raise PackageRejected(
+            ("Yarn zero install detected, PnP zero installs are unsupported by cachi2"),
+            solution=(
+                "Please convert your project to a regular install-based one.\n"
+                "Depending on whether you use Yarn's PnP or a different node linker Yarn setting "
+                "make sure to remove '.yarn/cache' or 'node_modules' directories respectively."
+            ),
+        )
+
+
 def _resolve_yarn_project(project: Project, output_dir: RootedPath) -> list[Component]:
     """Process a request for a single yarn source directory.
 
@@ -71,16 +83,7 @@ def _resolve_yarn_project(project: Project, output_dir: RootedPath) -> list[Comp
 
     _configure_yarn_version(project)
     _verify_yarnrc_paths(project)
-
-    if project.is_zero_installs:
-        raise PackageRejected(
-            ("Yarn zero install detected, PnP zero installs are unsupported by cachi2"),
-            solution=(
-                "Please convert your project to a regular install-based one.\n"
-                "Depending on whether you use Yarn's PnP or a different node linker Yarn setting "
-                "make sure to remove '.yarn/cache' or 'node_modules' directories respectively."
-            ),
-        )
+    _check_zero_installs(project)
 
     _set_yarnrc_configuration(project, output_dir)
     packages = resolve_packages(project.source_dir)
