@@ -13,10 +13,10 @@ from cachi2.core.errors import PackageManagerError, PackageRejected, UnexpectedF
 from cachi2.core.models.input import Request
 from cachi2.core.models.output import BuildConfig, Component, EnvironmentVariable, RequestOutput
 from cachi2.core.package_managers.yarn.main import (
+    _check_zero_installs,
     _configure_yarn_version,
     _fetch_dependencies,
     _generate_environment_variables,
-    _resolve_yarn_project,
     _set_yarnrc_configuration,
     _verify_corepack_yarn_version,
     _verify_yarnrc_paths,
@@ -263,20 +263,15 @@ def test_fetch_dependencies(mock_yarn_cmd: mock.Mock, rooted_tmp_path: RootedPat
     mock_yarn_cmd.assert_called_once_with(["install", "--mode", "skip-build"], rooted_tmp_path)
 
 
-@mock.patch("cachi2.core.package_managers.yarn.main._configure_yarn_version")
-def test_resolve_zero_installs_fail(
-    mock_configure_yarn_version: mock.Mock, rooted_tmp_path: RootedPath
-) -> None:
-    mock_configure_yarn_version.return_value = None
+def test_resolve_zero_installs_fail() -> None:
     project = mock.Mock()
     project.is_zero_installs = True
-    output_dir = rooted_tmp_path.join_within_root("cachi2-output")
 
     with pytest.raises(
         PackageRejected,
         match=("Yarn zero install detected, PnP zero installs are unsupported by cachi2"),
     ):
-        _resolve_yarn_project(project, output_dir)
+        _check_zero_installs(project)
 
 
 @pytest.mark.parametrize(
