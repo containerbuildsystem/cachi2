@@ -140,6 +140,11 @@ class YarnRc:
         self._data["installStatePath"] = path
 
     @property
+    def lockfilename(self) -> str:
+        """Get the installStatePath configuration."""
+        return self._data.get("lockfileFilename", "yarn.lock")
+
+    @property
     def patch_folder(self) -> Optional[str]:
         """Get the patch folder."""
         return self._data.get("patchFolder")
