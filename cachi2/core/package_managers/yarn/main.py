@@ -83,6 +83,12 @@ def _check_lockfile(project: Project) -> None:
         )
 
 
+def _verify_repository(project: Project) -> None:
+    _verify_yarnrc_paths(project)
+    _check_zero_installs(project)
+    _check_lockfile(project)
+
+
 def _resolve_yarn_project(project: Project, output_dir: RootedPath) -> list[Component]:
     """Process a request for a single yarn source directory.
 
@@ -93,9 +99,7 @@ def _resolve_yarn_project(project: Project, output_dir: RootedPath) -> list[Comp
     log.info(f"Fetching the yarn dependencies at the subpath {project.source_dir}")
 
     _configure_yarn_version(project)
-    _verify_yarnrc_paths(project)
-    _check_zero_installs(project)
-    _check_lockfile(project)
+    _verify_repository(project)
 
     _set_yarnrc_configuration(project, output_dir)
     packages = resolve_packages(project.source_dir)
