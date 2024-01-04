@@ -16,13 +16,12 @@ _package_managers: dict[PackageManagerType, Handler] = {
     "gomod": gomod.fetch_gomod_source,
     "npm": npm.fetch_npm_source,
     "pip": pip.fetch_pip_source,
+    "yarn": yarn.fetch_yarn_source,
 }
 
 # This is where we put package managers currently under development in order to
 # invoke them via CLI
-_dev_package_managers: dict[PackageManagerType, Handler] = {
-    "yarn": yarn.fetch_yarn_source,
-}
+_dev_package_managers: dict[PackageManagerType, Handler] = {}
 
 # This is *only* used to provide a list for `cachi2 --version`
 supported_package_managers = list(_package_managers)
