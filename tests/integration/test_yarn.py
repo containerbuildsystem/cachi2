@@ -74,6 +74,19 @@ log = logging.getLogger(__name__)
             ),
             id="yarn_incorrect_checksum",
         ),
+        pytest.param(
+            utils.TestParameters(
+                repo="https://github.com/cachito-testing/cachi2-yarn-berry.git",
+                ref="c1da60842aa94aaab8ed48122dc44522bd2a5ab1",
+                packages=({"path": ".", "type": "yarn"},),
+                check_output=False,
+                check_deps_checksums=False,
+                check_vendor_checksums=False,
+                expected_exit_code=2,
+                expected_output="Yarn lockfile 'yarn_non_existent.lock' missing, refusing to continue",
+            ),
+            id="yarn_no_lockfile",
+        ),
     ],
 )
 def test_yarn_packages(
