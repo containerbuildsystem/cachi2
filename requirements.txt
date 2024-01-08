@@ -449,9 +449,9 @@ multidict==6.0.4 \
     # via
     #   aiohttp
     #   yarl
-packageurl-python==0.13.1 \
-    --hash=sha256:84f8053f4b85294b98b3b78715475847fb48f4525ec302d06dc35b26a9b3078a \
-    --hash=sha256:d35090c7ec1d7afc611679912151b2157f28f68e729b6fa56f8ea5422819eaed
+packageurl-python==0.13.3 \
+    --hash=sha256:63514d3b72f22a9c092913b3fa7b4670e479998dff3d93597863c413735e2ec7 \
+    --hash=sha256:ed8abe1a92bbc91f0db60e7fe5a586d71d3d93036f558d43502cc2451833a1df
     # via cachi2 (pyproject.toml)
 packaging==23.2 \
     --hash=sha256:048fb0e9405036518eaaf48a55953c750c11e1a1b68e0dd1a9d62ed0c092cfc5 \
