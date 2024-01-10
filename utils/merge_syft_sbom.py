@@ -118,6 +118,27 @@ def _get_syft_component_filter(cachi_sbom_components: list[dict[str, Any]]) -> C
     return component_is_duplicated
 
 
+def _add_tools_metadata(syft_sbom: dict[Any, Any]) -> None:
+    """Add Cachi2 as a tool in the metadata section of the SBOM.
+
+    With CycloneDX 1.5, a new format for specifying tools was introduced, and the format from 1.4
+    was marked as deprecated.
+
+    This function aims to support both formats. Notice that, for simplicity reasons, we're ignoring
+    the actual 'tools' key present in the Cachi2 generated SBOM, and the data following the
+    appropriate format is hard-coded in this script.
+    """
+    metadata = syft_sbom.get("metadata", {})
+    tools = metadata.get("tools", [])
+
+    if type(tools) is dict:
+        tools.get("components", []).append(
+            {"type": "application", "author": "red hat", "name": "cachi2"}
+        )
+    elif type(tools) is list:
+        tools.append({"name": "cachi2", "vendor": "red hat"})
+
+
 def merge_sboms(cachi2_sbom_path: str, syft_sbom_path: str) -> str:
     """Merge Cachi2 components into the Syft SBOM while removing duplicates."""
     with open(cachi2_sbom_path) as file:
@@ -134,9 +155,7 @@ def merge_sboms(cachi2_sbom_path: str, syft_sbom_path: str) -> str:
 
     syft_sbom["components"] = filtered_syft_components + cachi2_sbom["components"]
 
-    syft_sbom.get("metadata", {}).get("tools", []).extend(
-        cachi2_sbom.get("metadata", {}).get("tools", [])
-    )
+    _add_tools_metadata(syft_sbom)
 
     return json.dumps(syft_sbom, indent=2)
 
