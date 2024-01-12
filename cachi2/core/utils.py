@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 import re
 import shutil
 import subprocess  # nosec
@@ -111,3 +112,12 @@ def copy_directory(origin: Path, destination: Path) -> Path:
         _copy_using(shutil.copy2)
 
     return destination
+
+
+def get_cache_dir() -> Path:
+    """Return cachi2's global cache directory, useful for storing reusable data."""
+    try:
+        cache_dir = Path(os.environ["XDG_CACHE_HOME"])
+    except KeyError:
+        cache_dir = Path.home().joinpath(".cache")
+    return cache_dir.joinpath("cachi2")
