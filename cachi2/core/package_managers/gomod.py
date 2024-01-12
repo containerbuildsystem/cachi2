@@ -542,9 +542,6 @@ def fetch_gomod_source(request: Request) -> RequestOutput:
     :raises PackageRejected: if a file is not present for the gomod package manager
     :raises PackageManagerError: if failed to fetch gomod dependencies
     """
-    version_output = run_cmd(["go", "version"], {})
-    log.info(f"Go version: {version_output.strip()}")
-
     config = get_config()
     subpaths = [str(package.path) for package in request.gomod_packages]
 
