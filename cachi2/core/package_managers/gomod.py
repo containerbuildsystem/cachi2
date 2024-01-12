@@ -30,6 +30,7 @@ import git
 import pydantic
 import semver
 from packageurl import PackageURL
+from packaging import version
 
 if TYPE_CHECKING:
     from typing_extensions import Self
@@ -210,6 +211,53 @@ class StandardPackage(NamedTuple):
     def to_component(self) -> Component:
         """Create a SBOM component for this package."""
         return Component(name=self.name, purl=self.purl)
+
+
+# NOTE: Skim the class once we don't need to work with multiple versions of Go
+class Go:
+    """High level wrapper over the 'go' CLI command.
+
+    Provides convenient methods to download project dependencies, alternative toolchains,
+    parses various Go files, etc.
+    """
+
+    def __init__(
+        self,
+        binary: Union[str, os.PathLike[str]] = "go",
+        release: Optional[str] = None,
+    ) -> None:
+        """Initialize the Go toolchain wrapper.
+
+        :param binary: path-like string to the Go binary or direct command (in PATH)
+        :param release: Go release version string, e.g. go1.20, go1.21.10
+        :returns: a callable instance
+        """
+        # run_cmd will take care of checking any bogus passed in 'binary'
+        self._bin = str(binary)
+        self._release = release
+
+        self._version: Optional[version.Version] = None
+        self._install_toolchain: bool = False
+
+    def __call__(self, cmd: list[str], params: Optional[dict] = None, retry: bool = False) -> str:  # type: ignore
+        """Run a Go command using the underlying toolchain, same as running GoToolchain()().
+
+        :param cmd: Go CLI options
+        :param params: additional subprocess arguments, e.g. 'env'
+        :param retry: whether the command should be retried on failure (e.g. network actions)
+        :returs: Go command's output
+        """
+        pass
+
+    @property
+    def version(self) -> version.Version:  # type: ignore
+        """Version of the Go toolchain as a packaging.version.Version object."""
+        pass
+
+    @property
+    def release(self) -> str:  # type: ignore
+        """Release name of the Go Toolchain, e.g. go1.20 ."""
+        pass
 
 
 ModuleID = tuple[str, str]
