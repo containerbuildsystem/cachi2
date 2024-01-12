@@ -8,7 +8,7 @@ import pytest
 import reflink  # type: ignore
 
 from cachi2.core.errors import Cachi2Error
-from cachi2.core.utils import copy_directory, run_cmd
+from cachi2.core.utils import copy_directory, get_cache_dir, run_cmd
 
 
 @mock.patch("subprocess.run")
@@ -132,3 +132,23 @@ def test_copy_directory_fallback_on_reflink_fail(
     # check we called both copy_functions (reflink, copy2)
     mock_reflink.assert_called_once()
     mock_shutil_copy2.assert_called_once()
+
+
+@pytest.mark.parametrize("environ", [{"XDG_CACHE_HOME": "/tmp/xdg_home/"}, {}])
+@mock.patch("pathlib.Path.home")
+@mock.patch("os.environ")
+def test_get_cache_dir(
+    mock_environ: mock.MagicMock,
+    mock_home_path: mock.Mock,
+    environ: dict,
+    tmp_path: Path,
+) -> None:
+    mock_environ.__getitem__.side_effect = environ.__getitem__
+    mock_home_path.return_value = tmp_path
+
+    if environ:
+        expected = Path(environ["XDG_CACHE_HOME"], "cachi2")
+    else:
+        expected = Path(tmp_path, ".cache/cachi2")
+
+    assert get_cache_dir() == expected
