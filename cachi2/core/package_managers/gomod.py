@@ -27,7 +27,6 @@ from typing import (
 
 import backoff
 import git
-import git.objects
 import pydantic
 import semver
 from packageurl import PackageURL
