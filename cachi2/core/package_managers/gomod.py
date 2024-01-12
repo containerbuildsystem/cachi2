@@ -769,30 +769,62 @@ def _resolve_gomod(
 
     run_params = {"env": env, "cwd": app_dir}
 
+    go = Go()
+    go1_21 = version.Version("1.21")
+    go_base_version = go.version
+    go_mod_version_msg = "go.mod recommends/requires Go version: {}"
+
+    if (_ := _get_gomod_version(app_dir)) is None:
+        # Go added the 'go' directive to go.mod in 1.12 [1]. If missing, 1.16 is assumed [2].
+        # For our version comparison purposes we set the version explicitly to 1.20 if missing.
+        # [1] https://go.dev/doc/go1.12#modules
+        # [2] https://go.dev/ref/mod#go-mod-file-go
+        _ = "1.20"
+        go_mod_version_msg += " " + "(cachi2 enforced)"
+
+    go_mod_version = version.Version(_)
+
+    log.info(go_mod_version_msg.format(go_mod_version))
+
+    if go_mod_version >= go1_21 and go_base_version < go1_21:
+        # our base Go installation is too old and we need a newer one to support new keywords
+        go = Go(release="go1.21.0")
+    elif go_mod_version < go1_21 and go_base_version >= go1_21:
+        # Starting with Go 1.21, Go doesn't try to be semantically backwards compatible in that the
+        # 'go X.Y' line now denotes the minimum required version of Go, no a "suggested" version.
+        # What it means in practice is that a Go toolchain >= 1.21 enforces the biggest
+        # common toolchain denominator across all dependencies and so if the input project
+        # specifies e.g. 'go 1.19' and **any** of its dependencies specify 'go 1.21' (or higher),
+        # then the default 1.21 toolchain will bump the input project's go.mod file to make sure
+        # the minimum required Go version is met across all dependencies. That is a problem,
+        # because it'll lead to fatal build failures forcing everyone to update their build
+        # recipes. Note that at some point they'll have to do that anyway, but until majority of
+        # projects in the ecosystem adopt 1.21, we need a fallback to an older toolchain version.
+        go = Go(release="go1.20")
+
     # Vendor dependencies if the gomod-vendor flag is set
     flags = request.flags
     should_vendor, can_make_changes = _should_vendor_deps(
         flags, app_dir, config.gomod_strict_vendor
     )
     if should_vendor:
-        downloaded_modules = _vendor_deps(app_dir, can_make_changes, run_params)
+        downloaded_modules = _vendor_deps(go, app_dir, can_make_changes, run_params)
     else:
         log.info("Downloading the gomod dependencies")
-        download_cmd = ["go", "mod", "download", "-json"]
         downloaded_modules = (
             ParsedModule.model_validate(obj)
-            for obj in load_json_stream(_run_download_cmd(download_cmd, run_params))
+            for obj in load_json_stream(go(["mod", "download", "-json"], run_params, retry=True))
         )
 
     if "force-gomod-tidy" in flags:
-        _run_gomod_cmd(("go", "mod", "tidy"), run_params)
+        go(["mod", "tidy"], run_params)
 
-    go_list = ["go", "list", "-e"]
+    go_list = ["list", "-e"]
     if not should_vendor:
         # Make Go ignore the vendor dir even if there is one
         go_list.extend(["-mod", "readonly"])
 
-    main_module_name = _run_gomod_cmd([*go_list, "-m"], run_params).rstrip()
+    main_module_name = go([*go_list, "-m"], run_params).rstrip()
     main_module = ParsedModule(
         path=main_module_name,
         version=version_resolver.get_golang_version(main_module_name, app_dir),
@@ -808,7 +840,7 @@ def _resolve_gomod(
         complete module list (roughly matching the list of downloaded modules).
         """
         cmd = [*go_list, "-deps", "-json=ImportPath,Module,Standard,Deps", pattern]
-        return map(ParsedPackage.model_validate, load_json_stream(_run_gomod_cmd(cmd, run_params)))
+        return map(ParsedPackage.model_validate, load_json_stream(go(cmd, run_params)))
 
     package_modules = (
         module for pkg in go_list_deps("all") if (module := pkg.module) and not module.main
@@ -894,8 +926,7 @@ class GoCacheTemporaryDirectory(tempfile.TemporaryDirectory[str]):
     ) -> None:
         """Clean up the temporary directory by first cleaning up the Go cache."""
         try:
-            env = {"GOPATH": self.name, "GOCACHE": self.name}
-            _run_gomod_cmd(("go", "clean", "-modcache"), {"env": env})
+            Go()(["clean", "-modcache"], {"env": {"GOPATH": self.name, "GOCACHE": self.name}})
         finally:
             super().__exit__(exc, value, tb)
 
@@ -1339,7 +1370,10 @@ def _parse_vendor(module_dir: RootedPath) -> Iterable[ParsedModule]:
 
 
 def _vendor_deps(
-    app_dir: RootedPath, can_make_changes: bool, run_params: dict[str, Any]
+    go: Go,
+    app_dir: RootedPath,
+    can_make_changes: bool,
+    run_params: dict[str, Any],
 ) -> Iterable[ParsedModule]:
     """
     Vendor golang dependencies.
@@ -1355,7 +1389,7 @@ def _vendor_deps(
     :raise UnexpectedFormat: if Cachi2 fails to parse vendor/modules.txt
     """
     log.info("Vendoring the gomod dependencies")
-    _run_download_cmd(("go", "mod", "vendor"), run_params)
+    go(["mod", "vendor"], run_params)
     if not can_make_changes and _vendor_changed(app_dir):
         raise PackageRejected(
             reason=(

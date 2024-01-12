@@ -128,6 +128,8 @@ def _parse_mocked_data(data_dir: Path, file_path: str) -> ResolvedGoModule:
 
 @pytest.mark.parametrize("cgo_disable", [False, True])
 @pytest.mark.parametrize("force_gomod_tidy", [False, True])
+@mock.patch("cachi2.core.package_managers.gomod.Go.release", new_callable=mock.PropertyMock)
+@mock.patch("cachi2.core.package_managers.gomod._get_gomod_version")
 @mock.patch("cachi2.core.package_managers.gomod.ModuleVersionResolver")
 @mock.patch("cachi2.core.package_managers.gomod._validate_local_replacements")
 @mock.patch("subprocess.run")
@@ -135,6 +137,8 @@ def test_resolve_gomod(
     mock_run: mock.Mock,
     mock_validate_local_replacements: mock.Mock,
     mock_version_resolver: mock.Mock,
+    mock_get_gomod_version: mock.Mock,
+    mock_go_release: mock.PropertyMock,
     cgo_disable: bool,
     force_gomod_tidy: bool,
     tmp_path: Path,
@@ -176,6 +180,8 @@ def test_resolve_gomod(
     mock_run.side_effect = run_side_effects
 
     mock_version_resolver.get_golang_version.return_value = "v0.1.0"
+    mock_go_release.return_value = "go0.1.0"
+    mock_get_gomod_version.return_value = "0.1.1"
 
     flags: list[Flag] = []
     if cgo_disable:
@@ -229,6 +235,8 @@ def test_resolve_gomod(
 
 
 @pytest.mark.parametrize("force_gomod_tidy", [False, True])
+@mock.patch("cachi2.core.package_managers.gomod.Go.release", new_callable=mock.PropertyMock)
+@mock.patch("cachi2.core.package_managers.gomod._get_gomod_version")
 @mock.patch("cachi2.core.package_managers.gomod.ModuleVersionResolver")
 @mock.patch("cachi2.core.package_managers.gomod._validate_local_replacements")
 @mock.patch("subprocess.run")
@@ -236,6 +244,8 @@ def test_resolve_gomod_vendor_dependencies(
     mock_run: mock.Mock,
     mock_validate_local_replacements: mock.Mock,
     mock_version_resolver: mock.Mock,
+    mock_get_gomod_version: mock.Mock,
+    mock_go_release: mock.PropertyMock,
     force_gomod_tidy: bool,
     tmp_path: Path,
     data_dir: Path,
@@ -270,6 +280,8 @@ def test_resolve_gomod_vendor_dependencies(
     mock_run.side_effect = run_side_effects
 
     mock_version_resolver.get_golang_version.return_value = "v0.1.0"
+    mock_go_release.return_value = "go0.1.0"
+    mock_get_gomod_version.return_value = "0.1.1"
 
     flags: list[Flag] = ["gomod-vendor"]
     if force_gomod_tidy:
@@ -307,10 +319,19 @@ def test_resolve_gomod_vendor_dependencies(
     assert resolve_result.modules_in_go_sum == expect_result.modules_in_go_sum
 
 
-def test_resolve_gomod_vendor_without_flag(tmp_path: Path, gomod_request: Request) -> None:
+@mock.patch("cachi2.core.package_managers.gomod.Go.release", new_callable=mock.PropertyMock)
+@mock.patch("cachi2.core.package_managers.gomod._get_gomod_version")
+def test_resolve_gomod_vendor_without_flag(
+    mock_get_gomod_version: mock.Mock,
+    mock_go_release: mock.PropertyMock,
+    tmp_path: Path,
+    gomod_request: Request,
+) -> None:
     module_dir = gomod_request.source_dir.join_within_root("path/to/module")
     module_dir.path.joinpath("vendor").mkdir(parents=True)
     version_resolver = mock.Mock()
+    mock_go_release.return_value = "go0.1.0"
+    mock_get_gomod_version.return_value = "0.1.1"
 
     expected_error = (
         'The "gomod-vendor" or "gomod-vendor-check" flag must be set when your repository has '
@@ -321,11 +342,15 @@ def test_resolve_gomod_vendor_without_flag(tmp_path: Path, gomod_request: Reques
 
 
 @pytest.mark.parametrize("force_gomod_tidy", [False, True])
+@mock.patch("cachi2.core.package_managers.gomod.Go.release", new_callable=mock.PropertyMock)
+@mock.patch("cachi2.core.package_managers.gomod._get_gomod_version")
 @mock.patch("cachi2.core.package_managers.gomod.ModuleVersionResolver")
 @mock.patch("subprocess.run")
 def test_resolve_gomod_no_deps(
     mock_run: mock.Mock,
     mock_version_resolver: mock.Mock,
+    mock_get_gomod_version: mock.Mock,
+    mock_go_release: mock.PropertyMock,
     force_gomod_tidy: bool,
     tmp_path: Path,
     gomod_request: Request,
@@ -367,6 +392,8 @@ def test_resolve_gomod_no_deps(
     mock_run.side_effect = run_side_effects
 
     mock_version_resolver.get_golang_version.return_value = "v2.1.1"
+    mock_go_release.return_value = "go2.1.0"
+    mock_get_gomod_version.return_value = "2.1.1"
 
     if force_gomod_tidy:
         gomod_request.flags = frozenset({"force-gomod-tidy"})
@@ -754,11 +781,15 @@ def test_package_to_component(package: Package, expected_component: Component) -
 
 
 @pytest.mark.parametrize(("go_mod_rc", "go_list_rc"), ((0, 1), (1, 0)))
+@mock.patch("cachi2.core.package_managers.gomod.Go.release", new_callable=mock.PropertyMock)
+@mock.patch("cachi2.core.package_managers.gomod._get_gomod_version")
 @mock.patch("cachi2.core.package_managers.gomod.get_config")
 @mock.patch("subprocess.run")
 def test_go_list_cmd_failure(
     mock_run: mock.Mock,
     mock_config: mock.Mock,
+    mock_get_gomod_version: mock.Mock,
+    mock_go_release: mock.PropertyMock,
     tmp_path: Path,
     go_mod_rc: int,
     go_list_rc: int,
@@ -768,6 +799,8 @@ def test_go_list_cmd_failure(
     version_resolver = mock.Mock()
 
     mock_config.return_value.gomod_download_max_tries = 1
+    mock_go_release.return_value = "go0.1.0"
+    mock_get_gomod_version.return_value = "0.1.1"
 
     # Mock the "subprocess.run" calls
     mock_run.side_effect = [
@@ -779,11 +812,11 @@ def test_go_list_cmd_failure(
         ),
     ]
 
-    expect_error = "Processing gomod dependencies failed"
+    expect_error = "Go execution failed: "
     if go_mod_rc == 0:
-        expect_error += ": `go list -e -mod readonly -m` failed with rc=1"
+        expect_error += "`go list -e -mod readonly -m` failed with rc=1"
     else:
-        expect_error += ". Cachi2 tried the go mod download -json command 1 times"
+        expect_error += "Cachi2 re-tried running `go mod download -json` command 1 times."
 
     with pytest.raises(PackageManagerError, match=expect_error):
         _resolve_gomod(module_path, gomod_request, tmp_path, version_resolver)
@@ -1062,7 +1095,7 @@ def test_should_vendor_deps_strict(
 
 @pytest.mark.parametrize("can_make_changes", [True, False])
 @pytest.mark.parametrize("vendor_changed", [True, False])
-@mock.patch("cachi2.core.package_managers.gomod._run_download_cmd")
+@mock.patch("cachi2.core.package_managers.gomod.Go._run")
 @mock.patch("cachi2.core.package_managers.gomod._vendor_changed")
 def test_vendor_deps(
     mock_vendor_changed: mock.Mock,
@@ -1079,11 +1112,11 @@ def test_vendor_deps(
     if expect_error:
         msg = "The content of the vendor directory is not consistent with go.mod."
         with pytest.raises(PackageRejected, match=msg):
-            _vendor_deps(app_dir, can_make_changes, run_params)
+            _vendor_deps(Go(), app_dir, can_make_changes, run_params)
     else:
-        _vendor_deps(app_dir, can_make_changes, run_params)
+        _vendor_deps(Go(), app_dir, can_make_changes, run_params)
 
-    mock_run_cmd.assert_called_once_with(("go", "mod", "vendor"), run_params)
+    mock_run_cmd.assert_called_once_with(["go", "mod", "vendor"], **run_params)
     if not can_make_changes:
         mock_vendor_changed.assert_called_once_with(app_dir)
 
