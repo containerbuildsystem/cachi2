@@ -382,7 +382,7 @@ def fetch_gomod_source(request: Request) -> RequestOutput:
     repo_name = _get_repository_name(request.source_dir)
     version_resolver = ModuleVersionResolver.from_repo_path(request.source_dir)
 
-    with GoCacheTemporaryDirectory(prefix="cachito-") as tmp_dir:
+    with GoCacheTemporaryDirectory(prefix="cachi2-") as tmp_dir:
         request.gomod_download_dir.path.mkdir(exist_ok=True, parents=True)
         for subpath in subpaths:
             log.info("Fetching the gomod dependencies at subpath %s", subpath)
