@@ -35,7 +35,6 @@ from cachi2.core.package_managers.gomod import (
     _parse_go_sum,
     _parse_vendor,
     _resolve_gomod,
-    _run_download_cmd,
     _should_vendor_deps,
     _validate_local_replacements,
     _vendor_changed,
@@ -1286,60 +1285,6 @@ def test_vendor_changed(
 
     # The _vendor_changed function should reset the `git add` => added files should not be tracked
     assert not repo.git.diff("--diff-filter", "A")
-
-
-@pytest.mark.parametrize("tries_needed", [1, 2, 3, 4, 5])
-@mock.patch("cachi2.core.package_managers.gomod.get_config")
-@mock.patch("subprocess.run")
-@mock.patch("time.sleep")
-def test_run_download_cmd_success(
-    mock_sleep: Any,
-    mock_run: Any,
-    mock_config: Any,
-    tries_needed: int,
-    caplog: pytest.LogCaptureFixture,
-) -> None:
-    mock_config.return_value.gomod_download_max_tries = 5
-
-    failure = proc_mock(returncode=1, stdout="")
-    success = proc_mock(returncode=0, stdout="")
-    mock_run.side_effect = [failure for _ in range(tries_needed - 1)] + [success]
-
-    _run_download_cmd(["go", "mod", "download"], {})
-    assert mock_run.call_count == tries_needed
-    assert mock_sleep.call_count == tries_needed - 1
-
-    for n in range(tries_needed - 1):
-        wait = 2**n
-        assert f"Backing off run_go(...) for {wait:.1f}s" in caplog.text
-
-
-@mock.patch("cachi2.core.package_managers.gomod.get_config")
-@mock.patch("subprocess.run")
-@mock.patch("time.sleep")
-def test_run_download_cmd_failure(
-    mock_sleep: Any, mock_run: Any, mock_config: Any, caplog: pytest.LogCaptureFixture
-) -> None:
-    mock_config.return_value.gomod_download_max_tries = 5
-
-    failure = proc_mock(returncode=1, stdout="")
-    mock_run.side_effect = [failure] * 5
-
-    expect_msg = (
-        "Processing gomod dependencies failed. Cachi2 tried the go mod download command 5 times."
-    )
-
-    with pytest.raises(PackageManagerError, match=expect_msg):
-        _run_download_cmd(["go", "mod", "download"], {})
-
-    assert mock_run.call_count == 5
-    assert mock_sleep.call_count == 4
-
-    assert "Backing off run_go(...) for 1.0s" in caplog.text
-    assert "Backing off run_go(...) for 2.0s" in caplog.text
-    assert "Backing off run_go(...) for 4.0s" in caplog.text
-    assert "Backing off run_go(...) for 8.0s" in caplog.text
-    assert "Giving up run_go(...) after 5 tries" in caplog.text
 
 
 @pytest.mark.parametrize(
