@@ -30,6 +30,7 @@ from cachi2.core.package_managers.gomod import (
     _create_modules_from_parsed_data,
     _create_packages_from_parsed_data,
     _deduplicate_resolved_modules,
+    _get_gomod_version,
     _get_repository_name,
     _parse_go_sum,
     _parse_vendor,
@@ -92,6 +93,14 @@ def gomod_request(tmp_path: Path, gomod_input_packages: list[dict[str, str]]) ->
         output_dir=tmp_path / "output",
         packages=gomod_input_packages,
     )
+
+
+@pytest.fixture
+def go_mod_file(tmp_path: Path, request: pytest.FixtureRequest) -> None:
+    output_file = tmp_path / "go.mod"
+
+    with open(output_file, "w") as f:
+        f.write(request.param)
 
 
 def proc_mock(
@@ -1589,6 +1598,26 @@ def test_fetch_tags_fail(repo_remote_with_tag: tuple[RootedPath, RootedPath]) ->
     )
     with pytest.raises(FetchError, match=error_msg):
         ModuleVersionResolver.from_repo_path(remote_repo_path)
+
+
+@pytest.mark.parametrize(
+    "go_mod_file, go_mod_version",
+    [("go 1.21", "1.21"), ("    go    1.21.4    ", "1.21.4")],
+    indirect=["go_mod_file"],
+)
+def test_get_gomod_version(
+    rooted_tmp_path: RootedPath, go_mod_file: Path, go_mod_version: str
+) -> None:
+    assert _get_gomod_version(rooted_tmp_path) == go_mod_version
+
+
+@pytest.mark.parametrize(
+    "go_mod_file",
+    [pytest.param(_, id=_) for _ in ["go1.21", "go 1.21.0.100", "1.21", "go 1.21 foo"]],
+    indirect=True,
+)
+def test_get_gomod_version_fail(rooted_tmp_path: RootedPath, go_mod_file: Path) -> None:
+    assert _get_gomod_version(rooted_tmp_path) is None
 
 
 class TestGo:

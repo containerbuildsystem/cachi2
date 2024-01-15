@@ -664,6 +664,25 @@ def _get_repository_name(source_dir: RootedPath) -> str:
     return f"{url.hostname}{url.path.rstrip('/').removesuffix('.git')}"
 
 
+def _get_gomod_version(source_dir: RootedPath) -> Optional[str]:
+    """Return the required/recommended version of Go from go.mod.
+
+    We need to extract the desired version of Go ourselves as older versions of Go might fail
+    due to e.g. unknown keywords or unexpected format of the version (yes, Go always performs
+    validation of go.mod).
+
+    If we cannot extract a version from the 'go' line, we return None, leaving it up to the caller
+    to decide what to do next.
+    """
+    go_mod = source_dir.join_within_root("go.mod")
+    with open(go_mod) as f:
+        reg = re.compile(r"^\s*go\s+(?P<ver>\d\.\d+(:?.\d+)?)\s*$")
+        for line in f:
+            if match := re.match(reg, line):
+                return match.group("ver")
+    return None
+
+
 def _protect_against_symlinks(app_dir: RootedPath) -> None:
     """Try to prevent go subcommands from following suspicious symlinks.
 
