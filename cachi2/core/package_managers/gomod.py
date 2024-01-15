@@ -12,14 +12,12 @@ from types import TracebackType
 from typing import (
     TYPE_CHECKING,
     Any,
-    Dict,
     Iterable,
     Iterator,
     Literal,
     NamedTuple,
     NoReturn,
     Optional,
-    Sequence,
     Tuple,
     Type,
     Union,
@@ -524,16 +522,6 @@ def _create_packages_from_parsed_data(
     return [_create_package(package) for package in parsed_packages]
 
 
-def _run_gomod_cmd(cmd: Sequence[str], params: dict[str, Any]) -> str:
-    try:
-        return run_cmd(cmd, params)
-    except subprocess.CalledProcessError as e:
-        rc = e.returncode
-        raise PackageManagerError(
-            f"Processing gomod dependencies failed: `{' '.join(cmd)}` failed with {rc=}"
-        ) from e
-
-
 def fetch_gomod_source(request: Request) -> RequestOutput:
     """
     Resolve and fetch gomod dependencies for a given request.
@@ -926,39 +914,6 @@ class GoCacheTemporaryDirectory(tempfile.TemporaryDirectory[str]):
             Go()(["clean", "-modcache"], {"env": {"GOPATH": self.name, "GOCACHE": self.name}})
         finally:
             super().__exit__(exc, value, tb)
-
-
-def _run_download_cmd(cmd: Sequence[str], params: Dict[str, Any]) -> str:
-    """Run gomod command that downloads dependencies.
-
-    Such commands may fail due to network errors (go is bad at retrying), so the entire operation
-    will be retried a configurable number of times.
-
-    Cachi2 will reuse the same cache directory between retries, so Go will not have to download
-    the same dependency twice. The backoff is exponential, Cachi2 will wait 1s -> 2s -> 4s -> ...
-    before retrying.
-    """
-    n_tries = get_config().gomod_download_max_tries
-
-    @backoff.on_exception(
-        backoff.expo,
-        PackageManagerError,
-        jitter=None,  # use deterministic backoff, do not apply jitter
-        max_tries=n_tries,
-        logger=log,
-    )
-    def run_go(_cmd: Sequence[str], _params: Dict[str, Any]) -> str:
-        log.debug(f"Running {_cmd}")
-        return _run_gomod_cmd(_cmd, _params)
-
-    try:
-        return run_go(cmd, params)
-    except PackageManagerError:
-        err_msg = (
-            f"Processing gomod dependencies failed. Cachi2 tried the {' '.join(cmd)} command "
-            f"{n_tries} times."
-        )
-        raise PackageManagerError(err_msg) from None
 
 
 def _should_vendor_deps(
