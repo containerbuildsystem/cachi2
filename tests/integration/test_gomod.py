@@ -170,6 +170,18 @@ log = logging.getLogger(__name__)
             ),
             id="gomod_multiple_modules_missing_checksums",
         ),
+        # Test case checks if cachi2 can process go workspaces properly.
+        pytest.param(
+            utils.TestParameters(
+                repo="https://github.com/cachito-testing/cachi2-gomod.git",
+                ref="449f904ecf268856ef335b2033cb64cc417b7c26",
+                packages=({"path": "./workspace_modules/hello", "type": "gomod"},),
+                check_vendor_checksums=False,
+                expected_exit_code=0,
+                expected_output="All dependencies fetched successfully",
+            ),
+            id="gomod_workspaces",
+        ),
     ],
 )
 def test_gomod_packages(
