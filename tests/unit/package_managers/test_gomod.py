@@ -1624,3 +1624,83 @@ class TestGo:
         cmd = [go._bin, "mod", "download"]
         go._run(cmd, **params)
         mock_run.assert_called_once_with(cmd, params)
+
+    @pytest.mark.parametrize(
+        "bin_, params, tries_needed",
+        [
+            pytest.param(None, {}, 1, id="bundled_go_1_try"),
+            pytest.param("/usr/bin/go1.21", {}, 2, id="custom_go_2_tries"),
+            pytest.param(
+                None,
+                {
+                    "env": {"GOCACHE": "/foo", "GOTOOLCHAIN": "local"},
+                    "cwd": "/foo/bar",
+                    "text": True,
+                },
+                5,
+                id="bundled_go_params_5_tries",
+            ),
+        ],
+    )
+    @mock.patch("cachi2.core.package_managers.gomod.get_config")
+    @mock.patch("cachi2.core.package_managers.gomod.run_cmd")
+    @mock.patch("time.sleep")
+    def test_retry(
+        self,
+        mock_sleep: mock.Mock,
+        mock_run: mock.Mock,
+        mock_config: mock.Mock,
+        bin_: str,
+        params: dict,
+        tries_needed: int,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        mock_config.return_value.gomod_download_max_tries = 5
+
+        # We don't want to mock subprocess.run here, because:
+        # 1) the call chain looks like this: Go()._retry->run_go->self._run->run_cmd->subprocess.run
+        # 2) we wouldn't be able to check if params are propagated correctly since run_cmd adds some too
+        failure = subprocess.CalledProcessError(returncode=1, cmd="foo")
+        success = 1
+        mock_run.side_effect = [failure for _ in range(tries_needed - 1)] + [success]
+
+        if bin_:
+            go = Go(bin_)
+        else:
+            go = Go()
+
+        cmd = [go._bin, "mod", "download"]
+        go._retry(cmd, **params)
+        mock_run.assert_called_with(cmd, params)
+        assert mock_run.call_count == tries_needed
+        assert mock_sleep.call_count == tries_needed - 1
+
+        for n in range(tries_needed - 1):
+            wait = 2**n
+            assert f"Backing off run_go(...) for {wait:.1f}s" in caplog.text
+
+    @mock.patch("cachi2.core.package_managers.gomod.get_config")
+    @mock.patch("cachi2.core.package_managers.gomod.run_cmd")
+    @mock.patch("time.sleep")
+    def test_retry_failure(
+        self, mock_sleep: Any, mock_run: Any, mock_config: Any, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        mock_config.return_value.gomod_download_max_tries = 5
+
+        failure = subprocess.CalledProcessError(returncode=1, cmd="foo")
+        mock_run.side_effect = [failure] * 5
+        go = Go()
+
+        error_msg = f"Go execution failed: Cachi2 re-tried running `{go._bin} mod download` command 5 times."
+
+        with pytest.raises(PackageManagerError, match=error_msg):
+            go._retry([go._bin, "mod", "download"])
+
+        assert mock_run.call_count == 5
+        assert mock_sleep.call_count == 4
+
+        assert "Backing off run_go(...) for 1.0s" in caplog.text
+        assert "Backing off run_go(...) for 2.0s" in caplog.text
+        assert "Backing off run_go(...) for 4.0s" in caplog.text
+        assert "Backing off run_go(...) for 8.0s" in caplog.text
+        assert "Giving up run_go(...) after 5 tries" in caplog.text

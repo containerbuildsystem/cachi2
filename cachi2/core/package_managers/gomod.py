@@ -259,6 +259,38 @@ class Go:
         """Release name of the Go Toolchain, e.g. go1.20 ."""
         pass
 
+    def _retry(self, cmd: list[str], **kwargs: Any) -> str:
+        """Run gomod command in a networking context.
+
+        Commands that involve networking, such as dependency downloads, may fail due to network
+        errors (go is bad at retrying), so the entire operation will be retried a configurable
+        number of times.
+
+        The same cache directory will be use between retries, so Go will not have to download the
+        same artifact (e.g. dependency) twice. The backoff is exponential, Cachi2 will wait 1s ->
+        2s -> 4s -> ... before retrying.
+        """
+        n_tries = get_config().gomod_download_max_tries
+
+        @backoff.on_exception(
+            backoff.expo,
+            PackageManagerError,
+            jitter=None,  # use deterministic backoff, do not apply jitter
+            max_tries=n_tries,
+            logger=log,
+        )
+        def run_go(_cmd: list[str], **kwargs: Any) -> str:
+            return self._run(_cmd, **kwargs)
+
+        try:
+            return run_go(cmd, **kwargs)
+        except PackageManagerError:
+            err_msg = (
+                f"Go execution failed: Cachi2 re-tried running `{' '.join(cmd)}` command "
+                f"{n_tries} times."
+            )
+            raise PackageManagerError(err_msg) from None
+
     def _run(self, cmd: list[str], **kwargs: Any) -> str:
         try:
             log.debug(f"Running '{cmd}'")
