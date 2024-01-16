@@ -259,6 +259,16 @@ class Go:
         """Release name of the Go Toolchain, e.g. go1.20 ."""
         pass
 
+    def _run(self, cmd: list[str], **kwargs: Any) -> str:
+        try:
+            log.debug(f"Running '{cmd}'")
+            return run_cmd(cmd, kwargs)
+        except subprocess.CalledProcessError as e:
+            rc = e.returncode
+            raise PackageManagerError(
+                f"Go execution failed: `{' '.join(cmd)}` failed with {rc=}"
+            ) from e
+
 
 ModuleID = tuple[str, str]
 

@@ -18,6 +18,7 @@ from cachi2.core.models.output import BuildConfig, RequestOutput
 from cachi2.core.models.sbom import Component, Property
 from cachi2.core.package_managers import gomod
 from cachi2.core.package_managers.gomod import (
+    Go,
     Module,
     ModuleID,
     ModuleVersionResolver,
@@ -1588,3 +1589,38 @@ def test_fetch_tags_fail(repo_remote_with_tag: tuple[RootedPath, RootedPath]) ->
     )
     with pytest.raises(FetchError, match=error_msg):
         ModuleVersionResolver.from_repo_path(remote_repo_path)
+
+
+class TestGo:
+    @pytest.mark.parametrize(
+        "bin_, params",
+        [
+            pytest.param(None, {}, id="bundled_go_no_params"),
+            pytest.param("/usr/bin/go1.21", {}, id="custom_go_no_params"),
+            pytest.param(None, {"cwd": "/foo/bar"}, id="bundled_go_params"),
+            pytest.param(
+                "/usr/bin/go1.21",
+                {
+                    "env": {"GOCACHE": "/foo", "GOTOOLCHAIN": "local"},
+                    "cwd": "/foo/bar",
+                    "text": True,
+                },
+                id="custom_go_params",
+            ),
+        ],
+    )
+    @mock.patch("cachi2.core.package_managers.gomod.run_cmd")
+    def test_run(
+        self,
+        mock_run: mock.Mock,
+        bin_: str,
+        params: dict,
+    ) -> None:
+        if not bin_:
+            go = Go(bin_)
+        else:
+            go = Go()
+
+        cmd = [go._bin, "mod", "download"]
+        go._run(cmd, **params)
+        mock_run.assert_called_once_with(cmd, params)
