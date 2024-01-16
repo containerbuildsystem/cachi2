@@ -25,6 +25,10 @@ $(
     cd "$tmpdir/gomod-pandemonium"
     export GOMODCACHE="$tmpdir/cachi2-mock-gomodcache"
 
+    echo "generating $mocked_data_dir/non-vendored/go_list_modules.json"
+    go list -m -json > \
+        "$mocked_data_dir_abspath/non-vendored/go_list_modules.json"
+
     echo "generating $mocked_data_dir/non-vendored/go_mod_download.json"
     go mod download -json > \
         "$mocked_data_dir_abspath/non-vendored/go_mod_download.json"

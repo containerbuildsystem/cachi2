@@ -50,6 +50,8 @@ GOMOD_DOC = "https://github.com/containerbuildsystem/cachi2/blob/main/docs/gomod
 GOMOD_INPUT_DOC = f"{GOMOD_DOC}#specifying-modules-to-process"
 VENDORING_DOC = f"{GOMOD_DOC}#vendoring"
 
+ModuleDict = dict[str, Any]
+
 
 class _ParsedModel(pydantic.BaseModel):
     """Attributes automatically get PascalCase aliases to make parsing Golang JSON easier.
@@ -860,11 +862,8 @@ def _resolve_gomod(
         # Make Go ignore the vendor dir even if there is one
         go_list.extend(["-mod", "readonly"])
 
-    main_module_name = go([*go_list, "-m"], run_params).rstrip()
-    main_module = ParsedModule(
-        path=main_module_name,
-        version=version_resolver.get_golang_version(main_module_name, app_dir),
-        main=True,
+    main_module, workspace_modules = _parse_local_modules(
+        go, go_list, run_params, app_dir, version_resolver
     )
 
     def go_list_deps(pattern: Literal["./...", "all"]) -> Iterator[ParsedPackage]:
@@ -878,10 +877,10 @@ def _resolve_gomod(
         cmd = [*go_list, "-deps", "-json=ImportPath,Module,Standard,Deps", pattern]
         return map(ParsedPackage.model_validate, load_json_stream(go(cmd, run_params)))
 
-    package_modules = (
+    package_modules = [
         module for pkg in go_list_deps("all") if (module := pkg.module) and not module.main
-    )
-
+    ]
+    package_modules.extend(workspace_modules)
     all_modules = _deduplicate_resolved_modules(package_modules, downloaded_modules)
 
     log.info("Retrieving the list of packages")
@@ -892,6 +891,92 @@ def _resolve_gomod(
     return ResolvedGoModule(main_module, all_modules, all_packages, modules_in_go_sum)
 
 
+def _parse_local_modules(
+    go: Go,
+    go_list: list[str],
+    run_params: dict[str, Any],
+    app_dir: RootedPath,
+    version_resolver: "ModuleVersionResolver",
+) -> tuple[ParsedModule, list[ParsedModule]]:
+    """
+    Identify and parse the main module and all workspace modules, if they exist.
+
+    :return: A tuple containing the main module and a list of workspaces
+    """
+    modules_json_stream = go([*go_list, "-m", "-json"], run_params).rstrip()
+    main_module_dict, workspace_dict_list = _process_modules_json_stream(
+        app_dir, modules_json_stream
+    )
+
+    main_module_path = main_module_dict["Path"]
+    main_module_version = version_resolver.get_golang_version(main_module_path, app_dir)
+
+    main_module = ParsedModule(
+        path=main_module_path,
+        version=main_module_version,
+        main=True,
+    )
+
+    workspace_modules = [
+        _parse_workspace_module(app_dir, workspace_dict, main_module_version)
+        for workspace_dict in workspace_dict_list
+    ]
+
+    return main_module, workspace_modules
+
+
+def _process_modules_json_stream(
+    app_dir: RootedPath, modules_json_stream: str
+) -> tuple[ModuleDict, list[ModuleDict]]:
+    """Process the json stream returned by "go list -m -json".
+
+    The stream will contain the module currently being processed, or a list of all workspaces in
+    case a go.work file is present in the repository.
+
+    :param app_dir: the path to the module directory
+    :param modules_json_stream: the json stream returned by "go list -m -json"
+    :return: A tuple containing the main module and a list of workspaces
+    """
+    module_list = []
+    main_module = None
+
+    for module in load_json_stream(modules_json_stream):
+        if module["Dir"] == str(app_dir):
+            main_module = module
+        else:
+            module_list.append(module)
+
+    # should never happen, since the main module will always be a part of the json stream
+    if not main_module:
+        raise RuntimeError('Failed to find the main module info in the "go list -m -json" output.')
+
+    return main_module, module_list
+
+
+def _parse_workspace_module(
+    app_dir: RootedPath, module: ModuleDict, main_module_version: str
+) -> ParsedModule:
+    """Create a ParsedModule from a listed workspace.
+
+    The replacement info returned will always be relative to the module currently being processed.
+    """
+    # We can't use pathlib since corresponding method PurePath.relative_to('foo', walk_up=True)
+    # is available only in Python 3.12 and later.
+    relative_dir = os.path.relpath(module["Dir"], app_dir)
+
+    # We need to prepend "./" to a workspace that is direct child of app_dir so it can be treated
+    # the same way as a locally replaced module when converting it into a Module.
+    if not relative_dir.startswith("."):
+        relative_dir = f"./{relative_dir}"
+
+    replaced_module = ParsedModule(path=relative_dir)
+
+    return ParsedModule(
+        path=module["Path"],
+        replace=replaced_module,
+    )
+
+
 def _parse_go_sum(module_dir: RootedPath) -> frozenset[ModuleID]:
     """Return the set of modules present in the go.sum file in the specified directory.
 
@@ -899,6 +984,7 @@ def _parse_go_sum(module_dir: RootedPath) -> frozenset[ModuleID]:
     checksums are not relevant for our purposes.
     """
     go_sum = module_dir.join_within_root("go.sum")
+
     if not go_sum.path.exists():
         return frozenset()
 
