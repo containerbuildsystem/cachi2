@@ -239,6 +239,12 @@ class Go:
         self._version: Optional[version.Version] = None
         self._install_toolchain: bool = False
 
+        if self._release:
+            if bin_ := self._locate_toolchain(self._release):
+                self._bin = bin_
+            else:
+                self._install_toolchain = True
+
     def __call__(self, cmd: list[str], params: Optional[dict] = None, retry: bool = False) -> str:
         """Run a Go command using the underlying toolchain, same as running GoToolchain()().
 
@@ -270,6 +276,23 @@ class Go:
     def release(self) -> str:  # type: ignore
         """Release name of the Go Toolchain, e.g. go1.20 ."""
         pass
+
+    @staticmethod
+    def _locate_toolchain(release: str) -> Optional[str]:
+        """Given a release locate an alternative Go toolchain.
+
+        Locate an alternative Go toolchain under the one of the following locations:
+            - /usr/local/go/                    for container environments (pre-installed)
+            - $XDG_CACHE_HOME/cachi2/go         for local environments (download & cache)
+        """
+        local_cache = get_cache_dir()
+        go_path_stub = f"go/{release}/bin/go"
+        for p in [Path("/usr/local/", go_path_stub), Path(local_cache, go_path_stub)]:
+            log.debug(f"Trying to locate Go toolchain at '{p}'")
+            if p.exists():
+                return str(p)
+
+        return None
 
     def _install(self, release: str) -> str:
         """Fetch and install an alternative version of main Go toolchain.
