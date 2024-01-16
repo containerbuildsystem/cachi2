@@ -43,7 +43,7 @@ from cachi2.core.models.property_semantics import PropertySet
 from cachi2.core.models.sbom import Component
 from cachi2.core.rooted_path import PathOutsideRoot, RootedPath
 from cachi2.core.scm import get_repo_id
-from cachi2.core.utils import load_json_stream, run_cmd
+from cachi2.core.utils import get_cache_dir, load_json_stream, run_cmd
 
 log = logging.getLogger(__name__)
 
@@ -258,6 +258,54 @@ class Go:
     def release(self) -> str:  # type: ignore
         """Release name of the Go Toolchain, e.g. go1.20 ."""
         pass
+
+    def _install(self, release: str) -> str:
+        """Fetch and install an alternative version of main Go toolchain.
+
+        This method should only ever be needed on local cachi2 installs, but not in container
+        environment installs where we pre-install multiple Go versions.
+        Because Go can't really be told where the toolchain should be installed to, the process is
+        as follows:
+            1) we use the base Go toolchain to fetch a versioned toolchain shim to a temporary
+               directory as we're going to dispose of the shim later
+            2) we use the downloaded shim to actually fetch the whole SDK for the desired version
+               of Go toolchain
+            3) we move the installed SDK to cachi2's cache directory
+               (i.e. $HOME/.cache/cachi2/go/<version>) to reuse the toolchains in subsequent runs
+            4) we delete the downloaded shim as we're not going to execute the toolchain through
+               that any longer
+            5) we delete any build artifacts go created as part of downloading the SDK as those
+               can occupy >~70MB of storage
+
+        :param release: Go release version string, e.g. go1.20, go1.21.10
+        :param env: params to use with the underlying subprocess and 'go' execution
+        :returns: path-like string to the newly installed toolchain binary
+        """
+        base_url = "golang.org/dl/"
+        url = f"{base_url}{release}@latest"
+
+        # Download the go<release> shim to a temporary directory and wipe it after we're done
+        # Go would download the shim to $HOME too, but unlike 'go download' we can at least adjust
+        # 'go install' to point elsewhere using $GOPATH
+        with tempfile.TemporaryDirectory(prefix="cachi2", suffix="go-download") as td:
+            log.debug(f"Installing Go {release} toolchain shim from '{url}'")
+            env = {
+                "PATH": os.environ.get("PATH", ""),
+                "GOPATH": td,
+                "GOCACHE": str(Path(td, "cache")),
+            }
+            self._retry([self._bin, "install", url], env=env)
+
+            log.debug(f"Downloading Go {release} SDK")
+            self._retry([f"{td}/bin/{release}", "download"], env=env)
+
+            # move the newly downloaded SDK from $HOME/sdk to $HOME/.cache/cachi2/go
+            sdk_download_dir = Path.home() / f"sdk/{release}"
+            cachi2_go_dest_dir = get_cache_dir() / "go" / release
+            shutil.move(sdk_download_dir, cachi2_go_dest_dir)
+
+        log.debug(f"Go {release} toolchain installed at: {cachi2_go_dest_dir}")
+        return str(cachi2_go_dest_dir / "bin/go")
 
     def _retry(self, cmd: list[str], **kwargs: Any) -> str:
         """Run gomod command in a networking context.
