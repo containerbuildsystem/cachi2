@@ -268,9 +268,11 @@ class Go:
         return self._run(cmd, **params)
 
     @property
-    def version(self) -> version.Version:  # type: ignore
+    def version(self) -> version.Version:
         """Version of the Go toolchain as a packaging.version.Version object."""
-        pass
+        if not self._version:
+            self._version = version.Version(self.release[2:])
+        return self._version
 
     @property
     def release(self) -> str:
