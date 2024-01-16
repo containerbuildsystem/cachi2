@@ -1739,3 +1739,72 @@ class TestGo:
         assert dest_cache_dir.exists()
         assert binary.exists()
         assert str(binary) == f"{dest_cache_dir}/go/{release}/bin/go"
+
+    @pytest.mark.parametrize(
+        "release, needs_install, retry",
+        [
+            pytest.param(None, False, False, id="bundled_go"),
+            pytest.param("go1.20", False, True, id="custom_release_installed"),
+            pytest.param("go1.21.0", True, True, id="custom_release_needs_installation"),
+        ],
+    )
+    @mock.patch("cachi2.core.package_managers.gomod.get_config")
+    @mock.patch("cachi2.core.package_managers.gomod.Go._install")
+    @mock.patch("cachi2.core.package_managers.gomod.Go._run")
+    def test_call(
+        self,
+        mock_run: mock.Mock,
+        mock_install: mock.Mock,
+        mock_get_config: mock.Mock,
+        tmp_path: Path,
+        release: Optional[str],
+        needs_install: bool,
+        retry: bool,
+    ) -> None:
+        go_bin = tmp_path / f"go/{release}/bin/go"
+        mock_install.return_value = go_bin.as_posix()
+
+        env = {"env": {"GOTOOLCHAIN": "local", "GOCACHE": "foo", "GOPATH": "bar"}}
+        opts = ["mod", "download"]
+        go = Go(release=release)
+        go._install_toolchain = needs_install
+        go(opts, retry=retry, params=env)
+
+        cmd = [go._bin, *opts]
+        if not retry:
+            mock_run.assert_called_once_with(cmd, **env)
+        else:
+            mock_get_config.return_value.gomod_download_max_tries = 1
+            mock_run.call_count = 1
+            mock_run.assert_called_with(cmd, **env)
+
+        if needs_install:
+            assert go._install_toolchain is False
+
+    @pytest.mark.parametrize("retry", [False, True])
+    @mock.patch("cachi2.core.package_managers.gomod.get_config")
+    @mock.patch("subprocess.run")
+    def test_call_failure(
+        self,
+        mock_run: mock.Mock,
+        mock_get_config: mock.Mock,
+        retry: bool,
+    ) -> None:
+        tries = 1
+        mock_get_config.return_value.gomod_download_max_tries = tries
+        failure = proc_mock(returncode=1, stdout="")
+        mock_run.side_effect = [failure]
+
+        opts = ["mod", "download"]
+        cmd = ["go", *opts]
+        error_msg = "Go execution failed: "
+        if retry:
+            error_msg += f"Cachi2 re-tried running `{' '.join(cmd)}` command {tries} times."
+        else:
+            error_msg += f"`{' '.join(cmd)}` failed with rc=1"
+
+        with pytest.raises(PackageManagerError, match=error_msg):
+            go = Go()
+            go(opts, retry=retry)
+
+        assert mock_run.call_count == 1
