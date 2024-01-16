@@ -239,7 +239,7 @@ class Go:
         self._version: Optional[version.Version] = None
         self._install_toolchain: bool = False
 
-    def __call__(self, cmd: list[str], params: Optional[dict] = None, retry: bool = False) -> str:  # type: ignore
+    def __call__(self, cmd: list[str], params: Optional[dict] = None, retry: bool = False) -> str:
         """Run a Go command using the underlying toolchain, same as running GoToolchain()().
 
         :param cmd: Go CLI options
@@ -247,7 +247,19 @@ class Go:
         :param retry: whether the command should be retried on failure (e.g. network actions)
         :returs: Go command's output
         """
-        pass
+        if params is None:
+            params = {}
+
+        # we check both values to silence the type checker complaining self._release might be None
+        if self._install_toolchain and self._release:
+            self._bin = self._install(self._release)
+            self._install_toolchain = False
+
+        cmd = [self._bin] + cmd
+        if retry:
+            return self._retry(cmd, **params)
+
+        return self._run(cmd, **params)
 
     @property
     def version(self) -> version.Version:  # type: ignore
