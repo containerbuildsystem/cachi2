@@ -5,6 +5,7 @@ import re
 import subprocess
 import textwrap
 from pathlib import Path
+from string import Template
 from textwrap import dedent
 from typing import Any, Iterator, Optional, Tuple, Union
 from unittest import mock
@@ -21,6 +22,7 @@ from cachi2.core.package_managers import gomod
 from cachi2.core.package_managers.gomod import (
     Go,
     Module,
+    ModuleDict,
     ModuleID,
     ModuleVersionResolver,
     Package,
@@ -34,7 +36,10 @@ from cachi2.core.package_managers.gomod import (
     _get_gomod_version,
     _get_repository_name,
     _parse_go_sum,
+    _parse_local_modules,
     _parse_vendor,
+    _parse_workspace_module,
+    _process_modules_json_stream,
     _resolve_gomod,
     _setup_go_toolchain,
     _should_vendor_deps,
@@ -147,6 +152,8 @@ def test_resolve_gomod(
     data_dir: Path,
     gomod_request: Request,
 ) -> None:
+    module_dir = gomod_request.source_dir.join_within_root("path/to/module")
+
     # Mock the "subprocess.run" calls
     run_side_effects = []
     run_side_effects.append(
@@ -162,7 +169,9 @@ def test_resolve_gomod(
         proc_mock(
             "go list -e -mod readonly -m",
             returncode=0,
-            stdout="github.com/cachito-testing/gomod-pandemonium",
+            stdout=get_mocked_data(data_dir, "non-vendored/go_list_modules.json").replace(
+                "{repo_dir}", str(module_dir)
+            ),
         )
     )
     run_side_effects.append(
@@ -253,6 +262,8 @@ def test_resolve_gomod_vendor_dependencies(
     data_dir: Path,
     gomod_request: Request,
 ) -> None:
+    module_dir = gomod_request.source_dir.join_within_root("path/to/module")
+
     # Mock the "subprocess.run" calls
     run_side_effects = []
     run_side_effects.append(proc_mock("go mod vendor", returncode=0, stdout=None))
@@ -262,7 +273,9 @@ def test_resolve_gomod_vendor_dependencies(
         proc_mock(
             "go list -e -m",
             returncode=0,
-            stdout="github.com/cachito-testing/gomod-pandemonium",
+            stdout=get_mocked_data(data_dir, "non-vendored/go_list_modules.json").replace(
+                "{repo_dir}", str(module_dir)
+            ),
         )
     )
     run_side_effects.append(
@@ -291,7 +304,6 @@ def test_resolve_gomod_vendor_dependencies(
 
     gomod_request.flags = frozenset(flags)
 
-    module_dir = gomod_request.source_dir.join_within_root("path/to/module")
     module_dir.join_within_root("vendor").path.mkdir(parents=True)
     module_dir.join_within_root("vendor/modules.txt").path.write_text(
         get_mocked_data(data_dir, "vendored/modules.txt")
@@ -361,6 +373,8 @@ def test_resolve_gomod_no_deps(
     tmp_path: Path,
     gomod_request: Request,
 ) -> None:
+    module_path = gomod_request.source_dir.join_within_root("path/to/module")
+
     mock_pkg_deps_no_deps = dedent(
         """
         {
@@ -373,6 +387,18 @@ def test_resolve_gomod_no_deps(
         """
     )
 
+    mock_go_list_modules = Template(
+        """
+        {
+            "Path": "github.com/release-engineering/retrodep/v2",
+            "Main": true,
+            "Dir": "$repo_dir",
+            "GoMod": "$repo_dir/go.mod",
+            "GoVersion": "1.19"
+        }
+        """
+    ).substitute({"repo_dir": str(module_path)})
+
     # Mock the "subprocess.run" calls
     run_side_effects = []
     run_side_effects.append(proc_mock("go mod download -json", returncode=0, stdout=""))
@@ -382,7 +408,7 @@ def test_resolve_gomod_no_deps(
         proc_mock(
             "go list -e -mod readonly -m",
             returncode=0,
-            stdout="github.com/release-engineering/retrodep/v2",
+            stdout=mock_go_list_modules,
         )
     )
     run_side_effects.append(
@@ -405,7 +431,6 @@ def test_resolve_gomod_no_deps(
     if force_gomod_tidy:
         gomod_request.flags = frozenset({"force-gomod-tidy"})
 
-    module_path = gomod_request.source_dir.join_within_root("path/to/module")
     main_module, modules, packages, _ = _resolve_gomod(
         module_path, gomod_request, tmp_path, mock_version_resolver
     )
@@ -515,6 +540,166 @@ def test_parse_broken_go_sum(rooted_tmp_path: RootedPath, caplog: pytest.LogCapt
     assert caplog.messages == [
         "submodule/go.sum:2: malformed line, skipping the rest of the file: 'github.com/davecgh/go-spew v1.1.0/go.mod'",
     ]
+
+
+@mock.patch("cachi2.core.package_managers.gomod.Go")
+@mock.patch("cachi2.core.package_managers.gomod.ModuleVersionResolver")
+def test_parse_local_modules(go: mock.Mock, version_resolver: mock.Mock) -> None:
+    go.return_value = """
+    {
+        "Path": "myorg.com/my-project",
+        "Main": true,
+        "Dir": "/path/to/project"
+    }
+    {
+        "Path": "myorg.com/my-project/workspace",
+        "Main": true,
+        "Dir": "/path/to/project/workspace"
+    }
+    """
+
+    app_dir = RootedPath("/path/to/project")
+    version_resolver.get_golang_version.return_value = "1.0.0"
+
+    main_module, workspace_modules = _parse_local_modules(go, [], {}, app_dir, version_resolver)
+
+    assert main_module == ParsedModule(
+        path="myorg.com/my-project",
+        version="1.0.0",
+        main=True,
+    )
+
+    assert workspace_modules[0] == ParsedModule(
+        path="myorg.com/my-project/workspace",
+        replace=ParsedModule(path="./workspace"),
+    )
+
+
+@pytest.mark.parametrize(
+    "project_path, stream, expected_modules",
+    (
+        pytest.param(
+            "/home/my-projects/simple-project",
+            dedent(
+                """
+                {
+                    "Path": "github.com/my-org/simple-project",
+                    "Main": true,
+                    "Dir": "/home/my-projects/simple-project",
+                    "GoMod": "/home/my-projects/simple-project/go.mod",
+                    "GoVersion": "1.19"
+                }
+                """
+            ),
+            (
+                {
+                    "Path": "github.com/my-org/simple-project",
+                    "Main": True,
+                    "Dir": "/home/my-projects/simple-project",
+                    "GoMod": "/home/my-projects/simple-project/go.mod",
+                    "GoVersion": "1.19",
+                },
+                [],
+            ),
+            id="no_workspaces",
+        ),
+        pytest.param(
+            "/home/my-projects/project-with-workspaces",
+            dedent(
+                """
+                {
+                    "Path": "github.com/my-org/project-with-workspaces",
+                    "Main": true,
+                    "Dir": "/home/my-projects/project-with-workspaces",
+                    "GoMod": "/home/my-projects/project-with-workspaces/go.mod",
+                    "GoVersion": "1.19"
+                }
+                {
+                    "Path": "github.com/my-org/work",
+                    "Main": true,
+                    "Dir": "/home/my-projects/project-with-workspaces/work",
+                    "GoMod": "/home/my-projects/project-with-workspaces/work/go.mod"
+                }
+                {
+                    "Path": "github.com/my-org/space",
+                    "Main": true,
+                    "Dir": "/home/my-projects/project-with-workspaces/space",
+                    "GoMod": "/home/my-projects/project-with-workspaces/space/go.mod"
+                }
+                """
+            ),
+            (
+                {
+                    "Path": "github.com/my-org/project-with-workspaces",
+                    "Main": True,
+                    "Dir": "/home/my-projects/project-with-workspaces",
+                    "GoMod": "/home/my-projects/project-with-workspaces/go.mod",
+                    "GoVersion": "1.19",
+                },
+                [
+                    {
+                        "Path": "github.com/my-org/work",
+                        "Main": True,
+                        "Dir": "/home/my-projects/project-with-workspaces/work",
+                        "GoMod": "/home/my-projects/project-with-workspaces/work/go.mod",
+                    },
+                    {
+                        "Path": "github.com/my-org/space",
+                        "Main": True,
+                        "Dir": "/home/my-projects/project-with-workspaces/space",
+                        "GoMod": "/home/my-projects/project-with-workspaces/space/go.mod",
+                    },
+                ],
+            ),
+            id="with_workspaces",
+        ),
+    ),
+)
+def test_process_modules_json_stream(
+    project_path: str,
+    stream: str,
+    expected_modules: tuple[ModuleDict, list[ModuleDict]],
+) -> None:
+    app_dir = RootedPath(project_path)
+    result = _process_modules_json_stream(app_dir, stream)
+
+    assert result == expected_modules
+
+
+@pytest.mark.parametrize(
+    "relative_app_dir, module, expected_module",
+    (
+        # main module is also the workspace root:
+        pytest.param(
+            ".",
+            {"Dir": "workspace", "Path": "example.com/myproject/workspace"},
+            ParsedModule(
+                path="example.com/myproject/workspace",
+                replace=ParsedModule(path="./workspace"),
+            ),
+            id="workspace_root_is_a_go_module",
+        ),
+        # main module and workspace are inside the workspace root:
+        pytest.param(
+            "mainmod",
+            {"Dir": "workspace", "Path": "example.com/myproject/workspace"},
+            ParsedModule(
+                path="example.com/myproject/workspace",
+                replace=ParsedModule(path="../workspace"),
+            ),
+            id="only_nested_workspaces",
+        ),
+    ),
+)
+def test_parse_workspace_modules(
+    relative_app_dir: str, module: dict[str, Any], expected_module: ParsedModule, tmp_path: Path
+) -> None:
+    app_dir = RootedPath(tmp_path).join_within_root(relative_app_dir)
+    # makes Dir an absolute path based on tmp_path
+    module["Dir"] = str(tmp_path.joinpath(module["Dir"]))
+
+    parsed_workspace = _parse_workspace_module(app_dir, module, "0.0.1")
+    assert parsed_workspace == expected_module
 
 
 @mock.patch("cachi2.core.package_managers.gomod.ModuleVersionResolver")
@@ -821,7 +1006,7 @@ def test_go_list_cmd_failure(
 
     expect_error = "Go execution failed: "
     if go_mod_rc == 0:
-        expect_error += "`go list -e -mod readonly -m` failed with rc=1"
+        expect_error += "`go list -e -mod readonly -m -json` failed with rc=1"
     else:
         expect_error += "Cachi2 re-tried running `go mod download -json` command 1 times."
 
