@@ -1704,3 +1704,38 @@ class TestGo:
         assert "Backing off run_go(...) for 4.0s" in caplog.text
         assert "Backing off run_go(...) for 8.0s" in caplog.text
         assert "Giving up run_go(...) after 5 tries" in caplog.text
+
+    @pytest.mark.parametrize("release", ["go1.20", "go1.21.1"])
+    @mock.patch("pathlib.Path.home")
+    @mock.patch("cachi2.core.package_managers.gomod.Go._retry")
+    @mock.patch("cachi2.core.package_managers.gomod.get_cache_dir")
+    def test_install(
+        self,
+        mock_cache_dir: mock.Mock,
+        mock_go_retry: mock.Mock,
+        mock_path_home: mock.Mock,
+        tmp_path: Path,
+        release: str,
+    ) -> None:
+        dest_cache_dir = tmp_path / "cache"
+        env_vars = ["PATH", "GOPATH", "GOCACHE"]
+
+        mock_cache_dir.return_value = dest_cache_dir
+        mock_go_retry.return_value = 0
+        mock_path_home.return_value = tmp_path
+
+        sdk_download_dir = tmp_path / f"sdk/{release}"
+        sdk_bin_dir = sdk_download_dir / "bin"
+        sdk_bin_dir.mkdir(parents=True)
+        sdk_bin_dir.joinpath("go").touch()
+
+        go = Go(release=release)
+        binary = Path(go._install(release))
+        assert mock_go_retry.call_args_list[0][0][0][1] == "install"
+        assert mock_go_retry.call_args_list[0][0][0][2] == f"golang.org/dl/{release}@latest"
+        assert mock_go_retry.call_args_list[0][1].get("env") is not None
+        assert set(mock_go_retry.call_args_list[0][1]["env"].keys()) & set(env_vars)
+        assert not sdk_download_dir.exists()
+        assert dest_cache_dir.exists()
+        assert binary.exists()
+        assert str(binary) == f"{dest_cache_dir}/go/{release}/bin/go"
