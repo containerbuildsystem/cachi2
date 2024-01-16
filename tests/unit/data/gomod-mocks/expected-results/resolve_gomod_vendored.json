@@ -166,12 +166,12 @@
       "module": null
     },
     {
-      "import_path": "internal/unsafeheader",
+      "import_path": "internal/abi",
       "standard": true,
       "module": null
     },
     {
-      "import_path": "internal/abi",
+      "import_path": "internal/unsafeheader",
       "standard": true,
       "module": null
     },
@@ -182,6 +182,16 @@
     },
     {
       "import_path": "internal/bytealg",
+      "standard": true,
+      "module": null
+    },
+    {
+      "import_path": "internal/coverage/rtcov",
+      "standard": true,
+      "module": null
+    },
+    {
+      "import_path": "internal/godebugs",
       "standard": true,
       "module": null
     },
@@ -431,7 +441,7 @@
       "module": null
     },
     {
-      "import_path": "crypto/internal/subtle",
+      "import_path": "crypto/internal/alias",
       "standard": true,
       "module": null
     },
@@ -511,6 +521,11 @@
       }
     },
     {
+      "import_path": "log/internal",
+      "standard": true,
+      "module": null
+    },
+    {
       "import_path": "log",
       "standard": true,
       "module": null
@@ -522,6 +537,11 @@
     },
     {
       "import_path": "vendor/golang.org/x/net/dns/dnsmessage",
+      "standard": true,
+      "module": null
+    },
+    {
+      "import_path": "internal/bisect",
       "standard": true,
       "module": null
     },
@@ -681,6 +701,11 @@
       "module": null
     },
     {
+      "import_path": "internal/platform",
+      "standard": true,
+      "module": null
+    },
+    {
       "import_path": "go/build",
       "standard": true,
       "module": null
@@ -751,6 +776,11 @@
       "module": null
     },
     {
+      "import_path": "crypto/internal/edwards25519/field",
+      "standard": true,
+      "module": null
+    },
+    {
       "import_path": "crypto/internal/nistec/fiat",
       "standard": true,
       "module": null
@@ -766,7 +796,17 @@
       "module": null
     },
     {
+      "import_path": "crypto/ecdh",
+      "standard": true,
+      "module": null
+    },
+    {
       "import_path": "crypto/elliptic",
+      "standard": true,
+      "module": null
+    },
+    {
+      "import_path": "crypto/internal/bigmod",
       "standard": true,
       "module": null
     },
@@ -797,11 +837,6 @@
     },
     {
       "import_path": "crypto/ecdsa",
-      "standard": true,
-      "module": null
-    },
-    {
-      "import_path": "crypto/internal/edwards25519/field",
       "standard": true,
       "module": null
     },
@@ -866,7 +901,7 @@
       "module": null
     },
     {
-      "import_path": "vendor/golang.org/x/crypto/internal/subtle",
+      "import_path": "vendor/golang.org/x/crypto/internal/alias",
       "standard": true,
       "module": null
     },
@@ -887,16 +922,6 @@
     },
     {
       "import_path": "vendor/golang.org/x/crypto/chacha20poly1305",
-      "standard": true,
-      "module": null
-    },
-    {
-      "import_path": "vendor/golang.org/x/crypto/curve25519/internal/field",
-      "standard": true,
-      "module": null
-    },
-    {
-      "import_path": "vendor/golang.org/x/crypto/curve25519",
       "standard": true,
       "module": null
     },
