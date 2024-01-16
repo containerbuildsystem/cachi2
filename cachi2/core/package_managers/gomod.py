@@ -273,9 +273,26 @@ class Go:
         pass
 
     @property
-    def release(self) -> str:  # type: ignore
+    def release(self) -> str:
         """Release name of the Go Toolchain, e.g. go1.20 ."""
-        pass
+        # lazy evaluation: defer running 'go'
+        if not self._release:
+            output = self(["version"])
+            log.info(f"Go release: {output}")
+            release_pattern = f"go{version.VERSION_PATTERN}"
+
+            # packaging.version requires passing the re.VERBOSE|re.IGNORECASE flags [1]
+            # [1] https://packaging.pypa.io/en/latest/version.html#packaging.version.VERSION_PATTERN
+            if match := re.search(release_pattern, output, re.VERBOSE | re.IGNORECASE):
+                self._release = match.group(0)
+            else:
+                # This should not happen, otherwise we must figure out a more reliable way of
+                # extracting Go version
+                raise PackageManagerError(
+                    f"Could not extract Go toolchain version from Go's output: '{output}'",
+                    solution="This is a fatal error, please open a bug report against cachi2",
+                )
+        return self._release
 
     @staticmethod
     def _locate_toolchain(release: str) -> Optional[str]:
