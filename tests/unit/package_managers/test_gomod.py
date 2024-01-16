@@ -1749,12 +1749,14 @@ class TestGo:
         ],
     )
     @mock.patch("cachi2.core.package_managers.gomod.get_config")
+    @mock.patch("cachi2.core.package_managers.gomod.Go._locate_toolchain")
     @mock.patch("cachi2.core.package_managers.gomod.Go._install")
     @mock.patch("cachi2.core.package_managers.gomod.Go._run")
     def test_call(
         self,
         mock_run: mock.Mock,
         mock_install: mock.Mock,
+        mock_locate_toolchain: mock.Mock,
         mock_get_config: mock.Mock,
         tmp_path: Path,
         release: Optional[str],
@@ -1762,12 +1764,16 @@ class TestGo:
         retry: bool,
     ) -> None:
         go_bin = tmp_path / f"go/{release}/bin/go"
-        mock_install.return_value = go_bin.as_posix()
+
+        if not needs_install:
+            mock_locate_toolchain.return_value = go_bin.as_posix()
+        else:
+            mock_locate_toolchain.return_value = None
+            mock_install.return_value = go_bin.as_posix()
 
         env = {"env": {"GOTOOLCHAIN": "local", "GOCACHE": "foo", "GOPATH": "bar"}}
         opts = ["mod", "download"]
         go = Go(release=release)
-        go._install_toolchain = needs_install
         go(opts, retry=retry, params=env)
 
         cmd = [go._bin, *opts]
@@ -1808,3 +1814,49 @@ class TestGo:
             go(opts, retry=retry)
 
         assert mock_run.call_count == 1
+
+    @pytest.mark.parametrize(
+        "base_path",
+        [
+            pytest.param("usr/local", id="locate_in_system_path"),
+            pytest.param("cachi2", id="locate_in_XDG_CACHE_HOME"),
+        ],
+    )
+    @mock.patch("cachi2.core.package_managers.gomod.get_cache_dir")
+    @mock.patch("cachi2.core.package_managers.gomod.Path")
+    def test_locate_toolchain(
+        self, mock_path: mock.Mock, mock_cache_dir: mock.Mock, tmp_path: Path, base_path: str
+    ) -> None:
+        def prefix_path(*args: Any) -> Path:
+            # we have to mock Path creation to prevent tests touching real system paths
+
+            my_args = list(args)
+            if str(tmp_path) not in my_args[0] and my_args[0].startswith("/"):
+                my_args[0] = my_args[0][1:]
+            return Path(tmp_path, *my_args)
+
+        mock_path.side_effect = prefix_path
+        mock_cache_dir.return_value = "cachi2"
+
+        release = "go1.20"
+        go_bin_dir = tmp_path / f"{base_path}/go/{release}/bin"
+        go_bin_dir.mkdir(parents=True)
+        go_bin_dir.joinpath("go").touch()
+
+        go = Go(release=release)
+
+        assert Path(go._bin) == go_bin_dir / "go"
+        assert go._install_toolchain is False
+
+    @mock.patch("cachi2.core.package_managers.gomod.get_cache_dir")
+    def test_locate_toolchain_failure(
+        self,
+        mock_cache_dir: mock.Mock,
+    ) -> None:
+        mock_cache_dir.return_value = "cachi2"
+
+        release = "go1.20"
+        go = Go(release=release)
+
+        assert go._bin == "go"
+        assert go._install_toolchain is True
