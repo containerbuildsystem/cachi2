@@ -2025,17 +2025,18 @@ def _resolve_pip(
     """
     pkg_name, pkg_version = _get_pip_metadata(app_path)
 
-    # This could be an empty list
-    if requirement_files is None:
-        resolved_req_files = _default_requirement_file_list(app_path)
-    else:
-        resolved_req_files = [app_path.join_within_root(r) for r in requirement_files]
+    def resolve_req_files(req_files: Optional[list[Path]], devel: bool) -> list[RootedPath]:
+        resolved: list[RootedPath] = []
+        # This could be an empty list
+        if req_files is None:
+            resolved.extend(_default_requirement_file_list(app_path, devel=devel))
+        else:
+            resolved.extend([app_path.join_within_root(r) for r in req_files])
 
-    # This could be an empty list
-    if build_requirement_files is None:
-        resolved_build_req_files = _default_requirement_file_list(app_path, devel=True)
-    else:
-        resolved_build_req_files = [app_path.join_within_root(r) for r in build_requirement_files]
+        return resolved
+
+    resolved_req_files = resolve_req_files(requirement_files, False)
+    resolved_build_req_files = resolve_req_files(build_requirement_files, True)
 
     requires = _download_from_requirement_files(output_dir, resolved_req_files, allow_binary)
     build_requires = _download_from_requirement_files(
