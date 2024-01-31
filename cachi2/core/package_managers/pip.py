@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 import pkg_resources
 import pypi_simple
 import requests
-from packaging.utils import canonicalize_name, canonicalize_version
+from packaging.utils import canonicalize_version
 
 from cachi2.core.checksum import ChecksumInfo, must_match_any_checksum
 from cachi2.core.config import get_config
@@ -1919,28 +1919,6 @@ def _add_cachito_hash_to_url(parsed_url: urllib.parse.ParseResult, hash_spec: st
 def _to_checksum_info(hash_: str) -> ChecksumInfo:
     algorithm, _, digest = hash_.partition(":")
     return ChecksumInfo(algorithm, digest)
-
-
-# note: this function is not used anymore
-# it might be deleted as soon as the pypi hash verification strategy is resolved
-def _get_user_checksums(
-    req_files: list[PipRequirementsFile],
-) -> dict[tuple[str, str], set[ChecksumInfo]]:
-    result: dict[tuple[str, str], set[ChecksumInfo]] = dict()
-
-    for req_file in req_files:
-        for req in req_file.requirements:
-            if req.kind != "pypi":
-                continue
-
-            normalized_name = canonicalize_name(req.package)
-            normalized_version = canonicalize_version(req.version_specs[0][1])
-            key = (normalized_name, normalized_version)
-
-            checksums = set(map(_to_checksum_info, req.hashes))
-            result[key] = result.get(key, set()).union(checksums)
-
-    return result
 
 
 def _download_from_requirement_files(

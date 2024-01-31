@@ -3515,62 +3515,6 @@ class TestDownload:
             assert f"The {w2_path.name} is removed from the output directory" in caplog.text
         # </check downloaded wheels>
 
-    def test_get_user_checksums(self) -> None:
-        version_specs = [("==", "1.0.1")]
-        cano_version = pip.canonicalize_version(version_specs[0][1])
-
-        requirements = [
-            self.mock_requirement(
-                "r1", "pypi", version_specs=version_specs, hashes=["sha256:123456", "sha256:abcdef"]
-            ),
-            self.mock_requirement(
-                "r2", "pypi", version_specs=version_specs, hashes=["sha256:123456", "sha256:abcdef"]
-            ),
-            self.mock_requirement(
-                "b1", "pypi", version_specs=version_specs, hashes=["sha256:123456", "sha256:654321"]
-            ),
-            self.mock_requirement("extra", "vcs"),
-        ]
-        build_requirements = [
-            self.mock_requirement(
-                "b1", "pypi", version_specs=version_specs, hashes=["sha256:123456", "sha256:abcdef"]
-            ),
-            self.mock_requirement(
-                "b2", "pypi", version_specs=version_specs, hashes=["sha256:123456", "sha256:abcdef"]
-            ),
-            self.mock_requirement(
-                "r1", "pypi", version_specs=version_specs, hashes=["sha256:123456", "sha256:654321"]
-            ),
-        ]
-
-        req_file1 = self.mock_requirements_file(requirements)
-        req_file2 = self.mock_requirements_file(build_requirements)
-
-        checksums = pip._get_user_checksums([req_file1, req_file2])
-        expected = {
-            ("r1", cano_version): set(
-                [
-                    ChecksumInfo("sha256", "123456"),
-                    ChecksumInfo("sha256", "654321"),
-                    ChecksumInfo("sha256", "abcdef"),
-                ]
-            ),
-            ("r2", cano_version): set(
-                [ChecksumInfo("sha256", "123456"), ChecksumInfo("sha256", "abcdef")]
-            ),
-            ("b1", cano_version): set(
-                [
-                    ChecksumInfo("sha256", "123456"),
-                    ChecksumInfo("sha256", "654321"),
-                    ChecksumInfo("sha256", "abcdef"),
-                ]
-            ),
-            ("b2", cano_version): set(
-                [ChecksumInfo("sha256", "123456"), ChecksumInfo("sha256", "abcdef")]
-            ),
-        }
-        assert checksums == expected
-
     @mock.patch("cachi2.core.package_managers.pip._process_package_distributions")
     @mock.patch("cachi2.core.package_managers.pip.download_binary_file")
     @mock.patch("cachi2.core.package_managers.pip._check_metadata_in_sdist")
