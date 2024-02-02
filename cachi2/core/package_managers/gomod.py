@@ -249,7 +249,7 @@ class Go:
         :param cmd: Go CLI options
         :param params: additional subprocess arguments, e.g. 'env'
         :param retry: whether the command should be retried on failure (e.g. network actions)
-        :returs: Go command's output
+        :returns: Go command's output
         """
         if params is None:
             params = {}
