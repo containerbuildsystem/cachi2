@@ -14,7 +14,19 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from os import PathLike
 from pathlib import Path
-from typing import IO, TYPE_CHECKING, Any, Iterable, Iterator, Optional, Union, cast, no_type_check
+from typing import (
+    IO,
+    TYPE_CHECKING,
+    Any,
+    Iterable,
+    Iterator,
+    Literal,
+    Optional,
+    Sequence,
+    Union,
+    cast,
+    no_type_check,
+)
 
 import tomli
 from packageurl import PackageURL
@@ -29,6 +41,7 @@ import pkg_resources
 import pypi_simple
 import requests
 from packaging.utils import canonicalize_version
+from pkg_resources import Requirement, RequirementParseError
 
 from cachi2.core.checksum import ChecksumInfo, must_match_any_checksum
 from cachi2.core.config import get_config
@@ -119,7 +132,7 @@ def fetch_pip_source(request: Request) -> RequestOutput:
     )
 
 
-def _generate_properties(dependency: dict) -> list[Property]:
+def _generate_properties(dependency: dict[str, str]) -> list[Property]:
     if not dependency["hash_verified"]:
         return [Property(name="cachi2:missing_hash:in_file", value=dependency["requirement_file"])]
     else:
@@ -155,7 +168,7 @@ def _generate_purl_dependency(package: dict[str, Any]) -> str:
     name = package["name"]
     dependency_kind = package.get("kind", None)
     version = None
-    qualifiers = None
+    qualifiers: Optional[dict[str, str]] = None
 
     if dependency_kind == "pypi":
         version = package["version"]
@@ -163,8 +176,8 @@ def _generate_purl_dependency(package: dict[str, Any]) -> str:
         qualifiers = {"vcs_url": package["version"]}
     elif dependency_kind == "url":
         parsed_url = urllib.parse.urldefrag(package["version"])
-        fragments = urllib.parse.parse_qs(parsed_url.fragment)
-        checksum = fragments["cachito_hash"][0]
+        fragments: dict[str, list[str]] = urllib.parse.parse_qs(parsed_url.fragment)
+        checksum: str = fragments["cachito_hash"][0]
         qualifiers = {"download_url": parsed_url.url, "checksum": checksum}
     else:
         # Should not happen
@@ -231,9 +244,12 @@ def _get_pip_metadata(package_dir: RootedPath) -> tuple[str, Optional[str]]:
             raise PackageRejected(
                 reason="Could not take name from the repository origin url",
                 solution=(
-                    "Please specify package metadata in a way that Cachi2 understands (see the docs)\n"
-                    "or make sure that the directory Cachi2 is processing is a git repository with\n"
-                    "an 'origin' remote in which case Cachi2 will infer the package name from the remote url."
+                    "Please specify package metadata in a way that Cachi2 understands"
+                    " (see the docs)\n"
+                    "or make sure that the directory Cachi2 is processing is a git"
+                    " repository with\n"
+                    "an 'origin' remote in which case Cachi2 will infer the package name from"
+                    " the remote url."
                 ),
                 docs=PIP_METADATA_DOC,
             )
@@ -301,7 +317,7 @@ def _get_top_level_attr(
 
 
 class SetupFile(ABC):
-    """Abstract base class for setup.cfg and setup.py handling."""
+    """Abstract base class for pyproject.toml, setup.cfg, and setup.py handling."""
 
     def __init__(self, top_dir: RootedPath, file_name: str) -> None:
         """
@@ -588,7 +604,7 @@ class SetupCFG(SetupFile):
         # Strip whitespace and discard empty values
         package_items = filter(bool, (p.strip() for p in package_items))
 
-        package_dirs = {}
+        package_dirs: dict[str, str] = {}
         for item in package_items:
             package, sep, p_dir = item.partition("=")
             if sep:
@@ -995,7 +1011,7 @@ class PipRequirementsFile:
         Lines ending in the line continuation character are joined with the next line.
         Comment lines are ignored.
         """
-        buffered_line = []
+        buffered_line: list[str] = []
 
         with open(self.file_path) as f:
             for line in f.read().splitlines():
@@ -1023,7 +1039,7 @@ class PipRequirementsFile:
         """
         global_options: list[str] = []
         requirement_options: list[str] = []
-        requirement = []
+        requirement: list[str] = []
 
         # Indicates the option must be followed by a value
         _require_value = False
@@ -1119,7 +1135,7 @@ class PipRequirement:
         self.hashes: list[str] = []
         self.qualifiers: dict[str, Any] = {}
 
-        self.kind: str = ""
+        self.kind: Literal["pypi", "url", "vcs"]
         self.download_line: str = ""
 
         self.options: list[str] = []
@@ -1140,7 +1156,7 @@ class PipRequirement:
 
     def __str__(self) -> str:
         """Return the string representation of the PipRequirement."""
-        line = []
+        line: list[str] = []
         line.extend(self.options)
         line.append(self.download_line)
         line.extend(f"--hash={h}" for h in self.hashes)
@@ -1159,7 +1175,7 @@ class PipRequirement:
         options = list(self.options)
         download_line = self.download_line
         if url:
-            download_line_parts = []
+            download_line_parts: list[str] = []
             download_line_parts.append(self.raw_package)
             download_line_parts.append("@")
 
@@ -1203,7 +1219,7 @@ class PipRequirement:
 
     @no_type_check
     @classmethod
-    def from_line(cls, line: str, options: list[str]) -> "PipRequirement":
+    def from_line(cls, line: str, options: list[str]) -> Optional["PipRequirement"]:
         """Create an instance of PipRequirement from the given requirement and its options.
 
         Only ``url`` and ``vcs`` direct access requirements are supported. ``file`` is not.
@@ -1230,9 +1246,9 @@ class PipRequirement:
             requirement.kind = "pypi"
 
         try:
-            parsed = list(pkg_resources.parse_requirements(to_be_parsed))
+            parsed: Sequence[Requirement] = list(pkg_resources.parse_requirements(to_be_parsed))
         except (
-            pkg_resources.RequirementParseError,
+            RequirementParseError,
             pkg_resources.extern.packaging.requirements.InvalidRequirement,
         ) as exc:
             # see https://github.com/pypa/setuptools/pull/2137
@@ -1247,17 +1263,17 @@ class PipRequirement:
         # not correct.
         if len(parsed) > 1:
             raise RuntimeError(f"Didn't expect to find multiple requirements in: {line!r}")
-        parsed = parsed[0]
+        req: Requirement = parsed[0]
 
         hashes, options = cls._split_hashes_from_options(options)
 
         requirement.download_line = to_be_parsed
         requirement.options = options
-        requirement.package = parsed.project_name
-        requirement.raw_package = parsed.name
-        requirement.version_specs = parsed.specs
-        requirement.extras = parsed.extras
-        requirement.environment_marker = str(parsed.marker) if parsed.marker else None
+        requirement.package = req.project_name
+        requirement.raw_package = req.name
+        requirement.version_specs = req.specs
+        requirement.extras = req.extras
+        requirement.environment_marker = str(req.marker) if req.marker else None
         requirement.hashes = hashes
         requirement.qualifiers = qualifiers
 
@@ -1268,7 +1284,7 @@ class PipRequirement:
         """Determine if the line contains a direct access requirement.
 
         :param str line: the requirement line
-        :return: two-item tuple where the first item is the kind of dicrect access requirement,
+        :return: two-item tuple where the first item is the kind of direct access requirement,
             e.g. "vcs", and the second item is a bool indicating if the requirement is a
             direct access requirement
         """
@@ -1304,7 +1320,7 @@ class PipRequirement:
             qualifiers extracted from the direct access URL
         """
         package_name = None
-        qualifiers = {}
+        qualifiers: dict[str, str] = {}
         url = line
         environment_marker = None
 
@@ -1353,8 +1369,8 @@ class PipRequirement:
         :return: two-item tuple where the first item is a list of hashes, and the second item
             is a list of options without any ``--hash`` options
         """
-        hashes = []
-        reduced_options = []
+        hashes: list[str] = []
+        reduced_options: list[str] = []
         is_hash = False
 
         for item in options:
@@ -1374,10 +1390,11 @@ def _download_dependencies(
     output_dir: RootedPath, requirements_file: PipRequirementsFile, allow_binary: bool = False
 ) -> list[dict[str, Any]]:
     """
-    Download sdists (source distributions) of all dependencies in a requirements.txt file.
+    Download artifacts of all dependency packages in a requirements.txt file.
 
     :param output_dir: the root output directory for this request
     :param requirements_file: A requirements.txt file
+    :param bool allow_binary: process wheels?
     :return: Info about downloaded packages; all items will contain "kind" and "path" keys
         (and more based on kind, see _download_*_package functions for more details)
     :rtype: list[dict]
@@ -1403,7 +1420,7 @@ def _download_dependencies(
     pip_deps_dir = output_dir.join_within_root("deps", "pip")
     pip_deps_dir.path.mkdir(parents=True, exist_ok=True)
 
-    downloaded = []
+    downloaded: list[dict[str, Any]] = []
     to_download: list[DistributionPackageInfo] = []
 
     for req in requirements_file.requirements:
@@ -1412,6 +1429,7 @@ def _download_dependencies(
         if req.kind == "pypi":
             source, wheels = _process_package_distributions(req, pip_deps_dir, allow_binary)
             if allow_binary:
+                # check if artifact already exists locally
                 to_download.extend(w for w in wheels if not w.path.exists())
 
             if source is None:
@@ -1467,7 +1485,7 @@ def _download_dependencies(
                     must_match_any_checksum(pkg.path, pkg.checksums_to_verify)
             except PackageRejected:
                 pkg.path.unlink()
-                log.warning("The %s is removed from the output directory", pkg.path.name)
+                log.warning("Download '%s' was removed from the output directory", pkg.path.name)
 
     return downloaded
 
@@ -1518,9 +1536,9 @@ def _process_options(options: list[str]) -> dict[str, Any]:
     }
 
     require_hashes = False
-    trusted_hosts = []
-    ignored = []
-    rejected = []
+    trusted_hosts: list[str] = []
+    ignored: list[str] = []
+    rejected: list[str] = []
 
     i = 0
     while i < len(options):
@@ -1648,9 +1666,9 @@ def _validate_provided_hashes(requirements: list[PipRequirement], require_hashes
             )
 
         for hash_spec in hashes:
-            algorithm, _, digest = hash_spec.partition(":")
+            _, _, digest = hash_spec.partition(":")
             if not digest:
-                msg = f"Not a valid hash specifier: {hash_spec!r} (expected algorithm:digest)"
+                msg = f"Not a valid hash specifier: {hash_spec!r} (expected 'algorithm:digest')"
                 raise PackageRejected(msg, solution=None)
 
 
@@ -1660,7 +1678,7 @@ class DistributionPackageInfo:
 
     name: str
     version: str
-    package_type: str
+    package_type: Literal["sdist", "wheel"]
     path: Path
     url: str
     is_yanked: bool
@@ -1676,10 +1694,11 @@ class DistributionPackageInfo:
 
     def _determine_checksums_to_verify(self) -> set[ChecksumInfo]:
         """Determine the set of checksums to verify for a given distribution package."""
+        checksums: set[ChecksumInfo] = set()
         matching = self.pypi_checksums.intersection(self.user_checksums)
 
         if self.pypi_checksums and self.user_checksums:
-            checksums = matching or set()
+            checksums = matching
             msg = "using intersection of user specified and PyPI reported checksums"
         elif self.pypi_checksums:
             checksums = self.pypi_checksums
@@ -1688,7 +1707,6 @@ class DistributionPackageInfo:
             checksums = self.user_checksums
             msg = "using user specified checksums"
         else:
-            checksums = set()
             msg = "no checksums reported by PyPI or specified by the user"
 
         log.debug("%s: %s", self.path.name, msg)
@@ -1725,6 +1743,22 @@ class DistributionPackageInfo:
 def _process_package_distributions(
     requirement: PipRequirement, pip_deps_dir: RootedPath, allow_binary: bool = False
 ) -> tuple[Optional[DistributionPackageInfo], list[DistributionPackageInfo]]:
+    """
+    Return a DistributionPackageInfo object | a list of DPI objects, for the provided pip package.
+
+    Scrape the package's PyPI page and generate a list of all available
+    artifacts.
+    Filter by version and allowed artifact type.
+    Filter to find the best matching sdist artifact.
+    Process wheel artifacts.
+
+
+    :param requirement: which pip package to process
+    :param str pip_deps_dir:
+    :param bool allow_binary: process wheels?
+    :return: a single DistributionPackageInfo, or a list of DPI
+    :rtype: DistributionPackageInfo
+    """
     name = requirement.package
     version = requirement.version_specs[0][1]
     normalized_version = canonicalize_version(version)
@@ -1759,7 +1793,7 @@ def _process_package_distributions(
         dpi = DistributionPackageInfo(
             name,
             version,
-            cast(str, package.package_type),
+            cast(Literal["sdist", "wheel"], package.package_type),
             pip_deps_dir.join_within_root(package.filename).path,
             package.url,
             package.is_yanked,
@@ -1788,17 +1822,23 @@ def _process_package_distributions(
                 ),
             )
     else:
-        log.warning("No source distributions found for package %s==%s", name, version)
+        log.warning("No sdist found for package %s==%s", name, version)
         best_sdist = None
 
         if len(wheels) == 0:
             if allow_binary:
-                solution = "Please check that the package exists on PyPI or that the name and version are correct.\n"
+                solution = (
+                    "Please check that the package exists on PyPI or that the name"
+                    " and version are correct.\n"
+                )
                 docs = None
             else:
                 solution = (
-                    "It seems that this version does not exist or isn't published as a source distribution.\n"
-                    "Try to specify the dependency directly via a URL instead, for example, the tarball for a GitHub release."
+                    "It seems that this version does not exist or isn't published as an"
+                    " sdist.\n"
+                    "Try to specify the dependency directly via a URL instead, for example,"
+                    " the tarball for a GitHub release.\n"
+                    "Alternatively, allow the use of wheels."
                 )
                 docs = PIP_NO_SDIST_DOC
 
@@ -1864,7 +1904,7 @@ def _download_url_package(
     """
     Download a Python package from a URL.
 
-    :param PipRequirement requirement: VCS requirement from a requirements.txt file
+    :param PipRequirement requirement: URL requirement from a requirements.txt file
     :param RootedPath pip_deps_dir: The deps/pip directory in a Cachi2 request bundle
     :param set[str] trusted_hosts: If host (or host:port) is trusted, do not verify SSL
 
@@ -1929,11 +1969,12 @@ def _download_from_requirement_files(
 
     :param output_dir: the root output directory for this request
     :param files: list of absolute paths to pip requirements files
+    :param allow_binary: process wheels?
     :return: Info about downloaded packages; see download_dependencies return docs for further
         reference
     :raises PackageRejected: If requirement file does not exist
     """
-    requirements = []
+    requirements: list[dict[str, Any]] = []
     for req_file in files:
         if not req_file.path.exists():
             raise PackageRejected(
@@ -1976,6 +2017,7 @@ def _resolve_pip(
         to be used to compile a list of dependencies to be fetched
     :param list build_requirement_files: a list of str representing paths to the Python build
         requirement files to be used to compile a list of build dependencies to be fetched
+    :param bool allow_binary: process wheels?
     :return: a dictionary that has the following keys:
         ``package`` which is the dict representing the main Package,
         ``dependencies`` which is a list of dicts representing the package Dependencies
@@ -1997,15 +2039,15 @@ def _resolve_pip(
         resolved_build_req_files = [app_path.join_within_root(r) for r in build_requirement_files]
 
     requires = _download_from_requirement_files(output_dir, resolved_req_files, allow_binary)
-    buildrequires = _download_from_requirement_files(
+    build_requires = _download_from_requirement_files(
         output_dir, resolved_build_req_files, allow_binary
     )
 
     # Mark all build dependencies as Cachi2 dev dependencies
-    for dependency in buildrequires:
+    for dependency in build_requires:
         dependency["dev"] = True
 
-    def _version(dep: dict) -> str:
+    def _version(dep: dict[str, Any]) -> str:
         if dep["kind"] == "pypi":
             version = dep["version"]
         elif dep["kind"] == "vcs":
@@ -2026,7 +2068,7 @@ def _resolve_pip(
             "hash_verified": dep["hash_verified"],
             "requirement_file": dep["requirement_file"],
         }
-        for dep in (requires + buildrequires)
+        for dep in (requires + build_requires)
     ]
 
     return {
