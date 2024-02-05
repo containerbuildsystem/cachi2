@@ -2716,7 +2716,7 @@ class TestDownload:
         )
         assert source is None
         assert len(wheels) == 2
-        assert f"No source distributions found for package {package_name}=={version}" in caplog.text
+        assert f"No sdist found for package {package_name}=={version}" in caplog.text
 
     @pytest.mark.parametrize("allow_binary", (True, False))
     @mock.patch.object(pypi_simple.PyPISimple, "get_project_page")
@@ -2738,19 +2738,23 @@ class TestDownload:
                 mock_requirement, rooted_tmp_path, allow_binary=allow_binary
             )
 
-        assert f"No source distributions found for package {package_name}=={version}" in caplog.text
+        assert f"No sdist found for package {package_name}=={version}" in caplog.text
         assert (
             str(exc_info.value) == f"No distributions found for package {package_name}=={version}"
         )
 
         if allow_binary:
             assert str(exc_info.value.solution) == (
-                "Please check that the package exists on PyPI or that the name and version are correct.\n"
+                "Please check that the package exists on PyPI or that the name"
+                " and version are correct.\n"
             )
         else:
             assert str(exc_info.value.solution) == (
-                "It seems that this version does not exist or isn't published as a source distribution.\n"
-                "Try to specify the dependency directly via a URL instead, for example, the tarball for a GitHub release."
+                "It seems that this version does not exist or isn't published as an"
+                " sdist.\n"
+                "Try to specify the dependency directly via a URL instead, for example,"
+                " the tarball for a GitHub release.\n"
+                "Alternatively, allow the use of wheels."
             )
 
     @mock.patch.object(pypi_simple.PyPISimple, "get_project_page")
@@ -3286,7 +3290,7 @@ class TestDownload:
         with pytest.raises(PackageRejected) as exc_info:
             pip._download_dependencies(RootedPath("/output"), req_file)
 
-        msg = "Not a valid hash specifier: 'malformed' (expected algorithm:digest)"
+        msg = "Not a valid hash specifier: 'malformed' (expected 'algorithm:digest')"
         assert str(exc_info.value) == msg
 
     @pytest.mark.parametrize("use_hashes", [True, False])
@@ -3512,7 +3516,7 @@ class TestDownload:
         if allow_binary:
             assert f"Downloading {len(wheels)} wheel(s) ..." in caplog.text
             # wheel #2 does not match any checksums
-            assert f"The {w2_path.name} is removed from the output directory" in caplog.text
+            assert f"Download '{w2_path.name}' was removed from the output directory" in caplog.text
         # </check downloaded wheels>
 
     @mock.patch("cachi2.core.package_managers.pip._process_package_distributions")
