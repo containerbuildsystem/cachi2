@@ -308,7 +308,7 @@ original Cachito.*
 
 <https://go.dev/ref/mod>
 
-Current version: 1.20 [^go-version] [^go-compat]
+Current version: 1.21 [^go-version] [^go-compat]
 
 The gomod package manager works by parsing the [go.mod](https://go.dev/ref/mod#go-mod-file) file present in the source
 repository to determine which dependencies to download. Cachi2 does not parse this file on its own - rather, we rely on
@@ -332,6 +332,17 @@ See [docs/gomod.md](docs/gomod.md) for more details.
   there is a good chance it will be compatible regardless, as long as the dependency resolution did not change between
   the two versions. For example, dependency resolution did change in [go 1.18][go118-changelog] but not in
   [go 1.19][go119-changelog].
+
+#### Go 1.21+ *(since cachi2-v0.5.0)*
+  Starting with [Go 1.21][go121-changelog], Go changed the meaning of the `go 1.X` directive in
+  that it now specifies the [minimum required version](https://go.dev/ref/mod#go-mod-file-go) of Go
+  rather than a suggested version as it originally did. The format of the version string in the
+  `go` directive now also includes the micro release and if you don't include the micro release in
+  your `go.mod` file yourself (i.e. you only specify the language release) Go will try to correct
+  it automatically inside the file. Last but not least, Go 1.21 also introduced a new keyword
+  [`toolchain`](https://go.dev/ref/mod#go-mod-file-toolchain) to the `go.mod` file. What this all
+  means in practice for end users is that you may not be able to process your `go.mod` file with an older version
+  of Go (and hence older cachi2) as you could in the past for various reasons.
 
 ### pip
 
@@ -392,4 +403,5 @@ still in early development phase.
 [go117-changelog]: https://tip.golang.org/doc/go1.17#go-command
 [go118-changelog]: https://tip.golang.org/doc/go1.18#go-command
 [go119-changelog]: https://tip.golang.org/doc/go1.19#go-command
+[go121-changelog]: https://tip.golang.org/doc/go1.21
 [ocp-cachi2-pipelines]: https://console-openshift-console.apps.stone-prd-rh01.pg1f.p1.openshiftapps.com/pipelines/ns/tekton-ci/pipeline-runs?name=cachi2

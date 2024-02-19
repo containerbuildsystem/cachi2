@@ -118,6 +118,40 @@ def _get_syft_component_filter(cachi_sbom_components: list[dict[str, Any]]) -> C
     return component_is_duplicated
 
 
+def _merge_tools_metadata(syft_sbom: dict[Any, Any], cachi2_sbom: dict[Any, Any]) -> None:
+    """Merge the content of tools in the metadata section of the SBOM.
+
+    With CycloneDX 1.5, a new format for specifying tools was introduced, and the format from 1.4
+    was marked as deprecated.
+
+    This function aims to support both formats in the Syft SBOM. We're assuming the Cachi2 SBOM
+    was generated with the same version as this script, and it will be in the older format.
+    """
+    syft_tools = syft_sbom["metadata"]["tools"]
+    cachi2_tools = cachi2_sbom["metadata"]["tools"]
+
+    if isinstance(syft_tools, dict):
+        components = []
+
+        for t in cachi2_tools:
+            components.append(
+                {
+                    "author": t["vendor"],
+                    "name": t["name"],
+                    "type": "application",
+                }
+            )
+
+        syft_tools["components"].extend(components)
+    elif isinstance(syft_tools, list):
+        syft_tools.extend(cachi2_tools)
+    else:
+        raise RuntimeError(
+            "The .metadata.tools JSON key is in an unexpected format. "
+            f"Expected dict or list, got {type(syft_tools)}."
+        )
+
+
 def merge_sboms(cachi2_sbom_path: str, syft_sbom_path: str) -> str:
     """Merge Cachi2 components into the Syft SBOM while removing duplicates."""
     with open(cachi2_sbom_path) as file:
@@ -134,9 +168,7 @@ def merge_sboms(cachi2_sbom_path: str, syft_sbom_path: str) -> str:
 
     syft_sbom["components"] = filtered_syft_components + cachi2_sbom["components"]
 
-    syft_sbom.get("metadata", {}).get("tools", []).extend(
-        cachi2_sbom.get("metadata", {}).get("tools", [])
-    )
+    _merge_tools_metadata(syft_sbom, cachi2_sbom)
 
     return json.dumps(syft_sbom, indent=2)
 

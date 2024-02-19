@@ -12,14 +12,12 @@ from types import TracebackType
 from typing import (
     TYPE_CHECKING,
     Any,
-    Dict,
     Iterable,
     Iterator,
     Literal,
     NamedTuple,
     NoReturn,
     Optional,
-    Sequence,
     Tuple,
     Type,
     Union,
@@ -27,10 +25,10 @@ from typing import (
 
 import backoff
 import git
-import git.objects
 import pydantic
 import semver
 from packageurl import PackageURL
+from packaging import version
 
 if TYPE_CHECKING:
     from typing_extensions import Self
@@ -43,7 +41,7 @@ from cachi2.core.models.property_semantics import PropertySet
 from cachi2.core.models.sbom import Component
 from cachi2.core.rooted_path import PathOutsideRoot, RootedPath
 from cachi2.core.scm import get_repo_id
-from cachi2.core.utils import load_json_stream, run_cmd
+from cachi2.core.utils import get_cache_dir, load_json_stream, run_cmd
 
 log = logging.getLogger(__name__)
 
@@ -213,6 +211,197 @@ class StandardPackage(NamedTuple):
         return Component(name=self.name, purl=self.purl)
 
 
+# NOTE: Skim the class once we don't need to work with multiple versions of Go
+class Go:
+    """High level wrapper over the 'go' CLI command.
+
+    Provides convenient methods to download project dependencies, alternative toolchains,
+    parses various Go files, etc.
+    """
+
+    def __init__(
+        self,
+        binary: Union[str, os.PathLike[str]] = "go",
+        release: Optional[str] = None,
+    ) -> None:
+        """Initialize the Go toolchain wrapper.
+
+        :param binary: path-like string to the Go binary or direct command (in PATH)
+        :param release: Go release version string, e.g. go1.20, go1.21.10
+        :returns: a callable instance
+        """
+        # run_cmd will take care of checking any bogus passed in 'binary'
+        self._bin = str(binary)
+        self._release = release
+
+        self._version: Optional[version.Version] = None
+        self._install_toolchain: bool = False
+
+        if self._release:
+            if bin_ := self._locate_toolchain(self._release):
+                self._bin = bin_
+            else:
+                self._install_toolchain = True
+
+    def __call__(self, cmd: list[str], params: Optional[dict] = None, retry: bool = False) -> str:
+        """Run a Go command using the underlying toolchain, same as running GoToolchain()().
+
+        :param cmd: Go CLI options
+        :param params: additional subprocess arguments, e.g. 'env'
+        :param retry: whether the command should be retried on failure (e.g. network actions)
+        :returns: Go command's output
+        """
+        if params is None:
+            params = {}
+
+        # we check both values to silence the type checker complaining self._release might be None
+        if self._install_toolchain and self._release:
+            self._bin = self._install(self._release)
+            self._install_toolchain = False
+
+        cmd = [self._bin] + cmd
+        if retry:
+            return self._retry(cmd, **params)
+
+        return self._run(cmd, **params)
+
+    @property
+    def version(self) -> version.Version:
+        """Version of the Go toolchain as a packaging.version.Version object."""
+        if not self._version:
+            self._version = version.Version(self.release[2:])
+        return self._version
+
+    @property
+    def release(self) -> str:
+        """Release name of the Go Toolchain, e.g. go1.20 ."""
+        # lazy evaluation: defer running 'go'
+        if not self._release:
+            output = self(["version"])
+            log.info(f"Go release: {output}")
+            release_pattern = f"go{version.VERSION_PATTERN}"
+
+            # packaging.version requires passing the re.VERBOSE|re.IGNORECASE flags [1]
+            # [1] https://packaging.pypa.io/en/latest/version.html#packaging.version.VERSION_PATTERN
+            if match := re.search(release_pattern, output, re.VERBOSE | re.IGNORECASE):
+                self._release = match.group(0)
+            else:
+                # This should not happen, otherwise we must figure out a more reliable way of
+                # extracting Go version
+                raise PackageManagerError(
+                    f"Could not extract Go toolchain version from Go's output: '{output}'",
+                    solution="This is a fatal error, please open a bug report against cachi2",
+                )
+        return self._release
+
+    @staticmethod
+    def _locate_toolchain(release: str) -> Optional[str]:
+        """Given a release locate an alternative Go toolchain.
+
+        Locate an alternative Go toolchain under the one of the following locations:
+            - /usr/local/go/                    for container environments (pre-installed)
+            - $XDG_CACHE_HOME/cachi2/go         for local environments (download & cache)
+        """
+        local_cache = get_cache_dir()
+        go_path_stub = f"go/{release}/bin/go"
+        for p in [Path("/usr/local/", go_path_stub), Path(local_cache, go_path_stub)]:
+            log.debug(f"Trying to locate Go toolchain at '{p}'")
+            if p.exists():
+                return str(p)
+
+        return None
+
+    def _install(self, release: str) -> str:
+        """Fetch and install an alternative version of main Go toolchain.
+
+        This method should only ever be needed on local cachi2 installs, but not in container
+        environment installs where we pre-install multiple Go versions.
+        Because Go can't really be told where the toolchain should be installed to, the process is
+        as follows:
+            1) we use the base Go toolchain to fetch a versioned toolchain shim to a temporary
+               directory as we're going to dispose of the shim later
+            2) we use the downloaded shim to actually fetch the whole SDK for the desired version
+               of Go toolchain
+            3) we move the installed SDK to cachi2's cache directory
+               (i.e. $HOME/.cache/cachi2/go/<version>) to reuse the toolchains in subsequent runs
+            4) we delete the downloaded shim as we're not going to execute the toolchain through
+               that any longer
+            5) we delete any build artifacts go created as part of downloading the SDK as those
+               can occupy >~70MB of storage
+
+        :param release: Go release version string, e.g. go1.20, go1.21.10
+        :param env: params to use with the underlying subprocess and 'go' execution
+        :returns: path-like string to the newly installed toolchain binary
+        """
+        base_url = "golang.org/dl/"
+        url = f"{base_url}{release}@latest"
+
+        # Download the go<release> shim to a temporary directory and wipe it after we're done
+        # Go would download the shim to $HOME too, but unlike 'go download' we can at least adjust
+        # 'go install' to point elsewhere using $GOPATH
+        with tempfile.TemporaryDirectory(prefix="cachi2", suffix="go-download") as td:
+            log.debug(f"Installing Go {release} toolchain shim from '{url}'")
+            env = {
+                "PATH": os.environ.get("PATH", ""),
+                "GOPATH": td,
+                "GOCACHE": str(Path(td, "cache")),
+            }
+            self._retry([self._bin, "install", url], env=env)
+
+            log.debug(f"Downloading Go {release} SDK")
+            self._retry([f"{td}/bin/{release}", "download"], env=env)
+
+            # move the newly downloaded SDK from $HOME/sdk to $HOME/.cache/cachi2/go
+            sdk_download_dir = Path.home() / f"sdk/{release}"
+            cachi2_go_dest_dir = get_cache_dir() / "go" / release
+            shutil.move(sdk_download_dir, cachi2_go_dest_dir)
+
+        log.debug(f"Go {release} toolchain installed at: {cachi2_go_dest_dir}")
+        return str(cachi2_go_dest_dir / "bin/go")
+
+    def _retry(self, cmd: list[str], **kwargs: Any) -> str:
+        """Run gomod command in a networking context.
+
+        Commands that involve networking, such as dependency downloads, may fail due to network
+        errors (go is bad at retrying), so the entire operation will be retried a configurable
+        number of times.
+
+        The same cache directory will be use between retries, so Go will not have to download the
+        same artifact (e.g. dependency) twice. The backoff is exponential, Cachi2 will wait 1s ->
+        2s -> 4s -> ... before retrying.
+        """
+        n_tries = get_config().gomod_download_max_tries
+
+        @backoff.on_exception(
+            backoff.expo,
+            PackageManagerError,
+            jitter=None,  # use deterministic backoff, do not apply jitter
+            max_tries=n_tries,
+            logger=log,
+        )
+        def run_go(_cmd: list[str], **kwargs: Any) -> str:
+            return self._run(_cmd, **kwargs)
+
+        try:
+            return run_go(cmd, **kwargs)
+        except PackageManagerError:
+            err_msg = (
+                f"Go execution failed: Cachi2 re-tried running `{' '.join(cmd)}` command "
+                f"{n_tries} times."
+            )
+            raise PackageManagerError(err_msg) from None
+
+    def _run(self, cmd: list[str], **kwargs: Any) -> str:
+        try:
+            log.debug(f"Running '{cmd}'")
+            return run_cmd(cmd, kwargs)
+        except subprocess.CalledProcessError as e:
+            rc = e.returncode
+            raise PackageManagerError(
+                f"Go execution failed: `{' '.join(cmd)}` failed with {rc=}"
+            ) from e
+
+
 ModuleID = tuple[str, str]
 
 
@@ -333,16 +522,6 @@ def _create_packages_from_parsed_data(
     return [_create_package(package) for package in parsed_packages]
 
 
-def _run_gomod_cmd(cmd: Sequence[str], params: dict[str, Any]) -> str:
-    try:
-        return run_cmd(cmd, params)
-    except subprocess.CalledProcessError as e:
-        rc = e.returncode
-        raise PackageManagerError(
-            f"Processing gomod dependencies failed: `{' '.join(cmd)}` failed with {rc=}"
-        ) from e
-
-
 def fetch_gomod_source(request: Request) -> RequestOutput:
     """
     Resolve and fetch gomod dependencies for a given request.
@@ -351,9 +530,6 @@ def fetch_gomod_source(request: Request) -> RequestOutput:
     :raises PackageRejected: if a file is not present for the gomod package manager
     :raises PackageManagerError: if failed to fetch gomod dependencies
     """
-    version_output = run_cmd(["go", "version"], {})
-    log.info(f"Go version: {version_output.strip()}")
-
     config = get_config()
     subpaths = [str(package.path) for package in request.gomod_packages]
 
@@ -375,6 +551,7 @@ def fetch_gomod_source(request: Request) -> RequestOutput:
         "GOCACHE": {"value": "deps/gomod", "kind": "path"},
         "GOPATH": {"value": "deps/gomod", "kind": "path"},
         "GOMODCACHE": {"value": "deps/gomod/pkg/mod", "kind": "path"},
+        "GOTOOLCHAIN": {"value": "local", "kind": "literal"},
     }
     env_vars.update(config.default_environment_variables.get("gomod", {}))
 
@@ -383,7 +560,7 @@ def fetch_gomod_source(request: Request) -> RequestOutput:
     repo_name = _get_repository_name(request.source_dir)
     version_resolver = ModuleVersionResolver.from_repo_path(request.source_dir)
 
-    with GoCacheTemporaryDirectory(prefix="cachito-") as tmp_dir:
+    with GoCacheTemporaryDirectory(prefix="cachi2-") as tmp_dir:
         request.gomod_download_dir.path.mkdir(exist_ok=True, parents=True)
         for subpath in subpaths:
             log.info("Fetching the gomod dependencies at subpath %s", subpath)
@@ -473,6 +650,25 @@ def _get_repository_name(source_dir: RootedPath) -> str:
     return f"{url.hostname}{url.path.rstrip('/').removesuffix('.git')}"
 
 
+def _get_gomod_version(source_dir: RootedPath) -> Optional[str]:
+    """Return the required/recommended version of Go from go.mod.
+
+    We need to extract the desired version of Go ourselves as older versions of Go might fail
+    due to e.g. unknown keywords or unexpected format of the version (yes, Go always performs
+    validation of go.mod).
+
+    If we cannot extract a version from the 'go' line, we return None, leaving it up to the caller
+    to decide what to do next.
+    """
+    go_mod = source_dir.join_within_root("go.mod")
+    with open(go_mod) as f:
+        reg = re.compile(r"^\s*go\s+(?P<ver>\d\.\d+(:?.\d+)?)\s*$")
+        for line in f:
+            if match := re.match(reg, line):
+                return match.group("ver")
+    return None
+
+
 def _protect_against_symlinks(app_dir: RootedPath) -> None:
     """Try to prevent go subcommands from following suspicious symlinks.
 
@@ -549,6 +745,7 @@ def _resolve_gomod(
         "PATH": os.environ.get("PATH", ""),
         "GOMODCACHE": "{}/pkg/mod".format(tmp_dir),
         "GOSUMDB": "sum.golang.org",
+        "GOTOOLCHAIN": "local",
     }
 
     if config.goproxy_url:
@@ -559,30 +756,62 @@ def _resolve_gomod(
 
     run_params = {"env": env, "cwd": app_dir}
 
+    go = Go()
+    go1_21 = version.Version("1.21")
+    go_base_version = go.version
+    go_mod_version_msg = "go.mod recommends/requires Go version: {}"
+
+    if (_ := _get_gomod_version(app_dir)) is None:
+        # Go added the 'go' directive to go.mod in 1.12 [1]. If missing, 1.16 is assumed [2].
+        # For our version comparison purposes we set the version explicitly to 1.20 if missing.
+        # [1] https://go.dev/doc/go1.12#modules
+        # [2] https://go.dev/ref/mod#go-mod-file-go
+        _ = "1.20"
+        go_mod_version_msg += " " + "(cachi2 enforced)"
+
+    go_mod_version = version.Version(_)
+
+    log.info(go_mod_version_msg.format(go_mod_version))
+
+    if go_mod_version >= go1_21 and go_base_version < go1_21:
+        # our base Go installation is too old and we need a newer one to support new keywords
+        go = Go(release="go1.21.0")
+    elif go_mod_version < go1_21 and go_base_version >= go1_21:
+        # Starting with Go 1.21, Go doesn't try to be semantically backwards compatible in that the
+        # 'go X.Y' line now denotes the minimum required version of Go, no a "suggested" version.
+        # What it means in practice is that a Go toolchain >= 1.21 enforces the biggest
+        # common toolchain denominator across all dependencies and so if the input project
+        # specifies e.g. 'go 1.19' and **any** of its dependencies specify 'go 1.21' (or higher),
+        # then the default 1.21 toolchain will bump the input project's go.mod file to make sure
+        # the minimum required Go version is met across all dependencies. That is a problem,
+        # because it'll lead to fatal build failures forcing everyone to update their build
+        # recipes. Note that at some point they'll have to do that anyway, but until majority of
+        # projects in the ecosystem adopt 1.21, we need a fallback to an older toolchain version.
+        go = Go(release="go1.20")
+
     # Vendor dependencies if the gomod-vendor flag is set
     flags = request.flags
     should_vendor, can_make_changes = _should_vendor_deps(
         flags, app_dir, config.gomod_strict_vendor
     )
     if should_vendor:
-        downloaded_modules = _vendor_deps(app_dir, can_make_changes, run_params)
+        downloaded_modules = _vendor_deps(go, app_dir, can_make_changes, run_params)
     else:
         log.info("Downloading the gomod dependencies")
-        download_cmd = ["go", "mod", "download", "-json"]
         downloaded_modules = (
             ParsedModule.model_validate(obj)
-            for obj in load_json_stream(_run_download_cmd(download_cmd, run_params))
+            for obj in load_json_stream(go(["mod", "download", "-json"], run_params, retry=True))
         )
 
     if "force-gomod-tidy" in flags:
-        _run_gomod_cmd(("go", "mod", "tidy"), run_params)
+        go(["mod", "tidy"], run_params)
 
-    go_list = ["go", "list", "-e"]
+    go_list = ["list", "-e"]
     if not should_vendor:
         # Make Go ignore the vendor dir even if there is one
         go_list.extend(["-mod", "readonly"])
 
-    main_module_name = _run_gomod_cmd([*go_list, "-m"], run_params).rstrip()
+    main_module_name = go([*go_list, "-m"], run_params).rstrip()
     main_module = ParsedModule(
         path=main_module_name,
         version=version_resolver.get_golang_version(main_module_name, app_dir),
@@ -598,7 +827,7 @@ def _resolve_gomod(
         complete module list (roughly matching the list of downloaded modules).
         """
         cmd = [*go_list, "-deps", "-json=ImportPath,Module,Standard,Deps", pattern]
-        return map(ParsedPackage.model_validate, load_json_stream(_run_gomod_cmd(cmd, run_params)))
+        return map(ParsedPackage.model_validate, load_json_stream(go(cmd, run_params)))
 
     package_modules = (
         module for pkg in go_list_deps("all") if (module := pkg.module) and not module.main
@@ -684,43 +913,9 @@ class GoCacheTemporaryDirectory(tempfile.TemporaryDirectory[str]):
     ) -> None:
         """Clean up the temporary directory by first cleaning up the Go cache."""
         try:
-            env = {"GOPATH": self.name, "GOCACHE": self.name}
-            _run_gomod_cmd(("go", "clean", "-modcache"), {"env": env})
+            Go()(["clean", "-modcache"], {"env": {"GOPATH": self.name, "GOCACHE": self.name}})
         finally:
             super().__exit__(exc, value, tb)
-
-
-def _run_download_cmd(cmd: Sequence[str], params: Dict[str, Any]) -> str:
-    """Run gomod command that downloads dependencies.
-
-    Such commands may fail due to network errors (go is bad at retrying), so the entire operation
-    will be retried a configurable number of times.
-
-    Cachi2 will reuse the same cache directory between retries, so Go will not have to download
-    the same dependency twice. The backoff is exponential, Cachi2 will wait 1s -> 2s -> 4s -> ...
-    before retrying.
-    """
-    n_tries = get_config().gomod_download_max_tries
-
-    @backoff.on_exception(
-        backoff.expo,
-        PackageManagerError,
-        jitter=None,  # use deterministic backoff, do not apply jitter
-        max_tries=n_tries,
-        logger=log,
-    )
-    def run_go(_cmd: Sequence[str], _params: Dict[str, Any]) -> str:
-        log.debug(f"Running {_cmd}")
-        return _run_gomod_cmd(_cmd, _params)
-
-    try:
-        return run_go(cmd, params)
-    except PackageManagerError:
-        err_msg = (
-            f"Processing gomod dependencies failed. Cachi2 tried the {' '.join(cmd)} command "
-            f"{n_tries} times."
-        )
-        raise PackageManagerError(err_msg) from None
 
 
 def _should_vendor_deps(
@@ -1129,7 +1324,10 @@ def _parse_vendor(module_dir: RootedPath) -> Iterable[ParsedModule]:
 
 
 def _vendor_deps(
-    app_dir: RootedPath, can_make_changes: bool, run_params: dict[str, Any]
+    go: Go,
+    app_dir: RootedPath,
+    can_make_changes: bool,
+    run_params: dict[str, Any],
 ) -> Iterable[ParsedModule]:
     """
     Vendor golang dependencies.
@@ -1145,7 +1343,7 @@ def _vendor_deps(
     :raise UnexpectedFormat: if Cachi2 fails to parse vendor/modules.txt
     """
     log.info("Vendoring the gomod dependencies")
-    _run_download_cmd(("go", "mod", "vendor"), run_params)
+    go(["mod", "vendor"], run_params)
     if not can_make_changes and _vendor_changed(app_dir):
         raise PackageRejected(
             reason=(

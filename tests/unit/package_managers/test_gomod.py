@@ -18,6 +18,7 @@ from cachi2.core.models.output import BuildConfig, RequestOutput
 from cachi2.core.models.sbom import Component, Property
 from cachi2.core.package_managers import gomod
 from cachi2.core.package_managers.gomod import (
+    Go,
     Module,
     ModuleID,
     ModuleVersionResolver,
@@ -29,11 +30,11 @@ from cachi2.core.package_managers.gomod import (
     _create_modules_from_parsed_data,
     _create_packages_from_parsed_data,
     _deduplicate_resolved_modules,
+    _get_gomod_version,
     _get_repository_name,
     _parse_go_sum,
     _parse_vendor,
     _resolve_gomod,
-    _run_download_cmd,
     _should_vendor_deps,
     _validate_local_replacements,
     _vendor_changed,
@@ -50,6 +51,16 @@ def setup_module() -> None:
     """Re-enable logging that was disabled at some point in previous tests."""
     gomod.log.disabled = False
     gomod.log.setLevel("DEBUG")
+
+
+@pytest.fixture(scope="module")
+def env_variables() -> list[dict[str, str]]:
+    return [
+        {"name": "GOCACHE", "value": "deps/gomod", "kind": "path"},
+        {"name": "GOMODCACHE", "value": "deps/gomod/pkg/mod", "kind": "path"},
+        {"name": "GOPATH", "value": "deps/gomod", "kind": "path"},
+        {"name": "GOTOOLCHAIN", "value": "local", "kind": "literal"},
+    ]
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -84,6 +95,14 @@ def gomod_request(tmp_path: Path, gomod_input_packages: list[dict[str, str]]) ->
     )
 
 
+@pytest.fixture
+def go_mod_file(tmp_path: Path, request: pytest.FixtureRequest) -> None:
+    output_file = tmp_path / "go.mod"
+
+    with open(output_file, "w") as f:
+        f.write(request.param)
+
+
 def proc_mock(
     args: Union[str, list[str]] = "", *, returncode: int, stdout: Optional[str]
 ) -> subprocess.CompletedProcess:
@@ -109,6 +128,8 @@ def _parse_mocked_data(data_dir: Path, file_path: str) -> ResolvedGoModule:
 
 @pytest.mark.parametrize("cgo_disable", [False, True])
 @pytest.mark.parametrize("force_gomod_tidy", [False, True])
+@mock.patch("cachi2.core.package_managers.gomod.Go.release", new_callable=mock.PropertyMock)
+@mock.patch("cachi2.core.package_managers.gomod._get_gomod_version")
 @mock.patch("cachi2.core.package_managers.gomod.ModuleVersionResolver")
 @mock.patch("cachi2.core.package_managers.gomod._validate_local_replacements")
 @mock.patch("subprocess.run")
@@ -116,6 +137,8 @@ def test_resolve_gomod(
     mock_run: mock.Mock,
     mock_validate_local_replacements: mock.Mock,
     mock_version_resolver: mock.Mock,
+    mock_get_gomod_version: mock.Mock,
+    mock_go_release: mock.PropertyMock,
     cgo_disable: bool,
     force_gomod_tidy: bool,
     tmp_path: Path,
@@ -157,6 +180,8 @@ def test_resolve_gomod(
     mock_run.side_effect = run_side_effects
 
     mock_version_resolver.get_golang_version.return_value = "v0.1.0"
+    mock_go_release.return_value = "go0.1.0"
+    mock_get_gomod_version.return_value = "0.1.1"
 
     flags: list[Flag] = []
     if cgo_disable:
@@ -210,6 +235,8 @@ def test_resolve_gomod(
 
 
 @pytest.mark.parametrize("force_gomod_tidy", [False, True])
+@mock.patch("cachi2.core.package_managers.gomod.Go.release", new_callable=mock.PropertyMock)
+@mock.patch("cachi2.core.package_managers.gomod._get_gomod_version")
 @mock.patch("cachi2.core.package_managers.gomod.ModuleVersionResolver")
 @mock.patch("cachi2.core.package_managers.gomod._validate_local_replacements")
 @mock.patch("subprocess.run")
@@ -217,6 +244,8 @@ def test_resolve_gomod_vendor_dependencies(
     mock_run: mock.Mock,
     mock_validate_local_replacements: mock.Mock,
     mock_version_resolver: mock.Mock,
+    mock_get_gomod_version: mock.Mock,
+    mock_go_release: mock.PropertyMock,
     force_gomod_tidy: bool,
     tmp_path: Path,
     data_dir: Path,
@@ -251,6 +280,8 @@ def test_resolve_gomod_vendor_dependencies(
     mock_run.side_effect = run_side_effects
 
     mock_version_resolver.get_golang_version.return_value = "v0.1.0"
+    mock_go_release.return_value = "go0.1.0"
+    mock_get_gomod_version.return_value = "0.1.1"
 
     flags: list[Flag] = ["gomod-vendor"]
     if force_gomod_tidy:
@@ -288,10 +319,19 @@ def test_resolve_gomod_vendor_dependencies(
     assert resolve_result.modules_in_go_sum == expect_result.modules_in_go_sum
 
 
-def test_resolve_gomod_vendor_without_flag(tmp_path: Path, gomod_request: Request) -> None:
+@mock.patch("cachi2.core.package_managers.gomod.Go.release", new_callable=mock.PropertyMock)
+@mock.patch("cachi2.core.package_managers.gomod._get_gomod_version")
+def test_resolve_gomod_vendor_without_flag(
+    mock_get_gomod_version: mock.Mock,
+    mock_go_release: mock.PropertyMock,
+    tmp_path: Path,
+    gomod_request: Request,
+) -> None:
     module_dir = gomod_request.source_dir.join_within_root("path/to/module")
     module_dir.path.joinpath("vendor").mkdir(parents=True)
     version_resolver = mock.Mock()
+    mock_go_release.return_value = "go0.1.0"
+    mock_get_gomod_version.return_value = "0.1.1"
 
     expected_error = (
         'The "gomod-vendor" or "gomod-vendor-check" flag must be set when your repository has '
@@ -302,11 +342,15 @@ def test_resolve_gomod_vendor_without_flag(tmp_path: Path, gomod_request: Reques
 
 
 @pytest.mark.parametrize("force_gomod_tidy", [False, True])
+@mock.patch("cachi2.core.package_managers.gomod.Go.release", new_callable=mock.PropertyMock)
+@mock.patch("cachi2.core.package_managers.gomod._get_gomod_version")
 @mock.patch("cachi2.core.package_managers.gomod.ModuleVersionResolver")
 @mock.patch("subprocess.run")
 def test_resolve_gomod_no_deps(
     mock_run: mock.Mock,
     mock_version_resolver: mock.Mock,
+    mock_get_gomod_version: mock.Mock,
+    mock_go_release: mock.PropertyMock,
     force_gomod_tidy: bool,
     tmp_path: Path,
     gomod_request: Request,
@@ -348,6 +392,8 @@ def test_resolve_gomod_no_deps(
     mock_run.side_effect = run_side_effects
 
     mock_version_resolver.get_golang_version.return_value = "v2.1.1"
+    mock_go_release.return_value = "go2.1.0"
+    mock_get_gomod_version.return_value = "2.1.1"
 
     if force_gomod_tidy:
         gomod_request.flags = frozenset({"force-gomod-tidy"})
@@ -735,11 +781,15 @@ def test_package_to_component(package: Package, expected_component: Component) -
 
 
 @pytest.mark.parametrize(("go_mod_rc", "go_list_rc"), ((0, 1), (1, 0)))
+@mock.patch("cachi2.core.package_managers.gomod.Go.release", new_callable=mock.PropertyMock)
+@mock.patch("cachi2.core.package_managers.gomod._get_gomod_version")
 @mock.patch("cachi2.core.package_managers.gomod.get_config")
 @mock.patch("subprocess.run")
 def test_go_list_cmd_failure(
     mock_run: mock.Mock,
     mock_config: mock.Mock,
+    mock_get_gomod_version: mock.Mock,
+    mock_go_release: mock.PropertyMock,
     tmp_path: Path,
     go_mod_rc: int,
     go_list_rc: int,
@@ -749,6 +799,8 @@ def test_go_list_cmd_failure(
     version_resolver = mock.Mock()
 
     mock_config.return_value.gomod_download_max_tries = 1
+    mock_go_release.return_value = "go0.1.0"
+    mock_get_gomod_version.return_value = "0.1.1"
 
     # Mock the "subprocess.run" calls
     mock_run.side_effect = [
@@ -760,11 +812,11 @@ def test_go_list_cmd_failure(
         ),
     ]
 
-    expect_error = "Processing gomod dependencies failed"
+    expect_error = "Go execution failed: "
     if go_mod_rc == 0:
-        expect_error += ": `go list -e -mod readonly -m` failed with rc=1"
+        expect_error += "`go list -e -mod readonly -m` failed with rc=1"
     else:
-        expect_error += ". Cachi2 tried the go mod download -json command 1 times"
+        expect_error += "Cachi2 re-tried running `go mod download -json` command 1 times."
 
     with pytest.raises(PackageManagerError, match=expect_error):
         _resolve_gomod(module_path, gomod_request, tmp_path, version_resolver)
@@ -1043,7 +1095,7 @@ def test_should_vendor_deps_strict(
 
 @pytest.mark.parametrize("can_make_changes", [True, False])
 @pytest.mark.parametrize("vendor_changed", [True, False])
-@mock.patch("cachi2.core.package_managers.gomod._run_download_cmd")
+@mock.patch("cachi2.core.package_managers.gomod.Go._run")
 @mock.patch("cachi2.core.package_managers.gomod._vendor_changed")
 def test_vendor_deps(
     mock_vendor_changed: mock.Mock,
@@ -1060,11 +1112,11 @@ def test_vendor_deps(
     if expect_error:
         msg = "The content of the vendor directory is not consistent with go.mod."
         with pytest.raises(PackageRejected, match=msg):
-            _vendor_deps(app_dir, can_make_changes, run_params)
+            _vendor_deps(Go(), app_dir, can_make_changes, run_params)
     else:
-        _vendor_deps(app_dir, can_make_changes, run_params)
+        _vendor_deps(Go(), app_dir, can_make_changes, run_params)
 
-    mock_run_cmd.assert_called_once_with(("go", "mod", "vendor"), run_params)
+    mock_run_cmd.assert_called_once_with(["go", "mod", "vendor"], **run_params)
     if not can_make_changes:
         mock_vendor_changed.assert_called_once_with(app_dir)
 
@@ -1234,60 +1286,6 @@ def test_vendor_changed(
 
     # The _vendor_changed function should reset the `git add` => added files should not be tracked
     assert not repo.git.diff("--diff-filter", "A")
-
-
-@pytest.mark.parametrize("tries_needed", [1, 2, 3, 4, 5])
-@mock.patch("cachi2.core.package_managers.gomod.get_config")
-@mock.patch("subprocess.run")
-@mock.patch("time.sleep")
-def test_run_download_cmd_success(
-    mock_sleep: Any,
-    mock_run: Any,
-    mock_config: Any,
-    tries_needed: int,
-    caplog: pytest.LogCaptureFixture,
-) -> None:
-    mock_config.return_value.gomod_download_max_tries = 5
-
-    failure = proc_mock(returncode=1, stdout="")
-    success = proc_mock(returncode=0, stdout="")
-    mock_run.side_effect = [failure for _ in range(tries_needed - 1)] + [success]
-
-    _run_download_cmd(["go", "mod", "download"], {})
-    assert mock_run.call_count == tries_needed
-    assert mock_sleep.call_count == tries_needed - 1
-
-    for n in range(tries_needed - 1):
-        wait = 2**n
-        assert f"Backing off run_go(...) for {wait:.1f}s" in caplog.text
-
-
-@mock.patch("cachi2.core.package_managers.gomod.get_config")
-@mock.patch("subprocess.run")
-@mock.patch("time.sleep")
-def test_run_download_cmd_failure(
-    mock_sleep: Any, mock_run: Any, mock_config: Any, caplog: pytest.LogCaptureFixture
-) -> None:
-    mock_config.return_value.gomod_download_max_tries = 5
-
-    failure = proc_mock(returncode=1, stdout="")
-    mock_run.side_effect = [failure] * 5
-
-    expect_msg = (
-        "Processing gomod dependencies failed. Cachi2 tried the go mod download command 5 times."
-    )
-
-    with pytest.raises(PackageManagerError, match=expect_msg):
-        _run_download_cmd(["go", "mod", "download"], {})
-
-    assert mock_run.call_count == 5
-    assert mock_sleep.call_count == 4
-
-    assert "Backing off run_go(...) for 1.0s" in caplog.text
-    assert "Backing off run_go(...) for 2.0s" in caplog.text
-    assert "Backing off run_go(...) for 4.0s" in caplog.text
-    assert "Backing off run_go(...) for 8.0s" in caplog.text
-    assert "Giving up run_go(...) after 5 tries" in caplog.text
 
 
 @pytest.mark.parametrize(
@@ -1579,3 +1577,331 @@ def test_fetch_tags_fail(repo_remote_with_tag: tuple[RootedPath, RootedPath]) ->
     )
     with pytest.raises(FetchError, match=error_msg):
         ModuleVersionResolver.from_repo_path(remote_repo_path)
+
+
+@pytest.mark.parametrize(
+    "go_mod_file, go_mod_version",
+    [("go 1.21", "1.21"), ("    go    1.21.4    ", "1.21.4")],
+    indirect=["go_mod_file"],
+)
+def test_get_gomod_version(
+    rooted_tmp_path: RootedPath, go_mod_file: Path, go_mod_version: str
+) -> None:
+    assert _get_gomod_version(rooted_tmp_path) == go_mod_version
+
+
+@pytest.mark.parametrize(
+    "go_mod_file",
+    [pytest.param(_, id=_) for _ in ["go1.21", "go 1.21.0.100", "1.21", "go 1.21 foo"]],
+    indirect=True,
+)
+def test_get_gomod_version_fail(rooted_tmp_path: RootedPath, go_mod_file: Path) -> None:
+    assert _get_gomod_version(rooted_tmp_path) is None
+
+
+class TestGo:
+    @pytest.mark.parametrize(
+        "bin_, params",
+        [
+            pytest.param(None, {}, id="bundled_go_no_params"),
+            pytest.param("/usr/bin/go1.21", {}, id="custom_go_no_params"),
+            pytest.param(None, {"cwd": "/foo/bar"}, id="bundled_go_params"),
+            pytest.param(
+                "/usr/bin/go1.21",
+                {
+                    "env": {"GOCACHE": "/foo", "GOTOOLCHAIN": "local"},
+                    "cwd": "/foo/bar",
+                    "text": True,
+                },
+                id="custom_go_params",
+            ),
+        ],
+    )
+    @mock.patch("cachi2.core.package_managers.gomod.run_cmd")
+    def test_run(
+        self,
+        mock_run: mock.Mock,
+        bin_: str,
+        params: dict,
+    ) -> None:
+        if not bin_:
+            go = Go(bin_)
+        else:
+            go = Go()
+
+        cmd = [go._bin, "mod", "download"]
+        go._run(cmd, **params)
+        mock_run.assert_called_once_with(cmd, params)
+
+    @pytest.mark.parametrize(
+        "bin_, params, tries_needed",
+        [
+            pytest.param(None, {}, 1, id="bundled_go_1_try"),
+            pytest.param("/usr/bin/go1.21", {}, 2, id="custom_go_2_tries"),
+            pytest.param(
+                None,
+                {
+                    "env": {"GOCACHE": "/foo", "GOTOOLCHAIN": "local"},
+                    "cwd": "/foo/bar",
+                    "text": True,
+                },
+                5,
+                id="bundled_go_params_5_tries",
+            ),
+        ],
+    )
+    @mock.patch("cachi2.core.package_managers.gomod.get_config")
+    @mock.patch("cachi2.core.package_managers.gomod.run_cmd")
+    @mock.patch("time.sleep")
+    def test_retry(
+        self,
+        mock_sleep: mock.Mock,
+        mock_run: mock.Mock,
+        mock_config: mock.Mock,
+        bin_: str,
+        params: dict,
+        tries_needed: int,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        mock_config.return_value.gomod_download_max_tries = 5
+
+        # We don't want to mock subprocess.run here, because:
+        # 1) the call chain looks like this: Go()._retry->run_go->self._run->run_cmd->subprocess.run
+        # 2) we wouldn't be able to check if params are propagated correctly since run_cmd adds some too
+        failure = subprocess.CalledProcessError(returncode=1, cmd="foo")
+        success = 1
+        mock_run.side_effect = [failure for _ in range(tries_needed - 1)] + [success]
+
+        if bin_:
+            go = Go(bin_)
+        else:
+            go = Go()
+
+        cmd = [go._bin, "mod", "download"]
+        go._retry(cmd, **params)
+        mock_run.assert_called_with(cmd, params)
+        assert mock_run.call_count == tries_needed
+        assert mock_sleep.call_count == tries_needed - 1
+
+        for n in range(tries_needed - 1):
+            wait = 2**n
+            assert f"Backing off run_go(...) for {wait:.1f}s" in caplog.text
+
+    @mock.patch("cachi2.core.package_managers.gomod.get_config")
+    @mock.patch("cachi2.core.package_managers.gomod.run_cmd")
+    @mock.patch("time.sleep")
+    def test_retry_failure(
+        self, mock_sleep: Any, mock_run: Any, mock_config: Any, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        mock_config.return_value.gomod_download_max_tries = 5
+
+        failure = subprocess.CalledProcessError(returncode=1, cmd="foo")
+        mock_run.side_effect = [failure] * 5
+        go = Go()
+
+        error_msg = f"Go execution failed: Cachi2 re-tried running `{go._bin} mod download` command 5 times."
+
+        with pytest.raises(PackageManagerError, match=error_msg):
+            go._retry([go._bin, "mod", "download"])
+
+        assert mock_run.call_count == 5
+        assert mock_sleep.call_count == 4
+
+        assert "Backing off run_go(...) for 1.0s" in caplog.text
+        assert "Backing off run_go(...) for 2.0s" in caplog.text
+        assert "Backing off run_go(...) for 4.0s" in caplog.text
+        assert "Backing off run_go(...) for 8.0s" in caplog.text
+        assert "Giving up run_go(...) after 5 tries" in caplog.text
+
+    @pytest.mark.parametrize("release", ["go1.20", "go1.21.1"])
+    @mock.patch("pathlib.Path.home")
+    @mock.patch("cachi2.core.package_managers.gomod.Go._retry")
+    @mock.patch("cachi2.core.package_managers.gomod.get_cache_dir")
+    def test_install(
+        self,
+        mock_cache_dir: mock.Mock,
+        mock_go_retry: mock.Mock,
+        mock_path_home: mock.Mock,
+        tmp_path: Path,
+        release: str,
+    ) -> None:
+        dest_cache_dir = tmp_path / "cache"
+        env_vars = ["PATH", "GOPATH", "GOCACHE"]
+
+        mock_cache_dir.return_value = dest_cache_dir
+        mock_go_retry.return_value = 0
+        mock_path_home.return_value = tmp_path
+
+        sdk_download_dir = tmp_path / f"sdk/{release}"
+        sdk_bin_dir = sdk_download_dir / "bin"
+        sdk_bin_dir.mkdir(parents=True)
+        sdk_bin_dir.joinpath("go").touch()
+
+        go = Go(release=release)
+        binary = Path(go._install(release))
+        assert mock_go_retry.call_args_list[0][0][0][1] == "install"
+        assert mock_go_retry.call_args_list[0][0][0][2] == f"golang.org/dl/{release}@latest"
+        assert mock_go_retry.call_args_list[0][1].get("env") is not None
+        assert set(mock_go_retry.call_args_list[0][1]["env"].keys()) & set(env_vars)
+        assert not sdk_download_dir.exists()
+        assert dest_cache_dir.exists()
+        assert binary.exists()
+        assert str(binary) == f"{dest_cache_dir}/go/{release}/bin/go"
+
+    @pytest.mark.parametrize(
+        "release, needs_install, retry",
+        [
+            pytest.param(None, False, False, id="bundled_go"),
+            pytest.param("go1.20", False, True, id="custom_release_installed"),
+            pytest.param("go1.21.0", True, True, id="custom_release_needs_installation"),
+        ],
+    )
+    @mock.patch("cachi2.core.package_managers.gomod.get_config")
+    @mock.patch("cachi2.core.package_managers.gomod.Go._locate_toolchain")
+    @mock.patch("cachi2.core.package_managers.gomod.Go._install")
+    @mock.patch("cachi2.core.package_managers.gomod.Go._run")
+    def test_call(
+        self,
+        mock_run: mock.Mock,
+        mock_install: mock.Mock,
+        mock_locate_toolchain: mock.Mock,
+        mock_get_config: mock.Mock,
+        tmp_path: Path,
+        release: Optional[str],
+        needs_install: bool,
+        retry: bool,
+    ) -> None:
+        go_bin = tmp_path / f"go/{release}/bin/go"
+
+        if not needs_install:
+            mock_locate_toolchain.return_value = go_bin.as_posix()
+        else:
+            mock_locate_toolchain.return_value = None
+            mock_install.return_value = go_bin.as_posix()
+
+        env = {"env": {"GOTOOLCHAIN": "local", "GOCACHE": "foo", "GOPATH": "bar"}}
+        opts = ["mod", "download"]
+        go = Go(release=release)
+        go(opts, retry=retry, params=env)
+
+        cmd = [go._bin, *opts]
+        if not retry:
+            mock_run.assert_called_once_with(cmd, **env)
+        else:
+            mock_get_config.return_value.gomod_download_max_tries = 1
+            mock_run.call_count = 1
+            mock_run.assert_called_with(cmd, **env)
+
+        if needs_install:
+            assert go._install_toolchain is False
+
+    @pytest.mark.parametrize("retry", [False, True])
+    @mock.patch("cachi2.core.package_managers.gomod.get_config")
+    @mock.patch("subprocess.run")
+    def test_call_failure(
+        self,
+        mock_run: mock.Mock,
+        mock_get_config: mock.Mock,
+        retry: bool,
+    ) -> None:
+        tries = 1
+        mock_get_config.return_value.gomod_download_max_tries = tries
+        failure = proc_mock(returncode=1, stdout="")
+        mock_run.side_effect = [failure]
+
+        opts = ["mod", "download"]
+        cmd = ["go", *opts]
+        error_msg = "Go execution failed: "
+        if retry:
+            error_msg += f"Cachi2 re-tried running `{' '.join(cmd)}` command {tries} times."
+        else:
+            error_msg += f"`{' '.join(cmd)}` failed with rc=1"
+
+        with pytest.raises(PackageManagerError, match=error_msg):
+            go = Go()
+            go(opts, retry=retry)
+
+        assert mock_run.call_count == 1
+
+    @pytest.mark.parametrize(
+        "base_path",
+        [
+            pytest.param("usr/local", id="locate_in_system_path"),
+            pytest.param("cachi2", id="locate_in_XDG_CACHE_HOME"),
+        ],
+    )
+    @mock.patch("cachi2.core.package_managers.gomod.get_cache_dir")
+    @mock.patch("cachi2.core.package_managers.gomod.Path")
+    def test_locate_toolchain(
+        self, mock_path: mock.Mock, mock_cache_dir: mock.Mock, tmp_path: Path, base_path: str
+    ) -> None:
+        def prefix_path(*args: Any) -> Path:
+            # we have to mock Path creation to prevent tests touching real system paths
+
+            my_args = list(args)
+            if str(tmp_path) not in my_args[0] and my_args[0].startswith("/"):
+                my_args[0] = my_args[0][1:]
+            return Path(tmp_path, *my_args)
+
+        mock_path.side_effect = prefix_path
+        mock_cache_dir.return_value = "cachi2"
+
+        release = "go1.20"
+        go_bin_dir = tmp_path / f"{base_path}/go/{release}/bin"
+        go_bin_dir.mkdir(parents=True)
+        go_bin_dir.joinpath("go").touch()
+
+        go = Go(release=release)
+
+        assert Path(go._bin) == go_bin_dir / "go"
+        assert go._install_toolchain is False
+
+    @mock.patch("cachi2.core.package_managers.gomod.get_cache_dir")
+    def test_locate_toolchain_failure(
+        self,
+        mock_cache_dir: mock.Mock,
+    ) -> None:
+        mock_cache_dir.return_value = "cachi2"
+
+        release = "go1.20"
+        go = Go(release=release)
+
+        assert go._bin == "go"
+        assert go._install_toolchain is True
+
+    @pytest.mark.parametrize(
+        "release, expect, go_output",
+        [
+            pytest.param("go1.20", "go1.20", None, id="explicit_release"),
+            pytest.param(
+                None, "go1.21.4", "go version go1.21.4 linux/amd64", id="parse_from_output"
+            ),
+            pytest.param(
+                None,
+                "go1.21.4",
+                "go   version\tgo1.21.4 \t\t linux/amd64",
+                id="parse_from_output_white_spaces",
+            ),
+        ],
+    )
+    @mock.patch("cachi2.core.package_managers.gomod.Go._run")
+    def test_release(
+        self,
+        mock_run: mock.Mock,
+        release: Optional[str],
+        expect: str,
+        go_output: str,
+    ) -> None:
+        mock_run.return_value = go_output
+
+        go = Go(release=release)
+        assert go.release == expect
+
+    @mock.patch("cachi2.core.package_managers.gomod.Go._run")
+    def test_release_failure(self, mock_run: mock.Mock) -> None:
+        go_output = "go mangled version 1.21_4"
+        mock_run.return_value = go_output
+
+        error_msg = f"Could not extract Go toolchain version from Go's output: '{go_output}'"
+        with pytest.raises(PackageManagerError, match=error_msg):
+            Go(release=None).release

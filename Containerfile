@@ -1,4 +1,4 @@
-FROM registry.fedoraproject.org/fedora-minimal:38
+FROM registry.fedoraproject.org/fedora-minimal:39
 LABEL maintainer="Red Hat"
 
 WORKDIR /src
@@ -27,5 +27,17 @@ RUN npm install && \
     ln -s "${PWD}/node_modules/.bin/corepack" /usr/local/bin/corepack && \
     corepack enable yarn && \
     microdnf -y remove nodejs-npm
+
+# Install an older version of Go fixed at 1.20 (along with the base >=1.21):
+#   - install Go's official shim
+#   - let the shim download the actual Go SDK (the download forces the output parent dir to $HOME)
+#   - move the SDK to a host local install system-wide location
+#   - remove the shim as it forces and expects the SDK to be used from $HOME
+#   - clean any build artifacts Go creates as part of the process.
+RUN go install 'golang.org/dl/go1.20@latest' && \
+    "$HOME/go/bin/go1.20" download && \
+    mkdir /usr/local/go && \
+    mv "$HOME/sdk/go1.20" /usr/local/go && \
+    rm -rf "$HOME/go" "$HOME/.cache/go-build/"
 
 ENTRYPOINT ["cachi2"]
