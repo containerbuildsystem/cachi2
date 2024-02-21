@@ -2711,11 +2711,11 @@ class TestDownload:
             None,
             None,
         )
-        source, wheels = pip._process_package_distributions(
+        artifacts = pip._process_package_distributions(
             mock_requirement, rooted_tmp_path, allow_binary=True
         )
-        assert source is None
-        assert len(wheels) == 2
+        assert artifacts[0].package_type != "sdist"
+        assert len(artifacts) == 2
         assert f"No sdist found for package {package_name}=={version}" in caplog.text
 
     @pytest.mark.parametrize("allow_binary", (True, False))
@@ -2818,7 +2818,7 @@ class TestDownload:
             None,
             None,
         )
-        _, wheels = pip._process_package_distributions(
+        artifacts = pip._process_package_distributions(
             mock_requirement, rooted_tmp_path, allow_binary=True
         )
 
@@ -2827,13 +2827,13 @@ class TestDownload:
                 f"{package_name}: using intersection of user specified and PyPI reported checksums"
                 in caplog.text
             )
-            assert wheels[0].checksums_to_verify == set(
+            assert artifacts[1].checksums_to_verify == set(
                 [ChecksumInfo("sha128", "abcdef"), ChecksumInfo("sha256", "abcdef")]
             )
 
         elif use_user_hashes and not use_pypi_digests:
             assert f"{package_name}: using user specified checksums" in caplog.text
-            assert wheels[0].checksums_to_verify == set(
+            assert artifacts[1].checksums_to_verify == set(
                 [
                     ChecksumInfo("sha128", "abcdef"),
                     ChecksumInfo("sha256", "abcdef"),
@@ -2843,7 +2843,7 @@ class TestDownload:
 
         elif use_pypi_digests and not use_user_hashes:
             assert f"{package_name}: using PyPI reported checksums" in caplog.text
-            assert wheels[0].checksums_to_verify == set(
+            assert artifacts[1].checksums_to_verify == set(
                 [
                     ChecksumInfo("sha128", "abcdef"),
                     ChecksumInfo("sha256", "abcdef"),
@@ -2856,7 +2856,7 @@ class TestDownload:
                 f"{package_name}: no checksums reported by PyPI or specified by the user"
                 in caplog.text
             )
-            assert wheels[0].checksums_to_verify == set()
+            assert artifacts[1].checksums_to_verify == set()
 
     @mock.patch.object(pypi_simple.PyPISimple, "get_project_page")
     def test_process_package_distributions_with_different_checksums(
@@ -2883,11 +2883,11 @@ class TestDownload:
             None,
         )
 
-        _, wheels = pip._process_package_distributions(
+        artifacts = pip._process_package_distributions(
             mock_requirement, rooted_tmp_path, allow_binary=True
         )
 
-        assert len(wheels) == 0
+        assert len(artifacts) == 1
         assert f"Filtering out {package_name} due to checksum mismatch" in caplog.text
 
     @pytest.mark.parametrize(
@@ -2938,10 +2938,10 @@ class TestDownload:
             None,
         )
 
-        source, wheels = pip._process_package_distributions(mock_requirement, rooted_tmp_path)
-        assert source is not None
-        assert source.version == requested_version
-        assert all(w.version == requested_version for w in wheels)
+        artifacts = pip._process_package_distributions(mock_requirement, rooted_tmp_path)
+        assert artifacts[0].package_type == "sdist"
+        assert artifacts[0].version == requested_version
+        assert all(w.version == requested_version for w in artifacts[1:])
 
     def test_sdist_sorting(self) -> None:
         """Test that sdist preference key can be used for sorting in the expected order."""
@@ -3306,14 +3306,14 @@ class TestDownload:
     @mock.patch("cachi2.core.package_managers.pip._check_metadata_in_sdist")
     def test_download_dependencies(
         self,
-        check_metadata_in_sdist: mock.Mock,
-        download_binary_file: mock.Mock,
-        async_download_files: mock.Mock,
-        mock_path_unlink: mock.Mock,
-        mock_match_checksum: mock.Mock,
-        mock_url_download: mock.Mock,
-        mock_vcs_download: mock.Mock,
-        mock_distributions: mock.Mock,
+        mock_check_metadata_in_sdist: mock.Mock,
+        mock_download_binary_file: mock.Mock,
+        mock_async_download_files: mock.Mock,
+        mock_unlink: mock.Mock,
+        mock_must_match_any_checksum: mock.Mock,
+        mock_download_url_package: mock.Mock,
+        mock_download_vcs_package: mock.Mock,
+        mock_process_package_distributions: mock.Mock,
         use_hashes: bool,
         trusted_hosts: list[str],
         allow_binary: bool,
@@ -3359,7 +3359,10 @@ class TestDownload:
 
         pip_deps = rooted_tmp_path.join_within_root("deps", "pip")
 
-        pypi_download = pip_deps.join_within_root("foo-1.0.tar.gz").path
+        sdist_download = pip_deps.join_within_root("foo-1.0.tar.gz").path
+        wheel_0_download = pip_deps.join_within_root("foo-1.0-cp35-many-linux.whl").path
+        wheel_1_download = pip_deps.join_within_root("foo-1.0-cp25-win32.whl").path
+        wheel_2_download = pip_deps.join_within_root("foo-1.0-any.whl").path
         vcs_download = pip_deps.join_within_root(
             "github.com",
             "spam",
@@ -3387,146 +3390,186 @@ class TestDownload:
             "requirement_file": str(req_file.file_path.subpath_from_root),
         }
 
-        source_package = pip.DistributionPackageInfo(
-            "foo", "1.0", "sdist", pypi_download, "", False
+        sdist_DPI = pip.DistributionPackageInfo(
+            "foo",
+            "1.0",
+            "sdist",
+            sdist_download,
+            "",
+            False,
+            pypi_checksums={ChecksumInfo("sha256", "abcdef")},
         )
+        sdist_d_i = sdist_DPI.download_info | {
+            "kind": "pypi",
+            "requirement_file": str(req_file.file_path.subpath_from_root),
+            "hash_verified": True,
+        }
+        pypi_downloads = [sdist_d_i]
+        wheel_downloads = []
 
-        w1_path = pip_deps.join_within_root("foo-1.0-cp25-win32.whl").path
-        w2_path = pip_deps.join_within_root("foo-1.0-cp35-many-linux.whl").path
-        w3_path = pip_deps.join_within_root("foo-1.0-any.whl").path
-
-        wheels = []
+        wheels_DPI = []
         if allow_binary:
-            wheels = [
-                pip.DistributionPackageInfo(
+            for wheel_path, checksums, hash_verified in zip(
+                [wheel_0_download, wheel_1_download, wheel_2_download],
+                [{ChecksumInfo("sha256", "fedcba")}, {ChecksumInfo("sha256", "abcdef")}, set()],
+                [False, True, False],
+            ):
+                dpi = pip.DistributionPackageInfo(
                     "foo",
                     "1.0",
                     "wheel",
-                    w1_path,
+                    wheel_path,
                     "",
                     False,
-                    pypi_checksums={ChecksumInfo("sha256", "abcdef")},
-                ),
-                pip.DistributionPackageInfo(
-                    "foo",
-                    "1.0",
-                    "wheel",
-                    w2_path,
-                    "",
-                    False,
-                    pypi_checksums={ChecksumInfo("sha256", "fedcba")},
-                ),
-                pip.DistributionPackageInfo("foo", "1.0", "wheel", w3_path, "", False),
+                    pypi_checksums=checksums,  # type: ignore
+                )
+                wheels_DPI.append(dpi)
+                wheel_downloads.append(
+                    dpi.download_info
+                    | {
+                        "kind": "pypi",
+                        "requirement_file": str(req_file.file_path.subpath_from_root),
+                        "hash_verified": hash_verified,
+                    }
+                )
+
+        pypi_downloads.extend(wheel_downloads)
+        mock_process_package_distributions.return_value = [sdist_DPI] + wheels_DPI
+        mock_download_vcs_package.return_value = deepcopy(vcs_info)
+        mock_download_url_package.return_value = deepcopy(url_info)
+
+        if use_hashes and not allow_binary:
+            mock_must_match_any_checksum.side_effect = [
+                None,  # sdist_download
+                None,  # vcs_download
+                None,  # url_download
             ]
-
-        mock_distributions.return_value = source_package, wheels
-        mock_vcs_download.return_value = deepcopy(vcs_info)
-        mock_url_download.return_value = deepcopy(url_info)
-
-        if use_hashes:
-            mock_match_checksum.side_effect = [
-                # pypi_download
-                None,
-                # vcs_download
-                None,
-                # url_download
-                None,
-                # 1. wheel - checksums OK
-                None,
-                # 2. wheel - checksums NOK
-                PackageRejected("", solution=None),
-                # 3. wheel - no checksums to verify
+        elif use_hashes and allow_binary:
+            mock_must_match_any_checksum.side_effect = [
+                None,  # sdist_download
+                PackageRejected("", solution=None),  # wheel_0_download - checksums NOK
+                None,  # wheel_1_download - checksums OK
+                None,  # vcs_download
+                None,  # url_download
+                # wheel_2_download - no checksums to verify
+            ]
+        elif not allow_binary:
+            mock_must_match_any_checksum.side_effect = [
+                None,  # sdist_download
+                None,  # url_download
             ]
         else:
-            mock_match_checksum.side_effect = [None, None, PackageRejected("", solution=None)]
+            mock_must_match_any_checksum.side_effect = [
+                None,  # sdist_download
+                PackageRejected("", solution=None),  # wheel_0_download - checksums NOK
+                None,  # wheel_1_download - checksums OK
+                None,  # url_download
+            ]
         # </setup>
 
         # <call>
         downloads = pip._download_dependencies(rooted_tmp_path, req_file, allow_binary)
-        assert downloads == [
-            source_package.download_info
-            | {
-                "kind": "pypi",
-                "hash_verified": use_hashes,
-                "requirement_file": str(req_file.file_path.subpath_from_root),
-            },
+        expected_downloads = pypi_downloads + [
             vcs_info | {"kind": "vcs"},
             url_info | {"kind": "url"},
         ]
+        assert downloads == expected_downloads
         assert pip_deps.path.is_dir()
         # </call>
 
         # <check calls that must always be made>
-        check_metadata_in_sdist.assert_called_once_with(source_package.path)
-        mock_distributions.assert_called_once_with(pypi_req, pip_deps, allow_binary)
-        mock_vcs_download.assert_called_once_with(vcs_req, pip_deps)
-        mock_url_download.assert_called_once_with(url_req, pip_deps, set(trusted_hosts))
+        mock_check_metadata_in_sdist.assert_called_once_with(sdist_DPI.path)
+        mock_process_package_distributions.assert_called_once_with(pypi_req, pip_deps, allow_binary)
+        mock_download_vcs_package.assert_called_once_with(vcs_req, pip_deps)
+        mock_download_url_package.assert_called_once_with(url_req, pip_deps, set(trusted_hosts))
         # </check calls that must always be made>
 
         # <check calls to checksum verification method>
+        verify_sdist_checksum_call = mock.call(sdist_download, {ChecksumInfo("sha256", "abcdef")})
+        verify_wheel0_checksum_call = mock.call(
+            wheel_0_download, {ChecksumInfo("sha256", "fedcba")}
+        )
+        verify_wheel1_checksum_call = mock.call(
+            wheel_1_download, {ChecksumInfo("sha256", "abcdef")}
+        )
         verify_url_checksum_call = mock.call(url_download, [ChecksumInfo("sha256", "654321")])
-        if use_hashes:
+        verify_vcs_checksum_call = mock.call(vcs_download, [ChecksumInfo("sha256", "123456")])
+
+        if use_hashes and not allow_binary:
             msg = "At least one dependency uses the --hash option, will require hashes"
             assert msg in caplog.text
 
             verify_checksums_calls = [
-                mock.call(pypi_download, [ChecksumInfo("sha256", "abcdef")]),
-                mock.call(vcs_download, [ChecksumInfo("sha256", "123456")]),
+                verify_sdist_checksum_call,
+                verify_vcs_checksum_call,
                 verify_url_checksum_call,
             ]
-        else:
+        elif use_hashes and allow_binary:
+            msg = "At least one dependency uses the --hash option, will require hashes"
+            assert msg in caplog.text
+
+            verify_checksums_calls = [
+                verify_sdist_checksum_call,
+                verify_wheel0_checksum_call,
+                verify_wheel1_checksum_call,
+                verify_vcs_checksum_call,
+                verify_url_checksum_call,
+            ]
+        elif not allow_binary:
             msg = "No hash options used, will not require hashes unless HTTP(S) dependencies are present."
             assert msg in caplog.text
             # Hashes for URL dependencies should be verified no matter what
-            verify_checksums_calls = [verify_url_checksum_call]
+            verify_checksums_calls = [verify_sdist_checksum_call, verify_url_checksum_call]
+        else:
+            verify_checksums_calls = [
+                verify_sdist_checksum_call,
+                verify_wheel0_checksum_call,
+                verify_wheel1_checksum_call,
+                verify_url_checksum_call,
+            ]
 
-        if allow_binary:
-            verify_checksums_calls.extend(
-                [
-                    mock.call(w1_path, {ChecksumInfo("sha256", "abcdef")}),
-                    mock.call(w2_path, {ChecksumInfo("sha256", "fedcba")}),
-                ]
-            )
-
-        mock_match_checksum.assert_has_calls(verify_checksums_calls)
-        assert mock_match_checksum.call_count == len(verify_checksums_calls)
+        mock_must_match_any_checksum.assert_has_calls(verify_checksums_calls)
+        assert mock_must_match_any_checksum.call_count == len(verify_checksums_calls)
 
         # </check calls to checksum verification method>
 
         # <check basic logging output>
-        assert f"Downloading {pypi_req.download_line}" in caplog.text
+        assert f"-- Processing requirement line '{pypi_req.download_line}'" in caplog.text
         assert (
-            f"Successfully downloaded {pypi_req.download_line} to deps/pip/foo-1.0.tar.gz"
+            f"Successfully processed '{pypi_req.download_line}' in path 'deps/pip/foo-1.0.tar.gz'"
         ) in caplog.text
 
-        assert f"Downloading {vcs_req.download_line}" in caplog.text
+        assert f"-- Processing requirement line '{vcs_req.download_line}'" in caplog.text
         assert (
-            f"Successfully downloaded {vcs_req.download_line} to deps/pip/github.com/spam/eggs/"
-            f"eggs-external-gitcommit-{GIT_REF}.tar.gz"
+            f"Successfully processed '{vcs_req.download_line}' in path 'deps/pip/github.com/spam/eggs/"
+            f"eggs-external-gitcommit-{GIT_REF}.tar.gz'"
         ) in caplog.text
 
-        assert f"Downloading {url_req.download_line}" in caplog.text
+        assert f"-- Processing requirement line '{url_req.download_line}'" in caplog.text
         assert (
-            f"Successfully downloaded {url_req.download_line} to deps/pip/external-bar/"
-            f"bar-external-sha256-654321.tar.gz"
+            f"Successfully processed '{url_req.download_line}' in path 'deps/pip/external-bar/"
+            f"bar-external-sha256-654321.tar.gz'"
         ) in caplog.text
         # </check basic logging output>
 
         # <check downloaded wheels>
         if allow_binary:
-            assert f"Downloading {len(wheels)} wheel(s) ..." in caplog.text
-            # wheel #2 does not match any checksums
-            assert f"Download '{w2_path.name}' was removed from the output directory" in caplog.text
+            assert f"-- Processing requirement line '{pypi_req.download_line}'" in caplog.text
+            # wheel 0 does not match any checksums
+            assert (
+                f"Download '{wheel_0_download.name}' was removed from the output directory"
+                in caplog.text
+            )
         # </check downloaded wheels>
 
     @mock.patch("cachi2.core.package_managers.pip._process_package_distributions")
-    @mock.patch("cachi2.core.package_managers.pip.download_binary_file")
+    @mock.patch("cachi2.core.package_managers.pip.async_download_files")
     @mock.patch("cachi2.core.package_managers.pip._check_metadata_in_sdist")
     def test_download_from_requirement_files(
         self,
-        check_metadata_in_sdist: mock.Mock,
-        download_binary_file: mock.Mock,
-        mock_distributions: mock.Mock,
+        _check_metadata_in_sdist: mock.Mock,
+        async_download_files: mock.Mock,
+        _process_package_distributions: mock.Mock,
         rooted_tmp_path: RootedPath,
     ) -> None:
         """Test downloading dependencies from a requirement file list."""
@@ -3547,7 +3590,7 @@ class TestDownload:
             "bar", "0.0.1", "sdist", pypi_download2, "", False
         )
 
-        mock_distributions.side_effect = [(pypi_package1, []), (pypi_package2, [])]
+        _process_package_distributions.side_effect = [[pypi_package1], [pypi_package2]]
 
         downloads = pip._download_from_requirement_files(rooted_tmp_path, [req_file1, req_file2])
         assert downloads == [
@@ -3564,7 +3607,7 @@ class TestDownload:
                 "requirement_file": str(req_file2.subpath_from_root),
             },
         ]
-        check_metadata_in_sdist.assert_has_calls(
+        _check_metadata_in_sdist.assert_has_calls(
             [mock.call(pypi_package1.path), mock.call(pypi_package2.path)], any_order=True
         )
 
