@@ -122,7 +122,7 @@ class DistributionPackageInfo:
         log.debug("%s: %s", self.path.name, msg)
         return checksums
 
-    def should_download_wheel(self) -> bool:
+    def should_download(self) -> bool:
         """Determine if this artifact should be downloaded.
 
         If the user specified any checksums, but they do not match with those
@@ -1453,8 +1453,110 @@ class PipRequirement:
         return hashes, reduced_options
 
 
+def _process_req(
+    req: PipRequirement,
+    requirements_file: PipRequirementsFile,
+    require_hashes: bool,
+    pip_deps_dir: RootedPath,
+    download_info: dict[str, Any],
+    dpi: Optional[DistributionPackageInfo] = None,
+) -> dict[str, Any]:
+    download_info["kind"] = req.kind
+    download_info["requirement_file"] = str(requirements_file.file_path.subpath_from_root)
+    download_info["hash_verified"] = False
+
+    def _hash_verify(path: Path, checksum_info: Iterable[ChecksumInfo]) -> bool:
+        verified: bool = False
+        try:
+            must_match_any_checksum(path, checksum_info)
+            verified = True
+        except PackageRejected:
+            path.unlink()
+            log.warning("Download '%s' was removed from the output directory", path.name)
+        return verified
+
+    if dpi:
+        if dpi.should_verify_checksums():
+            download_info["hash_verified"] = _hash_verify(dpi.path, dpi.checksums_to_verify)
+
+        if dpi.package_type == "sdist":
+            _check_metadata_in_sdist(dpi.path)
+
+    else:
+        if require_hashes or req.kind == "url":
+            hashes = req.hashes or [req.qualifiers.get("cachito_hash", "")]
+            download_info["hash_verified"] = _hash_verify(
+                download_info["path"], list(map(_to_checksum_info, hashes))
+            )
+
+    log.debug(
+        "Successfully processed '%s' in path '%s'",
+        req.download_line,
+        download_info["path"].relative_to(pip_deps_dir.root),
+    )
+
+    return download_info
+
+
+def _process_pypi_req(
+    req: PipRequirement,
+    requirements_file: PipRequirementsFile,
+    require_hashes: bool,
+    pip_deps_dir: RootedPath,
+    allow_binary: bool,
+) -> list[dict[str, Any]]:
+    download_infos: list[dict[str, Any]] = []
+
+    artifacts: list[DistributionPackageInfo] = _process_package_distributions(
+        req, pip_deps_dir, allow_binary
+    )
+
+    files: dict[str, Union[str, PathLike[str]]] = {
+        dpi.url: dpi.path for dpi in artifacts if not dpi.path.exists()
+    }
+    asyncio.run(async_download_files(files, get_config().concurrency_limit))
+
+    for artifact in artifacts:
+        download_infos.append(
+            _process_req(
+                req,
+                requirements_file,
+                require_hashes,
+                pip_deps_dir,
+                artifact.download_info,
+                dpi=artifact,
+            )
+        )
+
+    return download_infos
+
+
+def _process_vcs_req(
+    req: PipRequirement, pip_deps_dir: RootedPath, **kwargs: Any
+) -> dict[str, Any]:
+    return _process_req(
+        req,
+        pip_deps_dir=pip_deps_dir,
+        download_info=_download_vcs_package(req, pip_deps_dir),
+        **kwargs,
+    )
+
+
+def _process_url_req(
+    req: PipRequirement, pip_deps_dir: RootedPath, trusted_hosts: set[str], **kwargs: Any
+) -> dict[str, Any]:
+    return _process_req(
+        req,
+        pip_deps_dir=pip_deps_dir,
+        download_info=_download_url_package(req, pip_deps_dir, trusted_hosts),
+        **kwargs,
+    )
+
+
 def _download_dependencies(
-    output_dir: RootedPath, requirements_file: PipRequirementsFile, allow_binary: bool = False
+    output_dir: RootedPath,
+    requirements_file: PipRequirementsFile,
+    allow_binary: bool = False,
 ) -> list[dict[str, Any]]:
     """
     Download artifacts of all dependency packages in a requirements.txt file.
@@ -1466,8 +1568,9 @@ def _download_dependencies(
         (and more based on kind, see _download_*_package functions for more details)
     :rtype: list[dict]
     """
-    options = _process_options(requirements_file.options)
+    options: dict[str, Any] = _process_options(requirements_file.options)
     trusted_hosts = set(options["trusted_hosts"])
+    processed: list[dict[str, Any]] = []
 
     if options["require_hashes"]:
         log.info("Global --require-hashes option used, will require hashes")
@@ -1484,77 +1587,44 @@ def _download_dependencies(
     _validate_requirements(requirements_file.requirements)
     _validate_provided_hashes(requirements_file.requirements, require_hashes)
 
-    pip_deps_dir = output_dir.join_within_root("deps", "pip")
+    pip_deps_dir: RootedPath = output_dir.join_within_root("deps", "pip")
     pip_deps_dir.path.mkdir(parents=True, exist_ok=True)
 
-    downloaded: list[dict[str, Any]] = []
-    to_download: list[DistributionPackageInfo] = []
-
     for req in requirements_file.requirements:
-        log.info("Downloading %s", req.download_line)
-
+        log.info("-- Processing requirement line '%s'", req.download_line)
         if req.kind == "pypi":
-            source, wheels = _process_package_distributions(req, pip_deps_dir, allow_binary)
-            if allow_binary:
-                # check if artifact already exists locally
-                to_download.extend(w for w in wheels if not w.path.exists())
-
-            if source is None:
-                # at least one wheel exists -> report in the SBOM
-                downloaded.append(
-                    {
-                        "package": req.package,
-                        "version": req.version_specs[0][1],
-                        "kind": req.kind,
-                        "hash_verified": require_hashes,
-                        "requirement_file": str(requirements_file.file_path.subpath_from_root),
-                    }
-                )
-                continue
-
-            download_binary_file(source.url, source.path, auth=None)
-            _check_metadata_in_sdist(source.path)
-            download_info = source.download_info
-
+            download_infos: list[dict[str, Any]] = _process_pypi_req(
+                req,
+                requirements_file=requirements_file,
+                require_hashes=require_hashes,
+                pip_deps_dir=pip_deps_dir,
+                allow_binary=allow_binary,
+            )
+            processed.extend(download_infos)
         elif req.kind == "vcs":
-            download_info = _download_vcs_package(req, pip_deps_dir)
+            download_info = _process_vcs_req(
+                req,
+                requirements_file=requirements_file,
+                require_hashes=require_hashes,
+                pip_deps_dir=pip_deps_dir,
+            )
+            processed.append(download_info)
         elif req.kind == "url":
-            download_info = _download_url_package(req, pip_deps_dir, trusted_hosts)
+            download_info = _process_url_req(
+                req,
+                requirements_file=requirements_file,
+                require_hashes=require_hashes,
+                pip_deps_dir=pip_deps_dir,
+                trusted_hosts=trusted_hosts,
+            )
+            processed.append(download_info)
         else:
             # Should not happen
-            raise RuntimeError(f"Unexpected requirement kind: {req.kind!r}")
+            raise RuntimeError(f"Unexpected requirement kind: '{req.kind!r}'")
 
-        log.info(
-            "Successfully downloaded %s to %s",
-            req.download_line,
-            download_info["path"].relative_to(output_dir),
-        )
+        log.info("-- Finished processing requirement line '%s'\n", req.download_line)
 
-        if require_hashes or req.kind == "url":
-            hashes = req.hashes or [req.qualifiers["cachito_hash"]]
-            must_match_any_checksum(download_info["path"], list(map(_to_checksum_info, hashes)))
-            download_info["hash_verified"] = True
-        else:
-            download_info["hash_verified"] = False
-
-        download_info["kind"] = req.kind
-        download_info["requirement_file"] = str(requirements_file.file_path.subpath_from_root)
-        downloaded.append(download_info)
-
-    if allow_binary:
-        log.info("Downloading %d wheel(s) ...", len(to_download))
-        files: dict[str, Union[str, PathLike[str]]] = {pkg.url: pkg.path for pkg in to_download}
-        asyncio.run(async_download_files(files, get_config().concurrency_limit))
-
-        for pkg in to_download:
-            try:
-                if pkg.should_verify_checksums():
-                    must_match_any_checksum(pkg.path, pkg.checksums_to_verify)
-            except PackageRejected:
-                pkg.path.unlink()
-                log.warning("Download '%s' was removed from the output directory", pkg.path.name)
-
-    return downloaded
+    return processed
 
 
 def _process_options(options: list[str]) -> dict[str, Any]:
@@ -1741,51 +1811,62 @@ def _validate_provided_hashes(requirements: list[PipRequirement], require_hashes
 
 def _process_package_distributions(
     requirement: PipRequirement, pip_deps_dir: RootedPath, allow_binary: bool = False
-) -> tuple[Optional[DistributionPackageInfo], list[DistributionPackageInfo]]:
+) -> list[DistributionPackageInfo]:
     """
-    Return a DistributionPackageInfo object | a list of DPI objects, for the provided pip package.
+    Return a list of DPI objects for the provided pip package.
 
     Scrape the package's PyPI page and generate a list of all available
-    artifacts.
-    Filter by version and allowed artifact type.
-    Filter to find the best matching sdist artifact.
-    Process wheel artifacts.
+    artifacts. Filter by version and allowed artifact type. Filter to find the
+    best matching sdist artifact. Process wheel artifacts.
 
+    A note on nomenclature (to address a common misconception)
+
+    To strictly follow Python packaging terminology, we should avoid "source",
+    since it is an overloaded term - so rather than talking about "source" vs.
+    "wheel" we should use "sdist" vs "wheel" instead.
+
+    _sdist_ - "source distribution": a tarball (usually) of a project's entire repo
+    _wheel_ - built distribution: a stripped-down version of sdist, containing
+    **only** Python modules and necessary application data which are needed to
+    install and run the application (note that it doesn't need to and commonly
+    won't include Python bytecode modules *.pyc)
 
     :param requirement: which pip package to process
     :param str pip_deps_dir:
     :param bool allow_binary: process wheels?
-    :return: a single DistributionPackageInfo, or a list of DPI
-    :rtype: DistributionPackageInfo
+    :return: a list of DPI
+    :rtype: list[DistributionPackageInfo]
     """
+    allowed_distros = ["sdist", "wheel"] if allow_binary else ["sdist"]
+    client = pypi_simple.PyPISimple()
+    processed_dpis: list[DistributionPackageInfo] = []
     name = requirement.package
     version = requirement.version_specs[0][1]
     normalized_version = canonicalize_version(version)
+    sdists: list[DistributionPackageInfo] = []
+    user_checksums = set(map(_to_checksum_info, requirement.hashes))
+    wheels: list[DistributionPackageInfo] = []
 
-    client = pypi_simple.PyPISimple()
     try:
         timeout = get_config().requests_timeout
         project_page = client.get_project_page(name, timeout)
-        packages = project_page.packages
+        packages: list[pypi_simple.DistributionPackage] = project_page.packages
     except (requests.RequestException, pypi_simple.NoSuchProjectError) as e:
         raise FetchError(f"PyPI query failed: {e}")
 
-    allowed_distros = ["sdist", "wheel"] if allow_binary else ["sdist"]
-    filtered_packages = filter(
-        lambda x: x.version is not None
-        and canonicalize_version(x.version) == normalized_version
-        and x.package_type is not None
-        and x.package_type in allowed_distros,
-        packages,
-    )
+    def _is_valid(pkg: pypi_simple.DistributionPackage) -> bool:
+        return (
+            pkg.version is not None
+            and canonicalize_version(pkg.version) == normalized_version
+            and pkg.package_type is not None
+            and pkg.package_type in allowed_distros
+        )
 
-    sdists: list[DistributionPackageInfo] = []
-    wheels: list[DistributionPackageInfo] = []
+    for package in packages:
+        if not _is_valid(package):
+            continue
 
-    user_checksums = set(map(_to_checksum_info, requirement.hashes))
-
-    for package in filtered_packages:
-        pypi_checksums = {
+        pypi_checksums: set[ChecksumInfo] = {
             ChecksumInfo(algorithm, digest) for algorithm, digest in package.digests.items()
         }
 
@@ -1800,15 +1881,15 @@ def _process_package_distributions(
             user_checksums,
         )
 
-        if dpi.package_type == "sdist":
-            sdists.append(dpi)
-        else:
-            if dpi.should_download_wheel():
-                wheels.append(dpi)
+        if dpi.should_download():
+            if dpi.package_type == "sdist":
+                sdists.append(dpi)
             else:
-                log.info("Filtering out %s due to checksum mismatch", package.filename)
+                wheels.append(dpi)
+        else:
+            log.info("Filtering out %s due to checksum mismatch", package.filename)
 
-    if len(sdists) != 0:
+    if sdists:
         best_sdist = max(sdists, key=_sdist_preference)
         if best_sdist.is_yanked:
             raise PackageRejected(
@@ -1820,9 +1901,10 @@ def _process_package_distributions(
                     "Otherwise, you may need to pin to the previous version."
                 ),
             )
+        if best_sdist:
+            processed_dpis.append(best_sdist)
     else:
         log.warning("No sdist found for package %s==%s", name, version)
-        best_sdist = None
 
         if len(wheels) == 0:
             if allow_binary:
@@ -1840,14 +1922,15 @@ def _process_package_distributions(
                     "Alternatively, allow the use of wheels."
                 )
                 docs = PIP_NO_SDIST_DOC
-
             raise PackageRejected(
                 f"No distributions found for package {name}=={version}",
                 solution=solution,
                 docs=docs,
             )
 
-    return best_sdist, wheels
+    processed_dpis.extend(wheels)
+
+    return processed_dpis
 
 
 def _sdist_preference(sdist_pkg: DistributionPackageInfo) -> tuple[int, int]:
