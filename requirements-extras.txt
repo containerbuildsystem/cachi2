@@ -716,9 +716,9 @@ pypi-simple==1.5.0 \
     --hash=sha256:688145f499043701518e2f3a1102b8314c88e9323b5140d45e7fe5a9f4cb3527 \
     --hash=sha256:c1248d2dfa7ba17762c9d5595b62d6b9067e2f0acd7a6f09e43c65d5f1d6a267
     # via cachi2 (pyproject.toml)
-pytest==7.4.4 \
-    --hash=sha256:2cf0005922c6ace4a3e2ec8b4080eb0d9753fdc93107415332f50ce9e7994280 \
-    --hash=sha256:b090cdf5ed60bf4c45261be03239c2c1c22df034fbffe691abe93cd80cea01d8
+pytest==8.0.2 \
+    --hash=sha256:d4051d623a2e0b7e51960ba963193b09ce6daeb9759a451844a21e4ddedfc1bd \
+    --hash=sha256:edfaaef32ce5172d5466b5127b42e0d6d35ebbe4453f0e3505d96afd93f6b096
     # via
     #   cachi2 (pyproject.toml)
     #   pytest-asyncio
