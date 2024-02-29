@@ -1,4 +1,13 @@
-from cachi2.core.models.output import EnvironmentVariable
+from cachi2.core.models.input import Request
+from cachi2.core.models.output import Component, EnvironmentVariable, RequestOutput
+
+
+def fetch_yarn_source(request: Request) -> RequestOutput:
+    """Process all the yarn source directories in a request."""
+    components: list[Component] = []
+    env_vars: list[EnvironmentVariable] = []
+
+    return RequestOutput.from_obj_list(components, env_vars, project_files=[])
 
 
 def _generate_build_environment_variables() -> list[EnvironmentVariable]:
