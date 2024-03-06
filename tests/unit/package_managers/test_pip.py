@@ -2804,9 +2804,11 @@ class TestDownload:
                     package_name,
                     version,
                     "wheel",
-                    digests={"sha128": "abcdef", "sha256": "abcdef", "sha512": "yyyyyy"}
-                    if use_pypi_digests
-                    else {},
+                    digests=(
+                        {"sha128": "abcdef", "sha256": "abcdef", "sha512": "yyyyyy"}
+                        if use_pypi_digests
+                        else {}
+                    ),
                 ),
             ],
             None,

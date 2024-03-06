@@ -4,6 +4,7 @@ Parse the relevant files of a yarn project.
 It also provides basic utility functions. The main logic to resolve and prefetch the dependencies
 should be implemented in other modules.
 """
+
 import json
 import logging
 import re
