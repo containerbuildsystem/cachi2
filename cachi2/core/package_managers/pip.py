@@ -83,6 +83,73 @@ PIP_EXTERNAL_DEPS_DOC = (
 PIP_NO_SDIST_DOC = "https://github.com/containerbuildsystem/cachi2/blob/main/docs/pip.md#dependency-does-not-distribute-sources"
 
 
+@dataclass
+class DistributionPackageInfo:
+    """A class representing relevant information about a distribution package."""
+
+    name: str
+    version: str
+    package_type: Literal["sdist", "wheel"]
+    path: Path
+    url: str
+    is_yanked: bool
+
+    pypi_checksums: set[ChecksumInfo] = field(default_factory=set)
+    user_checksums: set[ChecksumInfo] = field(default_factory=set)
+
+    checksums_to_verify: set[ChecksumInfo] = field(init=False, default_factory=set)
+
+    def __post_init__(self) -> None:
+        self.checksums_to_verify = self._determine_checksums_to_verify()
+
+    def _determine_checksums_to_verify(self) -> set[ChecksumInfo]:
+        """Determine the set of checksums to verify for a given distribution package."""
+        checksums: set[ChecksumInfo] = set()
+        matching: set[ChecksumInfo] = self.pypi_checksums.intersection(self.user_checksums)
+
+        if self.pypi_checksums and self.user_checksums:
+            checksums = matching
+            msg = "using intersection of user specified and PyPI reported checksums"
+        elif self.pypi_checksums:
+            checksums = self.pypi_checksums
+            msg = "using PyPI reported checksums"
+        elif self.user_checksums:
+            checksums = self.user_checksums
+            msg = "using user specified checksums"
+        else:
+            msg = "no checksums reported by PyPI or specified by the user"
+
+        log.debug("%s: %s", self.path.name, msg)
+        return checksums
+
+    def should_download_wheel(self) -> bool:
+        """Determine if this artifact should be downloaded.
+
+        If the user specified any checksums, but they do not match with those
+        reported by PyPI, we do not want to download the artifact.
+
+        Otherwise, we do.
+        """
+        return (
+            len(self.checksums_to_verify) > 0
+            or len(self.pypi_checksums) == 0
+            or len(self.user_checksums) == 0
+        )
+
+    def should_verify_checksums(self) -> bool:
+        """Check if checksum verification is required."""
+        return len(self.checksums_to_verify) > 0
+
+    @property
+    def download_info(self) -> dict[str, Any]:
+        """Only necessary attributes to process download information."""
+        return {
+            "package": self.name,
+            "version": self.version,
+            "path": self.path,
+        }
+
+
 def fetch_pip_source(request: Request) -> RequestOutput:
     """Resolve and fetch pip dependencies for the given request."""
     components: list[Component] = []
@@ -1670,74 +1737,6 @@ def _validate_provided_hashes(requirements: list[PipRequirement], require_hashes
             if not digest:
                 msg = f"Not a valid hash specifier: {hash_spec!r} (expected 'algorithm:digest')"
                 raise PackageRejected(msg, solution=None)
-
-
-@dataclass
-class DistributionPackageInfo:
-    """A class representing relevant information about a distribution package."""
-
-    name: str
-    version: str
-    package_type: Literal["sdist", "wheel"]
-    path: Path
-    url: str
-    is_yanked: bool
-
-    pypi_checksums: set[ChecksumInfo] = field(default_factory=set)
-    user_checksums: set[ChecksumInfo] = field(default_factory=set)
-
-    checksums_to_verify: set[ChecksumInfo] = field(init=False, default_factory=set)
-
-    def __post_init__(self) -> None:
-        if self.package_type == "wheel":
-            self.checksums_to_verify = self._determine_checksums_to_verify()
-
-    def _determine_checksums_to_verify(self) -> set[ChecksumInfo]:
-        """Determine the set of checksums to verify for a given distribution package."""
-        checksums: set[ChecksumInfo] = set()
-        matching = self.pypi_checksums.intersection(self.user_checksums)
-
-        if self.pypi_checksums and self.user_checksums:
-            checksums = matching
-            msg = "using intersection of user specified and PyPI reported checksums"
-        elif self.pypi_checksums:
-            checksums = self.pypi_checksums
-            msg = "using PyPI reported checksums"
-        elif self.user_checksums:
-            checksums = self.user_checksums
-            msg = "using user specified checksums"
-        else:
-            msg = "no checksums reported by PyPI or specified by the user"
-
-        log.debug("%s: %s", self.path.name, msg)
-        return checksums
-
-    def should_download_wheel(self) -> bool:
-        """Determine if the wheel should be downloaded.
-
-        If the user specified any checksums, but they do not match with those
-        reported by PyPI, we do not want to download the wheel.
-
-        Otherwise, we do.
-        """
-        return self.package_type == "wheel" and (
-            len(self.checksums_to_verify) > 0
-            or len(self.pypi_checksums) == 0
-            or len(self.user_checksums) == 0
-        )
-
-    def should_verify_checksums(self) -> bool:
-        """Check if checksum verification is required."""
-        return len(self.checksums_to_verify) > 0
-
-    @property
-    def download_info(self) -> dict[str, Any]:
-        """Only necessary attributes to process download information."""
-        return {
-            "package": self.name,
-            "version": self.version,
-            "path": self.path,
-        }
 
 
 def _process_package_distributions(
