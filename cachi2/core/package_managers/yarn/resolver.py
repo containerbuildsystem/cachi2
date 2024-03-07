@@ -4,6 +4,7 @@ Resolve the dependency list for a yarn project.
 It also performs the necessary validations to avoid allowing an invalid project to keep being
 processed.
 """
+
 import json
 import logging
 import zipfile
