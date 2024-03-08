@@ -7,9 +7,9 @@ RUN if curl -IsS www.google.com; then echo "Has network access!"; exit 1; fi
 RUN cat /tmp/cachi2.env
 
 # Check content of source repository folder
-RUN ls /tmp/gomod_e2e_test-source/
+RUN ls /tmp/gomod_1.18_e2e_test-source/
 
-WORKDIR /tmp/gomod_e2e_test-source
+WORKDIR /tmp/gomod_1.18_e2e_test-source
 RUN . /tmp/cachi2.env && go build -o /usr/bin/retrodep
 
 CMD retrodep --help
