@@ -213,7 +213,7 @@ def test_gomod_packages(
             ),
             ["retrodep", "--help"],
             ["retrodep: help requested"],
-            id="gomod_e2e_test",
+            id="gomod_1.18_e2e_test",
         ),
         # Check handling of multiple Go modules in one repository. See the README in the testing
         # repository for more details.
