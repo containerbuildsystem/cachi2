@@ -250,6 +250,24 @@ def test_gomod_packages(
             [""],
             id="gomod_e2e_multiple_modules",
         ),
+        # Check handling of Go modules where the go directive in go.mod is < 1.21. Go versions < 1.21 will not
+        # update the go directive in go.mod, but go versions >= 1.21 will and dirty the repository
+        pytest.param(
+            utils.TestParameters(
+                repo="https://github.com/cachito-testing/cachi2-gomod",
+                ref="3353e452672851079f1926b6b2d7372447104b31",
+                packages=({"path": "twenty", "type": "gomod"},),
+                check_vendor_checksums=False,
+                expected_exit_code=0,
+                expected_output="All dependencies fetched successfully",
+            ),
+            [],  # check using CMD defined in Dockerfile
+            [
+                "The cachi2-gomod/twenty module requires minimum go version 1.20",
+                "The cachi2-gomod/twentyone module requires minimum go version 1.21",
+            ],
+            id="gomod_1.20_e2e_dirty_go.mod",
+        ),
     ],
 )
 def test_e2e_gomod(
