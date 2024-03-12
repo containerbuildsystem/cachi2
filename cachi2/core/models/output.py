@@ -1,7 +1,7 @@
 import logging
 import string
 from pathlib import Path
-from typing import Literal, Optional
+from typing import Dict, Literal, Optional
 
 import pydantic
 
@@ -13,23 +13,42 @@ log = logging.getLogger(__name__)
 
 
 class EnvironmentVariable(pydantic.BaseModel):
-    """An environment variable."""
+    """An environment variable high-level representation.
+
+    An environment variable is represented as a string template that is evaluated (i.e.
+    placeholders substituted) right before dumping the actual scalar value of the environment
+    variable to the output.
+    Templating as the base solution for this representation is useful in cases where the exact
+    value of a given environment variable can't be determined at the time of instantiation.
+
+    Note that legacy implementation of this model differentiated between 2 kinds of variables:
+    'path' & 'literal' with the following behaviour:
+        - for "literal" variables, the resolved value is simply the value it was created with
+        - for "path" variables, the value is joined to the specified path.
+
+    The new implementation is backwards compatible with the legacy handling in terms of input
+    parsing, but the produced output is not.
+    """
 
     name: str
     value: str
-    kind: Literal["literal", "path"]
+    kind: Optional[Literal["literal", "path"]] = pydantic.Field(default=None, exclude=True)
 
-    def resolve_value(self, relative_to_path: Path) -> str:
-        """Return the resolved value of this environment variable.
+    def resolve_value(self, mappings: Dict[str, str]) -> str:
+        """Return the resolved value of this templated environment variable.
 
-        For "literal" variables, the resolved value is simply the value it was created with.
-        For "path" variables, the value is joined to the specified path.
+        :param mappings: dictionary of template mappings to substitute
+
+        The environment variable value will be converted to a string template which will then
+        substitute all placeholders defined; if no placeholders are contained within the value
+        string, substitution is a NOOP (e.g. legacy "literal" variables)
         """
-        if self.kind == "path":
-            value = str(relative_to_path / self.value)
-        else:
-            value = self.value
-        return value
+        # legacy path variable handling, need to prepend the base path placeholder
+        if self.kind == "path" and "output_dir" in mappings:
+            log.debug(f"Adjusting a legacy path variable value '{self.name}={self.value}'")
+            self.value = "${output_dir}/" + self.value
+
+        return string.Template(self.value).safe_substitute(mappings)
 
 
 class ProjectFile(pydantic.BaseModel):

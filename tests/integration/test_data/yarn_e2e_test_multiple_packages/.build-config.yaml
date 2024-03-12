@@ -1,14 +1,10 @@
 environment_variables:
-- kind: literal
-  name: YARN_ENABLE_GLOBAL_CACHE
+- name: YARN_ENABLE_GLOBAL_CACHE
   value: 'false'
-- kind: literal
-  name: YARN_ENABLE_IMMUTABLE_CACHE
+- name: YARN_ENABLE_IMMUTABLE_CACHE
   value: 'false'
-- kind: literal
-  name: YARN_ENABLE_MIRROR
+- name: YARN_ENABLE_MIRROR
   value: 'true'
-- kind: path
-  name: YARN_GLOBAL_FOLDER
-  value: deps/yarn
+- name: YARN_GLOBAL_FOLDER
+  value: ${output_dir}/deps/yarn
 project_files: []

@@ -551,10 +551,10 @@ def fetch_gomod_source(request: Request) -> RequestOutput:
         )
 
     env_vars = {
-        "GOCACHE": {"value": "deps/gomod", "kind": "path"},
-        "GOPATH": {"value": "deps/gomod", "kind": "path"},
-        "GOMODCACHE": {"value": "deps/gomod/pkg/mod", "kind": "path"},
-        "GOTOOLCHAIN": {"value": "local", "kind": "literal"},
+        "GOCACHE": "${output_dir}/deps/gomod",
+        "GOPATH": "${output_dir}/deps/gomod",
+        "GOMODCACHE": "${output_dir}/deps/gomod/pkg/mod",
+        "GOTOOLCHAIN": "local",
     }
     env_vars.update(config.default_environment_variables.get("gomod", {}))
 
@@ -616,7 +616,7 @@ def fetch_gomod_source(request: Request) -> RequestOutput:
     return RequestOutput.from_obj_list(
         components=components,
         environment_variables=[
-            EnvironmentVariable(name=name, **obj) for name, obj in env_vars.items()
+            EnvironmentVariable(name=key, value=value) for key, value in env_vars.items()
         ],
         project_files=[],
     )

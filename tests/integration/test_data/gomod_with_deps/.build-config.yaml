@@ -1,14 +1,10 @@
 environment_variables:
-- kind: path
-  name: GOCACHE
-  value: deps/gomod
-- kind: path
-  name: GOMODCACHE
-  value: deps/gomod/pkg/mod
-- kind: path
-  name: GOPATH
-  value: deps/gomod
-- kind: literal
-  name: GOTOOLCHAIN
+- name: GOCACHE
+  value: ${output_dir}/deps/gomod
+- name: GOMODCACHE
+  value: ${output_dir}/deps/gomod/pkg/mod
+- name: GOPATH
+  value: ${output_dir}/deps/gomod
+- name: GOTOOLCHAIN
   value: local
 project_files: []

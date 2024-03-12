@@ -56,10 +56,10 @@ def setup_module() -> None:
 @pytest.fixture(scope="module")
 def env_variables() -> list[EnvironmentVariable]:
     return [
-        EnvironmentVariable(name="GOCACHE", value="deps/gomod", kind="path"),
-        EnvironmentVariable(name="GOMODCACHE", value="deps/gomod/pkg/mod", kind="path"),
-        EnvironmentVariable(name="GOPATH", value="deps/gomod", kind="path"),
-        EnvironmentVariable(name="GOTOOLCHAIN", value="local", kind="literal"),
+        EnvironmentVariable(name="GOCACHE", value="${output_dir}/deps/gomod"),
+        EnvironmentVariable(name="GOMODCACHE", value="${output_dir}/deps/gomod/pkg/mod"),
+        EnvironmentVariable(name="GOPATH", value="${output_dir}/deps/gomod"),
+        EnvironmentVariable(name="GOTOOLCHAIN", value="local"),
     ]
 
 

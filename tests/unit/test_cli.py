@@ -115,7 +115,7 @@ class TestTopLevelOpts:
                 )
             ],
             environment_variables=[
-                EnvironmentVariable(name="GOMOD_SOMETHING", value="yes", kind="literal"),
+                EnvironmentVariable(name="GOMOD_SOMETHING", value="yes"),
             ],
             project_files=[],
         )
@@ -589,7 +589,7 @@ class TestFetchDeps:
                     )
                 ],
                 environment_variables=[
-                    EnvironmentVariable(name="GOMOD_SOMETHING", value="yes", kind="literal"),
+                    EnvironmentVariable(name="GOMOD_SOMETHING", value="yes"),
                 ],
                 project_files=[],
             ),
@@ -643,8 +643,8 @@ def env_file_as_env(for_output_dir: Path) -> str:
 
 class TestGenerateEnv:
     ENV_VARS = [
-        {"name": "GOCACHE", "value": "deps/gomod", "kind": "path"},
-        {"name": "GOSUMDB", "value": "sum.golang.org", "kind": "literal"},
+        {"name": "GOCACHE", "value": "${output_dir}/deps/gomod"},
+        {"name": "GOSUMDB", "value": "sum.golang.org"},
     ]
 
     @pytest.fixture

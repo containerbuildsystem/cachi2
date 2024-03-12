@@ -217,13 +217,13 @@ def _fetch_dependencies(source_dir: RootedPath) -> None:
 def _generate_environment_variables() -> list[EnvironmentVariable]:
     """Generate environment variables that will be used for building the project."""
     env_vars = {
-        "YARN_ENABLE_GLOBAL_CACHE": {"value": "false", "kind": "literal"},
-        "YARN_ENABLE_IMMUTABLE_CACHE": {"value": "false", "kind": "literal"},
-        "YARN_ENABLE_MIRROR": {"value": "true", "kind": "literal"},
-        "YARN_GLOBAL_FOLDER": {"value": "deps/yarn", "kind": "path"},
+        "YARN_ENABLE_GLOBAL_CACHE": "false",
+        "YARN_ENABLE_IMMUTABLE_CACHE": "false",
+        "YARN_ENABLE_MIRROR": "true",
+        "YARN_GLOBAL_FOLDER": "${output_dir}/deps/yarn",
     }
 
-    return [EnvironmentVariable(name=name, **obj) for name, obj in env_vars.items()]
+    return [EnvironmentVariable(name=key, value=value) for key, value in env_vars.items()]
 
 
 def _verify_corepack_yarn_version(expected_version: semver.Version, source_dir: RootedPath) -> None:
