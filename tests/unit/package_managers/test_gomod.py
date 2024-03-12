@@ -14,7 +14,7 @@ import pytest
 
 from cachi2.core.errors import FetchError, PackageManagerError, PackageRejected, UnexpectedFormat
 from cachi2.core.models.input import Flag, Request
-from cachi2.core.models.output import BuildConfig, RequestOutput
+from cachi2.core.models.output import BuildConfig, EnvironmentVariable, RequestOutput
 from cachi2.core.models.sbom import Component, Property
 from cachi2.core.package_managers import gomod
 from cachi2.core.package_managers.gomod import (
@@ -54,12 +54,12 @@ def setup_module() -> None:
 
 
 @pytest.fixture(scope="module")
-def env_variables() -> list[dict[str, str]]:
+def env_variables() -> list[EnvironmentVariable]:
     return [
-        {"name": "GOCACHE", "value": "deps/gomod", "kind": "path"},
-        {"name": "GOMODCACHE", "value": "deps/gomod/pkg/mod", "kind": "path"},
-        {"name": "GOPATH", "value": "deps/gomod", "kind": "path"},
-        {"name": "GOTOOLCHAIN", "value": "local", "kind": "literal"},
+        EnvironmentVariable(name="GOCACHE", value="deps/gomod", kind="path"),
+        EnvironmentVariable(name="GOMODCACHE", value="deps/gomod/pkg/mod", kind="path"),
+        EnvironmentVariable(name="GOPATH", value="deps/gomod", kind="path"),
+        EnvironmentVariable(name="GOTOOLCHAIN", value="local", kind="literal"),
     ]
 
 
