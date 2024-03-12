@@ -46,7 +46,7 @@ def yarn_request(tmp_path: Path, yarn_input_packages: list[dict[str, str]]) -> R
     )
 
 
-@pytest.fixture()
+@pytest.fixture(scope="module")
 def yarn_env_variables() -> list[EnvironmentVariable]:
     return [
         EnvironmentVariable(name="YARN_ENABLE_GLOBAL_CACHE", value="false", kind="literal"),
