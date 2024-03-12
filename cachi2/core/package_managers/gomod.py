@@ -743,7 +743,7 @@ def _resolve_gomod(
         "GO111MODULE": "on",
         "GOCACHE": tmp_dir,
         "PATH": os.environ.get("PATH", ""),
-        "GOMODCACHE": "{}/pkg/mod".format(tmp_dir),
+        "GOMODCACHE": f"{tmp_dir}/pkg/mod",
         "GOSUMDB": "sum.golang.org",
         "GOTOOLCHAIN": "local",
     }
