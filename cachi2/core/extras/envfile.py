@@ -43,8 +43,9 @@ class EnvFormat(str, Enum):
 def generate_envfile(build_config: BuildConfig, fmt: EnvFormat, relative_to_path: Path) -> str:
     """Generate an environment file in the specified format.
 
-    Some environment variables need to be resolved relative to a path. Generally, this
-    should be the path to the output directory where dependencies were fetched.
+    Some environment variables need to be resolved relative to a path for which @output_dir is
+    used. Generally, this should be the path to the output directory where dependencies were
+    fetched.
 
     Supported formats:
     - json: [{"name": "GOCACHE", "value": "/path/to/output-dir/deps/gomod"}, ...]
@@ -52,7 +53,7 @@ def generate_envfile(build_config: BuildConfig, fmt: EnvFormat, relative_to_path
            export ...
     """
     env_vars = [
-        (env_var.name, env_var.resolve_value(relative_to_path))
+        (env_var.name, env_var.resolve_value({"output_dir": relative_to_path.as_posix()}))
         for env_var in build_config.environment_variables
     ]
     if fmt == EnvFormat.json:

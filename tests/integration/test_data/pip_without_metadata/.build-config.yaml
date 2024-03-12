@@ -1,8 +1,6 @@
 environment_variables:
-- kind: path
-  name: PIP_FIND_LINKS
-  value: deps/pip
-- kind: literal
-  name: PIP_NO_INDEX
+- name: PIP_FIND_LINKS
+  value: ${output_dir}/deps/pip
+- name: PIP_NO_INDEX
   value: 'true'
 project_files: []
