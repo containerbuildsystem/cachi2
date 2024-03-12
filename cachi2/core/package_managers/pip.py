@@ -159,8 +159,8 @@ def fetch_pip_source(request: Request) -> RequestOutput:
 
     if request.pip_packages:
         environment_variables = [
-            EnvironmentVariable(name="PIP_FIND_LINKS", value="deps/pip", kind="path"),
-            EnvironmentVariable(name="PIP_NO_INDEX", value="true", kind="literal"),
+            EnvironmentVariable(name="PIP_FIND_LINKS", value="${output_dir}/deps/pip"),
+            EnvironmentVariable(name="PIP_NO_INDEX", value="true"),
         ]
 
     for package in request.pip_packages:

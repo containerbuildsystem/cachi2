@@ -49,10 +49,10 @@ def yarn_request(tmp_path: Path, yarn_input_packages: list[dict[str, str]]) -> R
 @pytest.fixture(scope="module")
 def yarn_env_variables() -> list[EnvironmentVariable]:
     return [
-        EnvironmentVariable(name="YARN_ENABLE_GLOBAL_CACHE", value="false", kind="literal"),
-        EnvironmentVariable(name="YARN_ENABLE_IMMUTABLE_CACHE", value="false", kind="literal"),
-        EnvironmentVariable(name="YARN_ENABLE_MIRROR", value="true", kind="literal"),
-        EnvironmentVariable(name="YARN_GLOBAL_FOLDER", value="deps/yarn", kind="path"),
+        EnvironmentVariable(name="YARN_ENABLE_GLOBAL_CACHE", value="false"),
+        EnvironmentVariable(name="YARN_ENABLE_IMMUTABLE_CACHE", value="false"),
+        EnvironmentVariable(name="YARN_ENABLE_MIRROR", value="true"),
+        EnvironmentVariable(name="YARN_GLOBAL_FOLDER", value="${output_dir}/deps/yarn"),
     ]
 
 
