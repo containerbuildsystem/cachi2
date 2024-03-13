@@ -5,6 +5,6 @@ environment_variables:
   value: ${output_dir}/deps/gomod/pkg/mod
 - name: GOPATH
   value: ${output_dir}/deps/gomod
-- name: GOTOOLCHAIN
-  value: local
+- name: GOPROXY
+  value: file://${GOMODCACHE}/cache/download
 project_files: []

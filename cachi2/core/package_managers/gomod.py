@@ -554,7 +554,7 @@ def fetch_gomod_source(request: Request) -> RequestOutput:
         "GOCACHE": "${output_dir}/deps/gomod",
         "GOPATH": "${output_dir}/deps/gomod",
         "GOMODCACHE": "${output_dir}/deps/gomod/pkg/mod",
-        "GOTOOLCHAIN": "local",
+        "GOPROXY": "file://${GOMODCACHE}/cache/download",
     }
     env_vars.update(config.default_environment_variables.get("gomod", {}))
 
@@ -776,20 +776,23 @@ def _setup_go_toolchain(go_mod_file: RootedPath) -> Go:
             ),
         )
 
-    if target_version >= go_max_version and go_base_version < go_max_version:
-        # our base Go installation is too old and we need a newer one to support new keywords
+    if target_version >= go_max_version:
+        # Project makes use of Go >=1.21:
+        # - always use the 'X.Y.0' toolchain to make sure GOTOOLCHAIN=auto fetches anything newer
+        # - container environments need to have it pre-installed
+        # - local environments will always install 1.21.0 SDK and then pull any newer toolchain
         go = Go(release="go1.21.0")
-    elif target_version < go_max_version and go_base_version >= go_max_version:
+    elif go_base_version >= go_max_version:
         # Starting with Go 1.21, Go doesn't try to be semantically backwards compatible in that the
         # 'go X.Y' line now denotes the minimum required version of Go, no a "suggested" version.
-        # What it means in practice is that a Go toolchain >= 1.21 enforces the biggest
-        # common toolchain denominator across all dependencies and so if the input project
-        # specifies e.g. 'go 1.19' and **any** of its dependencies specify 'go 1.21' (or higher),
-        # then the default 1.21 toolchain will bump the input project's go.mod file to make sure
-        # the minimum required Go version is met across all dependencies. That is a problem,
-        # because it'll lead to fatal build failures forcing everyone to update their build
-        # recipes. Note that at some point they'll have to do that anyway, but until majority of
-        # projects in the ecosystem adopt 1.21, we need a fallback to an older toolchain version.
+        # What it means in practice is that a Go toolchain >= 1.21 enforces the biggest common
+        # toolchain denominator across all dependencies and so if the input project specifies e.g.
+        # 'go 1.19' and **any** of its dependencies specify 'go 1.21' (or higher), then the default
+        # 1.21 toolchain will bump the input project's go.mod file to make sure the minimum
+        # required Go version is met across all dependencies. That is a problem, because it'll lead
+        # to fatal build failures forcing everyone to update their build recipes. Note that at some
+        # point they'll have to do that anyway, but until majority of projects in the ecosystem
+        # adopt 1.21, we need a fallback to an older toolchain version.
         go = Go(release="go1.20")
     return go
 
@@ -821,6 +824,7 @@ def _resolve_gomod(
         "PATH": os.environ.get("PATH", ""),
         "GOMODCACHE": f"{tmp_dir}/pkg/mod",
         "GOSUMDB": "sum.golang.org",
+        "GOTOOLCHAIN": "auto",
     }
 
     if config.goproxy_url:
