@@ -70,9 +70,12 @@ class RootedPath(PathLike[str]):
         return self._path.relative_to(self._root)
 
     def __eq__(self, other: object) -> bool:
-        # Note: __eq__ is implemented mainly for unit tests that do assert_called_with() or similar
         if not isinstance(other, RootedPath):
+            # NotImplemented is a special value which should be returned by the binary special methods
+            # (e.g. __eq__(), __lt__(), __add__(), __rsub__(), etc.)  to indicate that the operation is
+            # not implemented with respect to the other type - https://docs.python.org/3/library/constants.html#NotImplemented
             return NotImplemented
+
         return self.path == other.path and self.root == other.root
 
     def __fspath__(self) -> str:

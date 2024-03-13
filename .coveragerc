@@ -3,6 +3,7 @@ skip_covered = True
 show_missing = True
 fail_under = 75
 exclude_lines =
-    pragma: no cover
     if __name__ == .__main__.:
     def __repr__
+    if TYPE_CHECKING:
+    return NotImplemented
