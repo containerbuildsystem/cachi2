@@ -1,10 +1,11 @@
 import logging
 import string
 from pathlib import Path
-from typing import Dict, Literal, Optional
+from typing import Dict, Literal, Optional, Set
 
 import pydantic
 
+from cachi2.core.errors import Cachi2Error
 from cachi2.core.models.property_semantics import merge_component_properties
 from cachi2.core.models.sbom import Component, Sbom
 from cachi2.core.models.validators import unique_sorted
@@ -43,12 +44,54 @@ class EnvironmentVariable(pydantic.BaseModel):
         substitute all placeholders defined; if no placeholders are contained within the value
         string, substitution is a NOOP (e.g. legacy "literal" variables)
         """
+
+        def get_placeholders(t: string.Template) -> Set[str]:
+            """Return a set of placeholders in a template.
+
+            Implementation is based on [1] which appeared in 3.11 [2] without additional error
+            handling which we don't need for our mostly internal use case.
+            [1] https://github.com/python/cpython/blob/3b4cd48d2988e74405838accde5edcc3b71bec48/Lib/string.py#L157
+            [2] https://docs.python.org/3.11/library/string.html#string.Template.get_identifiers
+
+            TODO: Drop this after bumping minimum required version to 3.11
+            """
+            placeholders = set()
+            matches = t.pattern.finditer(t.template)
+            for m in matches:
+                if placeholder := m.group("named") or m.group("braced"):
+                    placeholders.add(placeholder)
+
+            return placeholders
+
         # legacy path variable handling, need to prepend the base path placeholder
         if self.kind == "path" and "output_dir" in mappings:
             log.debug(f"Adjusting a legacy path variable value '{self.name}={self.value}'")
             self.value = "${output_dir}/" + self.value
 
-        return string.Template(self.value).safe_substitute(mappings)
+        # "Recursively" resolve potentially nested variables up to len(mappings) tries
+        log.debug(f"Resolving environment variable '{self.name}={self.value}'")
+        ret = self.value
+        substituted: Set[str] = set()
+        for i, m in enumerate(mappings):
+            log.debug(f"EnvironmentVariable resolution iteration {i + 1}.: {ret}")
+
+            t_old = string.Template(ret)
+            ret = t_old.safe_substitute(mappings)
+            t_new = string.Template(ret)
+            p_new = get_placeholders(t_new)
+
+            substituted |= get_placeholders(t_old) & mappings.keys()
+            if substituted & p_new:
+                raise Cachi2Error(
+                    f"Detected a cycle in environment variable expansion of '{self.name}'",
+                    solution=(
+                        "Inspect all relevant environment variables and make sure their "
+                        "expansion doesn't lead to a cycle. Ideally, avoiding nesting of "
+                        "variables altogether."
+                    ),
+                )
+
+        return ret
 
 
 class ProjectFile(pydantic.BaseModel):

@@ -52,8 +52,11 @@ def generate_envfile(build_config: BuildConfig, fmt: EnvFormat, relative_to_path
     - env: export GOCACHE=/path/to/output-dir/deps/gomod
            export ...
     """
+    # pass all variables as placeholder mappings to env var template value resolution
+    mappings = {var.name: var.value for var in build_config.environment_variables}
+    mappings["output_dir"] = relative_to_path.as_posix()
     env_vars = [
-        (env_var.name, env_var.resolve_value({"output_dir": relative_to_path.as_posix()}))
+        (env_var.name, env_var.resolve_value(mappings))
         for env_var in build_config.environment_variables
     ]
     if fmt == EnvFormat.json:
