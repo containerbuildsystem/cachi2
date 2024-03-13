@@ -1,10 +1,11 @@
 from pathlib import Path
 from textwrap import dedent
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 import pydantic
 import pytest
 
+from cachi2.core.errors import Cachi2Error
 from cachi2.core.models.output import BuildConfig, EnvironmentVariable, ProjectFile, RequestOutput
 
 
@@ -123,13 +124,14 @@ class TestRequestOutput:
 
 
 ENVVAR_TEMPLATE_MAPPINGS = {
+    "NESTED": "monty_${FOO}",
+    "BAZ": "holy_grail",
+    "BAR": "and",
+    "BARR": "the_${BAZ}",
+    "FOO": "python_${BAR}_${BARR}",
     "LEGACY_LITERAL": "foobar",
     "LEGACY_PATH": "relative/path",
     "SIMPLE": "${deadbeef}",
-    "NESTED": "monty_${FOO}",
-    "FOO": "python_${BAR}_${BAZ}",
-    "BAR": "and",
-    "BAZ": "the_holy_grail",
 }
 
 
@@ -161,6 +163,12 @@ class TestEnvironmentVariable:
             pytest.param(
                 "SIMPLE", "badf00d", {"deadbeef": "badf00d"}, id="simple_template_variable"
             ),
+            pytest.param(
+                "NESTED",
+                "monty_python_and_the_holy_grail",
+                ENVVAR_TEMPLATE_MAPPINGS,
+                id="nested_template_variable",
+            ),
         ],
     )
     def test_resolution(
@@ -173,3 +181,27 @@ class TestEnvironmentVariable:
 
         assert env_variables[var].resolve_value(mappings) == expected
         assert "kind" not in env_variables[var].model_dump()
+
+    @pytest.mark.parametrize(
+        "envs",
+        [
+            pytest.param(
+                [EnvironmentVariable(name="FOO", value="$FOO")],
+                id="recursive_variable",
+            ),
+            pytest.param(
+                [
+                    EnvironmentVariable(name="VAR1", value="$VAR2"),
+                    EnvironmentVariable(name="VAR2", value="$VAR3"),
+                    EnvironmentVariable(name="VAR3", value="$VAR1"),
+                ],
+                id="indirect_cycle",
+            ),
+        ],
+    )
+    def test_nested_resolution_failure(self, envs: List[EnvironmentVariable]) -> None:
+        mappings = {e.name: e.value for e in envs}
+
+        err_msg = f"Detected a cycle in environment variable expansion of '{envs[0].name}'"
+        with pytest.raises(Cachi2Error, match=err_msg):
+            envs[0].resolve_value(mappings)
