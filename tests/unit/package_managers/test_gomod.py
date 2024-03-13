@@ -61,7 +61,8 @@ def env_variables() -> list[EnvironmentVariable]:
         EnvironmentVariable(name="GOCACHE", value="${output_dir}/deps/gomod"),
         EnvironmentVariable(name="GOMODCACHE", value="${output_dir}/deps/gomod/pkg/mod"),
         EnvironmentVariable(name="GOPATH", value="${output_dir}/deps/gomod"),
-        EnvironmentVariable(name="GOTOOLCHAIN", value="local"),
+        EnvironmentVariable(name="GOPROXY", value="file://${GOMODCACHE}/cache/download"),
+        EnvironmentVariable(name="GOTOOLCHAIN", value="auto"),
     ]
 
 
@@ -1619,11 +1620,16 @@ def test_get_gomod_version_fail(rooted_tmp_path: RootedPath, go_mod_file: Path) 
 
 
 @pytest.mark.parametrize(
-    "go_mod_file, go_base_release, expected_toolchain",
+    "go_mod_file, go_base_release, expected_toolchain, GOTOOLCHAIN",
     [
-        pytest.param("", "go1.20.4", "1.20.4", id="mod_too_old_fallback_to_1.20"),
-        pytest.param("go 1.19", "go1.21.0", "1.20", id="mod_older_than_base_fallback_to_1.20"),
-        pytest.param("go 1.21.4", "go1.20.4", "1.21.0", id="base_older_than_mod"),
+        pytest.param("", "go1.20.4", "1.20.4", "auto", id="mod_too_old_fallback_to_1.20"),
+        pytest.param(
+            "go 1.19", "go1.21.0", "1.20", "auto", id="mod_older_than_base_fallback_to_1.20"
+        ),
+        pytest.param("go 1.21.4", "go1.20.4", "1.21.0", "auto", id="base_older_than_mod"),
+        pytest.param(
+            "go 1.21.4", "go1.21.6", "1.21.6", "local", id="mod_older_than_base_gotoolchain_local"
+        ),
     ],
     indirect=["go_mod_file"],
 )
@@ -1637,12 +1643,15 @@ def test_setup_go_toolchain(
     go_mod_file: Path,
     go_base_release: str,
     expected_toolchain: str,
+    GOTOOLCHAIN: str,
 ) -> None:
     mock_go_call.return_value = f"Go release: {go_base_release}"
     mock_go_locate_toolchain.return_value = None
 
-    go = _setup_go_toolchain(rooted_tmp_path.join_within_root("go.mod"))
+    env_variables = {"GOTOOLCHAIN": "auto"}
+    go = _setup_go_toolchain(rooted_tmp_path.join_within_root("go.mod"), env_variables)
     assert str(go.version) == expected_toolchain
+    assert env_variables["GOTOOLCHAIN"] == GOTOOLCHAIN
 
 
 @mock.patch("cachi2.core.package_managers.gomod._get_gomod_version")
@@ -1656,7 +1665,7 @@ def test_setup_go_toolchain_failure(
 
     error_msg = f"Go version '{unsupported_version}' is not supported yet."
     with pytest.raises(PackageManagerError, match=error_msg):
-        _setup_go_toolchain(rooted_tmp_path.join_within_root("go.mod"))
+        _setup_go_toolchain(rooted_tmp_path.join_within_root("go.mod"), {})
 
 
 class TestGo:

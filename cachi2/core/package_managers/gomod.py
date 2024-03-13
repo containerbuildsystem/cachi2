@@ -12,6 +12,7 @@ from types import TracebackType
 from typing import (
     TYPE_CHECKING,
     Any,
+    Dict,
     Iterable,
     Iterator,
     Literal,
@@ -551,7 +552,8 @@ def fetch_gomod_source(request: Request) -> RequestOutput:
         "GOCACHE": "${output_dir}/deps/gomod",
         "GOPATH": "${output_dir}/deps/gomod",
         "GOMODCACHE": "${output_dir}/deps/gomod/pkg/mod",
-        "GOTOOLCHAIN": "local",
+        "GOPROXY": "file://${GOMODCACHE}/cache/download",
+        "GOTOOLCHAIN": "auto",
     }
     env_vars.update(config.default_environment_variables.get("gomod", {}))
 
@@ -717,7 +719,7 @@ def _find_missing_gomod_files(source_path: RootedPath, subpaths: list[str]) -> l
     return invalid_gomod_files
 
 
-def _setup_go_toolchain(go_mod_file: RootedPath) -> Go:
+def _setup_go_toolchain(go_mod_file: RootedPath, env: Dict) -> Go:
     go = Go()
     go_max_version = version.Version("1.21")
     go_base_version = go.version
@@ -744,21 +746,27 @@ def _setup_go_toolchain(go_mod_file: RootedPath) -> Go:
 
     log.info(go_mod_version_msg.format(go_mod_version))
 
-    if go_mod_version >= go_max_version and go_base_version < go_max_version:
-        # our base Go installation is too old and we need a newer one to support new keywords
-        go = Go(release="go1.21.0")
-    elif go_mod_version < go_max_version and go_base_version >= go_max_version:
-        # Starting with Go 1.21, Go doesn't try to be semantically backwards compatible in that the
-        # 'go X.Y' line now denotes the minimum required version of Go, no a "suggested" version.
-        # What it means in practice is that a Go toolchain >= 1.21 enforces the biggest
-        # common toolchain denominator across all dependencies and so if the input project
-        # specifies e.g. 'go 1.19' and **any** of its dependencies specify 'go 1.21' (or higher),
-        # then the default 1.21 toolchain will bump the input project's go.mod file to make sure
-        # the minimum required Go version is met across all dependencies. That is a problem,
-        # because it'll lead to fatal build failures forcing everyone to update their build
-        # recipes. Note that at some point they'll have to do that anyway, but until majority of
-        # projects in the ecosystem adopt 1.21, we need a fallback to an older toolchain version.
-        go = Go(release="go1.20")
+    if go_mod_version >= go_max_version:
+        if go_base_version < go_max_version:
+            # our base Go installation is too old and we need a newer one to support new keywords
+            go = Go(release="go1.21.0")
+        elif go_base_version > go_mod_version:
+            # we have a newer toolchain than the requirement, so we don't want GOTOOLCHAIN=auto
+            env["GOTOOLCHAIN"] = "local"
+    else:
+        if go_base_version >= go_max_version:
+            # Starting with Go 1.21, Go doesn't try to be semantically backwards compatible in that
+            # the 'go X.Y' line now denotes the minimum required version of Go, no a "suggested"
+            # version. What it means in practice is that a Go toolchain >= 1.21 enforces the
+            # biggest common toolchain denominator across all dependencies and so if the input
+            # project specifies e.g. 'go 1.19' and **any** of its dependencies specify 'go 1.21'
+            # (or higher), then the default 1.21 toolchain will bump the input project's go.mod
+            # file to make sure the minimum required Go version is met across all dependencies.
+            # That is a problem, because it'll lead to fatal build failures forcing everyone to
+            # update their build recipes. Note that at some point they'll have to do that anyway,
+            # but until majority of projects in the ecosystem adopt 1.21, we need a fallback to an
+            # older toolchain version.
+            go = Go(release="go1.20")
     return go
 
 
@@ -798,7 +806,7 @@ def _resolve_gomod(
     if "cgo-disable" in request.flags:
         env["CGO_ENABLED"] = "0"
 
-    go = _setup_go_toolchain(app_dir.join_within_root("go.mod"))
+    go = _setup_go_toolchain(app_dir.join_within_root("go.mod"), env)
 
     run_params = {"env": env, "cwd": app_dir}
 
