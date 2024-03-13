@@ -82,3 +82,14 @@ disallow_untyped_decorators = true
 [[tool.mypy.overrides]]
 module = ["semver"]
 ignore_missing_imports = true
+
+[tool.coverage.report]
+skip_covered = true
+show_missing = true
+fail_under = 75
+exclude_lines = [
+  "def __repr__",
+  "if __name__ == .__main__.:",
+  "if TYPE_CHECKING:",
+  "return NotImplemented",
+]
