@@ -86,7 +86,7 @@ ignore_missing_imports = true
 [tool.coverage.report]
 skip_covered = true
 show_missing = true
-fail_under = 75
+fail_under = 90
 exclude_lines = [
   "def __repr__",
   "if __name__ == .__main__.:",
