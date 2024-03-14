@@ -1,17 +1,17 @@
 # Please see the documentation for all configuration options:
-# https://help.github.com/github/administering-a-repository/configuration-options-for-dependency-updates
+# https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
 
 version: 2
 updates:
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      # Check for updates to GitHub Actions every week
       interval: "weekly"
+
   - package-ecosystem: "pip"
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
     groups:
       dep-patch-updates:
         update-types:
@@ -23,4 +23,4 @@ updates:
   - package-ecosystem: "npm"
     directory: "/js-deps"
     schedule:
-      interval: "daily"
+      interval: "monthly"
