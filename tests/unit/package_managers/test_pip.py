@@ -3768,7 +3768,7 @@ def test_resolve_pip(
 @pytest.mark.parametrize(
     "component_kind, url",
     (
-        ["vcs", f"git+https://github.com/cachito/mypkg.git@{'f'*40}?egg=mypkg"],
+        ["vcs", f"git+https://github.com/cachito/mypkg.git@{'f' * 40}?egg=mypkg"],
         ["url", "https://files.cachito.rocks/mypkg.tar.gz"],
     ),
 )
@@ -3781,7 +3781,7 @@ def test_get_external_requirement_filepath(component_kind: str, url: str) -> Non
         assert filepath == Path("external-package", "package-external-sha256-noRealHash.tar.gz")
     elif component_kind == "vcs":
         assert filepath == Path(
-            "github.com", "cachito", "mypkg", f"mypkg-external-gitcommit-{'f'*40}.tar.gz"
+            "github.com", "cachito", "mypkg", f"mypkg-external-gitcommit-{'f' * 40}.tar.gz"
         )
     else:
         assert False
@@ -4015,7 +4015,7 @@ def test_fetch_pip_source(
         Component(
             name="foo",
             version="1.0",
-            purl=f"pkg:pypi/foo@1.0?vcs_url=git%2Bhttps://github.com/my-org/my-repo%40{'f'*40}",
+            purl=f"pkg:pypi/foo@1.0?vcs_url=git%2Bhttps://github.com/my-org/my-repo%40{'f' * 40}",
         ),
         Component(
             name="bar",
@@ -4028,7 +4028,7 @@ def test_fetch_pip_source(
         Component(
             name="spam",
             version="2.1",
-            purl=f"pkg:pypi/spam@2.1?vcs_url=git%2Bhttps://github.com/my-org/my-repo%40{'f'*40}#foo",
+            purl=f"pkg:pypi/spam@2.1?vcs_url=git%2Bhttps://github.com/my-org/my-repo%40{'f' * 40}#foo",
         ),
         Component(
             name="ham",
@@ -4088,52 +4088,52 @@ def test_fetch_pip_source(
         (
             {
                 "name": "git_dependency",
-                "version": f"git+https://github.com/my-org/git_dependency@{'a'*40}",
+                "version": f"git+https://github.com/my-org/git_dependency@{'a' * 40}",
                 "type": "pip",
                 "dev": False,
                 "kind": "vcs",
             },
-            f"pkg:pypi/git-dependency?vcs_url=git%2Bhttps://github.com/my-org/git_dependency%40{'a'*40}",
+            f"pkg:pypi/git-dependency?vcs_url=git%2Bhttps://github.com/my-org/git_dependency%40{'a' * 40}",
         ),
         (
             {
                 "name": "Git_dependency",
-                "version": f"git+file:///github.com/my-org/git_dependency@{'a'*40}",
+                "version": f"git+file:///github.com/my-org/git_dependency@{'a' * 40}",
                 "type": "pip",
                 "dev": False,
                 "kind": "vcs",
             },
-            f"pkg:pypi/git-dependency?vcs_url=git%2Bfile:///github.com/my-org/git_dependency%40{'a'*40}",
+            f"pkg:pypi/git-dependency?vcs_url=git%2Bfile:///github.com/my-org/git_dependency%40{'a' * 40}",
         ),
         (
             {
                 "name": "git_dependency",
-                "version": f"git+ssh://git@github.com/my-org/git_dependency@{'a'*40}",
+                "version": f"git+ssh://git@github.com/my-org/git_dependency@{'a' * 40}",
                 "type": "pip",
                 "dev": False,
                 "kind": "vcs",
             },
-            f"pkg:pypi/git-dependency?vcs_url=git%2Bssh://git%40github.com/my-org/git_dependency%40{'a'*40}",
+            f"pkg:pypi/git-dependency?vcs_url=git%2Bssh://git%40github.com/my-org/git_dependency%40{'a' * 40}",
         ),
         (
             {
                 "name": "git_dependency",
-                "version": f"git+https://github.com/my-org/git_dependency@{'a'*40}",
+                "version": f"git+https://github.com/my-org/git_dependency@{'a' * 40}",
                 "type": "pip",
                 "dev": False,
                 "kind": "vcs",
             },
-            f"pkg:pypi/git-dependency?vcs_url=git%2Bhttps://github.com/my-org/git_dependency%40{'a'*40}",
+            f"pkg:pypi/git-dependency?vcs_url=git%2Bhttps://github.com/my-org/git_dependency%40{'a' * 40}",
         ),
         (
             {
                 "name": "https_dependency",
-                "version": f"https://github.com/my-org/https_dependency/{'a'*40}/file.tar.gz#egg=https_dependency&cachito_hash=sha256:de526c1",
+                "version": f"https://github.com/my-org/https_dependency/{'a' * 40}/file.tar.gz#egg=https_dependency&cachito_hash=sha256:de526c1",
                 "type": "pip",
                 "dev": False,
                 "kind": "url",
             },
-            f"pkg:pypi/https-dependency?checksum=sha256:de526c1&download_url=https://github.com/my-org/https_dependency/{'a'*40}/file.tar.gz",
+            f"pkg:pypi/https-dependency?checksum=sha256:de526c1&download_url=https://github.com/my-org/https_dependency/{'a' * 40}/file.tar.gz",
         ),
     ],
 )
@@ -4148,11 +4148,11 @@ def test_generate_purl_dependencies(dependency: dict[str, Any], expected_purl: s
     [
         (
             ".",
-            f"pkg:pypi/foo@1.0.0?vcs_url=git%2Bssh://git%40github.com/my-org/my-repo%40{'f'*40}",
+            f"pkg:pypi/foo@1.0.0?vcs_url=git%2Bssh://git%40github.com/my-org/my-repo%40{'f' * 40}",
         ),
         (
             "path/to/package",
-            f"pkg:pypi/foo@1.0.0?vcs_url=git%2Bssh://git%40github.com/my-org/my-repo%40{'f'*40}#path/to/package",
+            f"pkg:pypi/foo@1.0.0?vcs_url=git%2Bssh://git%40github.com/my-org/my-repo%40{'f' * 40}#path/to/package",
         ),
     ],
 )
