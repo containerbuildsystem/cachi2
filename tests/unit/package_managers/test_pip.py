@@ -2687,7 +2687,7 @@ class TestDownload:
         )
 
     @mock.patch.object(pypi_simple.PyPISimple, "get_project_page")
-    def test_process_existing_package_without_source_distributions(
+    def test_process_existing_wheel_only_package(
         self,
         mock_get_project_page: mock.Mock,
         rooted_tmp_path: RootedPath,
@@ -3380,12 +3380,14 @@ class TestDownload:
             "package": "eggs",
             "path": vcs_download,
             "repo": "eggs",
+            "package_type": "",
             "hash_verified": use_hashes,
             "requirement_file": str(req_file.file_path.subpath_from_root),
             # etc., not important for this test
         }
         url_info = {
             "package": "bar",
+            "package_type": "",
             "original_url": plain_url,
             "url_with_hash": plain_url,
             "path": url_download,
@@ -3406,6 +3408,7 @@ class TestDownload:
             "kind": "pypi",
             "requirement_file": str(req_file.file_path.subpath_from_root),
             "hash_verified": True,
+            "package_type": "sdist",
         }
         pypi_downloads = [sdist_d_i]
         wheel_downloads = []
@@ -3433,6 +3436,7 @@ class TestDownload:
                         "kind": "pypi",
                         "requirement_file": str(req_file.file_path.subpath_from_root),
                         "hash_verified": hash_verified,
+                        "package_type": "wheel",
                     }
                 )
 
@@ -3602,12 +3606,14 @@ class TestDownload:
                 "kind": "pypi",
                 "hash_verified": False,
                 "requirement_file": str(req_file1.subpath_from_root),
+                "package_type": "sdist",
             },
             pypi_package2.download_info
             | {
                 "kind": "pypi",
                 "hash_verified": False,
                 "requirement_file": str(req_file2.subpath_from_root),
+                "package_type": "sdist",
             },
         ]
         _check_metadata_in_sdist.assert_has_calls(
@@ -3709,6 +3715,7 @@ def test_resolve_pip(
                 "version": "2.1",
                 "hash_verified": True,
                 "requirement_file": str(req_file.subpath_from_root),
+                "package_type": "sdist",
             }
         ],
         [
@@ -3719,6 +3726,7 @@ def test_resolve_pip(
                 "version": "0.0.5",
                 "hash_verified": True,
                 "requirement_file": str(build_req_file.subpath_from_root),
+                "package_type": "sdist",
             }
         ],
     ]
@@ -3743,6 +3751,7 @@ def test_resolve_pip(
                 "kind": "pypi",
                 "hash_verified": True,
                 "requirement_file": "req.txt" if custom_requirements else "requirements.txt",
+                "package_type": "sdist",
             },
             {
                 "name": "baz",
@@ -3752,6 +3761,7 @@ def test_resolve_pip(
                 "kind": "pypi",
                 "hash_verified": True,
                 "requirement_file": "breq.txt" if custom_requirements else "requirements-build.txt",
+                "package_type": "sdist",
             },
         ],
         "requirements": [req_file, build_req_file],
@@ -3943,6 +3953,7 @@ def test_fetch_pip_source(
             {
                 "name": "bar",
                 "version": "https://x.org/bar.zip#cachito_hash=sha256:aaaaaaaaaa",
+                "package_type": "",
                 "type": "pip",
                 "dev": False,
                 "kind": "url",
@@ -3952,6 +3963,7 @@ def test_fetch_pip_source(
             {
                 "name": "baz",
                 "version": "0.0.5",
+                "package_type": "wheel",
                 "type": "pip",
                 "dev": True,
                 "kind": "pypi",
@@ -3967,6 +3979,7 @@ def test_fetch_pip_source(
             {
                 "name": "ham",
                 "version": "3.2",
+                "package_type": "sdist",
                 "type": "pip",
                 "dev": False,
                 "kind": "pypi",
@@ -3976,6 +3989,7 @@ def test_fetch_pip_source(
             {
                 "name": "eggs",
                 "version": "https://x.org/eggs.zip#cachito_hash=sha256:aaaaaaaaaa",
+                "package_type": "",
                 "type": "pip",
                 "dev": False,
                 "kind": "url",
@@ -4015,7 +4029,12 @@ def test_fetch_pip_source(
             name="bar",
             purl="pkg:pypi/bar?checksum=sha256:aaaaaaaaaa&download_url=https://x.org/bar.zip",
         ),
-        Component(name="baz", version="0.0.5", purl="pkg:pypi/baz@0.0.5"),
+        Component(
+            name="baz",
+            version="0.0.5",
+            purl="pkg:pypi/baz@0.0.5",
+            properties=[Property(name="cachi2:pip:package:binary", value="true")],
+        ),
     ]
 
     expect_components_package_b = [

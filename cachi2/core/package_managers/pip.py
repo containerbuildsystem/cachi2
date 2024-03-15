@@ -201,10 +201,16 @@ def fetch_pip_source(request: Request) -> RequestOutput:
 
 
 def _generate_properties(dependency: dict[str, str]) -> list[Property]:
+    properties = []
     if not dependency["hash_verified"]:
-        return [Property(name="cachi2:missing_hash:in_file", value=dependency["requirement_file"])]
-    else:
-        return []
+        properties.append(
+            Property(name="cachi2:missing_hash:in_file", value=dependency["requirement_file"])
+        )
+
+    if dependency["package_type"] == "wheel":
+        properties.append(Property(name="cachi2:pip:package:binary", value="true"))
+
+    return properties
 
 
 def _generate_purl_main_package(package: dict[str, Any], package_path: RootedPath) -> str:
@@ -1487,12 +1493,17 @@ def _process_req(
         if dpi.package_type == "sdist":
             _check_metadata_in_sdist(dpi.path)
 
+        download_info["package_type"] = dpi.package_type
+
     else:
         if require_hashes or req.kind == "url":
             hashes = req.hashes or [req.qualifiers.get("cachito_hash", "")]
             download_info["hash_verified"] = _hash_verify(
                 download_info["path"], list(map(_to_checksum_info, hashes))
             )
+
+        # "package_type" is *only* needed for PyPI deps
+        download_info["package_type"] = ""
 
     log.debug(
         "Successfully processed '%s' in path '%s'",
@@ -2143,6 +2154,7 @@ def _resolve_pip(
         {
             "name": dep["package"],
             "version": _version(dep),
+            "package_type": dep["package_type"],
             "type": "pip",
             "dev": dep.get("dev", False),
             "kind": dep["kind"],

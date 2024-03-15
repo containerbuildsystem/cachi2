@@ -103,6 +103,41 @@ from cachi2.core.models.sbom import Component, Property
                 ),
             ],
         ),
+        (
+            # validate that "wheel" property is merged correctly
+            [
+                # sdist
+                Component(
+                    name="foo",
+                    version="1.0.0",
+                    purl="pkg:pip/foo@1.0.0",
+                    properties=[
+                        Property(name="cachi2:found_by", value="cachi2"),
+                    ],
+                ),
+                # wheel
+                Component(
+                    name="foo",
+                    version="1.0.0",
+                    purl="pkg:pip/foo@1.0.0",
+                    properties=[
+                        Property(name="cachi2:found_by", value="cachi2"),
+                        Property(name="cachi2:pip:package:binary", value="true"),
+                    ],
+                ),
+            ],
+            [
+                Component(
+                    name="foo",
+                    version="1.0.0",
+                    purl="pkg:pip/foo@1.0.0",
+                    properties=[
+                        Property(name="cachi2:found_by", value="cachi2"),
+                        Property(name="cachi2:pip:package:binary", value="true"),
+                    ],
+                )
+            ],
+        ),
     ],
 )
 def test_merge_component_properties(
@@ -134,6 +169,10 @@ class TestPropertySet:
             (
                 [Property(name="cdx:npm:package:development", value="true")],
                 PropertySet(npm_development=True),
+            ),
+            (
+                [Property(name="cachi2:pip:package:binary", value="true")],
+                PropertySet(pip_package_binary=True),
             ),
             (
                 [
@@ -200,6 +239,11 @@ class TestPropertySet:
                 PropertySet(npm_development=True),
                 PropertySet(npm_development=True),
                 PropertySet(npm_development=True),
+            ),
+            (
+                PropertySet(),
+                PropertySet(pip_package_binary=True),
+                PropertySet(pip_package_binary=True),
             ),
         ],
     )
