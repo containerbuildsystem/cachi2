@@ -2687,7 +2687,7 @@ class TestDownload:
         )
 
     @mock.patch.object(pypi_simple.PyPISimple, "get_project_page")
-    def test_process_existing_package_without_source_distributions(
+    def test_process_existing_wheel_only_package(
         self,
         mock_get_project_page: mock.Mock,
         rooted_tmp_path: RootedPath,
@@ -2946,20 +2946,20 @@ class TestDownload:
     def test_sdist_sorting(self) -> None:
         """Test that sdist preference key can be used for sorting in the expected order."""
         unyanked_tar_gz = pip.DistributionPackageInfo(
-            "unyanked.tar.gz", "1", "sdist", Path(""), "", False
+            "unyanked.tar.gz", "1", Path(""), "", False, "sdist"
         )
         unyanked_zip = pip.DistributionPackageInfo(
-            "unyanked.zip", "1", "sdist", Path(""), "", False
+            "unyanked.zip", "1", Path(""), "", False, "sdist"
         )
         unyanked_tar_bz2 = pip.DistributionPackageInfo(
-            "unyanked.tar.bz2", "1", "sdist", Path(""), "", False
+            "unyanked.tar.bz2", "1", Path(""), "", False, "sdist"
         )
         yanked_tar_gz = pip.DistributionPackageInfo(
-            "yanked.tar.gz", "1", "sdist", Path(""), "", True
+            "yanked.tar.gz", "1", Path(""), "", True, "sdist"
         )
-        yanked_zip = pip.DistributionPackageInfo("yanked.zip", "1", "sdist", Path(""), "", True)
+        yanked_zip = pip.DistributionPackageInfo("yanked.zip", "1", Path(""), "", True, "sdist")
         yanked_tar_bz2 = pip.DistributionPackageInfo(
-            "yanked.tar.bz2", "1", "sdist", Path(""), "", True
+            "yanked.tar.bz2", "1", Path(""), "", True, "sdist"
         )
 
         # Original order is descending by preference
@@ -3377,12 +3377,14 @@ class TestDownload:
             "package": "eggs",
             "path": vcs_download,
             "repo": "eggs",
+            "package_type": "",
             "hash_verified": use_hashes,
             "requirement_file": str(req_file.file_path.subpath_from_root),
             # etc., not important for this test
         }
         url_info = {
             "package": "bar",
+            "package_type": "",
             "original_url": plain_url,
             "url_with_hash": plain_url,
             "path": url_download,
@@ -3393,16 +3395,17 @@ class TestDownload:
         sdist_DPI = pip.DistributionPackageInfo(
             "foo",
             "1.0",
-            "sdist",
             sdist_download,
             "",
             False,
+            "sdist",
             pypi_checksums={ChecksumInfo("sha256", "abcdef")},
         )
         sdist_d_i = sdist_DPI.download_info | {
             "kind": "pypi",
             "requirement_file": str(req_file.file_path.subpath_from_root),
             "hash_verified": True,
+            "package_type": "sdist" if not allow_binary else "wheel",
         }
         pypi_downloads = [sdist_d_i]
         wheel_downloads = []
@@ -3417,10 +3420,10 @@ class TestDownload:
                 dpi = pip.DistributionPackageInfo(
                     "foo",
                     "1.0",
-                    "wheel",
                     wheel_path,
                     "",
                     False,
+                    "wheel",
                     pypi_checksums=checksums,  # type: ignore
                 )
                 wheels_DPI.append(dpi)
@@ -3430,6 +3433,7 @@ class TestDownload:
                         "kind": "pypi",
                         "requirement_file": str(req_file.file_path.subpath_from_root),
                         "hash_verified": hash_verified,
+                        "package_type": "wheel",
                     }
                 )
 
@@ -3584,10 +3588,10 @@ class TestDownload:
         pypi_download2 = pip_deps.join_within_root("bar", "bar-0.0.1.tar.gz").path
 
         pypi_package1 = pip.DistributionPackageInfo(
-            "foo", "1.0.0", "sdist", pypi_download1, "", False
+            "foo", "1.0.0", pypi_download1, "", False, "sdist"
         )
         pypi_package2 = pip.DistributionPackageInfo(
-            "bar", "0.0.1", "sdist", pypi_download2, "", False
+            "bar", "0.0.1", pypi_download2, "", False, "sdist"
         )
 
         _process_package_distributions.side_effect = [[pypi_package1], [pypi_package2]]
@@ -3599,12 +3603,14 @@ class TestDownload:
                 "kind": "pypi",
                 "hash_verified": False,
                 "requirement_file": str(req_file1.subpath_from_root),
+                "package_type": "sdist",
             },
             pypi_package2.download_info
             | {
                 "kind": "pypi",
                 "hash_verified": False,
                 "requirement_file": str(req_file2.subpath_from_root),
+                "package_type": "sdist",
             },
         ]
         _check_metadata_in_sdist.assert_has_calls(
@@ -3706,6 +3712,7 @@ def test_resolve_pip(
                 "version": "2.1",
                 "hash_verified": True,
                 "requirement_file": str(req_file.subpath_from_root),
+                "package_type": "sdist",
             }
         ],
         [
@@ -3716,6 +3723,7 @@ def test_resolve_pip(
                 "version": "0.0.5",
                 "hash_verified": True,
                 "requirement_file": str(build_req_file.subpath_from_root),
+                "package_type": "sdist",
             }
         ],
     ]
@@ -3740,6 +3748,7 @@ def test_resolve_pip(
                 "kind": "pypi",
                 "hash_verified": True,
                 "requirement_file": "req.txt" if custom_requirements else "requirements.txt",
+                "package_type": "sdist",
             },
             {
                 "name": "baz",
@@ -3749,6 +3758,7 @@ def test_resolve_pip(
                 "kind": "pypi",
                 "hash_verified": True,
                 "requirement_file": "breq.txt" if custom_requirements else "requirements-build.txt",
+                "package_type": "sdist",
             },
         ],
         "requirements": [req_file, build_req_file],
@@ -3940,6 +3950,7 @@ def test_fetch_pip_source(
             {
                 "name": "bar",
                 "version": "https://x.org/bar.zip#cachito_hash=sha256:aaaaaaaaaa",
+                "package_type": "",
                 "type": "pip",
                 "dev": False,
                 "kind": "url",
@@ -3949,6 +3960,7 @@ def test_fetch_pip_source(
             {
                 "name": "baz",
                 "version": "0.0.5",
+                "package_type": "sdist",
                 "type": "pip",
                 "dev": True,
                 "kind": "pypi",
@@ -3964,6 +3976,7 @@ def test_fetch_pip_source(
             {
                 "name": "ham",
                 "version": "3.2",
+                "package_type": "sdist",
                 "type": "pip",
                 "dev": False,
                 "kind": "pypi",
@@ -3973,6 +3986,7 @@ def test_fetch_pip_source(
             {
                 "name": "eggs",
                 "version": "https://x.org/eggs.zip#cachito_hash=sha256:aaaaaaaaaa",
+                "package_type": "",
                 "type": "pip",
                 "dev": False,
                 "kind": "url",

@@ -114,6 +114,10 @@
         {
           "name": "cachi2:found_by",
           "value": "cachi2"
+        },
+        {
+          "name": "cachi2:pip:package:binary",
+          "value": "true"
         }
       ],
       "purl": "pkg:pypi/wheel@0.38.4",
