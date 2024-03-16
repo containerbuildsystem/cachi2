@@ -719,7 +719,7 @@ def _find_missing_gomod_files(source_path: RootedPath, subpaths: list[str]) -> l
 
 def _setup_go_toolchain(go_mod_file: RootedPath) -> Go:
     go = Go()
-    go1_21 = version.Version("1.21")
+    go_max_version = version.Version("1.21")
     go_base_version = go.version
     go_mod_version_msg = "go.mod recommends/requires Go version: {}"
 
@@ -733,12 +733,21 @@ def _setup_go_toolchain(go_mod_file: RootedPath) -> Go:
 
     go_mod_version = version.Version(_)
 
+    if go_mod_version.major > go_max_version.major or go_mod_version.minor > go_max_version.minor:
+        raise PackageManagerError(
+            f"Go version '{go_mod_version}' is not supported yet.",
+            solution=(
+                "Please try downgrading your Go version and retry the request. "
+                "You may also want to open a feature request on adding support for this version."
+            ),
+        )
+
     log.info(go_mod_version_msg.format(go_mod_version))
 
-    if go_mod_version >= go1_21 and go_base_version < go1_21:
+    if go_mod_version >= go_max_version and go_base_version < go_max_version:
         # our base Go installation is too old and we need a newer one to support new keywords
         go = Go(release="go1.21.0")
-    elif go_mod_version < go1_21 and go_base_version >= go1_21:
+    elif go_mod_version < go_max_version and go_base_version >= go_max_version:
         # Starting with Go 1.21, Go doesn't try to be semantically backwards compatible in that the
         # 'go X.Y' line now denotes the minimum required version of Go, no a "suggested" version.
         # What it means in practice is that a Go toolchain >= 1.21 enforces the biggest
