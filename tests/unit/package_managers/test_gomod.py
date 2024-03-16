@@ -6,11 +6,12 @@ import subprocess
 import textwrap
 from pathlib import Path
 from textwrap import dedent
-from typing import Any, Iterator, Optional, Union
+from typing import Any, Iterator, Optional, Tuple, Union
 from unittest import mock
 
 import git
 import pytest
+from packaging import version
 
 from cachi2.core.errors import FetchError, PackageManagerError, PackageRejected, UnexpectedFormat
 from cachi2.core.models.input import Flag, Request
@@ -392,9 +393,9 @@ def test_resolve_gomod_no_deps(
     )
     mock_run.side_effect = run_side_effects
 
-    mock_version_resolver.get_golang_version.return_value = "v2.1.1"
-    mock_go_release.return_value = "go2.1.0"
-    mock_get_gomod_version.return_value = ("2.1.1", "2.1.2")
+    mock_version_resolver.get_golang_version.return_value = "v1.21.4"
+    mock_go_release.return_value = "go1.21.0"
+    mock_get_gomod_version.return_value = ("1.21.4", None)
 
     if force_gomod_tidy:
         gomod_request.flags = frozenset({"force-gomod-tidy"})
@@ -407,7 +408,7 @@ def test_resolve_gomod_no_deps(
 
     assert main_module == ParsedModule(
         path="github.com/release-engineering/retrodep/v2",
-        version="v2.1.1",
+        version="v1.21.4",
         main=True,
     )
 
@@ -1642,6 +1643,30 @@ def test_setup_go_toolchain(
 
     go = _setup_go_toolchain(rooted_tmp_path.join_within_root("go.mod"))
     assert str(go.version) == expected_toolchain
+
+
+@pytest.mark.parametrize(
+    "unsupported_version",
+    [
+        pytest.param(("1.23.0", None), id="go_version_higher_than_max"),
+        pytest.param((None, "1.23.0"), id="toolchain_version_higher_than_max"),
+    ],
+)
+@mock.patch("cachi2.core.package_managers.gomod._get_gomod_version")
+@mock.patch("cachi2.core.package_managers.gomod.Go.version", new_callable=mock.PropertyMock)
+def test_setup_go_toolchain_failure(
+    mock_go_version: mock.Mock,
+    mock_get_gomod_version: mock.Mock,
+    rooted_tmp_path: RootedPath,
+    unsupported_version: Tuple[Optional[str], Optional[str]],
+) -> None:
+    mock_go_version.return_value = version.Version("1.21.0")
+    mock_get_gomod_version.return_value = unsupported_version
+    unsupported = unsupported_version[0] if unsupported_version[0] else unsupported_version[1]
+
+    error_msg = f"Required/recommended Go toolchain version '{unsupported}' is not supported yet."
+    with pytest.raises(PackageManagerError, match=error_msg):
+        _setup_go_toolchain(rooted_tmp_path.join_within_root("go.mod"))
 
 
 class TestGo:
