@@ -2,6 +2,7 @@ import functools
 import importlib.metadata
 import json
 import logging
+import os
 import sys
 from pathlib import Path
 from typing import Any, Callable, Optional
@@ -14,7 +15,7 @@ from cachi2.core.errors import Cachi2Error, InvalidInput
 from cachi2.core.extras.envfile import EnvFormat, generate_envfile
 from cachi2.core.models.input import Flag, PackageInput, Request, parse_user_input
 from cachi2.core.models.output import BuildConfig
-from cachi2.core.resolver import resolve_packages, supported_package_managers
+from cachi2.core.resolver import process_packages, resolve_packages, supported_package_managers
 from cachi2.core.rooted_path import RootedPath
 from cachi2.interface.logging import LogLevel, setup_logging
 
@@ -322,6 +323,9 @@ def inject_files(
     """Inject the project files needed to use the fetched dependencies."""
     for_output_dir = for_output_dir or from_output_dir
     fetch_deps_output = _get_build_config(from_output_dir)
+
+    if os.path.exists(os.path.join(from_output_dir, "deps/rpm")):
+        process_packages(from_output_dir)
 
     for project_file in fetch_deps_output.project_files:
         if project_file.abspath.exists():
