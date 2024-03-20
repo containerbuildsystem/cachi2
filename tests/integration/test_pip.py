@@ -43,7 +43,10 @@ log = logging.getLogger(__name__)
                     {
                         "path": "second_pkg",
                         "type": "pip",
-                        "requirements_files": ["requirements.txt", "requirements-extra.txt"],
+                        "requirements_files": [
+                            "requirements.txt",
+                            "requirements-extra.txt",
+                        ],
                     },
                     {"path": "third_pkg", "type": "pip"},
                 ),
@@ -84,6 +87,42 @@ log = logging.getLogger(__name__)
                 expected_output="All dependencies fetched successfully",
             ),
             id="pip_without_metadata",
+        ),
+        pytest.param(
+            utils.TestParameters(
+                repo="https://github.com/cachito-testing/cachi2-pip-wheels.git",
+                ref="331dfac94a9112a3e5d6f667567a02c0d9718ef1",
+                packages=({"path": ".", "type": "pip"},),
+                check_output=False,
+                check_deps_checksums=False,
+                check_vendor_checksums=False,
+                expected_exit_code=2,
+                expected_output="Error: PackageRejected: No distributions found",
+            ),
+            id="pip_no_sdists_error",
+        ),
+        # Test case fixes the previous one by adding the `allow_binary` option
+        pytest.param(
+            utils.TestParameters(
+                repo="https://github.com/cachito-testing/cachi2-pip-wheels.git",
+                ref="331dfac94a9112a3e5d6f667567a02c0d9718ef1",
+                packages=({"path": ".", "type": "pip", "allow_binary": "true"},),
+                check_vendor_checksums=False,
+                expected_exit_code=0,
+                expected_output="All dependencies fetched successfully",
+            ),
+            id="pip_no_sdists",
+        ),
+        pytest.param(
+            utils.TestParameters(
+                repo="https://github.com/cachito-testing/cachi2-pip-wheels.git",
+                ref="3697d63affaec82985f1d9b4035d5305e58c91d6",
+                packages=({"path": ".", "type": "pip", "allow_binary": "true"},),
+                check_vendor_checksums=False,
+                expected_exit_code=0,
+                expected_output="All dependencies fetched successfully",
+            ),
+            id="pip_no_wheels",
         ),
     ],
 )
@@ -135,6 +174,27 @@ def test_pip_packages(
             ["python3", "/opt/test_package_cachi2"],
             ["registry.fedoraproject.org/fedora-minimal:37"],
             id="pip_e2e_test",
+        ),
+        # Same as above, but with wheel distributions - allow binary option is set to true
+        pytest.param(
+            utils.TestParameters(
+                repo="https://github.com/cachito-testing/cachi2-pip-wheels",
+                ref="b3dea71a1ad51da90e1161cf71c85e0f7c3e292b",
+                packages=(
+                    {
+                        "type": "pip",
+                        "requirements_files": ["requirements.txt"],
+                        "requirements_build_files": ["requirements-build.txt"],
+                        "allow_binary": "true",
+                    },
+                ),
+                check_vendor_checksums=False,
+                expected_exit_code=0,
+                expected_output="All dependencies fetched successfully",
+            ),
+            ["python3", "/opt/package"],
+            ["Hello, world!"],
+            id="pip_e2e_test_wheels",
         ),
     ],
 )

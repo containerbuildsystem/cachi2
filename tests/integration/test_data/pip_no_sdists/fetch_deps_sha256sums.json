@@ -1,0 +1,7 @@
+{
+  "pip/tensorflow-2.16.1-cp310-cp310-win_amd64.whl": "sha256:21a3c6d76a39f52754c389326f6bef8aef3c26b5bc89ca365add4a69483e569e",
+  "pip/tensorflow-2.16.1-cp311-cp311-win_amd64.whl": "sha256:093573a8eb93ef9511e7015b8de9659ed27156f2f05e6d1211f8f4cb76407ee1",
+  "pip/tensorflow-2.16.1-cp312-cp312-win_amd64.whl": "sha256:1c5611e7357b7a4bc6dccc60750c91e27cdff82622fc917848f22add5ab8de26",
+  "pip/torch-2.2.1-cp312-cp312-manylinux2014_aarch64.whl": "sha256:be21d4c41ecebed9e99430dac87de1439a8c7882faf23bba7fea3fea7b906ac1",
+  "pip/torch-2.2.1-cp312-none-macosx_11_0_arm64.whl": "sha256:84b2fb322ab091039fdfe74e17442ff046b258eb5e513a28093152c5b07325a7"
+}

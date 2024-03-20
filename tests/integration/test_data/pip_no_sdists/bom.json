@@ -1,0 +1,51 @@
+{
+  "bomFormat": "CycloneDX",
+  "components": [
+    {
+      "name": "tensorflow",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:pypi/tensorflow@2.16.1",
+      "type": "library",
+      "version": "2.16.1"
+    },
+    {
+      "name": "torch",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:pypi/torch@2.2.1",
+      "type": "library",
+      "version": "2.2.1"
+    },
+    {
+      "name": "wheels-of-fortune",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:pypi/wheels-of-fortune@0.1.0?vcs_url=git%2Bhttps://github.com/cachito-testing/cachi2-pip-wheels.git%40331dfac94a9112a3e5d6f667567a02c0d9718ef1",
+      "type": "library",
+      "version": "0.1.0"
+    }
+  ],
+  "metadata": {
+    "tools": [
+      {
+        "name": "cachi2",
+        "vendor": "red hat"
+      }
+    ]
+  },
+  "specVersion": "1.4",
+  "version": 1
+}
