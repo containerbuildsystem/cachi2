@@ -1587,7 +1587,7 @@ def test_fetch_tags_fail(repo_remote_with_tag: tuple[RootedPath, RootedPath]) ->
 def test_get_gomod_version(
     rooted_tmp_path: RootedPath, go_mod_file: Path, go_mod_version: str
 ) -> None:
-    assert _get_gomod_version(rooted_tmp_path) == go_mod_version
+    assert _get_gomod_version(rooted_tmp_path.join_within_root("go.mod")) == go_mod_version
 
 
 @pytest.mark.parametrize(
@@ -1596,7 +1596,7 @@ def test_get_gomod_version(
     indirect=True,
 )
 def test_get_gomod_version_fail(rooted_tmp_path: RootedPath, go_mod_file: Path) -> None:
-    assert _get_gomod_version(rooted_tmp_path) is None
+    assert _get_gomod_version(rooted_tmp_path.join_within_root("go.mod")) is None
 
 
 class TestGo:
