@@ -653,7 +653,7 @@ def _get_repository_name(source_dir: RootedPath) -> str:
     return f"{url.hostname}{url.path.rstrip('/').removesuffix('.git')}"
 
 
-def _get_gomod_version(source_dir: RootedPath) -> Optional[str]:
+def _get_gomod_version(go_mod_file: RootedPath) -> Optional[str]:
     """Return the required/recommended version of Go from go.mod.
 
     We need to extract the desired version of Go ourselves as older versions of Go might fail
@@ -663,8 +663,7 @@ def _get_gomod_version(source_dir: RootedPath) -> Optional[str]:
     If we cannot extract a version from the 'go' line, we return None, leaving it up to the caller
     to decide what to do next.
     """
-    go_mod = source_dir.join_within_root("go.mod")
-    with open(go_mod) as f:
+    with open(go_mod_file) as f:
         reg = re.compile(r"^\s*go\s+(?P<ver>\d\.\d+(:?.\d+)?)\s*$")
         for line in f:
             if match := re.match(reg, line):
@@ -764,7 +763,7 @@ def _resolve_gomod(
     go_base_version = go.version
     go_mod_version_msg = "go.mod recommends/requires Go version: {}"
 
-    if (_ := _get_gomod_version(app_dir)) is None:
+    if (_ := _get_gomod_version(app_dir.join_within_root("go.mod"))) is None:
         # Go added the 'go' directive to go.mod in 1.12 [1]. If missing, 1.16 is assumed [2].
         # For our version comparison purposes we set the version explicitly to 1.20 if missing.
         # [1] https://go.dev/doc/go1.12#modules
