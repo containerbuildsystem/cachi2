@@ -35,6 +35,7 @@ from cachi2.core.package_managers.gomod import (
     _parse_go_sum,
     _parse_vendor,
     _resolve_gomod,
+    _setup_go_toolchain,
     _should_vendor_deps,
     _validate_local_replacements,
     _vendor_changed,
@@ -1597,6 +1598,32 @@ def test_get_gomod_version(
 )
 def test_get_gomod_version_fail(rooted_tmp_path: RootedPath, go_mod_file: Path) -> None:
     assert _get_gomod_version(rooted_tmp_path.join_within_root("go.mod")) is None
+
+
+@pytest.mark.parametrize(
+    "go_mod_file, go_base_release, expected_toolchain",
+    [
+        pytest.param("", "go1.20.4", "1.20.4", id="mod_too_old_fallback_to_1.20"),
+        pytest.param("go 1.19", "go1.21.0", "1.20", id="mod_older_than_base_fallback_to_1.20"),
+        pytest.param("go 1.21.4", "go1.20.4", "1.21.0", id="base_older_than_mod"),
+    ],
+    indirect=["go_mod_file"],
+)
+@mock.patch("cachi2.core.package_managers.gomod.Go._locate_toolchain")
+@mock.patch("cachi2.core.package_managers.gomod.Go.__call__")
+def test_setup_go_toolchain(
+    mock_go_call: mock.Mock,
+    mock_go_locate_toolchain: mock.Mock,
+    rooted_tmp_path: RootedPath,
+    go_mod_file: Path,
+    go_base_release: str,
+    expected_toolchain: str,
+) -> None:
+    mock_go_call.return_value = f"Go release: {go_base_release}"
+    mock_go_locate_toolchain.return_value = None
+
+    go = _setup_go_toolchain(rooted_tmp_path.join_within_root("go.mod"))
+    assert str(go.version) == expected_toolchain
 
 
 class TestGo:
