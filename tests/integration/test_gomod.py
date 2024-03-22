@@ -213,7 +213,23 @@ def test_gomod_packages(
             ),
             ["retrodep", "--help"],
             ["retrodep: help requested"],
-            id="gomod_e2e_test",
+            id="gomod_1.18_e2e_test",
+        ),
+        # Test case checks fetching retrodep dependencies, generating environment vars file,
+        # building image with all prepared prerequisites and printing help message for retrodep
+        # app in built image. The retrodep module specifies minimum go version 1.21.
+        pytest.param(
+            utils.TestParameters(
+                repo="https://github.com/cachito-testing/retrodep.git",
+                ref="d0c316edef82e527fed5713f9960cfe7f7c29945",
+                packages=({"path": ".", "type": "gomod"},),
+                check_vendor_checksums=False,
+                expected_exit_code=0,
+                expected_output="All dependencies fetched successfully",
+            ),
+            ["retrodep", "--help"],
+            ["retrodep: help requested"],
+            id="gomod_1.21_e2e_test",
         ),
         # Check handling of multiple Go modules in one repository. See the README in the testing
         # repository for more details.
@@ -233,6 +249,24 @@ def test_gomod_packages(
             [],  # check using CMD defined in Dockerfile
             [""],
             id="gomod_e2e_multiple_modules",
+        ),
+        # Check handling of Go modules where the go directive in go.mod is < 1.21. Go versions < 1.21 will not
+        # update the go directive in go.mod, but go versions >= 1.21 will and dirty the repository
+        pytest.param(
+            utils.TestParameters(
+                repo="https://github.com/cachito-testing/cachi2-gomod",
+                ref="3353e452672851079f1926b6b2d7372447104b31",
+                packages=({"path": "twenty", "type": "gomod"},),
+                check_vendor_checksums=False,
+                expected_exit_code=0,
+                expected_output="All dependencies fetched successfully",
+            ),
+            [],  # check using CMD defined in Dockerfile
+            [
+                "The cachi2-gomod/twenty module requires minimum go version 1.20",
+                "The cachi2-gomod/twentyone module requires minimum go version 1.21",
+            ],
+            id="gomod_1.20_e2e_dirty_go.mod",
         ),
     ],
 )
