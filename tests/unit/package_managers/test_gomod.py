@@ -11,10 +11,11 @@ from unittest import mock
 
 import git
 import pytest
+from packaging import version
 
 from cachi2.core.errors import FetchError, PackageManagerError, PackageRejected, UnexpectedFormat
 from cachi2.core.models.input import Flag, Request
-from cachi2.core.models.output import BuildConfig, RequestOutput
+from cachi2.core.models.output import BuildConfig, EnvironmentVariable, RequestOutput
 from cachi2.core.models.sbom import Component, Property
 from cachi2.core.package_managers import gomod
 from cachi2.core.package_managers.gomod import (
@@ -35,6 +36,7 @@ from cachi2.core.package_managers.gomod import (
     _parse_go_sum,
     _parse_vendor,
     _resolve_gomod,
+    _setup_go_toolchain,
     _should_vendor_deps,
     _validate_local_replacements,
     _vendor_changed,
@@ -54,12 +56,13 @@ def setup_module() -> None:
 
 
 @pytest.fixture(scope="module")
-def env_variables() -> list[dict[str, str]]:
+def env_variables() -> list[EnvironmentVariable]:
     return [
-        {"name": "GOCACHE", "value": "deps/gomod", "kind": "path"},
-        {"name": "GOMODCACHE", "value": "deps/gomod/pkg/mod", "kind": "path"},
-        {"name": "GOPATH", "value": "deps/gomod", "kind": "path"},
-        {"name": "GOTOOLCHAIN", "value": "local", "kind": "literal"},
+        EnvironmentVariable(name="GOCACHE", value="${output_dir}/deps/gomod"),
+        EnvironmentVariable(name="GOMODCACHE", value="${output_dir}/deps/gomod/pkg/mod"),
+        EnvironmentVariable(name="GOPATH", value="${output_dir}/deps/gomod"),
+        EnvironmentVariable(name="GOPROXY", value="file://${GOMODCACHE}/cache/download"),
+        EnvironmentVariable(name="GOTOOLCHAIN", value="auto"),
     ]
 
 
@@ -391,9 +394,9 @@ def test_resolve_gomod_no_deps(
     )
     mock_run.side_effect = run_side_effects
 
-    mock_version_resolver.get_golang_version.return_value = "v2.1.1"
-    mock_go_release.return_value = "go2.1.0"
-    mock_get_gomod_version.return_value = "2.1.1"
+    mock_version_resolver.get_golang_version.return_value = "v1.21.4"
+    mock_go_release.return_value = "go1.21.0"
+    mock_get_gomod_version.return_value = "1.21.4"
 
     if force_gomod_tidy:
         gomod_request.flags = frozenset({"force-gomod-tidy"})
@@ -406,7 +409,7 @@ def test_resolve_gomod_no_deps(
 
     assert main_module == ParsedModule(
         path="github.com/release-engineering/retrodep/v2",
-        version="v2.1.1",
+        version="v1.21.4",
         main=True,
     )
 
@@ -445,6 +448,23 @@ def test_resolve_gomod_suspicious_symlinks(symlinked_file: str, gomod_request: R
 
     e = exc_info.value
     assert "Found a potentially harmful symlink" in e.friendly_msg()
+
+
+@mock.patch("cachi2.core.package_managers.gomod.Go.release", new_callable=mock.PropertyMock)
+@mock.patch("cachi2.core.package_managers.gomod._get_gomod_version")
+def test_resolve_gomod_fail_version_check(
+    mock_get_gomod_version: mock.Mock,
+    mock_go_release: mock.PropertyMock,
+    tmp_path: Path,
+    gomod_request: Request,
+) -> None:
+    version_resolver = mock.Mock()
+    mock_go_release.return_value = "go1.21.0"
+    mock_get_gomod_version.return_value = "1.22.0"
+
+    expected_error = f"Go version '{mock_get_gomod_version.return_value}' is not supported yet."
+    with pytest.raises(PackageManagerError, match=expected_error):
+        _resolve_gomod(gomod_request.source_dir, gomod_request, tmp_path, version_resolver)
 
 
 @pytest.mark.parametrize(
@@ -1587,7 +1607,7 @@ def test_fetch_tags_fail(repo_remote_with_tag: tuple[RootedPath, RootedPath]) ->
 def test_get_gomod_version(
     rooted_tmp_path: RootedPath, go_mod_file: Path, go_mod_version: str
 ) -> None:
-    assert _get_gomod_version(rooted_tmp_path) == go_mod_version
+    assert _get_gomod_version(rooted_tmp_path.join_within_root("go.mod")) == go_mod_version
 
 
 @pytest.mark.parametrize(
@@ -1596,7 +1616,56 @@ def test_get_gomod_version(
     indirect=True,
 )
 def test_get_gomod_version_fail(rooted_tmp_path: RootedPath, go_mod_file: Path) -> None:
-    assert _get_gomod_version(rooted_tmp_path) is None
+    assert _get_gomod_version(rooted_tmp_path.join_within_root("go.mod")) is None
+
+
+@pytest.mark.parametrize(
+    "go_mod_file, go_base_release, expected_toolchain, GOTOOLCHAIN",
+    [
+        pytest.param("", "go1.20.4", "1.20.4", "auto", id="mod_too_old_fallback_to_1.20"),
+        pytest.param(
+            "go 1.19", "go1.21.0", "1.20", "auto", id="mod_older_than_base_fallback_to_1.20"
+        ),
+        pytest.param("go 1.21.4", "go1.20.4", "1.21.0", "auto", id="base_older_than_mod"),
+        pytest.param(
+            "go 1.21.4", "go1.21.6", "1.21.6", "local", id="mod_older_than_base_gotoolchain_local"
+        ),
+    ],
+    indirect=["go_mod_file"],
+)
+@mock.patch("cachi2.core.package_managers.gomod.Go._locate_toolchain")
+@mock.patch("cachi2.core.package_managers.gomod.Go.__call__")
+def test_setup_go_toolchain(
+    mock_go_call: mock.Mock,
+    # mock_go_release: mock.PropertyMock,
+    mock_go_locate_toolchain: mock.Mock,
+    rooted_tmp_path: RootedPath,
+    go_mod_file: Path,
+    go_base_release: str,
+    expected_toolchain: str,
+    GOTOOLCHAIN: str,
+) -> None:
+    mock_go_call.return_value = f"Go release: {go_base_release}"
+    mock_go_locate_toolchain.return_value = None
+
+    env_variables = {"GOTOOLCHAIN": "auto"}
+    go = _setup_go_toolchain(rooted_tmp_path.join_within_root("go.mod"), env_variables)
+    assert str(go.version) == expected_toolchain
+    assert env_variables["GOTOOLCHAIN"] == GOTOOLCHAIN
+
+
+@mock.patch("cachi2.core.package_managers.gomod._get_gomod_version")
+@mock.patch("cachi2.core.package_managers.gomod.Go.version", new_callable=mock.PropertyMock)
+def test_setup_go_toolchain_failure(
+    mock_go_version: mock.Mock, mock_get_gomod_version: mock.Mock, rooted_tmp_path: RootedPath
+) -> None:
+    unsupported_version = "1.23.0"
+    mock_go_version.return_value = version.Version("1.21.0")
+    mock_get_gomod_version.return_value = unsupported_version
+
+    error_msg = f"Go version '{unsupported_version}' is not supported yet."
+    with pytest.raises(PackageManagerError, match=error_msg):
+        _setup_go_toolchain(rooted_tmp_path.join_within_root("go.mod"), {})
 
 
 class TestGo:

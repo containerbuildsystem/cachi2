@@ -12,6 +12,7 @@ from types import TracebackType
 from typing import (
     TYPE_CHECKING,
     Any,
+    Dict,
     Iterable,
     Iterator,
     Literal,
@@ -548,10 +549,11 @@ def fetch_gomod_source(request: Request) -> RequestOutput:
         )
 
     env_vars = {
-        "GOCACHE": {"value": "deps/gomod", "kind": "path"},
-        "GOPATH": {"value": "deps/gomod", "kind": "path"},
-        "GOMODCACHE": {"value": "deps/gomod/pkg/mod", "kind": "path"},
-        "GOTOOLCHAIN": {"value": "local", "kind": "literal"},
+        "GOCACHE": "${output_dir}/deps/gomod",
+        "GOPATH": "${output_dir}/deps/gomod",
+        "GOMODCACHE": "${output_dir}/deps/gomod/pkg/mod",
+        "GOPROXY": "file://${GOMODCACHE}/cache/download",
+        "GOTOOLCHAIN": "auto",
     }
     env_vars.update(config.default_environment_variables.get("gomod", {}))
 
@@ -613,7 +615,7 @@ def fetch_gomod_source(request: Request) -> RequestOutput:
     return RequestOutput.from_obj_list(
         components=components,
         environment_variables=[
-            EnvironmentVariable(name=name, **obj) for name, obj in env_vars.items()
+            EnvironmentVariable(name=key, value=value) for key, value in env_vars.items()
         ],
         project_files=[],
     )
@@ -650,7 +652,7 @@ def _get_repository_name(source_dir: RootedPath) -> str:
     return f"{url.hostname}{url.path.rstrip('/').removesuffix('.git')}"
 
 
-def _get_gomod_version(source_dir: RootedPath) -> Optional[str]:
+def _get_gomod_version(go_mod_file: RootedPath) -> Optional[str]:
     """Return the required/recommended version of Go from go.mod.
 
     We need to extract the desired version of Go ourselves as older versions of Go might fail
@@ -660,8 +662,7 @@ def _get_gomod_version(source_dir: RootedPath) -> Optional[str]:
     If we cannot extract a version from the 'go' line, we return None, leaving it up to the caller
     to decide what to do next.
     """
-    go_mod = source_dir.join_within_root("go.mod")
-    with open(go_mod) as f:
+    with open(go_mod_file) as f:
         reg = re.compile(r"^\s*go\s+(?P<ver>\d\.\d+(:?.\d+)?)\s*$")
         for line in f:
             if match := re.match(reg, line):
@@ -718,6 +719,57 @@ def _find_missing_gomod_files(source_path: RootedPath, subpaths: list[str]) -> l
     return invalid_gomod_files
 
 
+def _setup_go_toolchain(go_mod_file: RootedPath, env: Dict) -> Go:
+    go = Go()
+    go_max_version = version.Version("1.21")
+    go_base_version = go.version
+    go_mod_version_msg = "go.mod recommends/requires Go version: {}"
+
+    if (_ := _get_gomod_version(go_mod_file)) is None:
+        # Go added the 'go' directive to go.mod in 1.12 [1]. If missing, 1.16 is assumed [2].
+        # For our version comparison purposes we set the version explicitly to 1.20 if missing.
+        # [1] https://go.dev/doc/go1.12#modules
+        # [2] https://go.dev/ref/mod#go-mod-file-go
+        _ = "1.20"
+        go_mod_version_msg += " " + "(cachi2 enforced)"
+
+    go_mod_version = version.Version(_)
+
+    if go_mod_version.major > go_max_version.major or go_mod_version.minor > go_max_version.minor:
+        raise PackageManagerError(
+            f"Go version '{go_mod_version}' is not supported yet.",
+            solution=(
+                "Please try downgrading your Go version and retry the request. "
+                "You may also want to open a feature request on adding support for this version."
+            ),
+        )
+
+    log.info(go_mod_version_msg.format(go_mod_version))
+
+    if go_mod_version >= go_max_version:
+        if go_base_version < go_max_version:
+            # our base Go installation is too old and we need a newer one to support new keywords
+            go = Go(release="go1.21.0")
+        elif go_base_version > go_mod_version:
+            # we have a newer toolchain than the requirement, so we don't want GOTOOLCHAIN=auto
+            env["GOTOOLCHAIN"] = "local"
+    else:
+        if go_base_version >= go_max_version:
+            # Starting with Go 1.21, Go doesn't try to be semantically backwards compatible in that
+            # the 'go X.Y' line now denotes the minimum required version of Go, no a "suggested"
+            # version. What it means in practice is that a Go toolchain >= 1.21 enforces the
+            # biggest common toolchain denominator across all dependencies and so if the input
+            # project specifies e.g. 'go 1.19' and **any** of its dependencies specify 'go 1.21'
+            # (or higher), then the default 1.21 toolchain will bump the input project's go.mod
+            # file to make sure the minimum required Go version is met across all dependencies.
+            # That is a problem, because it'll lead to fatal build failures forcing everyone to
+            # update their build recipes. Note that at some point they'll have to do that anyway,
+            # but until majority of projects in the ecosystem adopt 1.21, we need a fallback to an
+            # older toolchain version.
+            go = Go(release="go1.20")
+    return go
+
+
 def _resolve_gomod(
     app_dir: RootedPath, request: Request, tmp_dir: Path, version_resolver: "ModuleVersionResolver"
 ) -> ResolvedGoModule:
@@ -743,9 +795,9 @@ def _resolve_gomod(
         "GO111MODULE": "on",
         "GOCACHE": tmp_dir,
         "PATH": os.environ.get("PATH", ""),
-        "GOMODCACHE": "{}/pkg/mod".format(tmp_dir),
+        "GOMODCACHE": f"{tmp_dir}/pkg/mod",
         "GOSUMDB": "sum.golang.org",
-        "GOTOOLCHAIN": "local",
+        "GOTOOLCHAIN": "auto",
     }
 
     if config.goproxy_url:
@@ -754,40 +806,9 @@ def _resolve_gomod(
     if "cgo-disable" in request.flags:
         env["CGO_ENABLED"] = "0"
 
+    go = _setup_go_toolchain(app_dir.join_within_root("go.mod"), env)
+
     run_params = {"env": env, "cwd": app_dir}
-
-    go = Go()
-    go1_21 = version.Version("1.21")
-    go_base_version = go.version
-    go_mod_version_msg = "go.mod recommends/requires Go version: {}"
-
-    if (_ := _get_gomod_version(app_dir)) is None:
-        # Go added the 'go' directive to go.mod in 1.12 [1]. If missing, 1.16 is assumed [2].
-        # For our version comparison purposes we set the version explicitly to 1.20 if missing.
-        # [1] https://go.dev/doc/go1.12#modules
-        # [2] https://go.dev/ref/mod#go-mod-file-go
-        _ = "1.20"
-        go_mod_version_msg += " " + "(cachi2 enforced)"
-
-    go_mod_version = version.Version(_)
-
-    log.info(go_mod_version_msg.format(go_mod_version))
-
-    if go_mod_version >= go1_21 and go_base_version < go1_21:
-        # our base Go installation is too old and we need a newer one to support new keywords
-        go = Go(release="go1.21.0")
-    elif go_mod_version < go1_21 and go_base_version >= go1_21:
-        # Starting with Go 1.21, Go doesn't try to be semantically backwards compatible in that the
-        # 'go X.Y' line now denotes the minimum required version of Go, no a "suggested" version.
-        # What it means in practice is that a Go toolchain >= 1.21 enforces the biggest
-        # common toolchain denominator across all dependencies and so if the input project
-        # specifies e.g. 'go 1.19' and **any** of its dependencies specify 'go 1.21' (or higher),
-        # then the default 1.21 toolchain will bump the input project's go.mod file to make sure
-        # the minimum required Go version is met across all dependencies. That is a problem,
-        # because it'll lead to fatal build failures forcing everyone to update their build
-        # recipes. Note that at some point they'll have to do that anyway, but until majority of
-        # projects in the ecosystem adopt 1.21, we need a fallback to an older toolchain version.
-        go = Go(release="go1.20")
 
     # Vendor dependencies if the gomod-vendor flag is set
     flags = request.flags
