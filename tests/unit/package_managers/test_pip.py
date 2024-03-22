@@ -2762,6 +2762,7 @@ class TestDownload:
         self,
         mock_get_project_page: mock.Mock,
         rooted_tmp_path: RootedPath,
+        caplog: pytest.LogCaptureFixture,
     ) -> None:
         package_name = "aiowsgi"
         version = "0.1.0"
@@ -2775,10 +2776,12 @@ class TestDownload:
             None,
             None,
         )
-        with pytest.raises(PackageRejected) as exc_info:
-            pip._process_package_distributions(mock_requirement, rooted_tmp_path)
 
-        assert str(exc_info.value) == f"All sdists for package {package_name}=={version} are yanked"
+        pip._process_package_distributions(mock_requirement, rooted_tmp_path)
+        assert (
+            f"The version {version} of package {package_name} is yanked, use a different version"
+            in caplog.text
+        )
 
     @pytest.mark.parametrize("use_user_hashes", (True, False))
     @pytest.mark.parametrize("use_pypi_digests", (True, False))

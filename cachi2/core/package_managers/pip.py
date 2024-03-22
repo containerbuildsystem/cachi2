@@ -1896,18 +1896,11 @@ def _process_package_distributions(
 
     if sdists:
         best_sdist = max(sdists, key=_sdist_preference)
+        processed_dpis.append(best_sdist)
         if best_sdist.is_yanked:
-            raise PackageRejected(
-                f"All sdists for package {name}=={version} are yanked",
-                solution=(
-                    f"Please update the {name} version in your requirements file.\n"
-                    "Usually, when a version gets yanked from PyPI, there will already "
-                    "be a fixed version available.\n"
-                    "Otherwise, you may need to pin to the previous version."
-                ),
+            log.warning(
+                "The version %s of package %s is yanked, use a different version", version, name
             )
-        if best_sdist:
-            processed_dpis.append(best_sdist)
     else:
         log.warning("No sdist found for package %s==%s", name, version)
 
