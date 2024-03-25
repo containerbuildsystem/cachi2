@@ -34,10 +34,12 @@ RUN npm install && \
 #   - move the SDK to a host local install system-wide location
 #   - remove the shim as it forces and expects the SDK to be used from $HOME
 #   - clean any build artifacts Go creates as part of the process.
-RUN go install 'golang.org/dl/go1.20@latest' && \
-    "$HOME/go/bin/go1.20" download && \
-    mkdir -p /usr/local/go && \
-    mv "$HOME/sdk/go1.20" /usr/local/go && \
-    rm -rf "$HOME/go" "$HOME/.cache/go-build/"
+RUN for go_ver in "go1.20" "go1.21.0"; do \
+        go install "golang.org/dl/${go_ver}@latest" && \
+        "$HOME/go/bin/$go_ver" download && \
+        mkdir -p /usr/local/go && \
+        mv "$HOME/sdk/$go_ver" /usr/local/go && \
+        rm -rf "$HOME/go" "$HOME/.cache/go-build/"; \
+    done
 
 ENTRYPOINT ["cachi2"]
