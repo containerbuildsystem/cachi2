@@ -103,6 +103,7 @@ class ResolvedGoModule(NamedTuple):
     parsed_modules: Iterable[ParsedModule]
     parsed_packages: Iterable[ParsedPackage]
     modules_in_go_sum: frozenset["ModuleID"]
+    contains_workspaces: bool
 
 
 class Module(NamedTuple):
@@ -437,6 +438,7 @@ def _create_modules_from_parsed_data(
     parsed_modules: Iterable[ParsedModule],
     modules_in_go_sum: frozenset[ModuleID],
     version_resolver: "ModuleVersionResolver",
+    contains_workspaces: bool,
 ) -> list[Module]:
     def _create_module(module: ParsedModule) -> Module:
         mod_id = _get_module_id(module)
@@ -449,7 +451,10 @@ def _create_modules_from_parsed_data(
             real_path = name
 
             if mod_id not in modules_in_go_sum:
-                missing_hash_in_file = main_module_dir.subpath_from_root / "go.sum"
+                if contains_workspaces:
+                    missing_hash_in_file = main_module_dir.root / "go.work.sum"
+                else:
+                    missing_hash_in_file = main_module_dir.subpath_from_root / "go.sum"
                 log.warning("checksum not found in %s: %s@%s", missing_hash_in_file, name, version)
         else:
             # module/name v1.0.0 => ./local/path
@@ -588,6 +593,7 @@ def fetch_gomod_source(request: Request) -> RequestOutput:
                     resolve_result.parsed_modules,
                     resolve_result.modules_in_go_sum,
                     version_resolver,
+                    resolve_result.contains_workspaces,
                 )
             )
 
@@ -734,7 +740,6 @@ def _resolve_gomod(
     :raises PackageManagerError: if fetching dependencies fails
     """
     _protect_against_symlinks(app_dir)
-    modules_in_go_sum = _parse_go_sum(app_dir)
 
     config = get_config()
 
@@ -811,7 +816,49 @@ def _resolve_gomod(
         # Make Go ignore the vendor dir even if there is one
         go_list.extend(["-mod", "readonly"])
 
-    main_module_name = go([*go_list, "-m"], run_params).rstrip()
+    go_list_modules = go([*go_list, "-m", "-json"], run_params).rstrip()
+    module_list = list(load_json_stream(go_list_modules))
+    module_list_paths = [RootedPath(module["Dir"]) for module in module_list]
+
+    for index, module_path in enumerate(module_list_paths):
+        if app_dir.path == module_path.path:
+            raw_main_module = module_list.pop(index)
+            break
+    try:
+        main_module_name = raw_main_module["Path"]
+    except NameError:
+        raise PackageManagerError(f"Main module not found, it should have been at {app_dir.path}.")
+
+    modules_in_go_sum = _parse_go_sum_files(app_dir, module_list_paths)
+
+    def get_relative_path_workspace_to_main_module(path1: Path, path2: Path) -> str:
+        """Return relative path from workspace module to main module."""
+        if not path2.is_relative_to(app_dir.root):
+            raise PackageManagerError(
+                f"Workspace module path {path2} is not relative to root path {app_dir.root}."
+            )
+        relative_path = os.path.relpath(path2, path1)
+        return f"./{relative_path}"
+
+    workspace_modules = []
+    if len(module_list) > 0:
+        workspace_module_version = version_resolver.get_golang_version(main_module_name, app_dir)
+        for module in module_list:
+            replaced_module = ParsedModule(
+                path=get_relative_path_workspace_to_main_module(
+                    Path(raw_main_module["Dir"]), Path(module["Dir"])
+                )
+            )
+            workspace_modules.append(
+                ParsedModule(
+                    path=module["Path"],
+                    version=workspace_module_version,
+                    replace=replaced_module,
+                ),
+            )
+
+    contains_workspaces = len(workspace_modules) > 0
+
     main_module = ParsedModule(
         path=main_module_name,
         version=version_resolver.get_golang_version(main_module_name, app_dir),
@@ -829,10 +876,10 @@ def _resolve_gomod(
         cmd = [*go_list, "-deps", "-json=ImportPath,Module,Standard,Deps", pattern]
         return map(ParsedPackage.model_validate, load_json_stream(go(cmd, run_params)))
 
-    package_modules = (
+    package_modules = [
         module for pkg in go_list_deps("all") if (module := pkg.module) and not module.main
-    )
-
+    ]
+    package_modules.extend(workspace_modules)
     all_modules = _deduplicate_resolved_modules(package_modules, downloaded_modules)
 
     log.info("Retrieving the list of packages")
@@ -840,23 +887,38 @@ def _resolve_gomod(
 
     _validate_local_replacements(all_modules, app_dir)
 
-    return ResolvedGoModule(main_module, all_modules, all_packages, modules_in_go_sum)
+    return ResolvedGoModule(
+        main_module, all_modules, all_packages, modules_in_go_sum, contains_workspaces
+    )
 
 
-def _parse_go_sum(module_dir: RootedPath) -> frozenset[ModuleID]:
+def _parse_go_sum_files(
+    app_dir: RootedPath, module_dir_list: list[RootedPath]
+) -> frozenset[ModuleID]:
+
+    go_sum_files_list = [RootedPath(app_dir.root).join_within_root("go.work.sum")]
+    go_sum_files_list.extend(
+        [module_dir.join_within_root("go.sum") for module_dir in module_dir_list]
+    )
+
+    modules: list[ModuleID] = []
+    for go_sum_file in go_sum_files_list:
+        if not go_sum_file.path.exists():
+            continue
+        modules.extend(_parse_go_sum(go_sum_file))
+
+    return frozenset(modules)
+
+
+def _parse_go_sum(go_sum_file: RootedPath) -> list[tuple[str, str]]:
     """Return the set of modules present in the go.sum file in the specified directory.
 
     A module is considered present if the checksum for its .zip file is present. The go.mod file
     checksums are not relevant for our purposes.
     """
-    go_sum = module_dir.join_within_root("go.sum")
-    if not go_sum.path.exists():
-        return frozenset()
-
     modules: list[ModuleID] = []
-
     # https://github.com/golang/go/blob/d5c5808534f0ad97333b1fd5fff81998f44986fe/src/cmd/go/internal/modfetch/fetch.go#L507-L534
-    lines = go_sum.path.read_text().splitlines()
+    lines = go_sum_file.path.read_text().splitlines()
     for i, go_sum_line in enumerate(lines):
         parts = go_sum_line.split()
         if not parts:
@@ -867,7 +929,7 @@ def _parse_go_sum(module_dir: RootedPath) -> frozenset[ModuleID]:
             #   of go.sum for checksum verification
             log.warning(
                 "%s:%d: malformed line, skipping the rest of the file: %r",
-                go_sum.subpath_from_root,
+                go_sum_file.subpath_from_root,
                 i + 1,
                 go_sum_line,
             )
@@ -879,7 +941,7 @@ def _parse_go_sum(module_dir: RootedPath) -> frozenset[ModuleID]:
 
         modules.append((name, version))
 
-    return frozenset(modules)
+    return modules
 
 
 def _deduplicate_resolved_modules(

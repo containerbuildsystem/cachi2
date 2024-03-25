@@ -122,8 +122,9 @@ def _parse_mocked_data(data_dir: Path, file_path: str) -> ResolvedGoModule:
     modules_in_go_sum = frozenset(
         (name, version) for name, version in mocked_data["modules_in_go_sum"]
     )
+    contains_workspaces = mocked_data["contains_workspaces"]
 
-    return ResolvedGoModule(main_module, modules, packages, modules_in_go_sum)
+    return ResolvedGoModule(main_module, modules, packages, modules_in_go_sum, contains_workspaces)
 
 
 @pytest.mark.parametrize("cgo_disable", [False, True])
@@ -228,6 +229,7 @@ def test_resolve_gomod(
     assert list(resolve_result.parsed_modules) == expect_result.parsed_modules
     assert list(resolve_result.parsed_packages) == expect_result.parsed_packages
     assert resolve_result.modules_in_go_sum == expect_result.modules_in_go_sum
+    assert resolve_result.contains_workspaces == expect_result.contains_workspaces
 
     mock_validate_local_replacements.assert_called_once_with(
         resolve_result.parsed_modules, module_dir
@@ -399,7 +401,7 @@ def test_resolve_gomod_no_deps(
         gomod_request.flags = frozenset({"force-gomod-tidy"})
 
     module_path = gomod_request.source_dir.join_within_root("path/to/module")
-    main_module, modules, packages, _ = _resolve_gomod(
+    main_module, modules, packages, _, contains_workspaces = _resolve_gomod(
         module_path, gomod_request, tmp_path, mock_version_resolver
     )
     packages_list = list(packages)
@@ -591,8 +593,15 @@ def test_create_modules_from_parsed_data(mock_version_resolver: mock.Mock, tmp_p
         ),
     ]
 
+    contains_workspaces = False
+
     modules = _create_modules_from_parsed_data(
-        main_module, main_module_dir, parsed_modules, modules_in_go_sum, mock_version_resolver
+        main_module,
+        main_module_dir,
+        parsed_modules,
+        modules_in_go_sum,
+        mock_version_resolver,
+        contains_workspaces,
     )
 
     assert modules == expect_modules
@@ -1355,6 +1364,7 @@ def test_missing_gomod_file(
                         ),
                     ],
                     frozenset([("golang.org/x/tools", "v0.7.0")]),
+                    False,
                 ),
             },
             [
@@ -1397,6 +1407,7 @@ def test_missing_gomod_file(
                     [],
                     [],
                     frozenset(),
+                    False,
                 ),
                 "path": ResolvedGoModule(
                     ParsedModule(
@@ -1415,6 +1426,7 @@ def test_missing_gomod_file(
                     ],
                     [],
                     frozenset([("golang.org/x/tools", "v0.7.0")]),
+                    False,
                 ),
             },
             [
