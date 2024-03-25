@@ -36,7 +36,7 @@ RUN npm install && \
 #   - clean any build artifacts Go creates as part of the process.
 RUN go install 'golang.org/dl/go1.20@latest' && \
     "$HOME/go/bin/go1.20" download && \
-    mkdir /usr/local/go && \
+    mkdir -p /usr/local/go && \
     mv "$HOME/sdk/go1.20" /usr/local/go && \
     rm -rf "$HOME/go" "$HOME/.cache/go-build/"
 
