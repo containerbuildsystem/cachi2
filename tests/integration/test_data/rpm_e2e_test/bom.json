@@ -1,0 +1,171 @@
+{
+  "bomFormat": "CycloneDX",
+  "components": [
+    {
+      "name": "gpm-libs",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:rpm/fedora%20project/gpm-libs@1.20.7-44.fc39?arch=x86_64&download_url=http%3A//fedora.c3sl.ufpr.br/linux/releases/39/Everything/x86_64/os/Packages/g/gpm-libs-1.20.7-44.fc39.x86_64.rpm",
+      "type": "library",
+      "version": "1.20.7"
+    },
+    {
+      "name": "gpm",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:rpm/fedora%20project/gpm@1.20.7-44.fc39?arch=i686&download_url=http%3A//fedora.c3sl.ufpr.br/linux/releases/39/Everything/source/tree/Packages/g/gpm-1.20.7-44.fc39.src.rpm",
+      "type": "library",
+      "version": "1.20.7"
+    },
+    {
+      "name": "libsodium",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:rpm/fedora%20project/libsodium@1.0.18-14.fc39?arch=i686&download_url=http%3A//fedora.c3sl.ufpr.br/linux/releases/39/Everything/source/tree/Packages/l/libsodium-1.0.18-14.fc39.src.rpm",
+      "type": "library",
+      "version": "1.0.18"
+    },
+    {
+      "name": "libsodium",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:rpm/fedora%20project/libsodium@1.0.18-14.fc39?arch=x86_64&download_url=http%3A//fedora.c3sl.ufpr.br/linux/releases/39/Everything/x86_64/os/Packages/l/libsodium-1.0.18-14.fc39.x86_64.rpm",
+      "type": "library",
+      "version": "1.0.18"
+    },
+    {
+      "name": "vim-common",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:rpm/fedora%20project/vim-common@9.0.1927-1.fc39?arch=x86_64&epoch=2&download_url=http%3A//fedora.c3sl.ufpr.br/linux/releases/39/Everything/x86_64/os/Packages/v/vim-common-9.0.1927-1.fc39.x86_64.rpm",
+      "type": "library",
+      "version": "9.0.1927"
+    },
+    {
+      "name": "vim-data",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:rpm/fedora%20project/vim-data@9.0.1927-1.fc39?arch=noarch&epoch=2&download_url=http%3A//fedora.c3sl.ufpr.br/linux/releases/39/Everything/x86_64/os/Packages/v/vim-data-9.0.1927-1.fc39.noarch.rpm",
+      "type": "library",
+      "version": "9.0.1927"
+    },
+    {
+      "name": "vim-enhanced",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:rpm/fedora%20project/vim-enhanced@9.0.1927-1.fc39?arch=x86_64&epoch=2&download_url=http%3A//fedora.c3sl.ufpr.br/linux/releases/39/Everything/x86_64/os/Packages/v/vim-enhanced-9.0.1927-1.fc39.x86_64.rpm",
+      "type": "library",
+      "version": "9.0.1927"
+    },
+    {
+      "name": "vim-filesystem",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:rpm/fedora%20project/vim-filesystem@9.0.1927-1.fc39?arch=noarch&epoch=2&download_url=http%3A//fedora.c3sl.ufpr.br/linux/releases/39/Everything/x86_64/os/Packages/v/vim-filesystem-9.0.1927-1.fc39.noarch.rpm",
+      "type": "library",
+      "version": "9.0.1927"
+    },
+    {
+      "name": "vim-minimal",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:rpm/fedora%20project/vim-minimal@9.0.1927-1.fc39?arch=x86_64&epoch=2&download_url=http%3A//fedora.c3sl.ufpr.br/linux/releases/39/Everything/x86_64/os/Packages/v/vim-minimal-9.0.1927-1.fc39.x86_64.rpm",
+      "type": "library",
+      "version": "9.0.1927"
+    },
+    {
+      "name": "vim",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:rpm/fedora%20project/vim@9.0.1927-1.fc39?arch=i686&epoch=2&download_url=http%3A//fedora.c3sl.ufpr.br/linux/releases/39/Everything/source/tree/Packages/v/vim-9.0.1927-1.fc39.src.rpm",
+      "type": "library",
+      "version": "9.0.1927"
+    },
+    {
+      "name": "which",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:rpm/fedora%20project/which@2.21-40.fc39?arch=i686&download_url=http%3A//fedora.c3sl.ufpr.br/linux/releases/39/Everything/source/tree/Packages/w/which-2.21-40.fc39.src.rpm",
+      "type": "library",
+      "version": "2.21"
+    },
+    {
+      "name": "which",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:rpm/fedora%20project/which@2.21-40.fc39?arch=x86_64&download_url=http%3A//fedora.c3sl.ufpr.br/linux/releases/39/Everything/x86_64/os/Packages/w/which-2.21-40.fc39.x86_64.rpm",
+      "type": "library",
+      "version": "2.21"
+    },
+    {
+      "name": "xxd",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:rpm/fedora%20project/xxd@9.0.1927-1.fc39?arch=x86_64&epoch=2&download_url=http%3A//fedora.c3sl.ufpr.br/linux/releases/39/Everything/x86_64/os/Packages/x/xxd-9.0.1927-1.fc39.x86_64.rpm",
+      "type": "library",
+      "version": "9.0.1927"
+    }
+  ],
+  "metadata": {
+    "tools": [
+      {
+        "name": "cachi2",
+        "vendor": "red hat"
+      }
+    ]
+  },
+  "specVersion": "1.4",
+  "version": 1
+}
