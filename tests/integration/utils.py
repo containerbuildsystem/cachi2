@@ -90,6 +90,17 @@ def build_image_for_test_case(tmp_path: Path, containerfile: str, test_case: str
         "--network",
         "none",
     ]
+
+    # this should be extended to support more archs when we have the means of testing it in our CI
+    rpm_repos_path = f"{tmp_path}/{test_case}-output/deps/rpm/x86_64/repos.d"
+    if Path(rpm_repos_path).exists():
+        cmd.extend(
+            [
+                "-v",
+                f"{rpm_repos_path}:/etc/yum.repos.d:Z",
+            ]
+        )
+
     return _build_image(cmd, tag=f"localhost/{test_case}")
 
 
