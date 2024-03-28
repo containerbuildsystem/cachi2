@@ -22,6 +22,7 @@ from typing import (
     Iterator,
     Literal,
     Optional,
+    Pattern,
     Sequence,
     Union,
     cast,
@@ -1282,7 +1283,9 @@ class PipRequirement:
         if is_direct_access:
             if direct_access_kind in ["url", "vcs"]:
                 requirement.kind = direct_access_kind
-                to_be_parsed, qualifiers = cls._adjust_direct_access_requirement(to_be_parsed)
+                to_be_parsed, qualifiers = cls._adjust_direct_access_requirement(
+                    to_be_parsed, cls.HAS_NAME_IN_DIRECT_ACCESS_REQUIREMENT
+                )
             else:
                 raise UnsupportedFeature(
                     f"Direct references with {direct_access_kind!r} scheme are not supported, "
@@ -1325,8 +1328,8 @@ class PipRequirement:
 
         return requirement
 
-    @classmethod
-    def _assess_direct_access_requirement(cls, line: str) -> tuple[Optional[str], bool]:
+    @staticmethod
+    def _assess_direct_access_requirement(line: str) -> tuple[Optional[str], bool]:
         """Determine if the line contains a direct access requirement.
 
         :param str line: the requirement line
@@ -1375,11 +1378,15 @@ class PipRequirement:
 
         return direct_access_kind, True
 
-    @classmethod
-    def _adjust_direct_access_requirement(cls, line: str) -> tuple[str, dict[str, str]]:
+    @staticmethod
+    def _adjust_direct_access_requirement(
+        line: str, direct_ref_pattern: Pattern[str]
+    ) -> tuple[str, dict[str, str]]:
         """Modify the requirement line so it can be parsed by pkg_resources and extract qualifiers.
 
         :param str line: a direct access requirement line
+        :param str direct_ref_pattern: a Regex used to determine if a requirement
+            specifies a package name
         :return: two-item tuple where the first item is a modified direct access requirement
             line that can be parsed by pkg_resources, and the second item is a dict of the
             qualifiers extracted from the direct access URL
@@ -1389,7 +1396,7 @@ class PipRequirement:
         url = line
         environment_marker = None
 
-        if cls.HAS_NAME_IN_DIRECT_ACCESS_REQUIREMENT.search(line):
+        if direct_ref_pattern.search(line):
             package_name, url = line.split("@", 1)
 
         # For direct access requirements, a space is needed after the semicolon.
@@ -1426,8 +1433,8 @@ class PipRequirement:
             requirement_parts.append(environment_marker.strip())
         return " ".join(requirement_parts), qualifiers
 
-    @classmethod
-    def _split_hashes_from_options(cls, options: list[str]) -> tuple[list[str], list[str]]:
+    @staticmethod
+    def _split_hashes_from_options(options: list[str]) -> tuple[list[str], list[str]]:
         """Separate the --hash options from the given options.
 
         :param list options: requirement options
