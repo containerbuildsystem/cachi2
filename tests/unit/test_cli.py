@@ -608,6 +608,23 @@ class TestFetchDeps:
         assert written_build_config == request_output.build_config
         assert written_sbom == request_output.generate_sbom()
 
+    def test_delete_existing_deps_dir(self, tmp_cwd: Path) -> None:
+        ouput_dir = tmp_cwd / DEFAULT_OUTPUT
+        pip_deps_dir = ouput_dir / "deps" / "pip"
+        unrelated_dir = ouput_dir / "unrelated_dir"
+
+        pip_deps_dir.mkdir(parents=True)
+        unrelated_dir.mkdir()
+        (pip_deps_dir / "some-pip-file.py").touch()
+
+        with mock_fetch_deps(output=RequestOutput.empty()):
+            invoke_expecting_sucess(app, ["fetch-deps", "pip"])
+
+        assert pip_deps_dir.exists() is False
+        assert unrelated_dir.exists() is True
+        assert (ouput_dir / "bom.json").exists() is True
+        assert (ouput_dir / ".build-config.json").exists() is True
+
 
 def env_file_as_json(for_output_dir: Path) -> str:
     gocache = f'{{"name": "GOCACHE", "value": "{for_output_dir}/deps/gomod"}}'
