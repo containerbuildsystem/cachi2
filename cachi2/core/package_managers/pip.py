@@ -1164,27 +1164,6 @@ class PipRequirementsFile:
 class PipRequirement:
     """Parse a requirement and its options from a requirement line."""
 
-    URL_SCHEMES = {"http", "https", "ftp"}
-
-    VCS_SCHEMES = {
-        "bzr",
-        "bzr+ftp",
-        "bzr+http",
-        "bzr+https",
-        "git",
-        "git+ftp",
-        "git+http",
-        "git+https",
-        "hg",
-        "hg+ftp",
-        "hg+http",
-        "hg+https",
-        "svn",
-        "svn+ftp",
-        "svn+http",
-        "svn+https",
-    }
-
     # Regex used to determine if a direct access requirement specifies a
     # package name, e.g. "name @ https://..."
     HAS_NAME_IN_DIRECT_ACCESS_REQUIREMENT = re.compile(r"@.+://")
@@ -1355,6 +1334,25 @@ class PipRequirement:
             e.g. "vcs", and the second item is a bool indicating if the requirement is a
             direct access requirement
         """
+        URL_SCHEMES = {"http", "https", "ftp"}
+        VCS_SCHEMES = {
+            "bzr",
+            "bzr+ftp",
+            "bzr+http",
+            "bzr+https",
+            "git",
+            "git+ftp",
+            "git+http",
+            "git+https",
+            "hg",
+            "hg+ftp",
+            "hg+http",
+            "hg+https",
+            "svn",
+            "svn+ftp",
+            "svn+http",
+            "svn+https",
+        }
         direct_access_kind = None
 
         if ":" not in line:
@@ -1368,9 +1366,9 @@ class PipRequirement:
             )
         scheme = scheme_parts[-1].lower().strip()
 
-        if scheme in cls.URL_SCHEMES:
+        if scheme in URL_SCHEMES:
             direct_access_kind = "url"
-        elif scheme in cls.VCS_SCHEMES:
+        elif scheme in VCS_SCHEMES:
             direct_access_kind = "vcs"
         else:
             direct_access_kind = scheme
