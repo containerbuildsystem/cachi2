@@ -2,6 +2,7 @@ import functools
 import importlib.metadata
 import json
 import logging
+import shutil
 import sys
 from pathlib import Path
 from typing import Any, Callable, Optional
@@ -249,6 +250,11 @@ def fetch_deps(
             "flags": combine_option_and_json_flags(input.flags),
         },
     )
+
+    deps_dir = output / "deps"
+    if deps_dir.exists():
+        log.debug(f"Removing existing deps directory '{deps_dir}'")
+        shutil.rmtree(deps_dir, ignore_errors=True)
 
     request_output = resolve_packages(request)
 
