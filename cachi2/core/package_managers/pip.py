@@ -89,11 +89,11 @@ class DistributionPackageInfo:
 
     name: str
     version: str
-    package_type: Literal["sdist", "wheel"]
     path: Path
     url: str
     is_yanked: bool
 
+    package_type: Literal["sdist", "wheel"]
     pypi_checksums: set[ChecksumInfo] = field(default_factory=set)
     user_checksums: set[ChecksumInfo] = field(default_factory=set)
 
@@ -200,10 +200,16 @@ def fetch_pip_source(request: Request) -> RequestOutput:
 
 
 def _generate_properties(dependency: dict[str, str]) -> list[Property]:
+    properties = []
     if not dependency["hash_verified"]:
-        return [Property(name="cachi2:missing_hash:in_file", value=dependency["requirement_file"])]
-    else:
-        return []
+        properties.append(
+            Property(name="cachi2:missing_hash:in_file", value=dependency["requirement_file"])
+        )
+
+    if dependency["package_type"] == "wheel":
+        properties.append(Property(name="cachi2:pip:package:binary", value="true"))
+
+    return properties
 
 
 def _generate_purl_main_package(package: dict[str, Any], package_path: RootedPath) -> str:
@@ -1482,12 +1488,16 @@ def _process_req(
         if dpi.package_type == "sdist":
             _check_metadata_in_sdist(dpi.path)
 
+        download_info["package_type"] = dpi.package_type
+
     else:
         if require_hashes or req.kind == "url":
             hashes = req.hashes or [req.qualifiers.get("cachito_hash", "")]
             download_info["hash_verified"] = _hash_verify(
                 download_info["path"], list(map(_to_checksum_info, hashes))
             )
+
+        download_info["package_type"] = ""  # hack
 
     log.debug(
         "Successfully processed '%s' in path '%s'",
@@ -1527,6 +1537,14 @@ def _process_pypi_req(
                 dpi=artifact,
             )
         )
+
+    # hack
+    # because otherwise SBOM de-dupe erases the existence of Components with
+    # ["package_type"] = "wheel"
+    if any(value == "wheel" for info in download_infos for value in info.values()):
+        for info in download_infos:
+            if info["package_type"] == "sdist":
+                info["package_type"] = "wheel"
 
     return download_infos
 
@@ -1873,10 +1891,10 @@ def _process_package_distributions(
         dpi = DistributionPackageInfo(
             name,
             version,
-            cast(Literal["sdist", "wheel"], package.package_type),
             pip_deps_dir.join_within_root(package.filename).path,
             package.url,
             package.is_yanked,
+            cast(Literal["sdist", "wheel"], package.package_type),
             pypi_checksums,
             user_checksums,
         )
@@ -2145,6 +2163,7 @@ def _resolve_pip(
         {
             "name": dep["package"],
             "version": _version(dep),
+            "package_type": dep["package_type"],
             "type": "pip",
             "dev": dep.get("dev", False),
             "kind": dep["kind"],
