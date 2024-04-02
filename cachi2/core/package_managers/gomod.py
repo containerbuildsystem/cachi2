@@ -279,7 +279,7 @@ class Go:
         # lazy evaluation: defer running 'go'
         if not self._release:
             output = self(["version"])
-            log.info(f"Go release: {output}")
+            log.debug(f"Go release: {output}")
             release_pattern = f"go{version.VERSION_PATTERN}"
 
             # packaging.version requires passing the re.VERBOSE|re.IGNORECASE flags [1]
@@ -791,6 +791,8 @@ def _resolve_gomod(
         # recipes. Note that at some point they'll have to do that anyway, but until majority of
         # projects in the ecosystem adopt 1.21, we need a fallback to an older toolchain version.
         go = Go(release="go1.20")
+
+    log.info(f"Using Go release: {go.release}")
 
     # Vendor dependencies if the gomod-vendor flag is set
     flags = request.flags
