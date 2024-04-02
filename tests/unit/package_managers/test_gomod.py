@@ -182,7 +182,7 @@ def test_resolve_gomod(
 
     mock_version_resolver.get_golang_version.return_value = "v0.1.0"
     mock_go_release.return_value = "go0.1.0"
-    mock_get_gomod_version.return_value = "0.1.1"
+    mock_get_gomod_version.return_value = ("0.1.1", "0.1.2")
 
     flags: list[Flag] = []
     if cgo_disable:
@@ -282,7 +282,7 @@ def test_resolve_gomod_vendor_dependencies(
 
     mock_version_resolver.get_golang_version.return_value = "v0.1.0"
     mock_go_release.return_value = "go0.1.0"
-    mock_get_gomod_version.return_value = "0.1.1"
+    mock_get_gomod_version.return_value = ("0.1.1", "0.1.2")
 
     flags: list[Flag] = ["gomod-vendor"]
     if force_gomod_tidy:
@@ -332,7 +332,7 @@ def test_resolve_gomod_vendor_without_flag(
     module_dir.path.joinpath("vendor").mkdir(parents=True)
     version_resolver = mock.Mock()
     mock_go_release.return_value = "go0.1.0"
-    mock_get_gomod_version.return_value = "0.1.1"
+    mock_get_gomod_version.return_value = ("0.1.1", "0.1.2")
 
     expected_error = (
         'The "gomod-vendor" or "gomod-vendor-check" flag must be set when your repository has '
@@ -394,7 +394,7 @@ def test_resolve_gomod_no_deps(
 
     mock_version_resolver.get_golang_version.return_value = "v2.1.1"
     mock_go_release.return_value = "go2.1.0"
-    mock_get_gomod_version.return_value = "2.1.1"
+    mock_get_gomod_version.return_value = ("2.1.1", "2.1.2")
 
     if force_gomod_tidy:
         gomod_request.flags = frozenset({"force-gomod-tidy"})
@@ -801,7 +801,7 @@ def test_go_list_cmd_failure(
 
     mock_config.return_value.gomod_download_max_tries = 1
     mock_go_release.return_value = "go0.1.0"
-    mock_get_gomod_version.return_value = "0.1.1"
+    mock_get_gomod_version.return_value = ("0.1.1", "0.1.2")
 
     # Mock the "subprocess.run" calls
     mock_run.side_effect = [
@@ -1581,23 +1581,41 @@ def test_fetch_tags_fail(repo_remote_with_tag: tuple[RootedPath, RootedPath]) ->
 
 
 @pytest.mark.parametrize(
-    "go_mod_file, go_mod_version",
-    [("go 1.21", "1.21"), ("    go    1.21.4    ", "1.21.4")],
+    "go_mod_file, go_mod_version, go_toolchain_version",
+    [
+        pytest.param("go 1.21", "1.21", None, id="no_toolchain"),
+        pytest.param("    go    1.21.4    ", "1.21.4", None, id="whitechars_no_toolchain"),
+        pytest.param("   toolchain   go1.21.4  ", None, "1.21.4", id="whitechars_toolchain"),
+        pytest.param("toolchain go1.21", None, "1.21", id="toolchain_missing_micro_version"),
+        pytest.param("go 1.21\ntoolchain go1.21.6", "1.21", "1.21.6", id="go_and_toolchain"),
+    ],
     indirect=["go_mod_file"],
 )
 def test_get_gomod_version(
-    rooted_tmp_path: RootedPath, go_mod_file: Path, go_mod_version: str
+    rooted_tmp_path: RootedPath, go_mod_file: Path, go_mod_version: str, go_toolchain_version: str
 ) -> None:
-    assert _get_gomod_version(rooted_tmp_path.join_within_root("go.mod")) == go_mod_version
+    assert _get_gomod_version(rooted_tmp_path.join_within_root("go.mod")) == (
+        go_mod_version,
+        go_toolchain_version,
+    )
+
+
+INVALID_VERSION_STRINGS = [
+    "go1.21",  # missing space between go and version number
+    "go 1.21.0.100",  # non-conforming to the X.Y(.Z)? versioning template
+    "1.21",  # missing 'go' at the beginning
+    "go 1.21 foo",  # extra characters after version string
+    "toolchain 1.21",  # missing 'go' prefix for the toolchain spec
+]
 
 
 @pytest.mark.parametrize(
     "go_mod_file",
-    [pytest.param(_, id=_) for _ in ["go1.21", "go 1.21.0.100", "1.21", "go 1.21 foo"]],
+    [pytest.param(_, id=_) for _ in INVALID_VERSION_STRINGS],
     indirect=True,
 )
 def test_get_gomod_version_fail(rooted_tmp_path: RootedPath, go_mod_file: Path) -> None:
-    assert _get_gomod_version(rooted_tmp_path.join_within_root("go.mod")) is None
+    assert _get_gomod_version(rooted_tmp_path.join_within_root("go.mod")) == (None, None)
 
 
 @pytest.mark.parametrize(

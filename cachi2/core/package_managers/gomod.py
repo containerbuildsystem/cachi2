@@ -653,7 +653,7 @@ def _get_repository_name(source_dir: RootedPath) -> str:
     return f"{url.hostname}{url.path.rstrip('/').removesuffix('.git')}"
 
 
-def _get_gomod_version(go_mod_file: RootedPath) -> Optional[str]:
+def _get_gomod_version(go_mod_file: RootedPath) -> Tuple[Optional[str], Optional[str]]:
     """Return the required/recommended version of Go from go.mod.
 
     We need to extract the desired version of Go ourselves as older versions of Go might fail
@@ -663,12 +663,26 @@ def _get_gomod_version(go_mod_file: RootedPath) -> Optional[str]:
     If we cannot extract a version from the 'go' line, we return None, leaving it up to the caller
     to decide what to do next.
     """
+    go_version = None
+    toolchain_version = None
+
+    go_version_regex = r"^\s*go\s+(?P<ver>\d\.\d+(:?\.\d+)?)\s*$"
+    toolchain_version_regex = r"^\s*toolchain\s+go(?P<ver>\d\.\d+(:?\.\d+)?)\s*$"
+
+    go_pattern = re.compile(go_version_regex)
+    toolchain_pattern = re.compile(toolchain_version_regex)
+
     with open(go_mod_file) as f:
-        reg = re.compile(r"^\s*go\s+(?P<ver>\d\.\d+(:?.\d+)?)\s*$")
         for line in f:
-            if match := re.match(reg, line):
-                return match.group("ver")
-    return None
+            if not go_version and (match := re.match(go_pattern, line)):
+                go_version = match.group("ver")
+                continue
+
+            if not toolchain_version and (match := re.match(toolchain_pattern, line)):
+                toolchain_version = match.group("ver")
+                continue
+
+    return (go_version, toolchain_version)
 
 
 def _protect_against_symlinks(app_dir: RootedPath) -> None:
@@ -722,26 +736,41 @@ def _find_missing_gomod_files(source_path: RootedPath, subpaths: list[str]) -> l
 
 def _setup_go_toolchain(go_mod_file: RootedPath) -> Go:
     go = Go()
+    target_version = None
     go1_21 = version.Version("1.21")
     go_base_version = go.version
-    go_mod_version_msg = "go.mod recommends/requires Go version: {}"
+    go_mod_version_msg = "go.mod reported versions: '{}'[go], '{}'[toolchain]"
 
-    if (_ := _get_gomod_version(go_mod_file)) is None:
+    go_version_str, toolchain_version_str = _get_gomod_version(go_mod_file)
+    if not go_version_str:
         # Go added the 'go' directive to go.mod in 1.12 [1]. If missing, 1.16 is assumed [2].
         # For our version comparison purposes we set the version explicitly to 1.20 if missing.
         # [1] https://go.dev/doc/go1.12#modules
         # [2] https://go.dev/ref/mod#go-mod-file-go
-        _ = "1.20"
-        go_mod_version_msg += " " + "(cachi2 enforced)"
+        go_version_str = "1.20"
+        go_mod_version_msg += " (cachi2 enforced)"
 
-    go_mod_version = version.Version(_)
+    log.info(
+        go_mod_version_msg.format(
+            go_version_str, toolchain_version_str if toolchain_version_str else "-"
+        )
+    )
 
-    log.info(go_mod_version_msg.format(go_mod_version))
+    if not toolchain_version_str:
+        toolchain_version_str = go_version_str
 
-    if go_mod_version >= go1_21 and go_base_version < go1_21:
+    go_mod_version = version.Version(go_version_str)
+    go_mod_toolchain_version = version.Version(toolchain_version_str)
+
+    if go_mod_version >= go_mod_toolchain_version:
+        target_version = go_mod_version
+    else:
+        target_version = go_mod_toolchain_version
+
+    if target_version >= go1_21 and go_base_version < go1_21:
         # our base Go installation is too old and we need a newer one to support new keywords
         go = Go(release="go1.21.0")
-    elif go_mod_version < go1_21 and go_base_version >= go1_21:
+    elif target_version < go1_21 and go_base_version >= go1_21:
         # Starting with Go 1.21, Go doesn't try to be semantically backwards compatible in that the
         # 'go X.Y' line now denotes the minimum required version of Go, no a "suggested" version.
         # What it means in practice is that a Go toolchain >= 1.21 enforces the biggest
