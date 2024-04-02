@@ -49,7 +49,8 @@ from cachi2.core.config import get_config
 from cachi2.core.errors import FetchError, PackageRejected, UnexpectedFormat, UnsupportedFeature
 from cachi2.core.models.input import Request
 from cachi2.core.models.output import EnvironmentVariable, ProjectFile, RequestOutput
-from cachi2.core.models.sbom import Component, Property
+from cachi2.core.models.property_semantics import PropertySet
+from cachi2.core.models.sbom import Component
 from cachi2.core.package_managers.general import (
     async_download_files,
     download_binary_file,
@@ -181,12 +182,23 @@ def fetch_pip_source(request: Request) -> RequestOutput:
             purl = _generate_purl_dependency(dependency)
             version = dependency["version"] if dependency["kind"] == "pypi" else None
 
+            missing_hash_in_file: frozenset = frozenset()
+            if not dependency["hash_verified"]:
+                missing_hash_in_file = frozenset({dependency["requirement_file"]})
+
+            pip_package_binary = False
+            if dependency["package_type"] == "wheel":
+                pip_package_binary = True
+
             components.append(
                 Component(
                     name=dependency["name"],
                     version=version,
                     purl=purl,
-                    properties=_generate_properties(dependency),
+                    properties=PropertySet(
+                        missing_hash_in_file=missing_hash_in_file,
+                        pip_package_binary=pip_package_binary,
+                    ).to_properties(),
                 )
             )
 
@@ -198,19 +210,6 @@ def fetch_pip_source(request: Request) -> RequestOutput:
         environment_variables=environment_variables,
         project_files=project_files,
     )
-
-
-def _generate_properties(dependency: dict[str, str]) -> list[Property]:
-    properties = []
-    if not dependency["hash_verified"]:
-        properties.append(
-            Property(name="cachi2:missing_hash:in_file", value=dependency["requirement_file"])
-        )
-
-    if dependency["package_type"] == "wheel":
-        properties.append(Property(name="cachi2:pip:package:binary", value="true"))
-
-    return properties
 
 
 def _generate_purl_main_package(package: dict[str, Any], package_path: RootedPath) -> str:
