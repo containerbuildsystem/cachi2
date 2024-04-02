@@ -241,6 +241,7 @@ class Go:
             if bin_ := self._locate_toolchain(self._release):
                 self._bin = bin_
             else:
+                log.debug(f"Desired toolchain '{self._release}' not found, will download it lazily")
                 self._install_toolchain = True
 
     def __call__(self, cmd: list[str], params: Optional[dict] = None, retry: bool = False) -> str:
@@ -305,7 +306,9 @@ class Go:
         local_cache = get_cache_dir()
         go_path_stub = f"go/{release}/bin/go"
         for p in [Path("/usr/local/", go_path_stub), Path(local_cache, go_path_stub)]:
-            log.debug(f"Trying to locate Go toolchain at '{p}'")
+            status = "SUCCESS" if p.exists() else "FAIL"
+
+            log.debug(f"Trying to locate Go toolchain at '{p}': {status}")
             if p.exists():
                 return str(p)
 
