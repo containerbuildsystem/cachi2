@@ -1,0 +1,63 @@
+{
+  "bomFormat": "CycloneDX",
+  "components": [
+    {
+      "name": "black",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:pypi/black@21.11b0",
+      "type": "library",
+      "version": "21.11b0"
+    },
+    {
+      "name": "foo",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:pypi/foo@0.1.0?vcs_url=git%2Bhttps://github.com/cachito-testing/cachi2-pip-extra.git%405f4d168cd573712e56914c326d5f7eff488d7f32",
+      "type": "library",
+      "version": "0.1.0"
+    },
+    {
+      "name": "terminado",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:pypi/terminado@0.13.0",
+      "type": "library",
+      "version": "0.13.0"
+    },
+    {
+      "name": "urllib3",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:pypi/urllib3@2.0.1",
+      "type": "library",
+      "version": "2.0.1"
+    }
+  ],
+  "metadata": {
+    "tools": [
+      {
+        "name": "cachi2",
+        "vendor": "red hat"
+      }
+    ]
+  },
+  "specVersion": "1.4",
+  "version": 1
+}

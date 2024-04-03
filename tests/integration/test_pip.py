@@ -85,6 +85,17 @@ log = logging.getLogger(__name__)
             ),
             id="pip_no_metadata",
         ),
+        pytest.param(
+            utils.TestParameters(
+                repo="https://github.com/cachito-testing/cachi2-pip-extra.git",
+                ref="5f4d168cd573712e56914c326d5f7eff488d7f32",
+                packages=({"path": ".", "type": "pip"},),
+                check_vendor_checksums=False,
+                expected_exit_code=0,
+                expected_output="All dependencies fetched successfully",
+            ),
+            id="pip_yanked",
+        ),
     ],
 )
 def test_pip_packages(
