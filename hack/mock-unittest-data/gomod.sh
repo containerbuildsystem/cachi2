@@ -10,6 +10,7 @@ banner-end
 mocked_data_dir=${1:-tests/unit/data/gomod-mocks}
 mkdir -p "$mocked_data_dir/non-vendored"
 mkdir -p "$mocked_data_dir/vendored"
+mkdir -p "$mocked_data_dir/workspaces"
 mocked_data_dir_abspath=$(realpath "$mocked_data_dir")
 
 tmpdir=$(dirname "$(mktemp --dry-run)")
@@ -24,6 +25,34 @@ $(
     # cd in a subshell, doesn't change the $PWD of the main process
     cd "$tmpdir/gomod-pandemonium"
     export GOMODCACHE="$tmpdir/cachi2-mock-gomodcache"
+
+    git switch workspaces
+
+    echo "generating $mocked_data_dir/workspaces/go.sum"
+    cp go.sum "$mocked_data_dir_abspath/workspaces/go.sum"
+
+    echo "generating $mocked_data_dir/workspaces/go_list_modules.json"
+    go work edit -json > \
+        "$mocked_data_dir_abspath/workspaces/go_work.json"
+
+    echo "generating $mocked_data_dir/workspaces/go_list_modules.json"
+    go list -m -json > \
+        "$mocked_data_dir_abspath/workspaces/go_list_modules.json"
+
+    echo "generating $mocked_data_dir/workspaces/go_mod_download.json"
+    go mod download -json > \
+        "$mocked_data_dir_abspath/workspaces/go_mod_download.json"
+
+    echo "generating $mocked_data_dir/workspaces/go_list_deps_all.json"
+    go list -deps -json=ImportPath,Module,Standard,Deps all > \
+        "$mocked_data_dir_abspath/workspaces/go_list_deps_all.json"
+
+    echo "generating $mocked_data_dir/workspaces/go_list_deps_threedot.json"
+    go list -deps -json=ImportPath,Module,Standard,Deps ./... > \
+        "$mocked_data_dir_abspath/workspaces/go_list_deps_threedot.json"
+
+    git restore .
+    git switch main
 
     echo "generating $mocked_data_dir/non-vendored/go_list_modules.json"
     go list -m -json > \
@@ -63,7 +92,7 @@ $(
 --------------------------------------------------------------------------------
 banner-end
 
-find "$mocked_data_dir/non-vendored" "$mocked_data_dir/vendored" -type f |
+find "$mocked_data_dir/non-vendored" "$mocked_data_dir/vendored" "$mocked_data_dir/workspaces" -type f |
     while read -r f; do
         sed "s|$tmpdir.cachi2-mock-gomodcache|{gomodcache_dir}|" --in-place "$f"
         sed "s|$tmpdir.gomod-pandemonium|{repo_dir}|" --in-place "$f"
