@@ -8,6 +8,7 @@
 * [gomod flags](#gomod-flags)
 * [Vendoring](#vendoring)
 * [Understanding reported dependencies](#understanding-reported-dependencies)
+* [Go 1.21+](#go-121-since-cachi2-v050)
 
 ## Specifying modules to process
 
@@ -219,8 +220,17 @@ workflow.
   your `go.mod` file yourself (i.e. you only specify the language release) Go will try to correct
   it automatically inside the file. Last but not least, Go 1.21 also introduced a new keyword
   [`toolchain`](https://go.dev/ref/mod#go-mod-file-toolchain) to the `go.mod` file. What this all
-  means in practice for end users is that you may not be able to process your `go.mod` file with an older version
-  of Go (and hence older cachi2) as you could in the past for various reasons.
+  means in practice for end users is that you may not be able to process your `go.mod` file with an
+  older version of Go (and hence older cachi2) as you could in the past for various reasons.
+  Many projects bump their required Go toolchain's micro release as soon as it becomes available
+  upstream (i.e. not waiting for distributions to bundle them properly). This caused problems for
+  *cachi2-v0.5.0* because the container image's version simply may not have been high enough to
+  process a given project's `go.mod` file. Therefore, *cachi2-v0.6.0* implemented a mechanism to
+  always rely on the origin 0th release of a toolchain (e.g. 1.21.0) and use the `GOTOOLCHAIN=auto`
+  setting to instruct Go to fetch any toolchain as specified by the `go.mod` file automatically,
+  hence allowing us to keep up with frequent micro version bumps. **Note that such a language
+  version would still need to be officially marked as supported by cachi2, i.e. we'd not allow Go
+  to fetch e.g. a 1.22 toolchain if the maximum supported Go version by cachi2 were 1.21!**
 
 [readme-gomod]: ../README.md#gomod
 [usage-prefetch]: usage.md#pre-fetch-dependencies

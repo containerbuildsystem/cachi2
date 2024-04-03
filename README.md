@@ -331,7 +331,9 @@ See [docs/gomod.md](docs/gomod.md) for more details.
   the intended go version, Cachi2 should handle it appropriately. If your go version is *higher* than what Cachi2 uses,
   there is a good chance it will be compatible regardless, as long as the dependency resolution did not change between
   the two versions. For example, dependency resolution did change in [go 1.18][go118-changelog] but not in
-  [go 1.19][go119-changelog].
+  [go 1.19][go119-changelog]. Things are a bit more complicated with [Go 1.21][go121-changelog], if
+  you are or have been experiencing issues with cachi2 related to Go 1.21+, please refer to
+  [docs/gomod.md](docs/gomod.md#go-121-since-cachi2-v050).
 
 ### pip
 
