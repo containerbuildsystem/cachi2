@@ -14,25 +14,25 @@
       "version": "0.8"
     },
     {
-      "name": "cachito-pip-without-metadata-subpath1-subpath2",
+      "name": "cachi2-pip-extra-subpath1-subpath2",
       "properties": [
         {
           "name": "cachi2:found_by",
           "value": "cachi2"
         }
       ],
-      "purl": "pkg:pypi/cachito-pip-without-metadata-subpath1-subpath2?vcs_url=git%2Bhttps://github.com/cachito-testing/cachito-pip-without-metadata.git%404fb61a80f9bb19fdd422a74602b108d405ede299#subpath1/subpath2",
+      "purl": "pkg:pypi/cachi2-pip-extra-subpath1-subpath2?vcs_url=git%2Bhttps://github.com/cachito-testing/cachi2-pip-extra.git%40ece153b4e3eb1f64b3cd8e73b0de7fa8991c3afc#subpath1/subpath2",
       "type": "library"
     },
     {
-      "name": "cachito-pip-without-metadata",
+      "name": "cachi2-pip-extra",
       "properties": [
         {
           "name": "cachi2:found_by",
           "value": "cachi2"
         }
       ],
-      "purl": "pkg:pypi/cachito-pip-without-metadata?vcs_url=git%2Bhttps://github.com/cachito-testing/cachito-pip-without-metadata.git%404fb61a80f9bb19fdd422a74602b108d405ede299",
+      "purl": "pkg:pypi/cachi2-pip-extra?vcs_url=git%2Bhttps://github.com/cachito-testing/cachi2-pip-extra.git%40ece153b4e3eb1f64b3cd8e73b0de7fa8991c3afc",
       "type": "library"
     },
     {
