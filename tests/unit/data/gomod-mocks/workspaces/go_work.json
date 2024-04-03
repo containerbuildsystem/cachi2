@@ -1,0 +1,12 @@
+{
+	"Go": "1.19",
+	"Use": [
+		{
+			"DiskPath": "."
+		},
+		{
+			"DiskPath": "./uuid"
+		}
+	],
+	"Replace": null
+}

@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 import re
@@ -442,6 +443,7 @@ def _create_modules_from_parsed_data(
     parsed_modules: Iterable[ParsedModule],
     modules_in_go_sum: frozenset[ModuleID],
     version_resolver: "ModuleVersionResolver",
+    go_work_path: Optional[RootedPath] = None,
 ) -> list[Module]:
     def _create_module(module: ParsedModule) -> Module:
         mod_id = _get_module_id(module)
@@ -454,7 +456,11 @@ def _create_modules_from_parsed_data(
             real_path = name
 
             if mod_id not in modules_in_go_sum:
-                missing_hash_in_file = main_module_dir.subpath_from_root / "go.sum"
+                if go_work_path:
+                    missing_hash_in_file = go_work_path.subpath_from_root / "go.work.sum"
+                else:
+                    missing_hash_in_file = main_module_dir.subpath_from_root / "go.sum"
+
                 log.warning("checksum not found in %s: %s@%s", missing_hash_in_file, name, version)
         else:
             # module/name v1.0.0 => ./local/path
@@ -573,9 +579,11 @@ def fetch_gomod_source(request: Request) -> RequestOutput:
             log.info(f'Fetching the gomod dependencies at the "{subpath}" directory')
 
             main_module_dir = request.source_dir.join_within_root(subpath)
+            go_work_path = _get_go_work_path(main_module_dir)
+
             try:
                 resolve_result = _resolve_gomod(
-                    main_module_dir, request, Path(tmp_dir), version_resolver
+                    main_module_dir, request, Path(tmp_dir), version_resolver, go_work_path
                 )
             except PackageManagerError:
                 log.error("Failed to fetch gomod dependencies")
@@ -593,6 +601,7 @@ def fetch_gomod_source(request: Request) -> RequestOutput:
                     resolve_result.parsed_modules,
                     resolve_result.modules_in_go_sum,
                     version_resolver,
+                    go_work_path,
                 )
             )
 
@@ -800,7 +809,11 @@ def _setup_go_toolchain(go_mod_file: RootedPath) -> Go:
 
 
 def _resolve_gomod(
-    app_dir: RootedPath, request: Request, tmp_dir: Path, version_resolver: "ModuleVersionResolver"
+    app_dir: RootedPath,
+    request: Request,
+    tmp_dir: Path,
+    version_resolver: "ModuleVersionResolver",
+    go_work_path: Optional[RootedPath] = None,
 ) -> ResolvedGoModule:
     """
     Resolve and fetch gomod dependencies for given app source archive.
@@ -815,7 +828,6 @@ def _resolve_gomod(
     :raises PackageManagerError: if fetching dependencies fails
     """
     _protect_against_symlinks(app_dir)
-    modules_in_go_sum = _parse_go_sum(app_dir)
 
     config = get_config()
 
@@ -839,6 +851,11 @@ def _resolve_gomod(
     log.info(f"Using Go release: {go.release}")
 
     run_params = {"env": env, "cwd": app_dir}
+
+    if go_work_path:
+        modules_in_go_sum = _parse_go_sum_from_workspaces(go_work_path, go, run_params)
+    else:
+        modules_in_go_sum = _parse_go_sum(app_dir.join_within_root("go.sum"))
 
     # Vendor dependencies if the gomod-vendor flag is set
     flags = request.flags
@@ -977,14 +994,60 @@ def _parse_workspace_module(
     )
 
 
-def _parse_go_sum(module_dir: RootedPath) -> frozenset[ModuleID]:
-    """Return the set of modules present in the go.sum file in the specified directory.
+def _get_go_work_path(app_dir: RootedPath) -> Optional[RootedPath]:
+    """Get the directory that contains the go.work file, if it exists."""
+    go = Go()
+    go_work_file = go(["env", "GOWORK"], {"cwd": app_dir}).rstrip()
+
+    if not go_work_file:
+        return None
+
+    go_work_path = Path(go_work_file).parent
+
+    # make sure that the path to go.work is within the request's root
+    return app_dir.join_within_root(go_work_path)
+
+
+def _parse_go_sum_from_workspaces(
+    go_work_path: RootedPath,
+    go: Go,
+    run_params: dict[str, Any],
+) -> frozenset[ModuleID]:
+    """Return the set of modules present in all go.sum files across the existing workspaces."""
+    go_sum_files = _get_go_sum_files(go_work_path, go, run_params)
+
+    modules: frozenset[ModuleID] = frozenset()
+
+    for go_sum_file in go_sum_files:
+        modules = modules | _parse_go_sum(go_sum_file)
+
+    return modules
+
+
+def _get_go_sum_files(
+    go_work_path: RootedPath,
+    go: Go,
+    run_params: dict[str, Any],
+) -> list[RootedPath]:
+    """Find all go.sum files present in the related workspaces."""
+    go_work_json = go(["work", "edit", "-json"], run_params).rstrip()
+    go_work = json.loads(go_work_json)
+
+    go_sums = [
+        go_work_path.join_within_root(f"{module['DiskPath']}/go.sum") for module in go_work["Use"]
+    ]
+
+    go_sums.append(go_work_path.join_within_root("go.work.sum"))
+
+    return go_sums
+
+
+def _parse_go_sum(go_sum: RootedPath) -> frozenset[ModuleID]:
+    """Return the set of modules present in the specified go.sum file.
 
     A module is considered present if the checksum for its .zip file is present. The go.mod file
     checksums are not relevant for our purposes.
     """
-    go_sum = module_dir.join_within_root("go.sum")
-
     if not go_sum.path.exists():
         return frozenset()
 
