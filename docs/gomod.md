@@ -211,6 +211,17 @@ workflow.
   of the affected packages. This can cause Cachi2 to miss the transitive package dependencies of packages from
   checksum-less modules.
 
+### Go 1.21+ *(since cachi2-v0.5.0)*
+  Starting with [Go 1.21][go121-changelog], Go changed the meaning of the `go 1.X` directive in
+  that it now specifies the [minimum required version](https://go.dev/ref/mod#go-mod-file-go) of Go
+  rather than a suggested version as it originally did. The format of the version string in the
+  `go` directive now also includes the micro release and if you don't include the micro release in
+  your `go.mod` file yourself (i.e. you only specify the language release) Go will try to correct
+  it automatically inside the file. Last but not least, Go 1.21 also introduced a new keyword
+  [`toolchain`](https://go.dev/ref/mod#go-mod-file-toolchain) to the `go.mod` file. What this all
+  means in practice for end users is that you may not be able to process your `go.mod` file with an older version
+  of Go (and hence older cachi2) as you could in the past for various reasons.
+
 [readme-gomod]: ../README.md#gomod
 [usage-prefetch]: usage.md#pre-fetch-dependencies
 [usage-genenv]: usage.md#generate-environment-variables
@@ -219,3 +230,4 @@ workflow.
 [gosumdb]: https://go.dev/ref/mod#checksum-database
 [py-modules]: https://docs.python.org/3/tutorial/modules.html
 [npm-modules]: https://docs.npmjs.com/about-packages-and-modules
+[go121-changelog]: https://tip.golang.org/doc/go1.21
