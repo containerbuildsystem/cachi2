@@ -6,7 +6,7 @@
 * [Specifying packages to process](#specifying-packages-to-process)
 * [requirements.txt](#requirementstxt)
 * [Project metadata](#project-metadata)
-* [Building from source](#building-from-source)
+* [Distribution formats](#distribution-formats)
 * [Using fetched dependencies](#using-fetched-dependencies)
 * [Troubleshooting](#troubleshooting)
 
@@ -40,12 +40,16 @@ JSON input:
   // specify *build* requirements files
   // defaults to ["requirements-build.txt"] or [] if the file does not exist
   "requirements_build_files": ["requirements-build.txt"],
+  // option to allow fetching binary distributions (wheels)
+  // defaults to "false"
+  "allow_binary": "false",
 }
 ```
 
-*For more info on build requirements, see [Building from source](#building-from-source).*
+*For more information on using build requirements and binary distributions, see
+[Distribution Formats](#distribution-formats) section.*
 
-The main argument accepts alternative forms of input, see [usage: pre-fetch-dependencies][usage-prefetch].
+The main argument accepts alternative forms of input, see [usage: Pre-fetch dependencies][usage-prefetch].
 
 ## requirements.txt
 
@@ -345,11 +349,11 @@ if __name__ == "__main__":
     setup(name=NAME, version=VERSION, ...)
 ```
 
-## Building from source
+## Distribution formats
 
 Python packages typically distribute both the
 [binary format](https://packaging.python.org/en/latest/specifications/binary-distribution-format/) (called wheel)
-and the [source format](https://packaging.python.org/en/latest/specifications/source-distribution-format/) (sdist).
+and the [source format](https://packaging.python.org/en/latest/specifications/source-distribution-format/) (called sdist).
 
 Wheels are much more convenient; they are the pre-built format, installing from a wheel amounts to unzipping the wheel
 and copying the files to the right place.
@@ -358,11 +362,28 @@ Sdists are more difficult to install. Pip must first build a wheel from the sdis
 a [PEP 517](https://peps.python.org/pep-0517/) build system. To do that, pip has to install the build system and
 its dependencies (defined via [PEP 518](https://peps.python.org/pep-0518/)).
 
-Building from source gives you an important guarantee which using pre-built artifacts does not: what you installed
-matches the source code. This can be especially important for Python packages implemented in C or other compiled
-languages.
+Cachi2 (unlike the older Cachito) can download both wheels and sdists. The `allow_binary` option controls this behavior.
 
-### requirements-build.txt
+* `"allow_binary": "true"` - download both wheels and sdists
+* `"allow_binary": "false"` - download only sdists (default)
+
+*Note: Cachi2 currently downloads one sdist and all the available wheels per
+dependency (no filtering is being made by platform or Python version).*
+
+### Building with wheels
+
+Pre-fetching and building with wheels is much easier and faster than pre-fetching and building from source (even without filtering of wheels).
+However, downloading all the wheels naturally results in a much larger overall download size.
+Based on sample testing, wheels + sdists will be approximately 5x to 15x larger than just the sdists.
+When building with wheels, dealing with build dependencies via requirements-build.txt is unnecessary.
+
+### Building from source
+
+Building wheels from sdists takes a long time, but building from source gives you an important guarantee
+which using pre-built wheels does not: what you installed matches the source code.
+This can be especially important for Python packages implemented in C or other compiled languages.
+
+#### requirements-build.txt
 
 To allow building from source in a network-isolated environment, Cachi2 must download all the PEP 517 build dependencies
 before the build starts.
@@ -377,7 +398,7 @@ There's no great way to generate such a file. As far as we know, the best soluti
 standalone script that lives in the old Cachito repo:
 [pip\_find\_builddeps.py](https://github.com/containerbuildsystem/cachito/blob/master/bin/pip_find_builddeps.py).
 
-**Prerequisites:**
+#### Prerequisites
 
 Generate a [fully resolved requirements.txt](#requirementstxt)
 
@@ -565,10 +586,13 @@ installation. If you do manage to make it work, please let us know.
 
 ### Dependency does not distribute sources
 
-Some projects do not distribute sdists to PyPI. For example, [tensorflow](https://pypi.org/simple/tensorflow/) (as of
+Some projects do not distribute sdists to PyPI. For example, [tensorflow](https://pypi.org/project/tensorflow/2.11.0/#files) (as of
 version 2.11.0) distributes only wheels.
 
-Possible workaround: find the git repository for the project, get the source tarball for a release. In requirements.txt,
+Possible workarounds:
+
+* Enable pre-fetching wheels using `"allow_binary": "true"` in JSON input.
+* Find the git repository for the project, get the source tarball for a release. In requirements.txt,
 specify the dependency [via an https url](#https-urls).
 
 ```diff
