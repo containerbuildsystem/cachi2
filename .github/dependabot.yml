@@ -17,8 +17,3 @@ updates:
         update-types:
           - "minor"
           - "patch"
-
-  - package-ecosystem: "npm"
-    directory: "/js-deps"
-    schedule:
-      interval: "monthly"
