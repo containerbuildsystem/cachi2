@@ -26,7 +26,6 @@ The primary intended use of Cachi2's outputs is for network-isolated container b
 Please note that Cachi2 is rather picky, aiming to:
 
 * encourage or enforce best practices
-* enforce building from source - no pre-built artifacts, such as Python [wheels][wheel-spec]
 * never execute arbitrary code - looking at you [setup.py (discouraged)][setuppy-discouraged]
 * keep the implementation simple
 
@@ -210,7 +209,7 @@ make test-unit
 ```
 
 For finer control over which tests get executed, e.g. to run all tests in a specific file, activate
-the [virtualenv](#virtualenv) and run:
+the [virtualenv](#virtual-environment) and run:
 
 ```shell
 tox -e py39 -- tests/unit/test_cli.py
@@ -345,8 +344,7 @@ files present in the source repository and downloading the declared dependencies
 The files must be lockfiles, i.e. declare all the transitive dependencies and pin them to specific versions. Generating
 such a lockfile is best done using tools like [pip-compile](https://pip-tools.readthedocs.io/en/stable/).
 
-Note that, per the Cachi2 [goals](#goals), we download only source distributions. This means pip will need to rebuild
-all the dependencies from source, which makes the build process more complex than you might expect.
+We support source distribution file format ([sdist][sdist-spec]) as well as binary distribution file format ([wheel][wheel-spec]).
 
 See [docs/pip.md](docs/pip.md) for more details.
 
@@ -389,6 +387,7 @@ still in early development phase.
 [cachi2-container]: https://quay.io/repository/redhat-appstudio/cachi2
 [cachi2-container-status]: https://quay.io/repository/redhat-appstudio/cachi2/status
 [cachi2-releases]: https://github.com/containerbuildsystem/cachi2/releases
+[sdist-spec]: https://packaging.python.org/en/latest/specifications/source-distribution-format/
 [wheel-spec]: https://packaging.python.org/en/latest/specifications/binary-distribution-format/
 [setuppy-discouraged]: https://setuptools.pypa.io/en/latest/userguide/quickstart.html#setuppy-discouraged
 [go117-changelog]: https://tip.golang.org/doc/go1.17#go-command
