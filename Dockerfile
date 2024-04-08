@@ -1,47 +1,56 @@
-FROM docker.io/library/rockylinux:9@sha256:d7be1c094cc5845ee815d4632fe377514ee6ebcf8efaed6892889657e5ddaaa6
-LABEL maintainer="Red Hat"
+FROM docker.io/library/rockylinux:9@sha256:d7be1c094cc5845ee815d4632fe377514ee6ebcf8efaed6892889657e5ddaaa6 as rockylinux9
+FROM docker.io/library/golang:1.20.0-bullseye as golang_120
+FROM docker.io/library/golang:1.21.0-bullseye as golang_121
+FROM docker.io/library/node:16.20.2-bullseye as node_1620
 
-WORKDIR /src
+########################
+# PREPARE OUR BASE IMAGE
+########################
+FROM rockylinux9 as base
 RUN dnf -y install \
     --setopt install_weak_deps=0 \
     --nodocs \
     createrepo_c \
-    gcc \
     git-core \
-    golang-bin \
     nodejs \
-    npm \
     python3 \
+    && dnf clean all
+
+######################
+# BUILD/INSTALL CACHI2
+######################
+FROM base as builder
+WORKDIR /src
+COPY . .
+RUN dnf -y install \
+    --setopt install_weak_deps=0 \
+    --nodocs \
+    gcc \
     python3-devel \
     python3-pip \
     python3-setuptools \
     && dnf clean all
 
-COPY . .
+RUN python3 -m venv /venv && \
+    /venv/bin/pip install -r requirements.txt --no-deps --no-cache-dir --require-hashes && \
+    /venv/bin/pip install --no-cache-dir .
 
-RUN pip3 install -r requirements.txt --no-deps --no-cache-dir --require-hashes && \
-    pip3 install --no-cache-dir . && \
-    # the git folder is only needed to determine the package version
-    rm -rf .git
+##########################
+# ASSEMBLE THE FINAL IMAGE
+##########################
+FROM base
+LABEL maintainer="Red Hat"
 
-WORKDIR /src/js-deps
-RUN npm install && \
-    ln -s "${PWD}/node_modules/.bin/corepack" /usr/local/bin/corepack && \
-    corepack enable yarn && \
-    dnf -y remove npm
+# copy Go SDKs and Node.js corepack installation from official images
+COPY --from=golang_120 /usr/local/go /usr/local/go/go1.20
+COPY --from=golang_121 /usr/local/go /usr/local/go/go1.21
+COPY --from=node_1620 /usr/local/lib/node_modules/corepack /usr/local/lib/corepack
+COPY --from=builder /venv /venv
 
-# Manual install of specific fixed Go SDK versions (1.20 & 1.21.0):
-#   - install Go's official shim
-#   - let the shim download the actual Go SDK (the download forces the output parent dir to $HOME)
-#   - move the SDK to a host local install system-wide location
-#   - remove the shim as it forces and expects the SDK to be used from $HOME
-#   - clean any build artifacts Go creates as part of the process.
-RUN for go_ver in "go1.20" "go1.21.0"; do \
-        go install "golang.org/dl/${go_ver}@latest" && \
-        "$HOME/go/bin/$go_ver" download && \
-        mkdir -p /usr/local/go && \
-        mv "$HOME/sdk/$go_ver" /usr/local/go && \
-        rm -rf "$HOME/go" "$HOME/.cache/go-build/"; \
-    done
+# link corepack, yarn, and go to standard PATH location
+RUN ln -s /usr/local/lib/corepack/dist/corepack.js /usr/local/bin/corepack && \
+    ln -s /usr/local/lib/corepack/dist/yarn.js /usr/local/bin/yarn && \
+    ln -s /usr/local/go/go1.21/bin/go /usr/local/bin/go && \
+    ln -s /venv/bin/cachi2 /usr/local/bin/cachi2
 
-ENTRYPOINT ["cachi2"]
+ENTRYPOINT ["/usr/local/bin/cachi2"]
