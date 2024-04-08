@@ -225,7 +225,7 @@ workflow.
   Many projects bump their required Go toolchain's micro release as soon as it becomes available
   upstream (i.e. not waiting for distributions to bundle them properly). This caused problems for
   *cachi2-v0.5.0* because the container image's version simply may not have been high enough to
-  process a given project's `go.mod` file. Therefore, *cachi2-v0.6.0* implemented a mechanism to
+  process a given project's `go.mod` file. Therefore, *cachi2-v0.7.0* implemented a mechanism to
   always rely on the origin 0th release of a toolchain (e.g. 1.21.0) and use the `GOTOOLCHAIN=auto`
   setting to instruct Go to fetch any toolchain as specified by the `go.mod` file automatically,
   hence allowing us to keep up with frequent micro version bumps. **Note that such a language
