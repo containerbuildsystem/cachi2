@@ -1,47 +1,55 @@
 # hadolint global ignore=DL3007
-FROM registry.access.redhat.com/ubi9/ubi-minimal:latest
-LABEL maintainer="Red Hat"
 
+########################
+# PREPARE OUR BASE IMAGE
+########################
+FROM registry.access.redhat.com/ubi9/ubi-minimal:latest as base
+RUN microdnf -y install \
+    --setopt install_weak_deps=0 \
+    --nodocs \
+    git-core \
+    nodejs \
+    python3 \
+    && microdnf clean all
+
+######################
+# BUILD/INSTALL CACHI2
+######################
+FROM base as builder
 WORKDIR /src
+COPY . .
 RUN microdnf -y install \
     --setopt install_weak_deps=0 \
     --nodocs \
     gcc \
-    git-core \
     golang-bin \
     nodejs \
     npm \
-    python3 \
     python3-devel \
     python3-pip \
     python3-setuptools \
     && microdnf clean all
 
-COPY . .
+RUN python3 -m venv /venv && \
+    /venv/bin/pip install -r requirements.txt --no-deps --no-cache-dir --require-hashes && \
+    /venv/bin/pip install --no-cache-dir .
 
-RUN pip3 install -r requirements.txt --no-deps --no-cache-dir --require-hashes && \
-    pip3 install --no-cache-dir . && \
-    # the git folder is only needed to determine the package version
-    rm -rf .git
+##########################
+# ASSEMBLE THE FINAL IMAGE
+##########################
+FROM base
+LABEL maintainer="Red Hat"
 
-WORKDIR /src/js-deps
-RUN npm install && \
-    ln -s "${PWD}/node_modules/.bin/corepack" /usr/local/bin/corepack && \
-    corepack enable yarn && \
-    microdnf -y remove npm
+# copy Go SDKs from official Debian images, corepack from official Node.js Alpine
+COPY --from=docker.io/library/golang:1.20.0-bullseye /usr/local/go /usr/local/go/go1.20
+COPY --from=docker.io/library/golang:1.21.0-bullseye /usr/local/go /usr/local/go/go1.21
+COPY --from=docker.io/library/node:21-alpine /usr/local/lib/node_modules/corepack /usr/local/lib/corepack
+COPY --from=builder /venv /venv
 
-# Manual install of specific fixed Go SDK versions (1.20 & 1.21.0):
-#   - install Go's official shim
-#   - let the shim download the actual Go SDK (the download forces the output parent dir to $HOME)
-#   - move the SDK to a host local install system-wide location
-#   - remove the shim as it forces and expects the SDK to be used from $HOME
-#   - clean any build artifacts Go creates as part of the process.
-RUN for go_ver in "go1.20" "go1.21.0"; do \
-        go install "golang.org/dl/${go_ver}@latest" && \
-        "$HOME/go/bin/$go_ver" download && \
-        mkdir -p /usr/local/go && \
-        mv "$HOME/sdk/$go_ver" /usr/local/go && \
-        rm -rf "$HOME/go" "$HOME/.cache/go-build/"; \
-    done
+# link corepack, yarn, and go to standard PATH location
+RUN ln -s /usr/local/lib/corepack/dist/corepack.js /usr/local/bin/corepack && \
+    ln -s /usr/local/lib/corepack/dist/yarn.js /usr/local/bin/yarn && \
+    ln -s /usr/local/go/go1.21/bin/go /usr/local/bin/go && \
+    ln -s /venv/bin/cachi2 /usr/local/bin/cachi2
 
-ENTRYPOINT ["cachi2"]
+ENTRYPOINT ["/usr/local/bin/cachi2"]

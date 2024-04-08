@@ -1448,17 +1448,6 @@
       "type": "library"
     },
     {
-      "name": "runtime/cgo",
-      "properties": [
-        {
-          "name": "cachi2:found_by",
-          "value": "cachi2"
-        }
-      ],
-      "purl": "pkg:golang/runtime/cgo?type=package",
-      "type": "library"
-    },
-    {
       "name": "runtime/internal/atomic",
       "properties": [
         {
