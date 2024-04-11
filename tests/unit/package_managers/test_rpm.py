@@ -7,10 +7,14 @@ import yaml
 
 from cachi2.core.errors import PackageManagerError, PackageRejected
 from cachi2.core.models.sbom import Component, Property
-from cachi2.core.package_managers.rpm import fetch_rpm_source
+from cachi2.core.package_managers.rpm import fetch_rpm_source, inject_files_post
 from cachi2.core.package_managers.rpm.main import (
     DEFAULT_LOCKFILE_NAME,
+    DEFAULT_PACKAGE_DIR,
+    _createrepo,
     _download,
+    _generate_repofiles,
+    _generate_repos,
     _generate_sbom_components,
     _resolve_rpm_project,
     _verify_downloaded,
@@ -286,6 +290,43 @@ def test_resolve_rpm_project(
 
 
 @mock.patch("cachi2.core.package_managers.rpm.main.run_cmd")
+def test_createrepo(mock_run_cmd: mock.Mock, rooted_tmp_path: RootedPath) -> None:
+    repodir = rooted_tmp_path
+    repoid = "repo1"
+    _createrepo(repoid, repodir.path)
+    mock_run_cmd.assert_called_once_with(["createrepo_c", str(repodir)], params={})
+
+
+@mock.patch("cachi2.core.package_managers.rpm.main._createrepo")
+def test_generate_repos(mock_createrepo: mock.Mock, rooted_tmp_path: RootedPath) -> None:
+    package_dir = rooted_tmp_path.join_within_root(DEFAULT_PACKAGE_DIR)
+    arch_dir = package_dir.path.joinpath("x86_64")
+    arch_dir.joinpath("repo1").mkdir(parents=True)
+    arch_dir.joinpath("repos.d").mkdir(parents=True)
+    _generate_repos(rooted_tmp_path.path)
+    mock_createrepo.assert_called_once_with("repo1", arch_dir.joinpath("repo1"))
+
+
+def test_generate_repofiles(rooted_tmp_path: RootedPath) -> None:
+    package_dir = rooted_tmp_path.join_within_root(DEFAULT_PACKAGE_DIR)
+    arch_dir = package_dir.path.joinpath("x86_64")
+    arch_dir.joinpath("repo1").mkdir(parents=True)
+    arch_dir.joinpath("cachi2-repo2").mkdir(parents=True)
+    arch_dir.joinpath("repos.d").mkdir(parents=True)
+    repopath = arch_dir.joinpath("repos.d", "cachi2.repo")
+    output_dir = f"{package_dir}/x86_64"
+    name = (
+        "name=Generated repository containing all packages unaffiliated "
+        "with any official repository"
+    )
+    # repo items need to be sorted to match with the repofile
+    template = f"[cachi2-repo2]\nbaseurl=file://{output_dir}/cachi2-repo2\ngpgcheck=1\n{name}\n[repo1]\nbaseurl=file://{output_dir}/repo1\ngpgcheck=1\n"
+    _generate_repofiles(rooted_tmp_path.path, rooted_tmp_path.path)
+    with open(repopath) as f:
+        assert template == f.read()
+
+
+@mock.patch("cachi2.core.package_managers.rpm.main.run_cmd")
 def test_generate_sbom_components(mock_run_cmd: mock.Mock) -> None:
     name = "foo"
     version = "1.0"
@@ -344,6 +385,20 @@ def test_generate_sbom_components_missing_checksum(mock_run_cmd: mock.Mock) -> N
             ],
         )
     ]
+
+
+@mock.patch("cachi2.core.package_managers.rpm.main.Path")
+@mock.patch("cachi2.core.package_managers.rpm.main._generate_repofiles")
+@mock.patch("cachi2.core.package_managers.rpm.main._generate_repos")
+def test_inject_files_post(
+    mock_generate_repos: mock.Mock,
+    mock_generate_repofiles: mock.Mock,
+    mock_path: mock.Mock,
+    rooted_tmp_path: RootedPath,
+) -> None:
+    inject_files_post(from_output_dir=rooted_tmp_path.path, for_output_dir=rooted_tmp_path.path)
+    mock_generate_repos.assert_called_once_with(rooted_tmp_path.path)
+    mock_generate_repofiles.assert_called_with(rooted_tmp_path.path, rooted_tmp_path.path)
 
 
 @mock.patch("cachi2.core.package_managers.rpm.main.asyncio.run")

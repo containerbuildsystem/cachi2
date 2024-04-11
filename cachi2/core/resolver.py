@@ -1,7 +1,7 @@
 from collections.abc import Iterable
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Callable
+from typing import Any, Callable
 
 from cachi2.core.errors import UnsupportedFeature
 from cachi2.core.models.input import PackageManagerType, Request
@@ -84,3 +84,11 @@ def _merge_outputs(outputs: Iterable[RequestOutput]) -> RequestOutput:
         environment_variables=env_vars,
         project_files=project_files,
     )
+
+
+def inject_files_post(*args: Any, **kwargs: Any) -> None:
+    """Do extra steps for package manager."""
+    # if there is a callback method defined within the particular package manager, run it
+    if hasattr(rpm, "inject_files_post"):
+        callback_method = getattr(rpm, "inject_files_post")
+        callback_method(*args, **kwargs)
