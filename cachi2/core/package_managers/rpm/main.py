@@ -4,6 +4,7 @@ import logging
 from os import PathLike
 from pathlib import Path
 from typing import Any, Union
+from urllib.parse import quote
 
 import yaml
 from pydantic import ValidationError
@@ -12,10 +13,11 @@ from cachi2.core.config import get_config
 from cachi2.core.errors import PackageManagerError, PackageRejected
 from cachi2.core.models.input import Request
 from cachi2.core.models.output import RequestOutput
-from cachi2.core.models.sbom import Component
+from cachi2.core.models.sbom import Component, Property
 from cachi2.core.package_managers.general import async_download_files
 from cachi2.core.package_managers.rpm.redhat import RedhatRpmsLock
 from cachi2.core.rooted_path import RootedPath
+from cachi2.core.utils import run_cmd
 
 log = logging.getLogger(__name__)
 
@@ -85,8 +87,7 @@ def _resolve_rpm_project(source_dir: RootedPath, output_dir: RootedPath) -> list
         package_dir = output_dir.join_within_root(DEFAULT_PACKAGE_DIR)
         metadata = _download(redhat_rpms_lock, package_dir.path)
         _verify_downloaded(metadata)
-        components: list[Component] = []
-        return components
+        return _generate_sbom_components(metadata)
 
 
 def _download(lockfile: RedhatRpmsLock, output_dir: Path) -> dict[Path, Any]:
@@ -163,3 +164,60 @@ def _verify_downloaded(metadata: dict[Path, Any]) -> None:
                     h.update(chunk)
             if digest != h.hexdigest():
                 raise_exception(f"Unmatched checksum of '{file_path}' != '{digest}'")
+
+
+def _generate_sbom_components(files_metadata: dict[Path, Any]) -> list[Component]:
+    """Fill the component list with the package records."""
+    components: list[Component] = []
+    for file_path, file_metadata in files_metadata.items():
+        query_format = (
+            # all nvra macros should be present/mandatory in RPM
+            "%{NAME}\n"
+            "%{VERSION}\n"
+            "%{RELEASE}\n"
+            "%{ARCH}\n"
+            # vendor and epoch are optional in RPM file and in PURL as well
+            # return "" when vendor is not set instead of "(None)"
+            "%|VENDOR?{%{VENDOR}}:{}|\n"
+            # return "" when epoch is not set instead of "(None)"
+            "%|EPOCH?{%{EPOCH}}:{}|\n"
+        )
+        rpm_args = [
+            "-q",
+            "--queryformat",
+            query_format.strip(),
+            str(file_path),
+        ]
+        rpm_fields = run_cmd(cmd=["rpm", *rpm_args], params={})
+        name, version, release, arch, vendor, epoch = rpm_fields.split("\n")
+        log.debug(
+            f"RPM attributes for '{file_path}': name='{name}', version='{version}', "
+            f"release='{release}', arch='{arch}', vendor='{vendor}', epoch='{epoch}'"
+        )
+
+        # sanitize RPM attributes (including replacing whitespaces)
+        vendor = quote(vendor.lower())
+        download_url = quote(file_metadata["url"])
+
+        # https://github.com/package-url/purl-spec/blob/master/PURL-TYPES.rst#rpm
+        # https://github.com/package-url/purl-spec/blob/master/PURL-SPECIFICATION.rst#known-qualifiers-keyvalue-pairsa
+        purl = (
+            f"pkg:rpm{'/' if vendor else ''}{vendor}/{name}@{version}-{release}"
+            f"?arch={arch}{'&epoch=' if epoch else ''}{epoch}&download_url={download_url}"
+        )
+
+        if file_metadata["checksum"] is None:
+            missing_hash_in_file = file_path.name
+            properties = [Property(name="cachi2:missing_hash:in_file", value=missing_hash_in_file)]
+        else:
+            properties = []
+
+        components.append(
+            Component(
+                name=name,
+                version=version,
+                purl=purl,
+                properties=properties,
+            )
+        )
+    return components
