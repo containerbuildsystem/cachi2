@@ -1,6 +1,7 @@
 import asyncio
 import hashlib
 import logging
+import shlex
 from os import PathLike
 from pathlib import Path
 from typing import Any, Union
@@ -221,3 +222,79 @@ def _generate_sbom_components(files_metadata: dict[Path, Any]) -> list[Component
             )
         )
     return components
+
+
+def inject_files_post(*args: Any, **kwargs: Any) -> None:
+    """Run extra tasks for the RPM package manager (callback method) within `inject-files` cmd."""
+    if "from_output_dir" in kwargs and "for_output_dir" in kwargs:
+        from_output_dir = kwargs["from_output_dir"]
+        for_output_dir = kwargs["for_output_dir"]
+
+        if Path.exists(from_output_dir.joinpath(DEFAULT_PACKAGE_DIR)):
+            _generate_repos(from_output_dir)
+            _generate_repofiles(from_output_dir, for_output_dir)
+
+
+def _generate_repos(from_output_dir: Path) -> None:
+    """Search structure for all repoid dirs and create repository metadata \
+    out of its RPMs (and SRPMs)."""
+    package_dir = from_output_dir.joinpath(DEFAULT_PACKAGE_DIR)
+    for arch in package_dir.iterdir():
+        if not arch.is_dir():
+            continue
+        for entry in arch.iterdir():
+            if not entry.is_dir() or entry.name == "repos.d":
+                continue
+            repoid = entry.name
+            _createrepo(repoid, entry)
+
+
+def _createrepo(reponame: str, repodir: Path) -> None:
+    """Execute the createrepo utility."""
+    log.info(f"Creating repository metadata for repoid '{reponame}': {repodir}")
+    cmd = ["createrepo_c", str(repodir)]
+    log.debug("$ " + shlex.join(cmd))
+    stdout = run_cmd(cmd, params={})
+    log.debug(stdout)
+
+
+def _generate_repofiles(from_output_dir: Path, for_output_dir: Path) -> None:
+    """
+    Generate templates of repofiles for all arches.
+
+    Search structure at 'path' and generate one repofile content for each arch.
+    Each repofile contains all arch's repoids (including repoids with source RPMs).
+    Repofile (cachi2.repo) for particular arch will be stored in arch's dir in 'repos.d' subdir.
+    Repofiles are not directly created from the templates in this method - templates are stored
+    in the project file.
+    """
+    package_dir = from_output_dir.joinpath(DEFAULT_PACKAGE_DIR)
+    for arch in package_dir.iterdir():
+        if not arch.is_dir():
+            continue
+        log.debug(f"Preparing repofile content for arch '{arch.name}'")
+        content = ""
+        for entry in sorted(arch.iterdir()):
+            if not entry.is_dir() or entry.name == "repos.d":
+                continue
+            repoid = entry.name
+            localpath = for_output_dir.joinpath(DEFAULT_PACKAGE_DIR, arch.name, repoid)
+            content += f"[{repoid}]\n"
+            content += f"baseurl=file://{localpath}\n"
+            content += "gpgcheck=1\n"
+            # repoid directory matches the internal repoid
+            if repoid.startswith("cachi2-"):
+                content += (
+                    "name=Generated repository containing all packages unaffiliated "
+                    "with any official repository\n"
+                )
+        if content:
+            repo_file_path = arch.joinpath("repos.d", "cachi2.repo")
+            if repo_file_path.exists():
+                log.warning(f"Overwriting {repo_file_path}")
+            else:
+                Path.mkdir(arch.joinpath("repos.d"), parents=True, exist_ok=True)
+                log.info(f"Creating {repo_file_path}")
+
+            with open(repo_file_path, "w") as repo_file:
+                repo_file.write(content)
