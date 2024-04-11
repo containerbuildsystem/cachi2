@@ -1,7 +1,7 @@
 import logging
 import string
 from pathlib import Path
-from typing import Dict, Literal, Optional, Set
+from typing import Any, Dict, Literal, Optional, Set
 
 import pydantic
 
@@ -133,6 +133,7 @@ class BuildConfig(pydantic.BaseModel):
 
     environment_variables: list[EnvironmentVariable] = []
     project_files: list[ProjectFile] = []
+    options: Optional[Dict[str, Any]] = None
 
     @pydantic.field_validator("environment_variables")
     def _unique_env_vars(cls, env_vars: list[EnvironmentVariable]) -> list[EnvironmentVariable]:
@@ -170,6 +171,7 @@ class RequestOutput(pydantic.BaseModel):
         components: list[Component],
         environment_variables: Optional[list[EnvironmentVariable]] = None,
         project_files: Optional[list[ProjectFile]] = None,
+        options: Optional[Dict[str, Any]] = None,
     ) -> "RequestOutput":
         """Create a RequestOutput from components, environment variables and project files."""
         if environment_variables is None:
@@ -183,5 +185,6 @@ class RequestOutput(pydantic.BaseModel):
             build_config=BuildConfig(
                 environment_variables=environment_variables,
                 project_files=project_files,
+                options=options,
             ),
         )

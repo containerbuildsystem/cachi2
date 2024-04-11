@@ -83,6 +83,7 @@ def _merge_outputs(outputs: Iterable[RequestOutput]) -> RequestOutput:
         components=components,
         environment_variables=env_vars,
         project_files=project_files,
+        options=output.build_config.options if output.build_config.options else None,
     )
 
 
