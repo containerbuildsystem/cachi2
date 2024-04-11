@@ -1,14 +1,17 @@
 from pathlib import Path
 from unittest import mock
+from urllib.parse import quote
 
 import pytest
 import yaml
 
 from cachi2.core.errors import PackageManagerError, PackageRejected
+from cachi2.core.models.sbom import Component, Property
 from cachi2.core.package_managers.rpm import fetch_rpm_source
 from cachi2.core.package_managers.rpm.main import (
     DEFAULT_LOCKFILE_NAME,
     _download,
+    _generate_sbom_components,
     _resolve_rpm_project,
     _verify_downloaded,
 )
@@ -263,7 +266,9 @@ def test_resolve_rpm_project_correct_format(
 @mock.patch("cachi2.core.package_managers.rpm.main._download")
 @mock.patch("cachi2.core.package_managers.rpm.main._verify_downloaded")
 @mock.patch("cachi2.core.package_managers.rpm.main.RedhatRpmsLock.model_validate")
+@mock.patch("cachi2.core.package_managers.rpm.main._generate_sbom_components")
 def test_resolve_rpm_project(
+    mock_generate_sbom_components: mock.Mock,
     mock_model_validate: mock.Mock,
     mock_verify_downloaded: mock.Mock,
     mock_download: mock.Mock,
@@ -277,6 +282,68 @@ def test_resolve_rpm_project(
     _resolve_rpm_project(mock.Mock(), output_dir)
     mock_download.assert_called_once_with(mock_model_validate.return_value, mock_package_dir_path)
     mock_verify_downloaded.assert_called_once_with({})
+    mock_generate_sbom_components.assert_called_once_with({})
+
+
+@mock.patch("cachi2.core.package_managers.rpm.main.run_cmd")
+def test_generate_sbom_components(mock_run_cmd: mock.Mock) -> None:
+    name = "foo"
+    version = "1.0"
+    release = "2.fc39"
+    arch = "x86_64"
+    vendor = "redhat"
+    epoch = ""
+    mock_run_cmd.return_value = f"{name}\n{version}\n{release}\n{arch}\n{vendor}\n{epoch}"
+    rpm = f"{name}-{version}-{release}.{arch}.rpm"
+    url = f"https://example.com/{rpm}"
+    files_metadata = {
+        Path(f"/path/to/{rpm}"): {
+            "package": True,
+            "url": url,
+            "size": 12345,
+            "checksum": "sha256:21bb2a09852e75a693d277435c162e1a910835c53c3cee7636dd552d450ed0f1",
+        }
+    }
+    components = _generate_sbom_components(files_metadata)
+    assert components == [
+        Component(
+            name=name,
+            version=version,
+            purl=f"pkg:rpm/{vendor}/{name}@{version}-{release}?arch={arch}&download_url={quote(url)}",
+        )
+    ]
+
+
+@mock.patch("cachi2.core.package_managers.rpm.main.run_cmd")
+def test_generate_sbom_components_missing_checksum(mock_run_cmd: mock.Mock) -> None:
+    name = "foo"
+    version = "1.0"
+    release = "2.fc39"
+    arch = "x86_64"
+    vendor = "redhat"
+    epoch = ""
+    mock_run_cmd.return_value = f"{name}\n{version}\n{release}\n{arch}\n{vendor}\n{epoch}"
+    rpm = f"{name}-{version}-{release}.{arch}.rpm"
+    url = f"https://example.com/{rpm}"
+    files_metadata = {
+        Path(f"/path/to/{rpm}"): {
+            "package": True,
+            "url": url,
+            "size": 12345,
+            "checksum": None,
+        }
+    }
+    components = _generate_sbom_components(files_metadata)
+    assert components == [
+        Component(
+            name=name,
+            version=version,
+            purl=f"pkg:rpm/{vendor}/{name}@{version}-{release}?arch={arch}&download_url={quote(url)}",
+            properties=[
+                Property(name="cachi2:missing_hash:in_file", value="foo-1.0-2.fc39.x86_64.rpm"),
+            ],
+        )
+    ]
 
 
 @mock.patch("cachi2.core.package_managers.rpm.main.asyncio.run")
