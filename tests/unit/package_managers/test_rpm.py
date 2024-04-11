@@ -1,3 +1,4 @@
+from pathlib import Path
 from unittest import mock
 
 import pytest
@@ -5,9 +6,31 @@ import yaml
 
 from cachi2.core.errors import PackageManagerError, PackageRejected
 from cachi2.core.package_managers.rpm import fetch_rpm_source
-from cachi2.core.package_managers.rpm.main import DEFAULT_LOCKFILE_NAME, _resolve_rpm_project
+from cachi2.core.package_managers.rpm.main import (
+    DEFAULT_LOCKFILE_NAME,
+    _download,
+    _resolve_rpm_project,
+    _verify_downloaded,
+)
 from cachi2.core.package_managers.rpm.redhat import RedhatRpmsLock
 from cachi2.core.rooted_path import RootedPath
+
+RPM_LOCK_FILE_DATA = """
+lockfileVersion: 1
+lockfileVendor: redhat
+arches:
+  - arch: x86_64
+    packages:
+      - url: https://example.com/x86_64/Packages/v/vim-enhanced-9.1.158-1.fc38.x86_64.rpm
+        checksum: sha256:21bb2a09852e75a693d277435c162e1a910835c53c3cee7636dd552d450ed0f1
+        size: 1976132
+        repoid: updates
+    source:
+      - url: https://example.com/source/tree/Packages/v/vim-9.1.158-1.fc38.src.rpm
+        checksum: sha256:94803b5e1ff601bf4009f223cb53037cdfa2fe559d90251bbe85a3a5bc6d2aab
+        size: 14735448
+        repoid: updates-source
+"""
 
 
 @mock.patch("cachi2.core.package_managers.rpm.main.RequestOutput.from_obj_list")
@@ -203,7 +226,10 @@ def test_resolve_rpm_project_arch_empty(rooted_tmp_path: RootedPath) -> None:
     )
 
 
-def test_resolve_rpm_project_correct_format(rooted_tmp_path: RootedPath) -> None:
+@mock.patch("cachi2.core.package_managers.rpm.main._download")
+def test_resolve_rpm_project_correct_format(
+    mock_download: mock.Mock, rooted_tmp_path: RootedPath
+) -> None:
     with open(rooted_tmp_path.join_within_root("rpms.lock.yaml"), "w") as f:
         yaml.safe_dump(
             {
@@ -228,6 +254,82 @@ def test_resolve_rpm_project_correct_format(rooted_tmp_path: RootedPath) -> None
             f,
         )
     _resolve_rpm_project(rooted_tmp_path, rooted_tmp_path)
+
+
+@mock.patch(
+    "cachi2.core.package_managers.rpm.main.open",
+    new_callable=mock.mock_open,
+)
+@mock.patch("cachi2.core.package_managers.rpm.main._download")
+@mock.patch("cachi2.core.package_managers.rpm.main._verify_downloaded")
+@mock.patch("cachi2.core.package_managers.rpm.main.RedhatRpmsLock.model_validate")
+def test_resolve_rpm_project(
+    mock_model_validate: mock.Mock,
+    mock_verify_downloaded: mock.Mock,
+    mock_download: mock.Mock,
+    mock_open: mock.Mock,
+) -> None:
+    output_dir = mock.Mock()
+    mock_package_dir_path = mock.Mock()
+    output_dir.join_within_root.return_value.path = mock_package_dir_path
+    mock_download.return_value = {}
+
+    _resolve_rpm_project(mock.Mock(), output_dir)
+    mock_download.assert_called_once_with(mock_model_validate.return_value, mock_package_dir_path)
+    mock_verify_downloaded.assert_called_once_with({})
+
+
+@mock.patch("cachi2.core.package_managers.rpm.main.asyncio.run")
+@mock.patch("cachi2.core.package_managers.rpm.main.async_download_files")
+def test_download(
+    mock_async_download_files: mock.Mock, mock_asyncio: mock.Mock, rooted_tmp_path: RootedPath
+) -> None:
+    lock = RedhatRpmsLock.model_validate(yaml.safe_load(RPM_LOCK_FILE_DATA))
+    _download(lock, rooted_tmp_path.path)
+    mock_async_download_files.assert_called_once_with(
+        {
+            "https://example.com/x86_64/Packages/v/vim-enhanced-9.1.158-1.fc38.x86_64.rpm": str(
+                rooted_tmp_path.path.joinpath(
+                    "x86_64/updates/vim-enhanced-9.1.158-1.fc38.x86_64.rpm"
+                )
+            ),
+            "https://example.com/source/tree/Packages/v/vim-9.1.158-1.fc38.src.rpm": str(
+                rooted_tmp_path.path.joinpath("x86_64/updates-source/vim-9.1.158-1.fc38.src.rpm")
+            ),
+        },
+        5,
+    )
+    mock_asyncio.assert_called_once()
+
+
+@mock.patch("pathlib.Path.stat")
+def test_verify_downloaded_unexpected_size(stat_mock: mock.Mock) -> None:
+    stat_mock.return_value = mock.Mock()
+    stat_mock.st_size = 0
+    metadata = {Path("foo"): {"size": 12345}}
+
+    with pytest.raises(PackageRejected) as exc_info:
+        _verify_downloaded(metadata)
+    assert "Unexpected file size of" in str(exc_info.value)
+
+
+def test_verify_downloaded_unsupported_hash_alg() -> None:
+    metadata = {Path("foo"): {"checksum": "noalg:unmatchedchecksum", "size": None}}
+    with pytest.raises(PackageRejected) as exc_info:
+        _verify_downloaded(metadata)
+    assert "Unsupported hashing algorithm" in str(exc_info.value)
+
+
+@mock.patch(
+    "cachi2.core.package_managers.rpm.main.open",
+    new_callable=mock.mock_open,
+    read_data=b"test",
+)
+def test_verify_downloaded_unmatched_checksum(mock_open: mock.Mock) -> None:
+    metadata = {Path("foo"): {"checksum": "sha256:unmatchedchecksum", "size": None}}
+    with pytest.raises(PackageRejected) as exc_info:
+        _verify_downloaded(metadata)
+    assert "Unmatched checksum of" in str(exc_info.value)
 
 
 class TestRedhatRpmsLock:

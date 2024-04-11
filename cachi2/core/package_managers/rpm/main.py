@@ -1,12 +1,19 @@
+import asyncio
+import hashlib
 import logging
+from os import PathLike
+from pathlib import Path
+from typing import Any, Union
 
 import yaml
 from pydantic import ValidationError
 
+from cachi2.core.config import get_config
 from cachi2.core.errors import PackageManagerError, PackageRejected
 from cachi2.core.models.input import Request
 from cachi2.core.models.output import RequestOutput
 from cachi2.core.models.sbom import Component
+from cachi2.core.package_managers.general import async_download_files
 from cachi2.core.package_managers.rpm.redhat import RedhatRpmsLock
 from cachi2.core.rooted_path import RootedPath
 
@@ -64,7 +71,7 @@ def _resolve_rpm_project(source_dir: RootedPath, output_dir: RootedPath) -> list
 
         log.debug("Validating lockfile.")
         try:
-            _ = RedhatRpmsLock.model_validate(yaml_content)
+            redhat_rpms_lock = RedhatRpmsLock.model_validate(yaml_content)
         except ValidationError as e:
             loc = e.errors()[0]["loc"]
             msg = e.errors()[0]["msg"]
@@ -75,6 +82,84 @@ def _resolve_rpm_project(source_dir: RootedPath, output_dir: RootedPath) -> list
                 ),
             )
 
-        _ = output_dir.join_within_root(DEFAULT_PACKAGE_DIR)
+        package_dir = output_dir.join_within_root(DEFAULT_PACKAGE_DIR)
+        metadata = _download(redhat_rpms_lock, package_dir.path)
+        _verify_downloaded(metadata)
         components: list[Component] = []
         return components
+
+
+def _download(lockfile: RedhatRpmsLock, output_dir: Path) -> dict[Path, Any]:
+    """
+    Download packages mentioned in the lockfile.
+
+    Go through the parsed lockfile structure and find all RPM and SRPM files.
+    Create a metadata structure indexed by destination path used
+    for later verification (size, checksum) after download.
+    Prepare a list of files to be downloaded, and then download files.
+    """
+    metadata = {}
+    for arch in lockfile.arches:
+        log.info(f"Downloading files for '{arch.arch}' architecture.")
+        # files per URL for downloading packages & sources
+        files: dict[str, Union[str, PathLike[str]]] = {}
+        for pkg in arch.packages:
+            repoid = lockfile.internal_repoid if pkg.repoid is None else pkg.repoid
+            dest = output_dir.joinpath(arch.arch, repoid, Path(pkg.url).name)
+            files[pkg.url] = str(dest)
+            metadata[dest] = {
+                "url": pkg.url,
+                "size": pkg.size,
+                "checksum": pkg.checksum,
+            }
+            Path.mkdir(dest.parent, parents=True, exist_ok=True)
+
+        for pkg in arch.source:
+            repoid = lockfile.internal_source_repoid if pkg.repoid is None else pkg.repoid
+            dest = output_dir.joinpath(arch.arch, repoid, Path(pkg.url).name)
+            files[pkg.url] = str(dest)
+            metadata[dest] = {
+                "url": pkg.url,
+                "size": pkg.size,
+                "checksum": pkg.checksum,
+            }
+            Path.mkdir(dest.parent, parents=True, exist_ok=True)
+
+        asyncio.run(async_download_files(files, get_config().concurrency_limit))
+    return metadata
+
+
+def _verify_downloaded(metadata: dict[Path, Any]) -> None:
+    """Use metadata structure with file sizes and checksums for verification \
+    of downloaded packages and sources."""
+    log.debug("Verification of downloaded files has started.")
+
+    def raise_exception(message: str) -> None:
+        raise PackageRejected(
+            f"Some RPM packages or sources weren't verified after being downloaded: '{message}'",
+            solution=(
+                "Check the source of the data or check the corresponding metadata "
+                "in the lockfile (size, checksum)."
+            ),
+        )
+
+    # check file size and checksum of downloaded files
+    for file_path, file_metadata in metadata.items():
+        # size is optional
+        if file_metadata["size"] is not None:
+            if file_path.stat().st_size != file_metadata["size"]:
+                raise_exception(f"Unexpected file size of '{file_path}' != {file_metadata['size']}")
+
+        # checksum is optional
+        if file_metadata["checksum"] is not None:
+            alg, digest = file_metadata["checksum"].split(":")
+            method = getattr(hashlib, alg.lower(), None)
+            if method is not None:
+                h = method(usedforsecurity=False)
+            else:
+                raise_exception(f"Unsupported hashing algorithm '{alg}' for '{file_path}'")
+            with open(file_path, "rb") as f:
+                for chunk in iter(lambda: f.read(READ_CHUNK), b""):
+                    h.update(chunk)
+            if digest != h.hexdigest():
+                raise_exception(f"Unmatched checksum of '{file_path}' != '{digest}'")
