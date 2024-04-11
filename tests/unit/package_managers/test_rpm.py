@@ -1,13 +1,15 @@
 from configparser import ConfigParser
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional, Union
 from unittest import mock
 from urllib.parse import quote
 
 import pytest
 import yaml
+from _pytest.logging import LogCaptureFixture
 
 from cachi2.core.errors import PackageManagerError, PackageRejected
+from cachi2.core.models.input import RpmPackageInput, _DNFOptions
 from cachi2.core.models.sbom import Component, Property
 from cachi2.core.package_managers.rpm import fetch_rpm_source, inject_files_post
 from cachi2.core.package_managers.rpm.main import (
@@ -43,20 +45,68 @@ arches:
 """
 
 
+@pytest.mark.parametrize(
+    "model_input,result_options",
+    [
+        pytest.param(mock.Mock(options=None), None, id="fetch_with_no_options"),
+        pytest.param(
+            RpmPackageInput.model_construct(
+                type="rpm",
+                options=_DNFOptions.model_construct(dnf={"foorepo": {"foo": 1, "bar": False}}),
+            ),
+            {"rpm": {"dnf": {"foorepo": {"foo": 1, "bar": False}}}},
+            id="fetch_with_dnf_options",
+        ),
+        pytest.param(
+            [
+                RpmPackageInput.model_construct(
+                    type="rpm",
+                    options=_DNFOptions.model_construct(dnf={"foorepo": {"foo": 1, "bar": False}}),
+                ),
+                RpmPackageInput.model_construct(
+                    type="rpm",
+                    options=_DNFOptions.model_construct(dnf={"bazrepo": {"baz": 0}}),
+                ),
+            ],
+            {"rpm": {"dnf": {"bazrepo": {"baz": 0}}}},
+            id="fetch_multiple_dnf_option_sets",
+        ),
+    ],
+)
 @mock.patch("cachi2.core.package_managers.rpm.main.RequestOutput.from_obj_list")
 @mock.patch("cachi2.core.package_managers.rpm.main._resolve_rpm_project")
 def test_fetch_rpm_source(
     mock_resolve_rpm_project: mock.Mock,
     mock_from_obj_list: mock.Mock,
+    model_input: Union[mock.Mock, RpmPackageInput, List[RpmPackageInput]],
+    result_options: Optional[Dict[str, Dict[str, Any]]],
+    caplog: LogCaptureFixture,
 ) -> None:
-    mock_component = mock.Mock()
-    mock_resolve_rpm_project.return_value = [mock_component]
+    def _has_multiple_options(rpm_models: List[RpmPackageInput]) -> bool:
+        options = 0
+        for model in rpm_models:
+            if model.options:
+                options += 1
+        return options > 1
+
+    mock_components = [mock.Mock()]
+    mock_resolve_rpm_project.return_value = mock_components
     mock_request = mock.Mock()
-    mock_request.rpm_packages = [mock.Mock()]
+    mock_request.rpm_packages = model_input if isinstance(model_input, list) else [model_input]
     fetch_rpm_source(mock_request)
-    mock_resolve_rpm_project.assert_called_once()
-    mock_from_obj_list.assert_called_once_with(
-        components=[mock_component], environment_variables=[], project_files=[]
+
+    if isinstance(model_input, list):
+        mock_components *= len(model_input)
+
+        if _has_multiple_options(model_input):
+            assert "Multiple sets of DNF options detected on the input:" in caplog.text
+
+    mock_resolve_rpm_project.assert_called()
+    mock_from_obj_list.assert_called_with(
+        components=mock_components,
+        environment_variables=[],
+        project_files=[],
+        options=result_options,
     )
 
 
@@ -314,9 +364,10 @@ def test_generate_repos(mock_createrepo: mock.Mock, rooted_tmp_path: RootedPath)
 
 
 @pytest.mark.parametrize(
-    "expected_repofile",
+    "options, expected_repofile",
     [
         pytest.param(
+            None,
             """
             [repo1]
             baseurl=file://{output_dir}/repo1
@@ -329,15 +380,40 @@ def test_generate_repos(mock_createrepo: mock.Mock, rooted_tmp_path: RootedPath)
             """,
             id="no_repo_options",
         ),
+        pytest.param(
+            {
+                "rpm": {
+                    "dnf": {
+                        "repo1": {"gpgcheck": 0},
+                        "cachi2-repo": {"sslverify": False, "timeout": 4},
+                    }
+                }
+            },
+            """
+             [repo1]
+             baseurl=file://{output_dir}/repo1
+             gpgcheck=0
+
+             [cachi2-repo]
+             name=Packages unaffiliated with an official repository
+             baseurl=file://{output_dir}/cachi2-repo
+             gpgcheck=1
+             sslverify=False
+             timeout=4
+             """,
+            id="dnf_repo_options",
+        ),
     ],
 )
-def test_generate_repofiles(rooted_tmp_path: RootedPath, expected_repofile: str) -> None:
+def test_generate_repofiles(
+    rooted_tmp_path: RootedPath, expected_repofile: str, options: Optional[Dict[str, Any]]
+) -> None:
     package_dir = rooted_tmp_path.join_within_root(DEFAULT_PACKAGE_DIR)
     arch_dir = Path(package_dir.path, "x86_64")
     for dir_ in ["repo1", "cachi2-repo", "repos.d"]:
         Path(arch_dir, dir_).mkdir(parents=True)
 
-    _generate_repofiles(rooted_tmp_path.path, rooted_tmp_path.path)
+    _generate_repofiles(rooted_tmp_path.path, rooted_tmp_path.path, options)
     repopath = arch_dir.joinpath("repos.d", "cachi2.repo")
     with open(repopath) as f:
         actual = ConfigParser()
@@ -417,9 +493,11 @@ def test_inject_files_post(
     mock_path: mock.Mock,
     rooted_tmp_path: RootedPath,
 ) -> None:
-    inject_files_post(from_output_dir=rooted_tmp_path.path, for_output_dir=rooted_tmp_path.path)
+    inject_files_post(
+        from_output_dir=rooted_tmp_path.path, for_output_dir=rooted_tmp_path.path, options={}
+    )
     mock_generate_repos.assert_called_once_with(rooted_tmp_path.path)
-    mock_generate_repofiles.assert_called_with(rooted_tmp_path.path, rooted_tmp_path.path)
+    mock_generate_repofiles.assert_called_with(rooted_tmp_path.path, rooted_tmp_path.path, {})
 
 
 @mock.patch("cachi2.core.package_managers.rpm.main.asyncio.run")

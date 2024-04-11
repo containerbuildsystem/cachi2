@@ -260,7 +260,7 @@ def fetch_deps(
 
     request.output_dir.path.mkdir(parents=True, exist_ok=True)
     request.output_dir.join_within_root(".build-config.json").path.write_text(
-        request_output.build_config.model_dump_json(indent=2)
+        request_output.build_config.model_dump_json(indent=2, exclude_none=True)
     )
 
     sbom = request_output.generate_sbom()
@@ -339,7 +339,11 @@ def inject_files(
         content = project_file.resolve_content(output_dir=for_output_dir)
         project_file.abspath.write_text(content)
 
-    inject_files_post(from_output_dir=from_output_dir, for_output_dir=for_output_dir)
+    inject_files_post(
+        from_output_dir=from_output_dir,
+        for_output_dir=for_output_dir,
+        options=fetch_deps_output.options,
+    )
 
 
 def _get_build_config(output_dir: Path) -> BuildConfig:

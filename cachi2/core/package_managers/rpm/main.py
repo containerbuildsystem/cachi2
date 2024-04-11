@@ -5,7 +5,7 @@ import shlex
 from configparser import ConfigParser
 from os import PathLike
 from pathlib import Path
-from typing import Any, Union, no_type_check
+from typing import Any, Dict, Optional, Union, no_type_check
 from urllib.parse import quote
 
 import yaml
@@ -74,14 +74,39 @@ class _Repofile(ConfigParser):
 def fetch_rpm_source(request: Request) -> RequestOutput:
     """Process all the rpm source directories in a request."""
     components: list[Component] = []
+    options: Dict[str, Any] = {}
+    noptions = 0
+
     for package in request.rpm_packages:
         path = request.source_dir.join_within_root(package.path)
         components.extend(_resolve_rpm_project(path, request.output_dir))
+
+        # FIXME: this is only ever good enough for a PoC, but needs to be handled properly in the
+        # future.
+        # It's unlikely that a project would be split into multiple packages, i.e. supplying
+        # multiple rpms.lock.yaml files. We'd end up generating a single .repo file anyway,
+        # however, although trying to pass conflicting options to DNF for identical repoids via the
+        # input JSON doesn't make much sense from practical perspective (i.e. there's going to be a
+        # single .repo file) the CLI technically allows it in the input JSON.
+        # We're deliberately taking the easy route here by only assuming the "last" set of options
+        # we found in the input JSON instead of doing a deep merge of all the nested dicts.
+        # Nevertheless, we'll at least emit a warning at the end so that the user is informed
+        if package.options and package.options.dnf:
+            options = package.options.model_dump()
+            noptions += 1
+
+    if noptions > 1:
+        log.warning(
+            "Multiple sets of DNF options detected on the input: "
+            "Only one input RPM project package can specify extra DNF options, "
+            "the last one seen will take effect"
+        )
 
     return RequestOutput.from_obj_list(
         components=components,
         environment_variables=[],
         project_files=[],
+        options={"rpm": options} if options else None,
     )
 
 
@@ -272,7 +297,7 @@ def inject_files_post(from_output_dir: Path, for_output_dir: Path, **kwargs: Any
     """Run extra tasks for the RPM package manager (callback method) within `inject-files` cmd."""
     if Path.exists(from_output_dir.joinpath(DEFAULT_PACKAGE_DIR)):
         _generate_repos(from_output_dir)
-        _generate_repofiles(from_output_dir, for_output_dir)
+        _generate_repofiles(from_output_dir, for_output_dir, kwargs.get("options"))
 
 
 def _generate_repos(from_output_dir: Path) -> None:
@@ -298,7 +323,9 @@ def _createrepo(reponame: str, repodir: Path) -> None:
     log.debug(stdout)
 
 
-def _generate_repofiles(from_output_dir: Path, for_output_dir: Path) -> None:
+def _generate_repofiles(
+    from_output_dir: Path, for_output_dir: Path, options: Optional[Dict] = None
+) -> None:
     """
     Generate templates of repofiles for all arches.
 
@@ -308,6 +335,13 @@ def _generate_repofiles(from_output_dir: Path, for_output_dir: Path) -> None:
     Repofiles are not directly created from the templates in this method - templates are stored
     in the project file.
     """
+    dnf_options = None
+    dnf_options_repos = None
+
+    if options:
+        dnf_options = options.get("rpm", {}).get("dnf", {})
+        dnf_options_repos = dnf_options.keys()
+
     package_dir = from_output_dir.joinpath(DEFAULT_PACKAGE_DIR)
     for arch in package_dir.iterdir():
         if not arch.is_dir():
@@ -320,6 +354,12 @@ def _generate_repofiles(from_output_dir: Path, for_output_dir: Path) -> None:
                 continue
             repoid = entry.name
             repofile[repoid] = {}
+
+            # TODO: purposefully ignoring the fact that options might be passed within the "main"
+            # context of DNF options which would mean we'd have to generate a dnf.conf since such
+            # options are global, skipping that for now
+            if dnf_options and dnf_options_repos and repoid in dnf_options_repos:
+                repofile[repoid] = dnf_options[repoid]
 
             localpath = for_output_dir.joinpath(DEFAULT_PACKAGE_DIR, arch.name, repoid)
             repofile[repoid]["baseurl"] = f"file://{localpath}"

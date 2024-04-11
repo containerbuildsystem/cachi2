@@ -1,5 +1,17 @@
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated, Callable, ClassVar, Literal, Optional, TypeVar, Union
+from typing import (
+    TYPE_CHECKING,
+    Annotated,
+    Any,
+    Callable,
+    ClassVar,
+    Dict,
+    List,
+    Literal,
+    Optional,
+    TypeVar,
+    Union,
+)
 
 import pydantic
 
@@ -65,6 +77,60 @@ class _PackageInputBase(pydantic.BaseModel, extra="forbid"):
         return check_sane_relpath(path)
 
 
+class _DNFOptions(pydantic.BaseModel, extra="forbid"):
+    """DNF options model.
+
+    DNF options can be provided via 2 'streams':
+        1) global /etc/dnf/dnf.conf OR
+        2) /etc/yum.repos.d/.repo files
+
+    Config options are specified via INI format based on sections. There are 2 types of sections:
+        1) global 'main' - either global repo options or DNF control-only options
+            - NOTE: there must always ever be a single "main" section
+
+        2) <repoid> sections - options tied specifically to a given defined repo
+
+    [1] https://man7.org/linux/man-pages/man5/dnf.conf.5.html
+    """
+
+    # Don't model all known DNF options for validation purposes - it's user's responsibility!
+    dnf: Dict[Union[Literal["main"], str], Dict[str, Any]]
+
+    @pydantic.model_validator(mode="before")
+    def _validate_dnf_options(cls, data: Any, info: pydantic.ValidationInfo) -> Optional[Dict]:
+        """Fail if the user passes unexpected configuration options namespace."""
+
+        def _raise_unexpected_type(repr_: str, *prefixes: str) -> None:
+            loc = ".".join(prefixes + (repr_,))
+            raise ValueError(f"Unexpected data type for '{loc}' in input JSON: expected 'dict'")
+
+        prefixes: List[str] = ["options"]
+
+        if not data:
+            return None
+
+        if not isinstance(data, dict):
+            _raise_unexpected_type(data, *prefixes)
+
+        if "dnf" not in data:
+            raise ValueError(f"Missing required namespace attribute in '{data}': 'dnf'")
+
+        if diff := set(cls.model_fields) - set(data.keys()):
+            raise ValueError(f"Extra attributes passed in '{data}': {diff}")
+
+        prefixes.append("dnf")
+        options_scope = data["dnf"]
+        if not isinstance(options_scope, dict):
+            _raise_unexpected_type(options_scope, *prefixes)
+
+        for repo, repo_options in options_scope.items():
+            prefixes.append(repo)
+            if not isinstance(repo_options, dict):
+                _raise_unexpected_type(repo_options, *prefixes)
+
+        return data
+
+
 class GomodPackageInput(_PackageInputBase):
     """Accepted input for a gomod package."""
 
@@ -104,6 +170,7 @@ class RpmPackageInput(_PackageInputBase):
     """Accepted input for a rpm package."""
 
     type: Literal["rpm"]
+    options: Optional[Union[_DNFOptions]] = None
 
 
 class YarnPackageInput(_PackageInputBase):

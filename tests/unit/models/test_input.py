@@ -12,6 +12,7 @@ from cachi2.core.models.input import (
     PackageInput,
     PipPackageInput,
     Request,
+    RpmPackageInput,
     parse_user_input,
 )
 from cachi2.core.rooted_path import RootedPath
@@ -58,6 +59,35 @@ class TestPackageInput:
                     "requirements_files": [Path("reqs.txt")],
                     "requirements_build_files": [],
                     "allow_binary": True,
+                },
+            ),
+            (
+                {"type": "rpm"},
+                {
+                    "type": "rpm",
+                    "path": Path("."),
+                    "options": None,
+                },
+            ),
+            (
+                {
+                    "type": "rpm",
+                    "options": {
+                        "dnf": {
+                            "main": {"best": True, "debuglevel": 2},
+                            "foorepo": {"arch": "x86_64", "enabled": True},
+                        }
+                    },
+                },
+                {
+                    "type": "rpm",
+                    "path": Path("."),
+                    "options": {
+                        "dnf": {
+                            "main": {"best": True, "debuglevel": 2},
+                            "foorepo": {"arch": "x86_64", "enabled": True},
+                        }
+                    },
                 },
             ),
         ],
@@ -113,6 +143,26 @@ class TestPackageInput:
                 r"none is not an allowed value",
                 id="pip_no_requirements_build_files",
             ),
+            pytest.param(
+                {"type": "rpm", "options": "bad_type"},
+                r"Unexpected data type for 'options.bad_type' in input JSON",
+                id="rpm_bad_options_type",
+            ),
+            pytest.param(
+                {"type": "rpm", "options": {"unknown": "foo"}},
+                r"Missing required namespace attribute in '{\'unknown\': \'foo\'}': 'dnf'",
+                id="rpm_missing_required_namespace_dnf",
+            ),
+            pytest.param(
+                {"type": "rpm", "options": {"dnf": "bad_type"}},
+                r"Unexpected data type for 'options.dnf.bad_type' in input JSON",
+                id="rpm_bad_type_for_dnf_namespace",
+            ),
+            pytest.param(
+                {"type": "rpm", "options": {"dnf": {"repo": "bad_type"}}},
+                r"Unexpected data type for 'options.dnf.repo.bad_type' in input JSON",
+                id="rpm_bad_type_for_dnf_options",
+            ),
         ],
     )
     def test_invalid_packages(self, input_data: dict[str, Any], expect_error: str) -> None:
@@ -165,11 +215,12 @@ class TestRequest:
         assert isinstance(request.output_dir, RootedPath)
 
     def test_packages_properties(self, tmp_path: Path) -> None:
-        packages = [{"type": "gomod"}, {"type": "npm"}, {"type": "pip"}]
+        packages = [{"type": "gomod"}, {"type": "npm"}, {"type": "pip"}, {"type": "rpm"}]
         request = Request(source_dir=tmp_path, output_dir=tmp_path, packages=packages)
         assert request.gomod_packages == [GomodPackageInput(type="gomod")]
         assert request.npm_packages == [NpmPackageInput(type="npm")]
         assert request.pip_packages == [PipPackageInput(type="pip")]
+        assert request.rpm_packages == [RpmPackageInput(type="rpm")]
 
     @pytest.mark.parametrize("which_path", ["source_dir", "output_dir"])
     def test_path_not_absolute(self, which_path: str) -> None:
