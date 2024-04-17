@@ -227,15 +227,11 @@ def _generate_sbom_components(
     return components
 
 
-def inject_files_post(*args: Any, **kwargs: Any) -> None:
+def inject_files_post(from_output_dir: Path, for_output_dir: Path, **kwargs: Any) -> None:
     """Run extra tasks for the RPM package manager (callback method) within `inject-files` cmd."""
-    if "from_output_dir" in kwargs and "for_output_dir" in kwargs:
-        from_output_dir = kwargs["from_output_dir"]
-        for_output_dir = kwargs["for_output_dir"]
-
-        if Path.exists(from_output_dir.joinpath(DEFAULT_PACKAGE_DIR)):
-            _generate_repos(from_output_dir)
-            _generate_repofiles(from_output_dir, for_output_dir)
+    if Path.exists(from_output_dir.joinpath(DEFAULT_PACKAGE_DIR)):
+        _generate_repos(from_output_dir)
+        _generate_repofiles(from_output_dir, for_output_dir)
 
 
 def _generate_repos(from_output_dir: Path) -> None:
