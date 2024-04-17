@@ -70,41 +70,48 @@ class TestPackageInput:
     @pytest.mark.parametrize(
         "input_data, expect_error",
         [
-            (
-                {},
-                r"Unable to extract tag using discriminator 'type'",
+            pytest.param(
+                {}, r"Unable to extract tag using discriminator 'type'", id="no_type_discrinator"
             ),
-            (
+            pytest.param(
                 {"type": "go-package"},
                 r"Input tag 'go-package' found using 'type' does not match any of the expected tags: 'gomod', 'npm', 'pip', 'rpm', 'yarn'",
+                id="incorrect_type_tag",
             ),
-            (
+            pytest.param(
                 {"type": "gomod", "path": "/absolute"},
                 r"Value error, path must be relative: /absolute",
+                id="path_not_relative",
             ),
-            (
+            pytest.param(
                 {"type": "gomod", "path": ".."},
                 r"Value error, path contains ..: ..",
+                id="gomod_path_references_parent_directory",
             ),
-            (
+            pytest.param(
                 {"type": "gomod", "path": "weird/../subpath"},
                 r"Value error, path contains ..: weird/../subpath",
+                id="gomod_path_references_parent_directory_2",
             ),
-            (
+            pytest.param(
                 {"type": "pip", "requirements_files": ["weird/../subpath"]},
                 r"pip.requirements_files\n  Value error, path contains ..: weird/../subpath",
+                id="pip_path_references_parent_directory",
             ),
-            (
+            pytest.param(
                 {"type": "pip", "requirements_build_files": ["weird/../subpath"]},
                 r"pip.requirements_build_files\n  Value error, path contains ..: weird/../subpath",
+                id="pip_path_references_parent_directory",
             ),
-            (
+            pytest.param(
                 {"type": "pip", "requirements_files": None},
                 r"none is not an allowed value",
+                id="pip_no_requirements_files",
             ),
-            (
+            pytest.param(
                 {"type": "pip", "requirements_build_files": None},
                 r"none is not an allowed value",
+                id="pip_no_requirements_build_files",
             ),
         ],
     )
