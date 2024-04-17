@@ -86,9 +86,9 @@ def _merge_outputs(outputs: Iterable[RequestOutput]) -> RequestOutput:
     )
 
 
-def inject_files_post(*args: Any, **kwargs: Any) -> None:
+def inject_files_post(from_output_dir: Path, for_output_dir: Path, **kwargs: Any) -> None:
     """Do extra steps for package manager."""
     # if there is a callback method defined within the particular package manager, run it
     if hasattr(rpm, "inject_files_post"):
         callback_method = getattr(rpm, "inject_files_post")
-        callback_method(*args, **kwargs)
+        callback_method(from_output_dir, for_output_dir, **kwargs)
