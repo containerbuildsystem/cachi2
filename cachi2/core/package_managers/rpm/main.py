@@ -314,7 +314,8 @@ def _generate_repofiles(from_output_dir: Path, for_output_dir: Path) -> None:
             continue
         log.debug(f"Preparing repofile content for arch '{arch.name}'")
         repofile = _Repofile(defaults={"gpgcheck": "1"})
-        for entry in sorted(arch.iterdir()):
+
+        for entry in arch.iterdir():
             if not entry.is_dir() or entry.name == "repos.d":
                 continue
             repoid = entry.name
