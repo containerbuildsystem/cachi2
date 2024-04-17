@@ -318,12 +318,10 @@ def test_generate_repofiles(rooted_tmp_path: RootedPath) -> None:
     arch_dir.joinpath("repos.d").mkdir(parents=True)
     repopath = arch_dir.joinpath("repos.d", "cachi2.repo")
     output_dir = f"{package_dir}/x86_64"
-    name = (
-        "name=Generated repository containing all packages unaffiliated "
-        "with any official repository"
-    )
+    name = "Packages unaffiliated with an official repository"
+
     # repo items need to be sorted to match with the repofile
-    template = f"[cachi2-repo2]\nbaseurl=file://{output_dir}/cachi2-repo2\ngpgcheck=1\n{name}\n[repo1]\nbaseurl=file://{output_dir}/repo1\ngpgcheck=1\n"
+    template = f"[cachi2-repo2]\nbaseurl=file://{output_dir}/cachi2-repo2\ngpgcheck=1\nname={name}\n[repo1]\nbaseurl=file://{output_dir}/repo1\ngpgcheck=1\n"
     _generate_repofiles(rooted_tmp_path.path, rooted_tmp_path.path)
     with open(repopath) as f:
         assert template == f.read()

@@ -287,10 +287,8 @@ def _generate_repofiles(from_output_dir: Path, for_output_dir: Path) -> None:
             content += "gpgcheck=1\n"
             # repoid directory matches the internal repoid
             if repoid.startswith("cachi2-"):
-                content += (
-                    "name=Generated repository containing all packages unaffiliated "
-                    "with any official repository\n"
-                )
+                content += "name=Packages unaffiliated with an official repository\n"
+
         if content:
             repo_file_path = arch.joinpath("repos.d", "cachi2.repo")
             if repo_file_path.exists():
