@@ -1,5 +1,6 @@
 import os
 import re
+from configparser import ConfigParser
 from pathlib import Path
 from typing import List
 
@@ -174,8 +175,15 @@ def test_repo_files(
         with open(expected_repo_file_path, "w") as file:
             file.write(repo_file_content)
 
+    actual = ConfigParser()
+    expected = ConfigParser()
+
+    actual.read_string(repo_file_content)
+    with open(expected_repo_file_path) as f:
+        expected.read_file(f)
+
     # check if .repo file content matches the expected test data
-    assert repo_file_content == read_and_normalize_repofile(expected_repo_file_path)
+    assert actual == expected
 
 
 @pytest.mark.parametrize(

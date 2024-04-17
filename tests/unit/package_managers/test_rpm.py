@@ -1,4 +1,6 @@
+from configparser import ConfigParser
 from pathlib import Path
+from typing import Any, Dict, Optional
 from unittest import mock
 from urllib.parse import quote
 
@@ -16,6 +18,7 @@ from cachi2.core.package_managers.rpm.main import (
     _generate_repofiles,
     _generate_repos,
     _generate_sbom_components,
+    _Repofile,
     _resolve_rpm_project,
     _verify_downloaded,
 )
@@ -310,21 +313,38 @@ def test_generate_repos(mock_createrepo: mock.Mock, rooted_tmp_path: RootedPath)
     mock_createrepo.assert_called_once_with("repo1", arch_dir.joinpath("repo1"))
 
 
-def test_generate_repofiles(rooted_tmp_path: RootedPath) -> None:
-    package_dir = rooted_tmp_path.join_within_root(DEFAULT_PACKAGE_DIR)
-    arch_dir = package_dir.path.joinpath("x86_64")
-    arch_dir.joinpath("repo1").mkdir(parents=True)
-    arch_dir.joinpath("cachi2-repo2").mkdir(parents=True)
-    arch_dir.joinpath("repos.d").mkdir(parents=True)
-    repopath = arch_dir.joinpath("repos.d", "cachi2.repo")
-    output_dir = f"{package_dir}/x86_64"
-    name = "Packages unaffiliated with an official repository"
+@pytest.mark.parametrize(
+    "expected_repofile",
+    [
+        pytest.param(
+            """
+            [repo1]
+            baseurl=file://{output_dir}/repo1
+            gpgcheck=1
 
-    # repo items need to be sorted to match with the repofile
-    template = f"[cachi2-repo2]\nbaseurl=file://{output_dir}/cachi2-repo2\ngpgcheck=1\nname={name}\n[repo1]\nbaseurl=file://{output_dir}/repo1\ngpgcheck=1\n"
+            [cachi2-repo]
+            baseurl=file://{output_dir}/cachi2-repo
+            gpgcheck=1
+            name=Packages unaffiliated with an official repository
+            """,
+            id="no_repo_options",
+        ),
+    ],
+)
+def test_generate_repofiles(rooted_tmp_path: RootedPath, expected_repofile: str) -> None:
+    package_dir = rooted_tmp_path.join_within_root(DEFAULT_PACKAGE_DIR)
+    arch_dir = Path(package_dir.path, "x86_64")
+    for dir_ in ["repo1", "cachi2-repo", "repos.d"]:
+        Path(arch_dir, dir_).mkdir(parents=True)
+
     _generate_repofiles(rooted_tmp_path.path, rooted_tmp_path.path)
+    repopath = arch_dir.joinpath("repos.d", "cachi2.repo")
     with open(repopath) as f:
-        assert template == f.read()
+        actual = ConfigParser()
+        expected = ConfigParser()
+        actual.read_file(f)
+        expected.read_string(expected_repofile.format(output_dir=arch_dir.as_posix()))
+        assert expected == actual
 
 
 @mock.patch("cachi2.core.package_managers.rpm.main.run_cmd")
@@ -478,3 +498,63 @@ class TestRedhatRpmsLock:
         lock = RedhatRpmsLock.model_validate(raw_content)
         uuid = lock._uuid
         assert len(uuid) == 6
+
+
+class TestRepofile:
+    @pytest.mark.parametrize(
+        "defaults, data, expected",
+        [
+            pytest.param(None, {}, True, id="no_defaults_no_sections"),
+            pytest.param({"foo": "bar"}, {}, True, id="just_defaults_no_sections"),
+            pytest.param({"fake": {"foo": "bar"}}, {}, True, id="complex_defaults_no_sections"),
+            pytest.param(None, {"section": {"foo": "bar"}}, False, id="with_data"),
+        ],
+    )
+    def test_empty(
+        self, data: Dict[str, Any], defaults: Optional[Dict[str, Any]], expected: bool
+    ) -> None:
+        actual = _Repofile(defaults)
+        actual.read_dict(data)
+        assert actual.empty == expected
+
+    @pytest.mark.parametrize(
+        "defaults, data, expected",
+        [
+            pytest.param(
+                None, {"section": {"foo": "bar"}}, {"section": {"foo": "bar"}}, id="no_defaults"
+            ),
+            pytest.param(
+                {"default": "baz"},
+                {"section": {"foo": "bar"}},
+                {"section": {"foo": "bar", "default": "baz"}},
+                id="defaults_no_value_conflict",
+            ),
+            pytest.param(
+                {"foo": "baz"},
+                {"section1": {"foo": "bar"}, "section2": {"foo2": "bar2"}},
+                {"section1": {"foo": "bar"}, "section2": {"foo2": "bar2", "foo": "baz"}},
+                id="defaults_value_conflict",
+            ),
+        ],
+    )
+    def test_apply_defaults(
+        self, data: Dict[str, Any], defaults: Optional[Dict[str, Any]], expected: Dict[str, Any]
+    ) -> None:
+        expected_r = _Repofile()
+        expected_r.read_dict(expected)
+        actual = _Repofile(defaults)
+        actual.read_dict(data)
+        actual._apply_defaults()
+        assert actual == expected_r
+
+    @mock.patch("cachi2.core.package_managers.rpm.main._Repofile._apply_defaults")
+    @mock.patch("cachi2.core.package_managers.rpm.main.ConfigParser.write")
+    def test_write(
+        self, mock_superclass_write: mock.Mock, mock_apply_defaults: mock.Mock, tmp_path: Path
+    ) -> None:
+        mock_superclass_write.return_value = None
+
+        with open(tmp_path / "test.repo", "w") as f:
+            _Repofile({"foo": "bar"}).write(f)
+
+        mock_apply_defaults.assert_called_once()

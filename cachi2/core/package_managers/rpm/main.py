@@ -2,9 +2,10 @@ import asyncio
 import hashlib
 import logging
 import shlex
+from configparser import ConfigParser
 from os import PathLike
 from pathlib import Path
-from typing import Any, Union
+from typing import Any, Union, no_type_check
 from urllib.parse import quote
 
 import yaml
@@ -28,6 +29,46 @@ DEFAULT_PACKAGE_DIR = "deps/rpm"
 
 # during the computing of file checksum read chunk of size 1 MB
 READ_CHUNK = 1048576
+
+
+class _Repofile(ConfigParser):
+    def _apply_defaults(self) -> None:
+        defaults = self.defaults()
+
+        if not defaults:
+            return
+
+        # apply defaults per-section
+        for s in self.sections():
+            section = self[s]
+
+            # ConfigParser's section is of the Mapping abstract type rather than a dictionary.
+            # That means that when queried for options the results will include the defaults.
+            # However, those defaults are referenced from a different map which on its own is good
+            # until one tries to dump the ConfigParser instance to a file which will create a
+            # dedicated section for the defaults -> [DEFAULTS] which we don't want.
+            # This hackish line will make sure that by converting both the defaults and existing
+            # section options to dictionaries and merging those back to the section object will
+            # bake the defaults into each section rather than referencing them from a different
+            # map, allowing us to rid of the defaults right before we dump the contents to a file
+            section.update(dict(defaults) | dict(section))
+
+        # defaults applied, clear the default section to prevent it from being formatted to the
+        # output as
+        #  [DEFAULTS]
+        #  default1=val'
+        self[self.default_section].clear()
+
+    @property
+    def empty(self) -> bool:
+        return not bool(self.sections())
+
+    # typeshed uses a private protocol type for the file-like object:
+    # https://github.com/python/typeshed/blob/0445d74489d7a0b04a8c64a5a349ada1408718a9/stdlib/configparser.pyi#L197
+    @no_type_check
+    def write(self, fileobject, space_around_delimiters=True) -> None:
+        self._apply_defaults()
+        return super().write(fileobject, space_around_delimiters)
 
 
 def fetch_rpm_source(request: Request) -> RequestOutput:
@@ -272,20 +313,21 @@ def _generate_repofiles(from_output_dir: Path, for_output_dir: Path) -> None:
         if not arch.is_dir():
             continue
         log.debug(f"Preparing repofile content for arch '{arch.name}'")
-        content = ""
+        repofile = _Repofile(defaults={"gpgcheck": "1"})
         for entry in sorted(arch.iterdir()):
             if not entry.is_dir() or entry.name == "repos.d":
                 continue
             repoid = entry.name
+            repofile[repoid] = {}
+
             localpath = for_output_dir.joinpath(DEFAULT_PACKAGE_DIR, arch.name, repoid)
-            content += f"[{repoid}]\n"
-            content += f"baseurl=file://{localpath}\n"
-            content += "gpgcheck=1\n"
+            repofile[repoid]["baseurl"] = f"file://{localpath}"
+
             # repoid directory matches the internal repoid
             if repoid.startswith("cachi2-"):
-                content += "name=Packages unaffiliated with an official repository\n"
+                repofile[repoid]["name"] = "Packages unaffiliated with an official repository"
 
-        if content:
+        if not repofile.empty:
             repo_file_path = arch.joinpath("repos.d", "cachi2.repo")
             if repo_file_path.exists():
                 log.warning(f"Overwriting {repo_file_path}")
@@ -293,5 +335,5 @@ def _generate_repofiles(from_output_dir: Path, for_output_dir: Path) -> None:
                 Path.mkdir(arch.joinpath("repos.d"), parents=True, exist_ok=True)
                 log.info(f"Creating {repo_file_path}")
 
-            with open(repo_file_path, "w") as repo_file:
-                repo_file.write(content)
+            with open(repo_file_path, "w") as f:
+                repofile.write(f)
