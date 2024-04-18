@@ -76,7 +76,7 @@ class TestPackageInput:
             ),
             (
                 {"type": "go-package"},
-                r"Input tag 'go-package' found using 'type' does not match any of the expected tags: 'gomod', 'npm', 'pip', 'yarn'",
+                r"Input tag 'go-package' found using 'type' does not match any of the expected tags: 'gomod', 'npm', 'pip', 'rpm', 'yarn'",
             ),
             (
                 {"type": "gomod", "path": "/absolute"},

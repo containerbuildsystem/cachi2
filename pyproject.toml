@@ -24,6 +24,7 @@ dependencies = [
   "aiohttp-retry",
   "backoff",
   "beautifulsoup4",
+  "createrepo_c",
   "gitpython",
   "packageurl-python",
   "packaging",
