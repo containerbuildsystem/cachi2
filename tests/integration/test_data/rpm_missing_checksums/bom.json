@@ -1,0 +1,71 @@
+{
+  "bomFormat": "CycloneDX",
+  "components": [
+    {
+      "name": "gpm-libs",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        },
+        {
+          "name": "cachi2:missing_hash:in_file",
+          "value": "rpms.lock.yaml"
+        }
+      ],
+      "purl": "pkg:rpm/fedora%20project/gpm-libs@1.20.7-46.fc40?arch=x86_64&download_url=http%3A//fedora.c3sl.ufpr.br/linux/releases/40/Everything/x86_64/os/Packages/g/gpm-libs-1.20.7-46.fc40.x86_64.rpm",
+      "type": "library",
+      "version": "1.20.7"
+    },
+    {
+      "name": "gpm",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        },
+        {
+          "name": "cachi2:missing_hash:in_file",
+          "value": "rpms.lock.yaml"
+        }
+      ],
+      "purl": "pkg:rpm/fedora%20project/gpm@1.20.7-46.fc40?arch=i686&download_url=http%3A//fedora.c3sl.ufpr.br/linux/releases/40/Everything/source/tree/Packages/g/gpm-1.20.7-46.fc40.src.rpm",
+      "type": "library",
+      "version": "1.20.7"
+    },
+    {
+      "name": "libsodium",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:rpm/fedora%20project/libsodium@1.0.19-4.fc40?arch=i686&download_url=http%3A//fedora.c3sl.ufpr.br/linux/releases/40/Everything/source/tree/Packages/l/libsodium-1.0.19-4.fc40.src.rpm",
+      "type": "library",
+      "version": "1.0.19"
+    },
+    {
+      "name": "libsodium",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:rpm/fedora%20project/libsodium@1.0.19-4.fc40?arch=x86_64&download_url=http%3A//fedora.c3sl.ufpr.br/linux/releases/40/Everything/x86_64/os/Packages/l/libsodium-1.0.19-4.fc40.x86_64.rpm",
+      "type": "library",
+      "version": "1.0.19"
+    }
+  ],
+  "metadata": {
+    "tools": [
+      {
+        "name": "cachi2",
+        "vendor": "red hat"
+      }
+    ]
+  },
+  "specVersion": "1.4",
+  "version": 1
+}
