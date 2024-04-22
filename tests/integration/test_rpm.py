@@ -22,6 +22,20 @@ from . import utils
             ),
             id="rpm_missing_checksums",
         ),
+        pytest.param(
+            utils.TestParameters(
+                repo="https://github.com/cachito-testing/cachi2-rpm",
+                ref="a214ee8db55418ea1d0734cd2a401c97ad896390",
+                packages=({"path": ".", "type": "rpm"},),
+                flags=["--dev-package-managers"],
+                check_output=False,
+                check_deps_checksums=False,
+                check_vendor_checksums=False,
+                expected_exit_code=2,
+                expected_output="Unmatched checksum",
+            ),
+            id="rpm_unmatched_checksum",
+        ),
     ],
 )
 def test_rpm_packages(
