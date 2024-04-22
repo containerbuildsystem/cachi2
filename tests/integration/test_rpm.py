@@ -50,6 +50,22 @@ from . import utils
             ),
             id="rpm_unexpected_size",
         ),
+        pytest.param(
+            utils.TestParameters(
+                repo="https://github.com/cachito-testing/cachi2-rpm",
+                ref="12afdef45a07560303496217de0222c5f7a49cac",
+                packages=(
+                    {"path": "this-project", "type": "rpm"},
+                    {"path": "another-project", "type": "rpm"},
+                ),
+                flags=["--dev-package-managers"],
+                check_output=True,
+                check_deps_checksums=False,
+                check_vendor_checksums=False,
+                expected_exit_code=0,
+            ),
+            id="rpm_multiple_packages",
+        ),
     ],
 )
 def test_rpm_packages(
