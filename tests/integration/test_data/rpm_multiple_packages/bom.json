@@ -1,0 +1,67 @@
+{
+  "bomFormat": "CycloneDX",
+  "components": [
+    {
+      "name": "glibc-common",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        },
+        {
+          "name": "cachi2:missing_hash:in_file",
+          "value": "another-project/rpms.lock.yaml"
+        }
+      ],
+      "purl": "pkg:rpm/fedora%20project/glibc-common@2.39-6.fc40?arch=x86_64&download_url=http%3A//fedora.c3sl.ufpr.br/linux/releases/40/Everything/x86_64/os/Packages/g/glibc-common-2.39-6.fc40.x86_64.rpm",
+      "type": "library",
+      "version": "2.39"
+    },
+    {
+      "name": "glibc-minimal-langpack",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:rpm/fedora%20project/glibc-minimal-langpack@2.38-7.fc39?arch=x86_64&download_url=http%3A//fedora.c3sl.ufpr.br/linux/releases/39/Everything/x86_64/os/Packages/g/glibc-minimal-langpack-2.38-7.fc39.x86_64.rpm",
+      "type": "library",
+      "version": "2.38"
+    },
+    {
+      "name": "glibc-minimal-langpack",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:rpm/fedora%20project/glibc-minimal-langpack@2.39-6.fc40?arch=x86_64&download_url=http%3A//fedora.c3sl.ufpr.br/linux/releases/40/Everything/x86_64/os/Packages/g/glibc-minimal-langpack-2.39-6.fc40.x86_64.rpm",
+      "type": "library",
+      "version": "2.39"
+    },
+    {
+      "name": "gzip",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:rpm/fedora%20project/gzip@1.13-1.fc40?arch=x86_64&download_url=http%3A//fedora.c3sl.ufpr.br/linux/releases/40/Everything/x86_64/os/Packages/g/gzip-1.13-1.fc40.x86_64.rpm",
+      "type": "library",
+      "version": "1.13"
+    }
+  ],
+  "metadata": {
+    "tools": [
+      {
+        "name": "cachi2",
+        "vendor": "red hat"
+      }
+    ]
+  },
+  "specVersion": "1.4",
+  "version": 1
+}
