@@ -88,7 +88,9 @@ def _resolve_rpm_project(source_dir: RootedPath, output_dir: RootedPath) -> list
         package_dir = output_dir.join_within_root(DEFAULT_PACKAGE_DIR)
         metadata = _download(redhat_rpms_lock, package_dir.path)
         _verify_downloaded(metadata)
-        return _generate_sbom_components(metadata)
+
+        lockfile_relative_path = source_dir.subpath_from_root / DEFAULT_LOCKFILE_NAME
+        return _generate_sbom_components(metadata, lockfile_relative_path)
 
 
 def _download(lockfile: RedhatRpmsLock, output_dir: Path) -> dict[Path, Any]:
@@ -167,7 +169,9 @@ def _verify_downloaded(metadata: dict[Path, Any]) -> None:
                 raise_exception(f"Unmatched checksum of '{file_path}' != '{digest}'")
 
 
-def _generate_sbom_components(files_metadata: dict[Path, Any]) -> list[Component]:
+def _generate_sbom_components(
+    files_metadata: dict[Path, Any], lockfile_path: Path
+) -> list[Component]:
     """Fill the component list with the package records."""
     components: list[Component] = []
     for file_path, file_metadata in files_metadata.items():
@@ -208,8 +212,7 @@ def _generate_sbom_components(files_metadata: dict[Path, Any]) -> list[Component
         )
 
         if file_metadata["checksum"] is None:
-            missing_hash_in_file = file_path.name
-            properties = [Property(name="cachi2:missing_hash:in_file", value=missing_hash_in_file)]
+            properties = [Property(name="cachi2:missing_hash:in_file", value=str(lockfile_path))]
         else:
             properties = []
 
