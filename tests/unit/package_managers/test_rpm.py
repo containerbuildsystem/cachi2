@@ -283,10 +283,13 @@ def test_resolve_rpm_project(
     output_dir.join_within_root.return_value.path = mock_package_dir_path
     mock_download.return_value = {}
 
-    _resolve_rpm_project(mock.Mock(), output_dir)
+    source_dir = mock.Mock()
+    source_dir.subpath_from_root = Path()
+
+    _resolve_rpm_project(source_dir, output_dir)
     mock_download.assert_called_once_with(mock_model_validate.return_value, mock_package_dir_path)
     mock_verify_downloaded.assert_called_once_with({})
-    mock_generate_sbom_components.assert_called_once_with({})
+    mock_generate_sbom_components.assert_called_once_with({}, Path("rpms.lock.yaml"))
 
 
 @mock.patch("cachi2.core.package_managers.rpm.main.run_cmd")
@@ -345,7 +348,7 @@ def test_generate_sbom_components(mock_run_cmd: mock.Mock) -> None:
             "checksum": "sha256:21bb2a09852e75a693d277435c162e1a910835c53c3cee7636dd552d450ed0f1",
         }
     }
-    components = _generate_sbom_components(files_metadata)
+    components = _generate_sbom_components(files_metadata, Path("rpms.lock.yaml"))
     assert components == [
         Component(
             name=name,
@@ -374,14 +377,14 @@ def test_generate_sbom_components_missing_checksum(mock_run_cmd: mock.Mock) -> N
             "checksum": None,
         }
     }
-    components = _generate_sbom_components(files_metadata)
+    components = _generate_sbom_components(files_metadata, Path("rpms.lock.yaml"))
     assert components == [
         Component(
             name=name,
             version=version,
             purl=f"pkg:rpm/{vendor}/{name}@{version}-{release}?arch={arch}&download_url={quote(url)}",
             properties=[
-                Property(name="cachi2:missing_hash:in_file", value="foo-1.0-2.fc39.x86_64.rpm"),
+                Property(name="cachi2:missing_hash:in_file", value="rpms.lock.yaml"),
             ],
         )
     ]
