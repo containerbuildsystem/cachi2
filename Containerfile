@@ -28,7 +28,7 @@ RUN npm install && \
     corepack enable yarn && \
     microdnf -y remove nodejs-npm
 
-# Install an older version of Go fixed at 1.20 (along with the base >=1.21):
+# Manual install of specific fixed Go SDK versions (1.20 & 1.21.0):
 #   - install Go's official shim
 #   - let the shim download the actual Go SDK (the download forces the output parent dir to $HOME)
 #   - move the SDK to a host local install system-wide location
