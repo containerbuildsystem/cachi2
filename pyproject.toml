@@ -35,8 +35,10 @@ dependencies = [
   "requests",
   "semver",
   "setuptools",
+  "setuptools-scm",
   "tomli",
   "typer",
+  "wheel",
 ]
 [project.optional-dependencies]
 dev = [
