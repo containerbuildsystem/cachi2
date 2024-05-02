@@ -1,0 +1,10 @@
+[another-repoid]
+baseurl=file:///tmp/rpm_test_repo_file-output/deps/rpm/x86_64/another-repoid
+gpgcheck=1
+[cachi2-aaa000]
+baseurl=file:///tmp/rpm_test_repo_file-output/deps/rpm/x86_64/cachi2-aaa000
+gpgcheck=1
+name=Generated repository containing all packages unaffiliated with any official repository
+[releases]
+baseurl=file:///tmp/rpm_test_repo_file-output/deps/rpm/x86_64/releases
+gpgcheck=1
