@@ -66,6 +66,19 @@ from . import utils
             ),
             id="rpm_multiple_packages",
         ),
+        pytest.param(
+            utils.TestParameters(
+                repo="https://github.com/cachito-testing/cachi2-rpm",
+                ref="22cb12ee0ba4f98d8a751e552c3caee8de5b0237",
+                packages=({"path": ".", "type": "rpm"},),
+                flags=["--dev-package-managers"],
+                check_output=True,
+                check_deps_checksums=False,
+                check_vendor_checksums=False,
+                expected_exit_code=0,
+            ),
+            id="rpm_multiple_archs",
+        ),
     ],
 )
 def test_rpm_packages(
