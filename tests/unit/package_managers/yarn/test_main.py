@@ -325,7 +325,7 @@ def test_set_yarnrc_configuration(
     }
 
     assert yarn_rc._data == expected_data
-    assert mock_write.called_once()
+    mock_write.assert_called_once()
 
 
 def test_verify_yarnrc_paths() -> None:
