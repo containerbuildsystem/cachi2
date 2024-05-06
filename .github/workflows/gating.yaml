@@ -105,9 +105,10 @@ jobs:
     steps:
       - name: Install required packages
         run: |
-          dnf install -y python python-pip git podman
-          python -m pip install --upgrade pip
-          pip install tox tox-gh-actions
+          dnf distro-sync -y
+          dnf install -y python3 python3-devel python3-pip gcc git podman
+          pip3 install --upgrade pip
+          pip3 install tox tox-gh-actions
 
       - name: add checkout action...
         uses: actions/checkout@v4
