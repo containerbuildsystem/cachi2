@@ -34,7 +34,6 @@ dependencies = [
   "reflink",
   "requests",
   "semver",
-  "setuptools",
   "tomli",
   "typer",
 ]
