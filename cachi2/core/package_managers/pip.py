@@ -188,7 +188,7 @@ def fetch_pip_source(request: Request) -> RequestOutput:
             version = dependency["version"] if dependency["kind"] == "pypi" else None
 
             missing_hash_in_file: frozenset = frozenset()
-            if not dependency["checksum_matched"]:
+            if dependency["missing_checksums"]:
                 missing_hash_in_file = frozenset({dependency["requirement_file"]})
 
             pip_package_binary = False
@@ -1481,7 +1481,10 @@ def _process_req(
 ) -> dict[str, Any]:
     download_info["kind"] = req.kind
     download_info["requirement_file"] = str(requirements_file.file_path.subpath_from_root)
+    download_info["missing_checksums"] = not require_hashes
     download_info["checksum_matched"] = False
+    # "package_type" is *only* needed for PyPI deps
+    download_info["package_type"] = ""
 
     def _checksum_match(path: Path, checksum_info: Iterable[ChecksumInfo]) -> bool:
         matched: bool = False
@@ -1497,22 +1500,20 @@ def _process_req(
     if dpi:
         if dpi.has_checksums_to_match():
             download_info["checksum_matched"] = _checksum_match(dpi.path, dpi.checksums_to_match)
-
         if dpi.package_type == "sdist":
             _check_metadata_in_sdist(dpi.path)
-
         download_info["package_type"] = dpi.package_type
         download_info["index_url"] = dpi.index_url
 
+    elif req.kind == "vcs":
+        # hashing **is not** supported for 'vcs' deps - they can't be hashed
+        download_info["missing_checksums"] = True
     else:
         if require_hashes or req.kind == "url":
             hashes = req.hashes or [req.qualifiers.get("cachito_hash", "")]
             download_info["checksum_matched"] = _checksum_match(
                 download_info["path"], list(map(_to_checksum_info, hashes))
             )
-
-        # "package_type" is *only* needed for PyPI deps
-        download_info["package_type"] = ""
 
     log.debug(
         "Successfully processed '%s' in path '%s'",
@@ -2175,6 +2176,7 @@ def _resolve_pip(
             "dev": dep.get("dev", False),
             "kind": dep["kind"],
             "requirement_file": dep["requirement_file"],
+            "missing_checksums": dep["missing_checksums"],
             "checksum_matched": dep["checksum_matched"],
             "package_type": dep["package_type"],
         }

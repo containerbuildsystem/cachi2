@@ -3400,6 +3400,7 @@ class TestDownload:
             "package": "eggs",
             "path": vcs_download,
             "requirement_file": str(req_file.file_path.subpath_from_root),
+            "missing_checksums": True,
             "checksum_matched": match_checksums_optional,
             "package_type": "",
             "repo": "eggs",
@@ -3409,6 +3410,7 @@ class TestDownload:
             "package": "bar",
             "path": url_download,
             "requirement_file": str(req_file.file_path.subpath_from_root),
+            "missing_checksums": False,
             "checksum_matched": True,
             "package_type": "",
             "original_url": plain_url,
@@ -3428,6 +3430,7 @@ class TestDownload:
             # `pip.DistributionPackageInfo()``
             "kind": "pypi",
             "requirement_file": str(req_file.file_path.subpath_from_root),
+            "missing_checksums": False,
             "checksum_matched": True,
             "package_type": "sdist",
             "index_url": expect_index_url,
@@ -3437,10 +3440,11 @@ class TestDownload:
 
         wheels_DPI = []
         if allow_binary:
-            for wheel_path, checksums, checksum_matched in zip(
+            for wheel_path, checksums, checksum_matched, missing_checksums in zip(
                 [wheel_0_download, wheel_1_download, wheel_2_download],
                 [{ChecksumInfo("sha256", "fedcba")}, {ChecksumInfo("sha256", "abcdef")}, set()],
                 [False, True, False],
+                [False, False, True],
             ):
                 dpi = make_dpi(
                     "foo",
@@ -3455,6 +3459,7 @@ class TestDownload:
                     | {
                         "kind": "pypi",
                         "requirement_file": str(req_file.file_path.subpath_from_root),
+                        "missing_checksums": missing_checksums,
                         "checksum_matched": checksum_matched,
                         "package_type": "wheel",
                         "index_url": expect_index_url,
@@ -3626,6 +3631,7 @@ class TestDownload:
             | {
                 "kind": "pypi",
                 "requirement_file": str(req_file1.subpath_from_root),
+                "missing_checksums": True,
                 "checksum_matched": False,
                 "package_type": "sdist",
                 "index_url": pypi_simple.PYPI_SIMPLE_ENDPOINT,
@@ -3634,6 +3640,7 @@ class TestDownload:
             | {
                 "kind": "pypi",
                 "requirement_file": str(req_file2.subpath_from_root),
+                "missing_checksums": True,
                 "checksum_matched": False,
                 "package_type": "sdist",
                 "index_url": pypi_simple.PYPI_SIMPLE_ENDPOINT,
@@ -3737,6 +3744,7 @@ def test_resolve_pip(
                 "path": "some/path",
                 "kind": "pypi",
                 "requirement_file": str(req_file.subpath_from_root),
+                "missing_checksums": False,
                 "checksum_matched": True,
                 "package_type": "sdist",
                 "index_url": pypi_simple.PYPI_SIMPLE_ENDPOINT,
@@ -3749,6 +3757,7 @@ def test_resolve_pip(
                 "path": "another/path",
                 "kind": "pypi",
                 "requirement_file": str(build_req_file.subpath_from_root),
+                "missing_checksums": False,
                 "checksum_matched": True,
                 "package_type": "sdist",
                 "index_url": pypi_simple.PYPI_SIMPLE_ENDPOINT,
@@ -3775,6 +3784,7 @@ def test_resolve_pip(
                 "dev": False,
                 "kind": "pypi",
                 "requirement_file": "req.txt" if custom_requirements else "requirements.txt",
+                "missing_checksums": False,
                 "checksum_matched": True,
                 "package_type": "sdist",
                 "index_url": pypi_simple.PYPI_SIMPLE_ENDPOINT,
@@ -3786,6 +3796,7 @@ def test_resolve_pip(
                 "dev": True,
                 "kind": "pypi",
                 "requirement_file": "breq.txt" if custom_requirements else "requirements-build.txt",
+                "missing_checksums": False,
                 "checksum_matched": True,
                 "package_type": "sdist",
                 "index_url": pypi_simple.PYPI_SIMPLE_ENDPOINT,
@@ -3984,6 +3995,7 @@ def test_fetch_pip_source(
                 "dev": False,
                 "kind": "url",
                 "requirement_file": "requirements.txt",
+                "missing_checksums": False,
                 "checksum_matched": True,
                 "package_type": "",
             },
@@ -3996,6 +4008,7 @@ def test_fetch_pip_source(
                 "dev": True,
                 "kind": "pypi",
                 "requirement_file": "requirements.txt",
+                "missing_checksums": False,
                 "checksum_matched": True,
                 "package_type": "wheel",
             },
@@ -4014,6 +4027,7 @@ def test_fetch_pip_source(
                 "dev": False,
                 "kind": "pypi",
                 "requirement_file": "requirements.txt",
+                "missing_checksums": True,
                 "checksum_matched": False,
                 "package_type": "sdist",
             },
@@ -4024,6 +4038,7 @@ def test_fetch_pip_source(
                 "dev": False,
                 "kind": "url",
                 "requirement_file": "requirements.txt",
+                "missing_checksums": True,
                 "checksum_matched": False,
                 "package_type": "",
             },
