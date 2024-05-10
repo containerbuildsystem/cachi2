@@ -3466,13 +3466,7 @@ class TestDownload:
         mock_download_vcs_package.return_value = deepcopy(vcs_info)
         mock_download_url_package.return_value = deepcopy(url_info)
 
-        if match_checksums_optional and not allow_binary:
-            mock_must_match_any_checksum.side_effect = [
-                None,  # sdist_download
-                None,  # vcs_download
-                None,  # url_download
-            ]
-        elif match_checksums_optional and allow_binary:
+        if match_checksums_optional and allow_binary:
             mock_must_match_any_checksum.side_effect = [
                 None,  # sdist_download
                 PackageRejected("", solution=None),  # wheel_0_download - checksums NOK
@@ -3481,16 +3475,23 @@ class TestDownload:
                 None,  # url_download
                 # wheel_2_download - no checksums to verify
             ]
-        elif not allow_binary:
+        elif match_checksums_optional and not allow_binary:
             mock_must_match_any_checksum.side_effect = [
                 None,  # sdist_download
+                None,  # vcs_download
                 None,  # url_download
             ]
-        else:
+        # match_checksums_optional == False
+        elif allow_binary:
             mock_must_match_any_checksum.side_effect = [
                 None,  # sdist_download
                 PackageRejected("", solution=None),  # wheel_0_download - checksums NOK
                 None,  # wheel_1_download - checksums OK
+                None,  # url_download
+            ]
+        else:  # no wheels
+            mock_must_match_any_checksum.side_effect = [
+                None,  # sdist_download
                 None,  # url_download
             ]
         # </setup>
@@ -3525,16 +3526,7 @@ class TestDownload:
         verify_url_checksum_call = mock.call(url_download, [ChecksumInfo("sha256", "654321")])
         verify_vcs_checksum_call = mock.call(vcs_download, [ChecksumInfo("sha256", "123456")])
 
-        if match_checksums_optional and not allow_binary:
-            msg = "At least one dependency uses the --hash option, will require hashes"
-            assert msg in caplog.text
-
-            verify_checksums_calls = [
-                verify_sdist_checksum_call,
-                verify_vcs_checksum_call,
-                verify_url_checksum_call,
-            ]
-        elif match_checksums_optional and allow_binary:
+        if match_checksums_optional and allow_binary:
             msg = "At least one dependency uses the --hash option, will require hashes"
             assert msg in caplog.text
 
@@ -3545,18 +3537,28 @@ class TestDownload:
                 verify_vcs_checksum_call,
                 verify_url_checksum_call,
             ]
-        elif not allow_binary:
+        elif match_checksums_optional and not allow_binary:
+            msg = "At least one dependency uses the --hash option, will require hashes"
+            assert msg in caplog.text
+
+            verify_checksums_calls = [
+                verify_sdist_checksum_call,
+                verify_vcs_checksum_call,
+                verify_url_checksum_call,
+            ]
+        # match_checksums_optional == False
+        elif allow_binary:
+            verify_checksums_calls = [
+                verify_sdist_checksum_call,
+                verify_wheel0_checksum_call,
+                verify_wheel1_checksum_call,
+                verify_url_checksum_call,
+            ]
+        else:  # no wheels
             msg = "No hash options used, will not require hashes unless HTTP(S) dependencies are present."
             assert msg in caplog.text
             # Hashes for URL dependencies should be verified no matter what
             verify_checksums_calls = [verify_sdist_checksum_call, verify_url_checksum_call]
-        else:
-            verify_checksums_calls = [
-                verify_sdist_checksum_call,
-                verify_wheel0_checksum_call,
-                verify_wheel1_checksum_call,
-                verify_url_checksum_call,
-            ]
 
         mock_must_match_any_checksum.assert_has_calls(verify_checksums_calls)
         assert mock_must_match_any_checksum.call_count == len(verify_checksums_calls)
