@@ -55,8 +55,8 @@ def make_dpi(
     url: str = "",
     index_url: str = pypi_simple.PYPI_SIMPLE_ENDPOINT,
     is_yanked: bool = False,
-    pypi_checksums: Collection[ChecksumInfo] = (),
-    user_checksums: Collection[ChecksumInfo] = (),
+    pypi_checksum: Collection[ChecksumInfo] = (),
+    req_file_checksums: Collection[ChecksumInfo] = (),
 ) -> pip.DistributionPackageInfo:
     return pip.DistributionPackageInfo(
         name=name,
@@ -66,8 +66,8 @@ def make_dpi(
         url=url,
         index_url=index_url,
         is_yanked=is_yanked,
-        pypi_checksums=set(pypi_checksums),
-        user_checksums=set(user_checksums),
+        pypi_checksums=set(pypi_checksum),
+        req_file_checksums=set(req_file_checksums),
     )
 
 
@@ -2852,16 +2852,16 @@ class TestDownload:
 
         if use_user_hashes and use_pypi_digests:
             assert (
-                f"{package_name}: using intersection of user specified and PyPI reported checksums"
+                f"{package_name}: using intersection of requirements-file and PyPI-reported checksums"
                 in caplog.text
             )
-            assert artifacts[1].checksums_to_verify == set(
+            assert artifacts[1].checksums_to_match == set(
                 [ChecksumInfo("sha128", "abcdef"), ChecksumInfo("sha256", "abcdef")]
             )
 
         elif use_user_hashes and not use_pypi_digests:
-            assert f"{package_name}: using user specified checksums" in caplog.text
-            assert artifacts[1].checksums_to_verify == set(
+            assert f"{package_name}: using requirements-file checksums" in caplog.text
+            assert artifacts[1].checksums_to_match == set(
                 [
                     ChecksumInfo("sha128", "abcdef"),
                     ChecksumInfo("sha256", "abcdef"),
@@ -2870,8 +2870,8 @@ class TestDownload:
             )
 
         elif use_pypi_digests and not use_user_hashes:
-            assert f"{package_name}: using PyPI reported checksums" in caplog.text
-            assert artifacts[1].checksums_to_verify == set(
+            assert f"{package_name}: using PyPI-reported checksums" in caplog.text
+            assert artifacts[1].checksums_to_match == set(
                 [
                     ChecksumInfo("sha128", "abcdef"),
                     ChecksumInfo("sha256", "abcdef"),
@@ -2881,10 +2881,10 @@ class TestDownload:
 
         elif not use_user_hashes and not use_pypi_digests:
             assert (
-                f"{package_name}: no checksums reported by PyPI or specified by the user"
+                f"{package_name}: no checksums reported by PyPI or specified in requirements file"
                 in caplog.text
             )
-            assert artifacts[1].checksums_to_verify == set()
+            assert artifacts[1].checksums_to_match == set()
 
     @mock.patch.object(pypi_simple.PyPISimple, "get_project_page")
     def test_process_package_distributions_with_different_checksums(
@@ -3309,7 +3309,7 @@ class TestDownload:
         msg = "Not a valid hash specifier: 'malformed' (expected 'algorithm:digest')"
         assert str(exc_info.value) == msg
 
-    @pytest.mark.parametrize("use_hashes", [True, False])
+    @pytest.mark.parametrize("match_checksums", [True, False])
     @pytest.mark.parametrize("trusted_hosts", [[], ["example.org"]])
     @pytest.mark.parametrize("allow_binary", [True, False])
     @pytest.mark.parametrize(
@@ -3333,7 +3333,7 @@ class TestDownload:
         mock_download_url_package: mock.Mock,
         mock_download_vcs_package: mock.Mock,
         mock_process_package_distributions: mock.Mock,
-        use_hashes: bool,
+        match_checksums: bool,
         trusted_hosts: list[str],
         allow_binary: bool,
         index_url: Optional[str],
@@ -3363,7 +3363,7 @@ class TestDownload:
             qualifiers={"cachito_hash": "sha256:654321"},
         )
 
-        if use_hashes:
+        if match_checksums:
             pypi_req.hashes = ["sha256:abcdef"]
             vcs_req.hashes = ["sha256:123456"]
 
@@ -3401,7 +3401,7 @@ class TestDownload:
             "path": vcs_download,
             "repo": "eggs",
             "package_type": "",
-            "hash_verified": use_hashes,
+            "checksum_matched": match_checksums,
             "requirement_file": str(req_file.file_path.subpath_from_root),
             # etc., not important for this test
         }
@@ -3411,7 +3411,7 @@ class TestDownload:
             "original_url": plain_url,
             "url_with_hash": plain_url,
             "path": url_download,
-            "hash_verified": True,
+            "checksum_matched": True,
             "requirement_file": str(req_file.file_path.subpath_from_root),
         }
 
@@ -3421,12 +3421,12 @@ class TestDownload:
             "foo",
             path=sdist_download,
             index_url=expect_index_url,
-            pypi_checksums={ChecksumInfo("sha256", "abcdef")},
+            pypi_checksum={ChecksumInfo("sha256", "abcdef")},
         )
         sdist_d_i = sdist_DPI.download_info | {
             "kind": "pypi",
             "requirement_file": str(req_file.file_path.subpath_from_root),
-            "hash_verified": True,
+            "checksum_matched": True,
             "package_type": "sdist",
             "index_url": expect_index_url,
         }
@@ -3435,7 +3435,7 @@ class TestDownload:
 
         wheels_DPI: list[pip.DistributionPackageInfo] = []
         if allow_binary:
-            for wheel_path, checksums, hash_verified in zip(
+            for wheel_path, checksums, checksum_matched in zip(
                 [wheel_0_download, wheel_1_download, wheel_2_download],
                 [{ChecksumInfo("sha256", "fedcba")}, {ChecksumInfo("sha256", "abcdef")}, set()],
                 [False, True, False],
@@ -3445,7 +3445,7 @@ class TestDownload:
                     package_type="wheel",
                     path=wheel_path,
                     index_url=expect_index_url,
-                    pypi_checksums=checksums,
+                    pypi_checksum=checksums,
                 )
                 wheels_DPI.append(dpi)
                 wheel_downloads.append(
@@ -3453,7 +3453,7 @@ class TestDownload:
                     | {
                         "kind": "pypi",
                         "requirement_file": str(req_file.file_path.subpath_from_root),
-                        "hash_verified": hash_verified,
+                        "checksum_matched": checksum_matched,
                         "package_type": "wheel",
                         "index_url": expect_index_url,
                     }
@@ -3464,13 +3464,13 @@ class TestDownload:
         mock_download_vcs_package.return_value = deepcopy(vcs_info)
         mock_download_url_package.return_value = deepcopy(url_info)
 
-        if use_hashes and not allow_binary:
+        if match_checksums and not allow_binary:
             mock_must_match_any_checksum.side_effect = [
                 None,  # sdist_download
                 None,  # vcs_download
                 None,  # url_download
             ]
-        elif use_hashes and allow_binary:
+        elif match_checksums and allow_binary:
             mock_must_match_any_checksum.side_effect = [
                 None,  # sdist_download
                 PackageRejected("", solution=None),  # wheel_0_download - checksums NOK
@@ -3523,7 +3523,7 @@ class TestDownload:
         verify_url_checksum_call = mock.call(url_download, [ChecksumInfo("sha256", "654321")])
         verify_vcs_checksum_call = mock.call(vcs_download, [ChecksumInfo("sha256", "123456")])
 
-        if use_hashes and not allow_binary:
+        if match_checksums and not allow_binary:
             msg = "At least one dependency uses the --hash option, will require hashes"
             assert msg in caplog.text
 
@@ -3532,7 +3532,7 @@ class TestDownload:
                 verify_vcs_checksum_call,
                 verify_url_checksum_call,
             ]
-        elif use_hashes and allow_binary:
+        elif match_checksums and allow_binary:
             msg = "At least one dependency uses the --hash option, will require hashes"
             assert msg in caplog.text
 
@@ -3621,7 +3621,7 @@ class TestDownload:
             pypi_package1.download_info
             | {
                 "kind": "pypi",
-                "hash_verified": False,
+                "checksum_matched": False,
                 "requirement_file": str(req_file1.subpath_from_root),
                 "package_type": "sdist",
                 "index_url": pypi_simple.PYPI_SIMPLE_ENDPOINT,
@@ -3629,7 +3629,7 @@ class TestDownload:
             pypi_package2.download_info
             | {
                 "kind": "pypi",
-                "hash_verified": False,
+                "checksum_matched": False,
                 "requirement_file": str(req_file2.subpath_from_root),
                 "package_type": "sdist",
                 "index_url": pypi_simple.PYPI_SIMPLE_ENDPOINT,
@@ -3732,7 +3732,7 @@ def test_resolve_pip(
                 "path": "some/path",
                 "package": "bar",
                 "version": "2.1",
-                "hash_verified": True,
+                "checksum_matched": True,
                 "requirement_file": str(req_file.subpath_from_root),
                 "package_type": "sdist",
                 "index_url": pypi_simple.PYPI_SIMPLE_ENDPOINT,
@@ -3744,7 +3744,7 @@ def test_resolve_pip(
                 "path": "another/path",
                 "package": "baz",
                 "version": "0.0.5",
-                "hash_verified": True,
+                "checksum_matched": True,
                 "requirement_file": str(build_req_file.subpath_from_root),
                 "package_type": "sdist",
                 "index_url": pypi_simple.PYPI_SIMPLE_ENDPOINT,
@@ -3770,7 +3770,7 @@ def test_resolve_pip(
                 "type": "pip",
                 "dev": False,
                 "kind": "pypi",
-                "hash_verified": True,
+                "checksum_matched": True,
                 "requirement_file": "req.txt" if custom_requirements else "requirements.txt",
                 "package_type": "sdist",
                 "index_url": pypi_simple.PYPI_SIMPLE_ENDPOINT,
@@ -3781,7 +3781,7 @@ def test_resolve_pip(
                 "type": "pip",
                 "dev": True,
                 "kind": "pypi",
-                "hash_verified": True,
+                "checksum_matched": True,
                 "requirement_file": "breq.txt" if custom_requirements else "requirements-build.txt",
                 "package_type": "sdist",
                 "index_url": pypi_simple.PYPI_SIMPLE_ENDPOINT,
@@ -3811,7 +3811,7 @@ def test_get_external_requirement_filepath(component_kind: str, url: str) -> Non
             "github.com", "cachito", "mypkg", f"mypkg-external-gitcommit-{'f' * 40}.tar.gz"
         )
     else:
-        assert False
+        raise AssertionError()
 
 
 @pytest.mark.parametrize(
@@ -3980,7 +3980,7 @@ def test_fetch_pip_source(
                 "type": "pip",
                 "dev": False,
                 "kind": "url",
-                "hash_verified": True,
+                "checksum_matched": True,
                 "requirement_file": "requirements.txt",
             },
             {
@@ -3991,7 +3991,7 @@ def test_fetch_pip_source(
                 "type": "pip",
                 "dev": True,
                 "kind": "pypi",
-                "hash_verified": True,
+                "checksum_matched": True,
                 "requirement_file": "requirements.txt",
             },
         ],
@@ -4008,7 +4008,7 @@ def test_fetch_pip_source(
                 "type": "pip",
                 "dev": False,
                 "kind": "pypi",
-                "hash_verified": False,
+                "checksum_matched": False,
                 "requirement_file": "requirements.txt",
             },
             {
@@ -4018,7 +4018,7 @@ def test_fetch_pip_source(
                 "type": "pip",
                 "dev": False,
                 "kind": "url",
-                "hash_verified": False,
+                "checksum_matched": False,
                 "requirement_file": "requirements.txt",
             },
         ],

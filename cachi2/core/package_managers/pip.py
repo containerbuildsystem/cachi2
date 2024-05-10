@@ -97,30 +97,31 @@ class DistributionPackageInfo:
     index_url: str
     is_yanked: bool
 
+    # PyPi only returns a single checksum for a given download artifact
     pypi_checksums: set[ChecksumInfo] = field(default_factory=set)
-    user_checksums: set[ChecksumInfo] = field(default_factory=set)
+    # "User" checksums *must* come from a 'requirements*.txt' file or equivalent
+    req_file_checksums: set[ChecksumInfo] = field(default_factory=set)
 
-    checksums_to_verify: set[ChecksumInfo] = field(init=False, default_factory=set)
+    checksums_to_match: set[ChecksumInfo] = field(init=False, default_factory=set)
 
     def __post_init__(self) -> None:
-        self.checksums_to_verify = self._determine_checksums_to_verify()
+        self.checksums_to_match = self._determine_checksums_to_match()
 
-    def _determine_checksums_to_verify(self) -> set[ChecksumInfo]:
-        """Determine the set of checksums to verify for a given distribution package."""
+    def _determine_checksums_to_match(self) -> set[ChecksumInfo]:
+        """Determine the set of checksums to match for a given distribution package."""
         checksums: set[ChecksumInfo] = set()
-        matching: set[ChecksumInfo] = self.pypi_checksums.intersection(self.user_checksums)
 
-        if self.pypi_checksums and self.user_checksums:
-            checksums = matching
-            msg = "using intersection of user specified and PyPI reported checksums"
+        if self.pypi_checksums and self.req_file_checksums:
+            checksums = self.pypi_checksums.intersection(self.req_file_checksums)
+            msg = "using intersection of requirements-file and PyPI-reported checksums"
         elif self.pypi_checksums:
             checksums = self.pypi_checksums
-            msg = "using PyPI reported checksums"
-        elif self.user_checksums:
-            checksums = self.user_checksums
-            msg = "using user specified checksums"
+            msg = "using PyPI-reported checksums"
+        elif self.req_file_checksums:
+            checksums = self.req_file_checksums
+            msg = "using requirements-file checksums"
         else:
-            msg = "no checksums reported by PyPI or specified by the user"
+            msg = "no checksums reported by PyPI or specified in requirements file"
 
         log.debug("%s: %s", self.path.name, msg)
         return checksums
@@ -128,20 +129,24 @@ class DistributionPackageInfo:
     def should_download(self) -> bool:
         """Determine if this artifact should be downloaded.
 
-        If the user specified any checksums, but they do not match with those
-        reported by PyPI, we do not want to download the artifact.
+        If there are checksums in the requirements file, but they do not match
+        with those reported by PyPI, we do not want to download the artifact.
 
         Otherwise, we do.
         """
         return (
-            len(self.checksums_to_verify) > 0
+            len(self.checksums_to_match) > 0
             or len(self.pypi_checksums) == 0
-            or len(self.user_checksums) == 0
+            or len(self.req_file_checksums) == 0
         )
 
-    def should_verify_checksums(self) -> bool:
-        """Check if checksum verification is required."""
-        return len(self.checksums_to_verify) > 0
+    def has_checksums_to_match(self) -> bool:
+        """Determine if we have checksums to match against.
+
+        This decides whether or not we
+        call `cachi2.core.checksum.must_match_any_checksum()`
+        """
+        return len(self.checksums_to_match) > 0
 
     @property
     def download_info(self) -> dict[str, Any]:
@@ -184,7 +189,7 @@ def fetch_pip_source(request: Request) -> RequestOutput:
             version = dependency["version"] if dependency["kind"] == "pypi" else None
 
             missing_hash_in_file: frozenset = frozenset()
-            if not dependency["hash_verified"]:
+            if not dependency["checksum_matched"]:
                 missing_hash_in_file = frozenset({dependency["requirement_file"]})
 
             pip_package_binary = False
@@ -1477,21 +1482,22 @@ def _process_req(
 ) -> dict[str, Any]:
     download_info["kind"] = req.kind
     download_info["requirement_file"] = str(requirements_file.file_path.subpath_from_root)
-    download_info["hash_verified"] = False
+    download_info["checksum_matched"] = False
 
-    def _hash_verify(path: Path, checksum_info: Iterable[ChecksumInfo]) -> bool:
-        verified: bool = False
+    def _checksum_match(path: Path, checksum_info: Iterable[ChecksumInfo]) -> bool:
+        matched: bool = False
         try:
+            # returns None, raises PackageRejected on failure
             must_match_any_checksum(path, checksum_info)
-            verified = True
+            matched = True
         except PackageRejected:
             path.unlink()
             log.warning("Download '%s' was removed from the output directory", path.name)
-        return verified
+        return matched
 
     if dpi:
-        if dpi.should_verify_checksums():
-            download_info["hash_verified"] = _hash_verify(dpi.path, dpi.checksums_to_verify)
+        if dpi.has_checksums_to_match():
+            download_info["checksum_matched"] = _checksum_match(dpi.path, dpi.checksums_to_match)
 
         if dpi.package_type == "sdist":
             _check_metadata_in_sdist(dpi.path)
@@ -1502,7 +1508,7 @@ def _process_req(
     else:
         if require_hashes or req.kind == "url":
             hashes = req.hashes or [req.qualifiers.get("cachito_hash", "")]
-            download_info["hash_verified"] = _hash_verify(
+            download_info["checksum_matched"] = _checksum_match(
                 download_info["path"], list(map(_to_checksum_info, hashes))
             )
 
@@ -1817,8 +1823,11 @@ def _validate_provided_hashes(requirements: list[PipRequirement], require_hashes
             hashes = req.hashes
 
         if require_hashes and not hashes:
-            # This can only happen for non-URL requirements
-            # For URL requirements, having a hash is required to pass basic validation
+            # We shouldn't get here, but it's a definite error if we do.
+            # VCS reqs *cannot* be hashed, so we'll always hit
+            # this for any VCS req in a 'requirements.txt' which has *any* hash
+            # (other than a URL req with `cachito_hash``).
+            # For URL # requirements, having a hash is required to pass *basic* validation.
             msg = f"Hash is required, dependency does not specify any: {req.download_line}"
             raise PackageRejected(
                 msg,
@@ -1871,7 +1880,7 @@ def _process_package_distributions(
     version = requirement.version_specs[0][1]
     normalized_version = canonicalize_version(version)
     sdists: list[DistributionPackageInfo] = []
-    user_checksums = set(map(_to_checksum_info, requirement.hashes))
+    req_file_checksums = set(map(_to_checksum_info, requirement.hashes))
     wheels: list[DistributionPackageInfo] = []
 
     try:
@@ -1906,7 +1915,7 @@ def _process_package_distributions(
             index_url,
             package.is_yanked,
             pypi_checksums,
-            user_checksums,
+            req_file_checksums,
         )
 
         if dpi.should_download():
@@ -2169,7 +2178,7 @@ def _resolve_pip(
             "type": "pip",
             "dev": dep.get("dev", False),
             "kind": dep["kind"],
-            "hash_verified": dep["hash_verified"],
+            "checksum_matched": dep["checksum_matched"],
             "requirement_file": dep["requirement_file"],
         }
         for dep in (requires + build_requires)
