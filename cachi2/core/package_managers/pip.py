@@ -188,7 +188,7 @@ def fetch_pip_source(request: Request) -> RequestOutput:
             version = dependency["version"] if dependency["kind"] == "pypi" else None
 
             missing_hash_in_file: frozenset = frozenset()
-            if not dependency["checksum_matched"]:
+            if dependency["missing_checksums"]:
                 missing_hash_in_file = frozenset({dependency["requirement_file"]})
 
             pip_package_binary = False
@@ -1481,38 +1481,32 @@ def _process_req(
 ) -> dict[str, Any]:
     download_info["kind"] = req.kind
     download_info["requirement_file"] = str(requirements_file.file_path.subpath_from_root)
-    download_info["checksum_matched"] = False
+    download_info["missing_checksums"] = True
+    # "package_type" is *only* needed for PyPI deps
+    download_info["package_type"] = ""
 
-    def _checksum_match(path: Path, checksum_info: Iterable[ChecksumInfo]) -> bool:
-        matched: bool = False
+    def _checksum_match(path: Path, checksum_info: Iterable[ChecksumInfo]) -> None:
         try:
             # returns None, raises PackageRejected on failure
             must_match_any_checksum(path, checksum_info)
-            matched = True
         except PackageRejected:
             path.unlink()
             log.warning("Download '%s' was removed from the output directory", path.name)
-        return matched
 
     if dpi:
         if dpi.has_checksums_to_match():
-            download_info["checksum_matched"] = _checksum_match(dpi.path, dpi.checksums_to_match)
-
+            download_info["missing_checksums"] = False
+            _checksum_match(dpi.path, dpi.checksums_to_match)
         if dpi.package_type == "sdist":
             _check_metadata_in_sdist(dpi.path)
-
         download_info["package_type"] = dpi.package_type
         download_info["index_url"] = dpi.index_url
-
     else:
         if require_hashes or req.kind == "url":
             hashes = req.hashes or [req.qualifiers.get("cachito_hash", "")]
-            download_info["checksum_matched"] = _checksum_match(
-                download_info["path"], list(map(_to_checksum_info, hashes))
-            )
-
-        # "package_type" is *only* needed for PyPI deps
-        download_info["package_type"] = ""
+            if hashes:
+                download_info["missing_checksums"] = False
+                _checksum_match(download_info["path"], list(map(_to_checksum_info, hashes)))
 
     log.debug(
         "Successfully processed '%s' in path '%s'",
@@ -1605,6 +1599,10 @@ def _download_dependencies(
         log.info("At least one dependency uses the --hash option, will require hashes")
         require_hashes = True
     else:
+        # URL deps with a `cachito_hash` qualifier (which is a loophole
+        # allowing for unhashed VCS deps AND URL deps to coexist in a
+        # 'requirements.txt', thus `require_hashes` should NOT be set), will
+        # fall through to this branch.
         log.info(
             "No hash options used, will not require hashes unless HTTP(S) dependencies are present."
         )
@@ -2174,7 +2172,7 @@ def _resolve_pip(
             "dev": dep.get("dev", False),
             "kind": dep["kind"],
             "requirement_file": dep["requirement_file"],
-            "checksum_matched": dep["checksum_matched"],
+            "missing_checksums": dep["missing_checksums"],
             "package_type": dep["package_type"],
         }
         for dep in (requires + build_requires)

@@ -3372,7 +3372,7 @@ class TestDownload:
             # `make_dpi()`
             "kind": "pypi",
             "requirement_file": str(req_file.file_path.subpath_from_root),
-            "checksum_matched": True,
+            "missing_checksums": False,
             "package_type": "sdist",
             "index_url": expect_index_url,
         }
@@ -3385,14 +3385,14 @@ class TestDownload:
 
         wheels_DPI: list[pip.DistributionPackageInfo] = []
         if allow_binary:
-            for wheel_path, checksums, checksum_matched in zip(
+            for wheel_path, checksums, missing_checksums in zip(
                 [wheel_0_download, wheel_1_download, wheel_2_download],
                 [
                     {ChecksumInfo("sha256", "defabc")},
                     {ChecksumInfo("sha256", "fedcba")},
                     {},
                 ],
-                [True, False, False],
+                [False, False, True],
             ):
                 dpi = make_dpi(
                     "foo",
@@ -3407,7 +3407,7 @@ class TestDownload:
                     | {
                         "kind": "pypi",
                         "requirement_file": str(req_file.file_path.subpath_from_root),
-                        "checksum_matched": checksum_matched,
+                        "missing_checksums": missing_checksums,
                         "package_type": "wheel",
                         "index_url": expect_index_url,
                     }
@@ -3490,7 +3490,7 @@ class TestDownload:
             )
         # </check downloaded wheels>
 
-    @pytest.mark.parametrize("checksum_matched", [True, False])
+    @pytest.mark.parametrize("checksum_match", [True, False])
     @pytest.mark.parametrize("trusted_hosts", [[], ["example.org"]])
     @mock.patch("cachi2.core.package_managers.pip._download_url_package")
     @mock.patch("cachi2.core.package_managers.pip.must_match_any_checksum")
@@ -3505,7 +3505,7 @@ class TestDownload:
         mock_must_match_any_checksum: mock.Mock,
         mock_download_url_package: mock.Mock,
         trusted_hosts: list[str],
-        checksum_matched: bool,
+        checksum_match: bool,
         rooted_tmp_path: RootedPath,
         caplog: LogCaptureFixture,
     ) -> None:
@@ -3556,7 +3556,8 @@ class TestDownload:
             "package": "bar",
             "path": url_download,
             "requirement_file": str(req_file.file_path.subpath_from_root),
-            "checksum_matched": checksum_matched,
+            # Checksums are *mandatory*
+            "missing_checksums": False,
             "package_type": "",
             "original_url": plain_url,
             "url_with_hash": plain_url,
@@ -3565,7 +3566,7 @@ class TestDownload:
         mock_download_url_package.return_value = deepcopy(url_download_info)
 
         mock_must_match_any_checksum.side_effect = [
-            None if checksum_matched else PackageRejected("", solution=None),
+            None if checksum_match else PackageRejected("", solution=None),
         ]
         # </setup>
 
@@ -3583,7 +3584,7 @@ class TestDownload:
         # </check calls that must always be made>
 
         # <check calls to checksum verification method>
-        if checksum_matched:
+        if checksum_match:
             # This looks confusing, but as mentioned above, we're currently only
             # testing the `cachito_hash` hash, which is a loophole allowing
             # hashed URLs and unhashed VCS deps to coexist in a
@@ -3653,7 +3654,8 @@ class TestDownload:
             "package": "bacon",
             "path": vcs_download,
             "requirement_file": str(req_file.file_path.subpath_from_root),
-            "checksum_matched": False,
+            # vcs deps *can't have* checksums
+            "missing_checksums": True,
             "package_type": "",
             "repo": "bacon",
             # etc., not important for this test
@@ -3722,7 +3724,7 @@ class TestDownload:
             | {
                 "kind": "pypi",
                 "requirement_file": str(req_file1.subpath_from_root),
-                "checksum_matched": False,
+                "missing_checksums": True,
                 "package_type": "sdist",
                 "index_url": pypi_simple.PYPI_SIMPLE_ENDPOINT,
             },
@@ -3730,7 +3732,7 @@ class TestDownload:
             | {
                 "kind": "pypi",
                 "requirement_file": str(req_file2.subpath_from_root),
-                "checksum_matched": False,
+                "missing_checksums": True,
                 "package_type": "sdist",
                 "index_url": pypi_simple.PYPI_SIMPLE_ENDPOINT,
             },
@@ -3833,7 +3835,7 @@ def test_resolve_pip(
                 "package": "bar",
                 "path": "some/path",
                 "requirement_file": str(req_file.subpath_from_root),
-                "checksum_matched": True,
+                "missing_checksums": False,
                 "package_type": "sdist",
                 "index_url": pypi_simple.PYPI_SIMPLE_ENDPOINT,
             }
@@ -3845,7 +3847,7 @@ def test_resolve_pip(
                 "package": "baz",
                 "path": "another/path",
                 "requirement_file": str(build_req_file.subpath_from_root),
-                "checksum_matched": True,
+                "missing_checksums": False,
                 "package_type": "sdist",
                 "index_url": pypi_simple.PYPI_SIMPLE_ENDPOINT,
             }
@@ -3871,7 +3873,7 @@ def test_resolve_pip(
                 "dev": False,
                 "kind": "pypi",
                 "requirement_file": "req.txt" if custom_requirements else "requirements.txt",
-                "checksum_matched": True,
+                "missing_checksums": False,
                 "package_type": "sdist",
                 "index_url": pypi_simple.PYPI_SIMPLE_ENDPOINT,
             },
@@ -3882,7 +3884,7 @@ def test_resolve_pip(
                 "dev": True,
                 "kind": "pypi",
                 "requirement_file": "breq.txt" if custom_requirements else "requirements-build.txt",
-                "checksum_matched": True,
+                "missing_checksums": False,
                 "package_type": "sdist",
                 "index_url": pypi_simple.PYPI_SIMPLE_ENDPOINT,
             },
@@ -4080,7 +4082,7 @@ def test_fetch_pip_source(
                 "dev": False,
                 "kind": "url",
                 "requirement_file": "requirements.txt",
-                "checksum_matched": True,
+                "missing_checksums": False,
                 "package_type": "",
             },
             {
@@ -4091,7 +4093,7 @@ def test_fetch_pip_source(
                 "dev": True,
                 "kind": "pypi",
                 "requirement_file": "requirements.txt",
-                "checksum_matched": True,
+                "missing_checksums": False,
                 "package_type": "wheel",
             },
         ],
@@ -4108,7 +4110,7 @@ def test_fetch_pip_source(
                 "dev": False,
                 "kind": "pypi",
                 "requirement_file": "requirements.txt",
-                "checksum_matched": False,
+                "missing_checksums": True,
                 "package_type": "sdist",
             },
             {
@@ -4118,7 +4120,7 @@ def test_fetch_pip_source(
                 "dev": False,
                 "kind": "url",
                 "requirement_file": "requirements.txt",
-                "checksum_matched": False,
+                "missing_checksums": True,
                 "package_type": "",
             },
         ],
