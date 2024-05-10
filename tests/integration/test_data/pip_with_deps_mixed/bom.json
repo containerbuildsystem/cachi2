@@ -7,6 +7,10 @@
         {
           "name": "cachi2:found_by",
           "value": "cachi2"
+        },
+        {
+          "name": "cachi2:missing_hash:in_file",
+          "value": "requirements.txt"
         }
       ],
       "purl": "pkg:pypi/aiowsgi@0.7",
