@@ -1,0 +1,203 @@
+{
+  "bomFormat": "CycloneDX",
+  "components": [
+    {
+      "name": "absl-py",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        },
+        {
+          "name": "cachi2:pip:package:binary",
+          "value": "true"
+        }
+      ],
+      "purl": "pkg:pypi/absl-py@2.1.0",
+      "type": "library",
+      "version": "2.1.0"
+    },
+    {
+      "name": "grpcio",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        },
+        {
+          "name": "cachi2:pip:package:binary",
+          "value": "true"
+        }
+      ],
+      "purl": "pkg:pypi/grpcio@1.64.0",
+      "type": "library",
+      "version": "1.64.0"
+    },
+    {
+      "name": "markdown",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        },
+        {
+          "name": "cachi2:pip:package:binary",
+          "value": "true"
+        }
+      ],
+      "purl": "pkg:pypi/markdown@3.6",
+      "type": "library",
+      "version": "3.6"
+    },
+    {
+      "name": "markupsafe",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        },
+        {
+          "name": "cachi2:pip:package:binary",
+          "value": "true"
+        }
+      ],
+      "purl": "pkg:pypi/markupsafe@2.1.5",
+      "type": "library",
+      "version": "2.1.5"
+    },
+    {
+      "name": "numpy",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        },
+        {
+          "name": "cachi2:pip:package:binary",
+          "value": "true"
+        }
+      ],
+      "purl": "pkg:pypi/numpy@1.26.4",
+      "type": "library",
+      "version": "1.26.4"
+    },
+    {
+      "name": "package",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:pypi/package@0.1.0?vcs_url=git%2Bhttps://github.com/cachito-testing/cachi2-pip-wheels%40eee59273542ee7d412fb359d471386b645cf166e",
+      "type": "library",
+      "version": "0.1.0"
+    },
+    {
+      "name": "protobuf",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        },
+        {
+          "name": "cachi2:pip:package:binary",
+          "value": "true"
+        }
+      ],
+      "purl": "pkg:pypi/protobuf@4.25.3",
+      "type": "library",
+      "version": "4.25.3"
+    },
+    {
+      "name": "setuptools",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        },
+        {
+          "name": "cachi2:pip:package:binary",
+          "value": "true"
+        }
+      ],
+      "purl": "pkg:pypi/setuptools@70.0.0",
+      "type": "library",
+      "version": "70.0.0"
+    },
+    {
+      "name": "six",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        },
+        {
+          "name": "cachi2:pip:package:binary",
+          "value": "true"
+        }
+      ],
+      "purl": "pkg:pypi/six@1.16.0",
+      "type": "library",
+      "version": "1.16.0"
+    },
+    {
+      "name": "tensorboard-data-server",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        },
+        {
+          "name": "cachi2:pip:package:binary",
+          "value": "true"
+        }
+      ],
+      "purl": "pkg:pypi/tensorboard-data-server@0.7.2",
+      "type": "library",
+      "version": "0.7.2"
+    },
+    {
+      "name": "tensorboard",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        },
+        {
+          "name": "cachi2:pip:package:binary",
+          "value": "true"
+        }
+      ],
+      "purl": "pkg:pypi/tensorboard@2.16.2",
+      "type": "library",
+      "version": "2.16.2"
+    },
+    {
+      "name": "werkzeug",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        },
+        {
+          "name": "cachi2:pip:package:binary",
+          "value": "true"
+        }
+      ],
+      "purl": "pkg:pypi/werkzeug@3.0.3",
+      "type": "library",
+      "version": "3.0.3"
+    }
+  ],
+  "metadata": {
+    "tools": [
+      {
+        "name": "cachi2",
+        "vendor": "red hat"
+      }
+    ]
+  },
+  "specVersion": "1.4",
+  "version": 1
+}
