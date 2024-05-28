@@ -96,6 +96,30 @@ log = logging.getLogger(__name__)
             ),
             id="pip_yanked",
         ),
+        pytest.param(
+            utils.TestParameters(
+                repo="https://github.com/cachito-testing/cachi2-pip-wheels.git",
+                ref="3697d63affaec82985f1d9b4035d5305e58c91d6",
+                packages=({"path": ".", "type": "pip", "allow_binary": "true"},),
+                check_vendor_checksums=False,
+                expected_exit_code=0,
+                expected_output="All dependencies fetched successfully",
+            ),
+            id="pip_no_wheels",
+        ),
+        pytest.param(
+            utils.TestParameters(
+                repo="https://github.com/cachito-testing/cachi2-pip-wheels.git",
+                ref="eee59273542ee7d412fb359d471386b645cf166e",
+                packages=({"path": ".", "type": "pip", "allow_binary": "false"},),
+                check_output=False,
+                check_deps_checksums=False,
+                check_vendor_checksums=False,
+                expected_exit_code=2,
+                expected_output="Error: PackageRejected: No distributions found",
+            ),
+            id="pip_no_sdists",
+        ),
     ],
 )
 def test_pip_packages(
@@ -146,6 +170,26 @@ def test_pip_packages(
             ["python3", "/opt/test_package_cachi2"],
             ["registry.fedoraproject.org/fedora-minimal:37"],
             id="pip_e2e_test",
+        ),
+        pytest.param(
+            utils.TestParameters(
+                repo="https://github.com/cachito-testing/cachi2-pip-wheels",
+                ref="eee59273542ee7d412fb359d471386b645cf166e",
+                packages=(
+                    {
+                        "type": "pip",
+                        "requirements_files": ["requirements.txt"],
+                        "requirements_build_files": [],
+                        "allow_binary": "true",
+                    },
+                ),
+                check_vendor_checksums=False,
+                expected_exit_code=0,
+                expected_output="All dependencies fetched successfully",
+            ),
+            ["python3", "/opt/package"],
+            ["Hello, world!"],
+            id="pip_e2e_test_wheels",
         ),
     ],
 )
