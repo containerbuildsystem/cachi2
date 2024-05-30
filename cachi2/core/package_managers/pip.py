@@ -2173,13 +2173,13 @@ def _resolve_pip(
         {
             "name": dep["package"],
             "version": _version(dep),
-            "package_type": dep["package_type"],
             "index_url": dep.get("index_url"),
             "type": "pip",
             "dev": dep.get("dev", False),
             "kind": dep["kind"],
-            "checksum_matched": dep["checksum_matched"],
             "requirement_file": dep["requirement_file"],
+            "checksum_matched": dep["checksum_matched"],
+            "package_type": dep["package_type"],
         }
         for dep in (requires + build_requires)
     ]
