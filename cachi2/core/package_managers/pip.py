@@ -2174,8 +2174,9 @@ def _resolve_pip(
             "type": "pip",
             "dev": dep.get("dev", False),
             "kind": dep["kind"],
-            "checksum_matched": dep["checksum_matched"],
             "requirement_file": dep["requirement_file"],
+            "checksum_matched": dep["checksum_matched"],
+            "package_type": dep["package_type"],
         }
         for dep in (requires + build_requires)
     ]
