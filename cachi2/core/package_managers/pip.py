@@ -2018,11 +2018,11 @@ def _download_url_package(
     download_to = pip_deps_dir.join_within_root(_get_external_requirement_filepath(requirement))
     download_to.path.parent.mkdir(exist_ok=True, parents=True)
 
-    if url.hostname in trusted_hosts:
-        log.debug("Disabling SSL verification, %s is a --trusted-host", url.hostname)
-        insecure = True
-    elif url.port is not None and f"{url.hostname}:{url.port}" in trusted_hosts:
+    if url.port is not None and f"{url.hostname}:{url.port}" in trusted_hosts:
         log.debug("Disabling SSL verification, %s:%s is a --trusted-host", url.hostname, url.port)
+        insecure = True
+    elif url.hostname in trusted_hosts:
+        log.debug("Disabling SSL verification, %s is a --trusted-host", url.hostname)
         insecure = True
     else:
         insecure = False
@@ -2032,9 +2032,7 @@ def _download_url_package(
     if "cachito_hash" in requirement.qualifiers:
         url_with_hash = requirement.url
     else:
-        hashes = requirement.hashes
-        hash_spec = hashes[0] if hashes else requirement.qualifiers["cachito_hash"]
-        url_with_hash = _add_cachito_hash_to_url(url, hash_spec)
+        url_with_hash = _add_cachito_hash_to_url(url, requirement.hashes[0])
 
     return {
         "package": requirement.package,
