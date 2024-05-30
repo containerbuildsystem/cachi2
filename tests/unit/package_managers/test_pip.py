@@ -3399,20 +3399,20 @@ class TestDownload:
         vcs_info = {
             "package": "eggs",
             "path": vcs_download,
-            "repo": "eggs",
-            "package_type": "",
-            "checksum_matched": match_checksums,
             "requirement_file": str(req_file.file_path.subpath_from_root),
+            "checksum_matched": match_checksums,
+            "package_type": "",
+            "repo": "eggs",
             # etc., not important for this test
         }
         url_info = {
             "package": "bar",
+            "path": url_download,
+            "requirement_file": str(req_file.file_path.subpath_from_root),
+            "checksum_matched": True,
             "package_type": "",
             "original_url": plain_url,
             "url_with_hash": plain_url,
-            "path": url_download,
-            "checksum_matched": True,
-            "requirement_file": str(req_file.file_path.subpath_from_root),
         }
 
         expect_index_url = index_url or pypi_simple.PYPI_SIMPLE_ENDPOINT
@@ -3424,6 +3424,8 @@ class TestDownload:
             pypi_checksum={ChecksumInfo("sha256", "abcdef")},
         )
         sdist_d_i = sdist_DPI.download_info | {
+            # other fields are filled in by the call to
+            # `pip.DistributionPackageInfo()``
             "kind": "pypi",
             "requirement_file": str(req_file.file_path.subpath_from_root),
             "checksum_matched": True,
@@ -3621,16 +3623,16 @@ class TestDownload:
             pypi_package1.download_info
             | {
                 "kind": "pypi",
-                "checksum_matched": False,
                 "requirement_file": str(req_file1.subpath_from_root),
+                "checksum_matched": False,
                 "package_type": "sdist",
                 "index_url": pypi_simple.PYPI_SIMPLE_ENDPOINT,
             },
             pypi_package2.download_info
             | {
                 "kind": "pypi",
-                "checksum_matched": False,
                 "requirement_file": str(req_file2.subpath_from_root),
+                "checksum_matched": False,
                 "package_type": "sdist",
                 "index_url": pypi_simple.PYPI_SIMPLE_ENDPOINT,
             },
@@ -3728,24 +3730,24 @@ def test_resolve_pip(
     mock_download.side_effect = [
         [
             {
-                "kind": "pypi",
-                "path": "some/path",
-                "package": "bar",
                 "version": "2.1",
-                "checksum_matched": True,
+                "kind": "pypi",
+                "package": "bar",
+                "path": "some/path",
                 "requirement_file": str(req_file.subpath_from_root),
+                "checksum_matched": True,
                 "package_type": "sdist",
                 "index_url": pypi_simple.PYPI_SIMPLE_ENDPOINT,
             }
         ],
         [
             {
-                "kind": "pypi",
-                "path": "another/path",
-                "package": "baz",
                 "version": "0.0.5",
-                "checksum_matched": True,
+                "kind": "pypi",
+                "package": "baz",
+                "path": "another/path",
                 "requirement_file": str(build_req_file.subpath_from_root),
+                "checksum_matched": True,
                 "package_type": "sdist",
                 "index_url": pypi_simple.PYPI_SIMPLE_ENDPOINT,
             }
@@ -3770,8 +3772,8 @@ def test_resolve_pip(
                 "type": "pip",
                 "dev": False,
                 "kind": "pypi",
-                "checksum_matched": True,
                 "requirement_file": "req.txt" if custom_requirements else "requirements.txt",
+                "checksum_matched": True,
                 "package_type": "sdist",
                 "index_url": pypi_simple.PYPI_SIMPLE_ENDPOINT,
             },
@@ -3781,8 +3783,8 @@ def test_resolve_pip(
                 "type": "pip",
                 "dev": True,
                 "kind": "pypi",
-                "checksum_matched": True,
                 "requirement_file": "breq.txt" if custom_requirements else "requirements-build.txt",
+                "checksum_matched": True,
                 "package_type": "sdist",
                 "index_url": pypi_simple.PYPI_SIMPLE_ENDPOINT,
             },
@@ -3976,23 +3978,23 @@ def test_fetch_pip_source(
             {
                 "name": "bar",
                 "version": "https://x.org/bar.zip#cachito_hash=sha256:aaaaaaaaaa",
-                "package_type": "",
                 "type": "pip",
                 "dev": False,
                 "kind": "url",
-                "checksum_matched": True,
                 "requirement_file": "requirements.txt",
+                "checksum_matched": True,
+                "package_type": "",
             },
             {
                 "name": "baz",
                 "version": "0.0.5",
-                "package_type": "wheel",
                 "index_url": pypi_simple.PYPI_SIMPLE_ENDPOINT,
                 "type": "pip",
                 "dev": True,
                 "kind": "pypi",
-                "checksum_matched": True,
                 "requirement_file": "requirements.txt",
+                "checksum_matched": True,
+                "package_type": "wheel",
             },
         ],
         "requirements": ["/package_a/requirements.txt", "/package_a/requirements-build.txt"],
@@ -4003,23 +4005,23 @@ def test_fetch_pip_source(
             {
                 "name": "ham",
                 "version": "3.2",
-                "package_type": "sdist",
                 "index_url": CUSTOM_PYPI_ENDPOINT,
                 "type": "pip",
                 "dev": False,
                 "kind": "pypi",
-                "checksum_matched": False,
                 "requirement_file": "requirements.txt",
+                "checksum_matched": False,
+                "package_type": "sdist",
             },
             {
                 "name": "eggs",
                 "version": "https://x.org/eggs.zip#cachito_hash=sha256:aaaaaaaaaa",
-                "package_type": "",
                 "type": "pip",
                 "dev": False,
                 "kind": "url",
-                "checksum_matched": False,
                 "requirement_file": "requirements.txt",
+                "checksum_matched": False,
+                "package_type": "",
             },
         ],
         "requirements": ["/package_b/requirements.txt"],
