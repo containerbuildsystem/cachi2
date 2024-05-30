@@ -401,11 +401,13 @@ def build_image_and_check_cmd(
     assert exit_code == 0, f"Injecting project files failed. output-cmd: {output}"
 
     log.info("Build container image with all prerequisites retrieved in previous steps")
-    container_folder = test_data_dir.joinpath(test_case, "container")
 
-    with build_image_for_test_case(
-        tmp_path, str(container_folder.joinpath("Containerfile")), test_case
-    ) as test_image:
+    containerfile = tmp_path.joinpath("Containerfile")
+    if not containerfile.exists():
+        container_folder = test_data_dir.joinpath(test_case, "container")
+        containerfile = container_folder.joinpath("Containerfile")
+
+    with build_image_for_test_case(tmp_path, str(containerfile), test_case) as test_image:
         log.info(f"Run command {check_cmd} on built image {test_image.repository}")
         (output, exit_code) = test_image.run_cmd_on_image(check_cmd, tmp_path)
 
