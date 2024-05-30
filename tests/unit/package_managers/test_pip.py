@@ -20,7 +20,7 @@ from cachi2.core.errors import (
     UnexpectedFormat,
     UnsupportedFeature,
 )
-from cachi2.core.models.input import Request
+from cachi2.core.models.input import PackageInput, Request
 from cachi2.core.models.output import ProjectFile
 from cachi2.core.models.sbom import Component, Property
 from cachi2.core.package_managers import pip
@@ -3963,7 +3963,7 @@ def test_fetch_pip_source(
     mock_resolve_pip: mock.Mock,
     mock_replace_requirements: mock.Mock,
     mock_git_repo: mock.Mock,
-    packages: list[dict[str, Any]],
+    packages: list[PackageInput],
     n_pip_packages: int,
     rooted_tmp_path: RootedPath,
 ) -> None:
@@ -4032,11 +4032,11 @@ def test_fetch_pip_source(
     }
 
     replaced_file_a = ProjectFile(
-        abspath="/package_a/requirements.txt",
+        abspath=Path("/package_a/requirements.txt"),
         template="bar @ file://${output_dir}/deps/pip/...",
     )
     replaced_file_b = ProjectFile(
-        abspath="/package_b/requirements.txt",
+        abspath=Path("/package_b/requirements.txt"),
         template="eggs @ file://${output_dir}/deps/pip/...",
     )
 
