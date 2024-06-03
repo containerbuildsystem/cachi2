@@ -298,6 +298,8 @@ Supported:
 
 Planned:
 
+* dnf
+* cargo
 * rubygems
 
 *Based on the [supported package managers](https://github.com/containerbuildsystem/cachito#package-managers) in the
