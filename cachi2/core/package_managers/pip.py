@@ -1517,13 +1517,14 @@ def _process_pypi_req(
     req: PipRequirement,
     requirements_file: PipRequirementsFile,
     require_hashes: bool,
+    index_url: str,
     pip_deps_dir: RootedPath,
     allow_binary: bool,
 ) -> list[dict[str, Any]]:
     download_infos: list[dict[str, Any]] = []
 
     artifacts: list[DistributionPackageInfo] = _process_package_distributions(
-        req, pip_deps_dir, allow_binary
+        req, pip_deps_dir, allow_binary, index_url
     )
 
     files: dict[str, Union[str, PathLike[str]]] = {
@@ -1612,6 +1613,7 @@ def _download_dependencies(
                 req,
                 requirements_file=requirements_file,
                 require_hashes=require_hashes,
+                index_url=options["index_url"] or pypi_simple.PYPI_SIMPLE_ENDPOINT,
                 pip_deps_dir=pip_deps_dir,
                 allow_binary=allow_binary,
             )
@@ -1648,7 +1650,6 @@ def _process_options(options: list[str]) -> dict[str, Any]:
 
     | Rejected option     | Reason                                                  |
     |---------------------|---------------------------------------------------------|
-    | -i --index-url      | We only support the index which our proxy supports      |
     | --extra-index-url   | We only support one index                               |
     | --no-index          | Index is the only thing we support                      |
     | -f --find-links     | We only support index                                   |
@@ -1670,6 +1671,7 @@ def _process_options(options: list[str]) -> dict[str, Any]:
 
     | Relevant option     | Reason                                                  |
     |---------------------|---------------------------------------------------------|
+    | -i --index-url      | Supported                                               |
     | --require-hashes    | Hashes are optional, so this makes sense                |
     | --trusted-host      | Disables SSL verification for URL dependencies          |
 
@@ -1678,8 +1680,6 @@ def _process_options(options: list[str]) -> dict[str, Any]:
     :raise UnsupportedFeature: If any option was rejected
     """
     reject = {
-        "-i",
-        "--index-url",
         "--extra-index-url",
         "--no-index",
         "-f",
@@ -1687,19 +1687,26 @@ def _process_options(options: list[str]) -> dict[str, Any]:
         "--only-binary",
     }
 
-    require_hashes = False
-    trusted_hosts: list[str] = []
     ignored: list[str] = []
     rejected: list[str] = []
+
+    opts: dict[str, Any] = {
+        "require_hashes": False,
+        "trusted_hosts": [],
+        "index_url": None,
+    }
 
     i = 0
     while i < len(options):
         option = options[i]
 
         if option == "--require-hashes":
-            require_hashes = True
+            opts["require_hashes"] = True
         elif option == "--trusted-host":
-            trusted_hosts.append(options[i + 1])
+            opts["trusted_hosts"].append(options[i + 1])
+            i += 1
+        elif option in ("-i", "--index-url"):
+            opts["index_url"] = options[i + 1]
             i += 1
         elif option in reject:
             rejected.append(option)
@@ -1718,10 +1725,7 @@ def _process_options(options: list[str]) -> dict[str, Any]:
         msg = f"Cachi2 does not support the following options: {', '.join(rejected)}"
         raise UnsupportedFeature(msg)
 
-    return {
-        "require_hashes": require_hashes,
-        "trusted_hosts": trusted_hosts,
-    }
+    return opts
 
 
 def _validate_requirements(requirements: list[PipRequirement]) -> None:
@@ -1825,7 +1829,10 @@ def _validate_provided_hashes(requirements: list[PipRequirement], require_hashes
 
 
 def _process_package_distributions(
-    requirement: PipRequirement, pip_deps_dir: RootedPath, allow_binary: bool = False
+    requirement: PipRequirement,
+    pip_deps_dir: RootedPath,
+    allow_binary: bool = False,
+    index_url: str = pypi_simple.PYPI_SIMPLE_ENDPOINT,
 ) -> list[DistributionPackageInfo]:
     """
     Return a list of DPI objects for the provided pip package.
@@ -1853,7 +1860,7 @@ def _process_package_distributions(
     :rtype: list[DistributionPackageInfo]
     """
     allowed_distros = ["sdist", "wheel"] if allow_binary else ["sdist"]
-    client = pypi_simple.PyPISimple()
+    client = pypi_simple.PyPISimple(index_url)
     processed_dpis: list[DistributionPackageInfo] = []
     name = requirement.package
     version = requirement.version_specs[0][1]
