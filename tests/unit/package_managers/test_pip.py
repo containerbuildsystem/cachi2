@@ -33,6 +33,7 @@ GIT_REF = "9a557920b2a6d4110f838506120904a6fda421a2"
 PKG_DIR = RootedPath("/foo/package_dir")
 PKG_DIR_SUBPATH = PKG_DIR.join_within_root("subpath")
 MOCK_REPO_ID = RepoID("https://github.com/foolish/bar.git", "abcdef1234")
+CUSTOM_PYPI_ENDPOINT = "https://my-pypi.org/simple/"
 
 
 def setup_module() -> None:
@@ -3117,8 +3118,6 @@ class TestDownload:
         All ignored options should be logged, all rejected options should be in error message.
         """
         all_rejected = [
-            "-i",
-            "--index-url",
             "--extra-index-url",
             "--no-index",
             "-f",
@@ -3131,7 +3130,7 @@ class TestDownload:
             pip._download_dependencies(RootedPath("/output"), req_file)
 
         err_msg = (
-            "Cachi2 does not support the following options: -i, --index-url, --extra-index-url, "
+            "Cachi2 does not support the following options: --extra-index-url, "
             "--no-index, -f, --find-links, --only-binary"
         )
         assert str(exc_info.value) == err_msg
@@ -3311,6 +3310,9 @@ class TestDownload:
     @pytest.mark.parametrize("use_hashes", [True, False])
     @pytest.mark.parametrize("trusted_hosts", [[], ["example.org"]])
     @pytest.mark.parametrize("allow_binary", [True, False])
+    @pytest.mark.parametrize(
+        "index_url", [None, pypi_simple.PYPI_SIMPLE_ENDPOINT, CUSTOM_PYPI_ENDPOINT]
+    )
     @mock.patch("cachi2.core.package_managers.pip._process_package_distributions")
     @mock.patch("cachi2.core.package_managers.pip._download_vcs_package")
     @mock.patch("cachi2.core.package_managers.pip._download_url_package")
@@ -3332,6 +3334,7 @@ class TestDownload:
         use_hashes: bool,
         trusted_hosts: list[str],
         allow_binary: bool,
+        index_url: Optional[str],
         rooted_tmp_path: RootedPath,
         caplog: LogCaptureFixture,
     ) -> None:
@@ -3366,6 +3369,9 @@ class TestDownload:
         for host in trusted_hosts:
             options.append("--trusted-host")
             options.append(host)
+        if index_url:
+            options.append("--index-url")
+            options.append(index_url)
 
         req_file = self.mock_requirements_file(
             requirements=[pypi_req, vcs_req, url_req],
@@ -3491,7 +3497,9 @@ class TestDownload:
 
         # <check calls that must always be made>
         mock_check_metadata_in_sdist.assert_called_once_with(sdist_DPI.path)
-        mock_process_package_distributions.assert_called_once_with(pypi_req, pip_deps, allow_binary)
+        mock_process_package_distributions.assert_called_once_with(
+            pypi_req, pip_deps, allow_binary, index_url or pypi_simple.PYPI_SIMPLE_ENDPOINT
+        )
         mock_download_vcs_package.assert_called_once_with(vcs_req, pip_deps)
         mock_download_url_package.assert_called_once_with(url_req, pip_deps, set(trusted_hosts))
         # </check calls that must always be made>
