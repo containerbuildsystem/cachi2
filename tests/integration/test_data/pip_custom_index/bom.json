@@ -1,0 +1,42 @@
+{
+  "bomFormat": "CycloneDX",
+  "components": [
+    {
+      "name": "cachi2-pip-custom-index",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:pypi/cachi2-pip-custom-index?vcs_url=git%2Bhttps://github.com/cachito-testing/cachi2-pip-custom-index.git%404d6fe87e62b984cf420e6c8377821a76895b72a8",
+      "type": "library"
+    },
+    {
+      "name": "requests",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        },
+        {
+          "name": "cachi2:pip:package:binary",
+          "value": "true"
+        }
+      ],
+      "purl": "pkg:pypi/requests@2.32.3?repository_url=http://localhost:8080/simple/",
+      "type": "library",
+      "version": "2.32.3"
+    }
+  ],
+  "metadata": {
+    "tools": [
+      {
+        "name": "cachi2",
+        "vendor": "red hat"
+      }
+    ]
+  },
+  "specVersion": "1.4",
+  "version": 1
+}

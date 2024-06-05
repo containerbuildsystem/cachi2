@@ -5,6 +5,7 @@ import json
 import logging
 import os
 import shutil
+import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 from subprocess import PIPE, Popen
@@ -87,6 +88,25 @@ class ContainerImage:
         (output, exit_code) = run_cmd(image_cmd)
         if exit_code != 0:
             raise RuntimeError(f"Image deletion failed. Output:{output}")
+
+
+class Cachi2Image(ContainerImage):
+    def run_cmd_on_image(
+        self,
+        cmd: List,
+        tmpdir: StrPath,
+        mounts: Sequence[tuple[StrPath, StrPath]] = (),
+        net: Optional[str] = "host",
+    ) -> Tuple[str, int]:
+        netrc_content = os.getenv("CACHI2_TEST_NETRC_CONTENT")
+        if netrc_content:
+            with tempfile.TemporaryDirectory() as netrc_tmpdir:
+                netrc_path = Path(netrc_tmpdir, ".netrc")
+                netrc_path.write_text(netrc_content)
+                return super().run_cmd_on_image(
+                    cmd, tmpdir, [*mounts, (netrc_path, "/root/.netrc")], net
+                )
+        return super().run_cmd_on_image(cmd, tmpdir, mounts, net)
 
 
 def build_image(context_dir: Path, tag: str) -> ContainerImage:

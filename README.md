@@ -233,11 +233,19 @@ In short, tox passes all arguments to the right of `--` directly to pytest.
 
 ### Running integration tests
 
-Build Cachi2 image (localhost/cachi2:latest) and run all integration tests:
+Build Cachi2 image (localhost/cachi2:latest) and run most integration tests:
 
 ```shell
 make test-integration
 ```
+
+Run tests which requires a local PyPI server as well:
+
+```shell
+make test-integration TEST_LOCAL_PYPISERVER=true
+```
+
+Note: while developing, you can run the PyPI server with `tests/pypiserver/start.sh &`.
 
 To run integration-tests with custom image, specify the CACHI2\_IMAGE environment variable. Examples:
 
