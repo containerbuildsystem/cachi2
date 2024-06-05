@@ -117,7 +117,10 @@ async def async_download_files(
     num_attempts: int = int(DEFAULT_RETRY_OPTIONS["total"])
     retry_options = aiohttp_retry.JitterRetry(attempts=num_attempts, retry_all_server_errors=True)
     retry_client = aiohttp_retry.RetryClient(
-        retry_options=retry_options, trace_configs=[trace_config]
+        retry_options=retry_options,
+        trace_configs=[trace_config],
+        # respect proxy settings and .netrc
+        trust_env=True,
     )
 
     async with retry_client as session:
