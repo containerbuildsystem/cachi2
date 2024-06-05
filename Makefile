@@ -2,6 +2,7 @@ PYTHON_VERSION_VENV ?= python3
 TOX_ENVLIST ?= py39
 TOX_ARGS ?=
 GENERATE_TEST_DATA = false
+TEST_LOCAL_PYPISERVER = false
 
 .PHONY: clean
 all: venv
@@ -30,7 +31,9 @@ test-unit: venv
 	venv/bin/tox -e $(TOX_ENVLIST) -- $(TOX_ARGS)
 
 test-integration: venv
-	CACHI2_GENERATE_TEST_DATA=$(GENERATE_TEST_DATA) venv/bin/tox -e integration
+	CACHI2_GENERATE_TEST_DATA=$(GENERATE_TEST_DATA) \
+	CACHI2_TEST_LOCAL_PYPISERVER=$(TEST_LOCAL_PYPISERVER) \
+		venv/bin/tox -e integration
 
 mock-unittest-data:
 	hack/mock-unittest-data/gomod.sh

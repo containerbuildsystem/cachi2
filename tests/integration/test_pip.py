@@ -1,4 +1,5 @@
 import logging
+import os
 from pathlib import Path
 from typing import List
 
@@ -119,6 +120,21 @@ log = logging.getLogger(__name__)
                 expected_output="Error: PackageRejected: No distributions found",
             ),
             id="pip_no_sdists",
+        ),
+        pytest.param(
+            utils.TestParameters(
+                repo="https://github.com/cachito-testing/cachi2-pip-custom-index.git",
+                ref="4d6fe87e62b984cf420e6c8377821a76895b72a8",
+                packages=({"path": ".", "type": "pip", "allow_binary": True},),
+                check_vendor_checksums=False,
+                expected_exit_code=0,
+                expected_output="All dependencies fetched successfully",
+            ),
+            id="pip_custom_index",
+            marks=pytest.mark.skipif(
+                os.getenv("CACHI2_TEST_LOCAL_PYPISERVER") != "true",
+                reason="CACHI2_TEST_LOCAL_PYPISERVER!=true",
+            ),
         ),
     ],
 )
