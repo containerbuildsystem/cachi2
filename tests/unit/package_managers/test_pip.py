@@ -53,6 +53,7 @@ def make_dpi(
     package_type: Literal["sdist", "wheel"] = "sdist",
     path: Path = Path(""),
     url: str = "",
+    index_url: str = pypi_simple.PYPI_SIMPLE_ENDPOINT,
     is_yanked: bool = False,
     pypi_checksums: Collection[ChecksumInfo] = (),
     user_checksums: Collection[ChecksumInfo] = (),
@@ -63,6 +64,7 @@ def make_dpi(
         package_type=package_type,
         path=path,
         url=url,
+        index_url=index_url,
         is_yanked=is_yanked,
         pypi_checksums=set(pypi_checksums),
         user_checksums=set(user_checksums),
@@ -3413,9 +3415,12 @@ class TestDownload:
             "requirement_file": str(req_file.file_path.subpath_from_root),
         }
 
+        expect_index_url = index_url or pypi_simple.PYPI_SIMPLE_ENDPOINT
+
         sdist_DPI = make_dpi(
             "foo",
             path=sdist_download,
+            index_url=expect_index_url,
             pypi_checksums={ChecksumInfo("sha256", "abcdef")},
         )
         sdist_d_i = sdist_DPI.download_info | {
@@ -3423,6 +3428,7 @@ class TestDownload:
             "requirement_file": str(req_file.file_path.subpath_from_root),
             "hash_verified": True,
             "package_type": "sdist",
+            "index_url": expect_index_url,
         }
         pypi_downloads = [sdist_d_i]
         wheel_downloads = []
@@ -3438,6 +3444,7 @@ class TestDownload:
                     "foo",
                     package_type="wheel",
                     path=wheel_path,
+                    index_url=expect_index_url,
                     pypi_checksums=checksums,
                 )
                 wheels_DPI.append(dpi)
@@ -3448,6 +3455,7 @@ class TestDownload:
                         "requirement_file": str(req_file.file_path.subpath_from_root),
                         "hash_verified": hash_verified,
                         "package_type": "wheel",
+                        "index_url": expect_index_url,
                     }
                 )
 
@@ -3498,7 +3506,7 @@ class TestDownload:
         # <check calls that must always be made>
         mock_check_metadata_in_sdist.assert_called_once_with(sdist_DPI.path)
         mock_process_package_distributions.assert_called_once_with(
-            pypi_req, pip_deps, allow_binary, index_url or pypi_simple.PYPI_SIMPLE_ENDPOINT
+            pypi_req, pip_deps, allow_binary, expect_index_url
         )
         mock_download_vcs_package.assert_called_once_with(vcs_req, pip_deps)
         mock_download_url_package.assert_called_once_with(url_req, pip_deps, set(trusted_hosts))
@@ -3616,6 +3624,7 @@ class TestDownload:
                 "hash_verified": False,
                 "requirement_file": str(req_file1.subpath_from_root),
                 "package_type": "sdist",
+                "index_url": pypi_simple.PYPI_SIMPLE_ENDPOINT,
             },
             pypi_package2.download_info
             | {
@@ -3623,6 +3632,7 @@ class TestDownload:
                 "hash_verified": False,
                 "requirement_file": str(req_file2.subpath_from_root),
                 "package_type": "sdist",
+                "index_url": pypi_simple.PYPI_SIMPLE_ENDPOINT,
             },
         ]
         _check_metadata_in_sdist.assert_has_calls(
@@ -3725,6 +3735,7 @@ def test_resolve_pip(
                 "hash_verified": True,
                 "requirement_file": str(req_file.subpath_from_root),
                 "package_type": "sdist",
+                "index_url": pypi_simple.PYPI_SIMPLE_ENDPOINT,
             }
         ],
         [
@@ -3736,6 +3747,7 @@ def test_resolve_pip(
                 "hash_verified": True,
                 "requirement_file": str(build_req_file.subpath_from_root),
                 "package_type": "sdist",
+                "index_url": pypi_simple.PYPI_SIMPLE_ENDPOINT,
             }
         ],
     ]
@@ -3761,6 +3773,7 @@ def test_resolve_pip(
                 "hash_verified": True,
                 "requirement_file": "req.txt" if custom_requirements else "requirements.txt",
                 "package_type": "sdist",
+                "index_url": pypi_simple.PYPI_SIMPLE_ENDPOINT,
             },
             {
                 "name": "baz",
@@ -3771,6 +3784,7 @@ def test_resolve_pip(
                 "hash_verified": True,
                 "requirement_file": "breq.txt" if custom_requirements else "requirements-build.txt",
                 "package_type": "sdist",
+                "index_url": pypi_simple.PYPI_SIMPLE_ENDPOINT,
             },
         ],
         "requirements": [req_file, build_req_file],
@@ -3973,6 +3987,7 @@ def test_fetch_pip_source(
                 "name": "baz",
                 "version": "0.0.5",
                 "package_type": "wheel",
+                "index_url": pypi_simple.PYPI_SIMPLE_ENDPOINT,
                 "type": "pip",
                 "dev": True,
                 "kind": "pypi",
@@ -3989,6 +4004,7 @@ def test_fetch_pip_source(
                 "name": "ham",
                 "version": "3.2",
                 "package_type": "sdist",
+                "index_url": CUSTOM_PYPI_ENDPOINT,
                 "type": "pip",
                 "dev": False,
                 "kind": "pypi",
@@ -4055,7 +4071,7 @@ def test_fetch_pip_source(
         Component(
             name="ham",
             version="3.2",
-            purl="pkg:pypi/ham@3.2",
+            purl=f"pkg:pypi/ham@3.2?repository_url={CUSTOM_PYPI_ENDPOINT}",
             properties=[Property(name="cachi2:missing_hash:in_file", value="requirements.txt")],
         ),
         Component(
@@ -4104,8 +4120,20 @@ def test_fetch_pip_source(
                 "type": "pip",
                 "dev": False,
                 "kind": "pypi",
+                "index_url": pypi_simple.PYPI_SIMPLE_ENDPOINT,
             },
             "pkg:pypi/pypi-package@1.0.0",
+        ),
+        (
+            {
+                "name": "mypypi_package",
+                "version": "2.0.0",
+                "type": "pip",
+                "dev": False,
+                "kind": "pypi",
+                "index_url": CUSTOM_PYPI_ENDPOINT,
+            },
+            f"pkg:pypi/mypypi-package@2.0.0?repository_url={CUSTOM_PYPI_ENDPOINT}",
         ),
         (
             {

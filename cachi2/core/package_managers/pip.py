@@ -94,6 +94,7 @@ class DistributionPackageInfo:
     package_type: Literal["sdist", "wheel"]
     path: Path
     url: str
+    index_url: str
     is_yanked: bool
 
     pypi_checksums: set[ChecksumInfo] = field(default_factory=set)
@@ -245,6 +246,9 @@ def _generate_purl_dependency(package: dict[str, Any]) -> str:
 
     if dependency_kind == "pypi":
         version = package["version"]
+        index_url = package["index_url"]
+        if index_url.rstrip("/") != pypi_simple.PYPI_SIMPLE_ENDPOINT.rstrip("/"):
+            qualifiers = {"repository_url": index_url}
     elif dependency_kind == "vcs":
         qualifiers = {"vcs_url": package["version"]}
     elif dependency_kind == "url":
@@ -1493,6 +1497,7 @@ def _process_req(
             _check_metadata_in_sdist(dpi.path)
 
         download_info["package_type"] = dpi.package_type
+        download_info["index_url"] = dpi.index_url
 
     else:
         if require_hashes or req.kind == "url":
@@ -1898,6 +1903,7 @@ def _process_package_distributions(
             cast(Literal["sdist", "wheel"], package.package_type),
             pip_deps_dir.join_within_root(package.filename).path,
             package.url,
+            index_url,
             package.is_yanked,
             pypi_checksums,
             user_checksums,
@@ -2161,6 +2167,7 @@ def _resolve_pip(
             "name": dep["package"],
             "version": _version(dep),
             "package_type": dep["package_type"],
+            "index_url": dep.get("index_url"),
             "type": "pip",
             "dev": dep.get("dev", False),
             "kind": dep["kind"],
