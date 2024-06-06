@@ -33,7 +33,7 @@ test-unit: venv
 test-integration: venv
 	CACHI2_GENERATE_TEST_DATA=$(GENERATE_TEST_DATA) \
 	CACHI2_TEST_LOCAL_PYPISERVER=$(TEST_LOCAL_PYPISERVER) \
-		venv/bin/tox -e integration
+		venv/bin/tox -e integration -- $(TOX_ARGS)
 
 mock-unittest-data:
 	hack/mock-unittest-data/gomod.sh
