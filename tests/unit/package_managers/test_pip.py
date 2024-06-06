@@ -4,7 +4,7 @@ import re
 from copy import deepcopy
 from pathlib import Path
 from textwrap import dedent
-from typing import Any, Literal, Optional, Union
+from typing import Any, Collection, Literal, Optional, Union
 from unittest import mock
 from urllib.parse import urlparse
 
@@ -44,6 +44,28 @@ def setup_module() -> None:
 @pytest.fixture
 def rooted_tmp_path(tmp_path: Path) -> RootedPath:
     return RootedPath(tmp_path)
+
+
+def make_dpi(
+    name: str,
+    version: str = "1.0",
+    package_type: Literal["sdist", "wheel"] = "sdist",
+    path: Path = Path(""),
+    url: str = "",
+    is_yanked: bool = False,
+    pypi_checksums: Collection[ChecksumInfo] = (),
+    user_checksums: Collection[ChecksumInfo] = (),
+) -> pip.DistributionPackageInfo:
+    return pip.DistributionPackageInfo(
+        name=name,
+        version=version,
+        package_type=package_type,
+        path=path,
+        url=url,
+        is_yanked=is_yanked,
+        pypi_checksums=set(pypi_checksums),
+        user_checksums=set(user_checksums),
+    )
 
 
 @pytest.mark.parametrize("toml_exists", [True, False])
@@ -2948,22 +2970,12 @@ class TestDownload:
 
     def test_sdist_sorting(self) -> None:
         """Test that sdist preference key can be used for sorting in the expected order."""
-        unyanked_tar_gz = pip.DistributionPackageInfo(
-            "unyanked.tar.gz", "1", "sdist", Path(""), "", False
-        )
-        unyanked_zip = pip.DistributionPackageInfo(
-            "unyanked.zip", "1", "sdist", Path(""), "", False
-        )
-        unyanked_tar_bz2 = pip.DistributionPackageInfo(
-            "unyanked.tar.bz2", "1", "sdist", Path(""), "", False
-        )
-        yanked_tar_gz = pip.DistributionPackageInfo(
-            "yanked.tar.gz", "1", "sdist", Path(""), "", True
-        )
-        yanked_zip = pip.DistributionPackageInfo("yanked.zip", "1", "sdist", Path(""), "", True)
-        yanked_tar_bz2 = pip.DistributionPackageInfo(
-            "yanked.tar.bz2", "1", "sdist", Path(""), "", True
-        )
+        unyanked_tar_gz = make_dpi(name="unyanked.tar.gz", is_yanked=False)
+        unyanked_zip = make_dpi(name="unyanked.zip", is_yanked=False)
+        unyanked_tar_bz2 = make_dpi(name="unyanked.tar.bz2", is_yanked=False)
+        yanked_tar_gz = make_dpi(name="yanked.tar.gz", is_yanked=True)
+        yanked_zip = make_dpi(name="yanked.zip", is_yanked=True)
+        yanked_tar_bz2 = make_dpi(name="yanked.tar.bz2", is_yanked=True)
 
         # Original order is descending by preference
         sdists = [
@@ -3395,13 +3407,9 @@ class TestDownload:
             "requirement_file": str(req_file.file_path.subpath_from_root),
         }
 
-        sdist_DPI = pip.DistributionPackageInfo(
+        sdist_DPI = make_dpi(
             "foo",
-            "1.0",
-            "sdist",
-            sdist_download,
-            "",
-            False,
+            path=sdist_download,
             pypi_checksums={ChecksumInfo("sha256", "abcdef")},
         )
         sdist_d_i = sdist_DPI.download_info | {
@@ -3420,14 +3428,11 @@ class TestDownload:
                 [{ChecksumInfo("sha256", "fedcba")}, {ChecksumInfo("sha256", "abcdef")}, set()],
                 [False, True, False],
             ):
-                dpi = pip.DistributionPackageInfo(
+                dpi = make_dpi(
                     "foo",
-                    "1.0",
-                    "wheel",
-                    wheel_path,
-                    "",
-                    False,
-                    pypi_checksums=checksums,  # type: ignore
+                    package_type="wheel",
+                    path=wheel_path,
+                    pypi_checksums=checksums,
                 )
                 wheels_DPI.append(dpi)
                 wheel_downloads.append(
@@ -3590,12 +3595,8 @@ class TestDownload:
         pypi_download1 = pip_deps.join_within_root("foo", "foo-1.0.0.tar.gz").path
         pypi_download2 = pip_deps.join_within_root("bar", "bar-0.0.1.tar.gz").path
 
-        pypi_package1 = pip.DistributionPackageInfo(
-            "foo", "1.0.0", "sdist", pypi_download1, "", False
-        )
-        pypi_package2 = pip.DistributionPackageInfo(
-            "bar", "0.0.1", "sdist", pypi_download2, "", False
-        )
+        pypi_package1 = make_dpi("foo", "1.0.0", path=pypi_download1)
+        pypi_package2 = make_dpi("bar", "0.0.1", path=pypi_download2)
 
         _process_package_distributions.side_effect = [[pypi_package1], [pypi_package2]]
 
