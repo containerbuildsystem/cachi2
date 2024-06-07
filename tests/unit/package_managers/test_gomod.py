@@ -1473,11 +1473,13 @@ def test_invalid_local_replacements(tmpdir: Path) -> None:
 
 
 @pytest.mark.parametrize("vendor_changed", [True, False])
+@pytest.mark.parametrize("go_vendor_cmd", ["mod", "work"])
 @mock.patch("cachi2.core.package_managers.gomod.Go._run")
 @mock.patch("cachi2.core.package_managers.gomod._vendor_changed")
 def test_vendor_deps(
     mock_vendor_changed: mock.Mock,
     mock_run_cmd: mock.Mock,
+    go_vendor_cmd: str,
     vendor_changed: bool,
     rooted_tmp_path: RootedPath,
 ) -> None:
@@ -1488,11 +1490,11 @@ def test_vendor_deps(
     if vendor_changed:
         msg = "The content of the vendor directory is not consistent with go.mod."
         with pytest.raises(PackageRejected, match=msg):
-            _vendor_deps(Go(), app_dir, run_params)
+            _vendor_deps(Go(), app_dir, go_vendor_cmd == "work", run_params)
     else:
-        _vendor_deps(Go(), app_dir, run_params)
+        _vendor_deps(Go(), app_dir, go_vendor_cmd == "work", run_params)
 
-    mock_run_cmd.assert_called_once_with(["go", "mod", "vendor"], **run_params)
+    mock_run_cmd.assert_called_once_with(["go", go_vendor_cmd, "vendor"], **run_params)
     mock_vendor_changed.assert_called_once_with(app_dir)
 
 
