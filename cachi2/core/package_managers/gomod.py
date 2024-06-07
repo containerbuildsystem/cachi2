@@ -864,7 +864,9 @@ def _resolve_gomod(
         flags, app_dir, config.gomod_strict_vendor
     )
     if should_vendor:
-        downloaded_modules = _vendor_deps(go, app_dir, can_make_changes, run_params)
+        downloaded_modules = _vendor_deps(
+            go, app_dir, bool(go_work_path), can_make_changes, run_params
+        )
     else:
         log.info("Downloading the gomod dependencies")
         downloaded_modules = (
@@ -1525,6 +1527,7 @@ def _parse_vendor(module_dir: RootedPath) -> Iterable[ParsedModule]:
 def _vendor_deps(
     go: Go,
     app_dir: RootedPath,
+    has_workspaces: bool,
     can_make_changes: bool,
     run_params: dict[str, Any],
 ) -> Iterable[ParsedModule]:
@@ -1542,7 +1545,9 @@ def _vendor_deps(
     :raise UnexpectedFormat: if Cachi2 fails to parse vendor/modules.txt
     """
     log.info("Vendoring the gomod dependencies")
-    go(["mod", "vendor"], run_params)
+
+    cmdscope = "mod" if not has_workspaces else "work"
+    go([cmdscope, "vendor"], run_params)
     if not can_make_changes and _vendor_changed(app_dir):
         raise PackageRejected(
             reason=(
