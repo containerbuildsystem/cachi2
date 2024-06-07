@@ -36,13 +36,7 @@ if TYPE_CHECKING:
     from typing_extensions import Self
 
 from cachi2.core.config import get_config
-from cachi2.core.errors import (
-    FetchError,
-    PackageManagerError,
-    PackageRejected,
-    UnexpectedFormat,
-    UnsupportedFeature,
-)
+from cachi2.core.errors import FetchError, PackageManagerError, PackageRejected, UnexpectedFormat
 from cachi2.core.models.input import Request
 from cachi2.core.models.output import EnvironmentVariable, RequestOutput
 from cachi2.core.models.property_semantics import PropertySet
@@ -1033,14 +1027,7 @@ def _resolve_gomod(
     # Vendor dependencies if the gomod-vendor flag is set
     flags = request.flags
     if should_vendor:
-        # go_work.dir can't be None here
-        if go_work and go_work.dir.path.join("vendor").is_dir():  # type: ignore
-            # NOTE: the same error will be reported even for 1.21 which doesn't support workspace
-            # vendoring, but given it's an invalid configuration and that we plan full 1.22 support
-            # in the foreseeable future, a not so user friendly error should be fine
-            raise UnsupportedFeature("Go workspace vendoring is not supported")
-
-        downloaded_modules = _vendor_deps(go, app_dir, run_params)
+        downloaded_modules = _vendor_deps(go, app_dir, bool(go_work), run_params)
     else:
         log.info("Downloading the gomod dependencies")
         downloaded_modules = (
@@ -1555,9 +1542,9 @@ def _validate_local_replacements(modules: Iterable[ParsedModule], app_path: Root
         app_path.join_within_root(path)
 
 
-def _parse_vendor(module_dir: RootedPath) -> Iterable[ParsedModule]:
+def _parse_vendor(context_dir: RootedPath) -> Iterable[ParsedModule]:
     """Parse modules from vendor/modules.txt."""
-    modules_txt = module_dir.join_within_root("vendor", "modules.txt")
+    modules_txt = context_dir.join_within_root("vendor", "modules.txt")
     if not modules_txt.path.exists():
         return []
 
@@ -1615,7 +1602,8 @@ def _parse_vendor(module_dir: RootedPath) -> Iterable[ParsedModule]:
 
 def _vendor_deps(
     go: Go,
-    app_dir: RootedPath,
+    context_dir: RootedPath,
+    has_workspace: bool,
     run_params: dict[str, Any],
 ) -> Iterable[ParsedModule]:
     """
@@ -1625,13 +1613,16 @@ def _vendor_deps(
 
     :param app_dir: path to the module directory
     :param run_params: common params for the subprocess calls to `go`
+    :param has_workspace: whether we detected Go workspaces in the repo (affects @context_dir)
     :return: the list of Go modules parsed from vendor/modules.txt
     :raise PackageRejected: if vendor directory changed
     :raise UnexpectedFormat: if Cachi2 fails to parse vendor/modules.txt
     """
     log.info("Vendoring the gomod dependencies")
-    go(["mod", "vendor"], run_params)
-    if _vendor_changed(app_dir):
+
+    cmdscope = "work" if has_workspace else "mod"
+    go([cmdscope, "vendor"], run_params)
+    if _vendor_changed(context_dir):
         raise PackageRejected(
             reason=(
                 "The content of the vendor directory is not consistent with go.mod. "
@@ -1643,18 +1634,21 @@ def _vendor_deps(
             ),
             docs=VENDORING_DOC,
         )
-    return _parse_vendor(app_dir)
+    return _parse_vendor(context_dir)
 
 
-def _vendor_changed(app_dir: RootedPath) -> bool:
-    """Check for changes in the vendor directory."""
-    repo_root = app_dir.root
-    vendor = app_dir.path.relative_to(repo_root).joinpath("vendor")
+def _vendor_changed(context_dir: RootedPath) -> bool:
+    """Check for changes in the vendor directory.
+
+    :param context_dir: main module dir OR workspace context (directory containing go.work)
+    """
+    repo_root = context_dir.root
+    vendor = context_dir.path.relative_to(repo_root).joinpath("vendor")
     modules_txt = vendor / "modules.txt"
 
     repo = git.Repo(repo_root)
     # Add untracked files but do not stage them
-    repo.git.add("--intent-to-add", "--force", "--", app_dir)
+    repo.git.add("--intent-to-add", "--force", "--", context_dir)
 
     try:
         # Diffing modules.txt should catch most issues and produce relatively useful output
@@ -1669,6 +1663,6 @@ def _vendor_changed(app_dir: RootedPath) -> bool:
             log.error("%s directory changed after vendoring:\n%s", vendor, vendor_diff)
             return True
     finally:
-        repo.git.reset("--", app_dir)
+        repo.git.reset("--", context_dir)
 
     return False
