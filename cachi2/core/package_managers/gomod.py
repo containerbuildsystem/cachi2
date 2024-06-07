@@ -749,6 +749,7 @@ def _setup_go_toolchain(go_mod_file: RootedPath) -> Go:
     go = Go()
     target_version = None
     go_max_version = version.Version("1.21")
+    go_121_version = version.Version("1.21")
     go_base_version = go.version
     go_mod_version_msg = "go.mod reported versions: '{}'[go], '{}'[toolchain]"
 
@@ -787,13 +788,13 @@ def _setup_go_toolchain(go_mod_file: RootedPath) -> Go:
             ),
         )
 
-    if target_version >= go_max_version:
+    if target_version >= go_121_version:
         # Project makes use of Go >=1.21:
         # - always use the 'X.Y.0' toolchain to make sure GOTOOLCHAIN=auto fetches anything newer
         # - container environments need to have it pre-installed
         # - local environments will always install 1.21.0 SDK and then pull any newer toolchain
         go = Go(release="go1.21.0")
-    elif go_base_version >= go_max_version:
+    elif go_base_version >= go_121_version:
         # Starting with Go 1.21, Go doesn't try to be semantically backwards compatible in that the
         # 'go X.Y' line now denotes the minimum required version of Go, no a "suggested" version.
         # What it means in practice is that a Go toolchain >= 1.21 enforces the biggest common
