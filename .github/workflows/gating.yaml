@@ -99,8 +99,11 @@ jobs:
     name: Build Cachi2 image and run integration tests on it
     runs-on: ubuntu-latest
     container:
-      image: registry.fedoraproject.org/fedora:37
+      image: registry.fedoraproject.org/fedora:40
       options: --privileged
+      volumes:
+      # https://github.com/containers/buildah/issues/3666
+      - /var/lib/containers:/var/lib/containers
 
     steps:
       - name: Install required packages
@@ -127,5 +130,6 @@ jobs:
       - name: Run integration tests on built image
         env:
           CACHI2_IMAGE: localhost/cachi2:${{ github.sha }}
+          CACHI2_TEST_LOCAL_PYPISERVER: 'true'
         run: |
-           tox -e integration
+          tox -e integration
