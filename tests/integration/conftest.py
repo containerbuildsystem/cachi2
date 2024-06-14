@@ -19,16 +19,17 @@ def test_data_dir() -> Path:
 def cachi2_image() -> utils.ContainerImage:
     cachi2_image_ref = os.environ.get("CACHI2_IMAGE")
     if not cachi2_image_ref:
+        cachi2_image_ref = "localhost/cachi2:latest"
         log.info("Building local cachi2:latest image")
         log.info("To skip this step, pass a CACHI2_IMAGE=<image-ref> environment variable, e.g.:")
         log.info("    CACHI2_IMAGE=localhost/cachi2:latest tox -e integration")
         # <arbitrary_path>/cachi2/tests/integration/conftest.py
         #                   [2] <- [1]  <-  [0]  <- parents
         cachi2_repo_root = Path(__file__).parents[2]
-        cachi2 = utils.build_image(cachi2_repo_root, tag="localhost/cachi2:latest")
-    else:
-        cachi2 = utils.ContainerImage(cachi2_image_ref)
-        if not cachi2_image_ref.startswith("localhost/"):
-            cachi2.pull_image()
+        utils.build_image(cachi2_repo_root, tag=cachi2_image_ref)
+
+    cachi2 = utils.ContainerImage(cachi2_image_ref)
+    if not cachi2_image_ref.startswith("localhost/"):
+        cachi2.pull_image()
 
     return cachi2
