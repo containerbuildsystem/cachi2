@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from subprocess import PIPE, Popen
 from tarfile import ExtractError, TarFile
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 import jsonschema
 import requests
@@ -48,6 +48,9 @@ class TestParameters:
     flags: List[str] = field(default_factory=list)
 
 
+StrPath = Union[str, os.PathLike[str]]
+
+
 class ContainerImage:
     def __init__(self, repository: str):
         """Initialize ContainerImage object with associated repository."""
@@ -63,8 +66,20 @@ class ContainerImage:
             raise RuntimeError(f"Pulling {self.repository} failed. Output:{output}")
         log.info("Pulled image: %s.", self.repository)
 
-    def run_cmd_on_image(self, cmd: List, tmpdir: Path) -> Tuple[str, int]:
-        image_cmd = ["podman", "run", "--rm", "-v", f"{tmpdir}:{tmpdir}:z", self.repository] + cmd
+    def run_cmd_on_image(
+        self,
+        cmd: List,
+        tmpdir: StrPath,
+        mounts: Sequence[tuple[StrPath, StrPath]] = (),
+        net: Optional[str] = None,
+    ) -> Tuple[str, int]:
+        flags = ["-v", f"{tmpdir}:{tmpdir}:z"]
+        for src, dest in mounts:
+            flags.append("-v")
+            flags.append(f"{src}:{dest}:z")
+        if net:
+            flags.append(f"--net={net}")
+        image_cmd = ["podman", "run", "--rm", *flags, self.repository] + cmd
         return run_cmd(image_cmd)
 
     def __exit__(self, exc_type: Any, exc_value: Any, exc_traceback: Any) -> None:
