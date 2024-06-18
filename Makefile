@@ -46,12 +46,22 @@ build-image:
 build-pristine-image:
 	podman build --pull-always --no-cache -t localhost/cachi2:latest .
 
-pip-compile: PYTHON_BIN := $(shell which python3.9)
-pip-compile: VENV := $(shell mktemp -d -u --tmpdir --suffix .venv pip_compileXXX)
+# we need git installed in the image due to setuptools-scm which has it as a direct dependency
 pip-compile:
-	$(call make_venv)
-	$(VENV)/bin/pip install -U pip-tools
-	# --allow-unsafe: we use pkg_resources (provided by setuptools) as a runtime dependency
-	$(VENV)/bin/pip-compile --allow-unsafe --generate-hashes --output-file=requirements.txt pyproject.toml
-	$(VENV)/bin/pip-compile --all-extras --allow-unsafe --generate-hashes --output-file=requirements-extras.txt pyproject.toml
-	rm -rf $(VENV)
+	@podman run \
+	--rm \
+	--volume ${PWD}:/cachi2:rw,Z \
+	--workdir /cachi2 \
+	docker.io/library/python:3.9-alpine sh -c \
+		"apk add git && \
+		pip3 install pip-tools && \
+		pip-compile \
+			--allow-unsafe \
+			--generate-hashes \
+			--output-file=requirements.txt \
+			pyproject.toml && \
+		pip-compile \
+			--all-extras \
+			--allow-unsafe \
+			--generate-hashes \
+			--output-file=requirements-extras.txt pyproject.toml"
