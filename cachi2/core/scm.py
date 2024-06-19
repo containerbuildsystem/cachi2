@@ -3,10 +3,10 @@ import logging
 import re
 import tarfile
 import tempfile
-import urllib.parse
 from os import PathLike
 from pathlib import Path
 from typing import NamedTuple, Union
+from urllib.parse import ParseResult, SplitResult, urlparse, urlsplit
 
 from git.repo import Repo
 
@@ -22,9 +22,9 @@ class RepoID(NamedTuple):
     commit_id: str
 
     @property
-    def parsed_origin_url(self) -> urllib.parse.SplitResult:
+    def parsed_origin_url(self) -> SplitResult:
         """Get the url as a urllib.parse.SplitResult."""
-        return urllib.parse.urlsplit(self.origin_url)
+        return urlsplit(self.origin_url)
 
     def as_vcs_url_qualifier(self) -> str:
         """Turn this RepoID into a 'vcs_url' qualifier as defined by the purl spec.
@@ -62,7 +62,12 @@ def get_repo_id(repo: Union[str, PathLike[str], Repo]) -> RepoID:
 
 def _canonicalize_origin_url(url: str) -> str:
     if "://" in url:
-        return url
+        parsed: ParseResult = urlparse(url)
+        cleaned_netloc = parsed.netloc.replace(
+            f"{parsed.username}:{parsed.password}@",
+            "",
+        )
+        return parsed._replace(netloc=cleaned_netloc).geturl()
     # scp-style is "only recognized if there are no slashes before the first colon"
     elif re.match("^[^/]*:", url):
         parts = url.split("@", 1)
