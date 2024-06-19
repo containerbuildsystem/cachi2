@@ -38,9 +38,6 @@ test-integration: venv
 mock-unittest-data:
 	hack/mock-unittest-data/gomod.sh
 
-generate-test-data: GENERATE_TEST_DATA = true
-generate-test-data: test-integration
-
 build-image:
 	podman build -t localhost/cachi2:latest .
 
