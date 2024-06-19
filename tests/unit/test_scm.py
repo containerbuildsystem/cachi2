@@ -24,6 +24,11 @@ class TestRepoID:
             # no-op
             ("ssh://user@git.host.com/some/path", "ssh://user@git.host.com/some/path"),
             ("https://git.host.com/some/path", "https://git.host.com/some/path"),
+            # credentials
+            (
+                "https://student:redhat@github.com/student/cachi2.git",
+                "https://github.com/student/cachi2.git",
+            ),
             # unsupported
             (
                 "./foo:bar",
