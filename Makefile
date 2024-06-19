@@ -4,7 +4,7 @@ TOX_ARGS ?=
 GENERATE_TEST_DATA = false
 TEST_LOCAL_PYPISERVER = false
 
-.PHONY: clean
+.PHONY: clean pip-compile
 all: venv
 
 define make_venv
