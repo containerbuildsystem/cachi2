@@ -262,10 +262,10 @@ tox -e integration -- tests/integration/test_package_managers.py::test_packages[
 
 ### Running integration tests and generating new test data
 
-To update or generate new data (output, dependencies checksums, vendor checksums) and run integration tests with them:
+To re-generate new data (output, dependencies checksums, vendor checksums) and run integration tests with them:
 
 ```shell
-make generate-test-data
+make GENERATE_TEST_DATA=true test-integration
 ```
 
 Generate data for test cases matching a pytest pattern:
