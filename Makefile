@@ -20,7 +20,7 @@ venv: PYTHON_BIN := $(shell which $(PYTHON_VERSION_VENV))
 venv: VENV := venv
 venv:
 	$(call make_venv)
-	$(VENV)/bin/pip install -r requirements.txt
+	$(VENV)/bin/pip install -r requirements.txt -r requirements-extras.txt
 	$(VENV)/bin/pip install tox
 	$(VENV)/bin/pip install -e .
 
