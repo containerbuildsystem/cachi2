@@ -5,6 +5,7 @@ WORKDIR /src
 RUN dnf -y install \
     --setopt install_weak_deps=0 \
     --nodocs \
+    createrepo_c \
     gcc \
     git-core \
     golang-bin \
