@@ -151,7 +151,9 @@ def test_corepack_installed_correct_yarn_version(
     mock_run_yarn_cmd.return_value = corepack_yarn_version
 
     _verify_corepack_yarn_version(expected_yarn_version, rooted_tmp_path)
-    mock_run_yarn_cmd.assert_called_once_with(["--version"], rooted_tmp_path)
+    mock_run_yarn_cmd.assert_called_once_with(
+        ["--version"], rooted_tmp_path, env={"COREPACK_ENABLE_DOWNLOAD_PROMPT": "0"}
+    )
 
 
 @pytest.mark.parametrize(
@@ -173,7 +175,9 @@ def test_corepack_installed_correct_yarn_version_fail(
     with pytest.raises(PackageManagerError):
         _verify_corepack_yarn_version(expected_yarn_version, rooted_tmp_path)
 
-    mock_run_yarn_cmd.assert_called_once_with(["--version"], rooted_tmp_path)
+    mock_run_yarn_cmd.assert_called_once_with(
+        ["--version"], rooted_tmp_path, env={"COREPACK_ENABLE_DOWNLOAD_PROMPT": "0"}
+    )
 
 
 @pytest.mark.parametrize(
