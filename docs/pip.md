@@ -266,6 +266,44 @@ If you do need to use a git url, Cachi2 requires that it specifies a full commit
 git urls. Cachi2 requires hashes for https. Using one --hash makes pip require hashes for everything. Pip does not
 support hashes for git dependencies. Please use https urls instead.*
 
+### Supported options
+
+Requirements files support some `pip install` options - see
+<https://pip.pypa.io/en/stable/reference/requirements-file-format/#supported-options>.
+
+Cachi2 supports a small subset of them, ignores those that are not relevant for prefetching, and raises an error for
+those that *are* relevant but aren't supported.
+
+#### Global
+
+##### [`--index-url`](https://pip.pypa.io/en/stable/cli/pip_install/#install-index-url)
+
+*Supported since cachi2-v0.8.0.*
+
+Make Cachi2 download packages from the specified Python Package Index server.
+
+Note: applies to all the packages (and only the packages) from the file which contains the `--index-url` option.
+If file A contains `--index-url` and file B does not, Cachi2 will download the packages declared in B from the default
+index server (<https://pypi.org/simple/>).
+
+:warning: **Do not include credentials in the index url.** If needed, provide authentication via a `.netrc` file:
+<https://pip.pypa.io/en/stable/topics/authentication/#netrc-support>
+
+##### [`--require-hashes`](https://pip.pypa.io/en/stable/cli/pip_install/#install-require-hashes)
+
+Enables hash-checking mode. Typically redundant, since the presence of any `--hash` option enables hash-checking mode
+as well.
+
+##### [`--trusted-host`](https://pip.pypa.io/en/stable/cli/pip/#trusted-host)
+
+Disables HTTPS validation for a host. Don't use this for production builds.
+
+#### Per-requirement
+
+##### `--hash`
+
+Specifies the expected hashes for package archives. See also the [hashes](#hashes) section.
+
 ## Project metadata
 
 Cachi2 looks for the name and version of your project in the following project files:
