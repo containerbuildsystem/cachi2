@@ -1,7 +1,7 @@
 FROM docker.io/library/rockylinux:9@sha256:d7be1c094cc5845ee815d4632fe377514ee6ebcf8efaed6892889657e5ddaaa6 as rockylinux9
 FROM docker.io/library/golang:1.20.0-bullseye as golang_120
 FROM docker.io/library/golang:1.21.0-bullseye as golang_121
-FROM docker.io/library/node:16.20.2-bullseye as node_1620
+FROM docker.io/library/node:22.3.0-bullseye as node_223
 
 ########################
 # PREPARE OUR BASE IMAGE
@@ -12,7 +12,6 @@ RUN dnf -y install \
     --nodocs \
     createrepo_c \
     git-core \
-    nodejs \
     python3 \
     && dnf clean all
 
@@ -41,10 +40,11 @@ RUN python3 -m venv /venv && \
 FROM base
 LABEL maintainer="Red Hat"
 
-# copy Go SDKs and Node.js corepack installation from official images
+# copy Go SDKs and Node.js installation from official images
 COPY --from=golang_120 /usr/local/go /usr/local/go/go1.20
 COPY --from=golang_121 /usr/local/go /usr/local/go/go1.21
-COPY --from=node_1620 /usr/local/lib/node_modules/corepack /usr/local/lib/corepack
+COPY --from=node_223 /usr/local/lib/node_modules/corepack /usr/local/lib/corepack
+COPY --from=node_223 /usr/local/bin/node /usr/local/bin/node
 COPY --from=builder /venv /venv
 
 # link corepack, yarn, and go to standard PATH location
