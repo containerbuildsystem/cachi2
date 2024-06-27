@@ -228,7 +228,9 @@ def _generate_environment_variables() -> list[EnvironmentVariable]:
 
 def _verify_corepack_yarn_version(expected_version: semver.Version, source_dir: RootedPath) -> None:
     """Verify that corepack installed the correct version of yarn by checking `yarn --version`."""
-    installed_yarn_version = run_yarn_cmd(["--version"], source_dir).strip()
+    installed_yarn_version = run_yarn_cmd(
+        ["--version"], source_dir, env={"COREPACK_ENABLE_DOWNLOAD_PROMPT": "0"}
+    ).strip()
     try:
         if installed_yarn_version != expected_version:
             raise PackageManagerError(
