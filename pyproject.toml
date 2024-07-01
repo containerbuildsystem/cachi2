@@ -25,6 +25,7 @@ dependencies = [
   "backoff",
   "beautifulsoup4",
   "gitpython",
+  "gemlock_parser @ https://github.com/containerbuildsystem/gemlock-parser/archive/a2f0f4020e07b1e87813a3254eb3e40047d8e981.zip",
   "packageurl-python",
   "packaging",
   "pydantic",

@@ -6,7 +6,7 @@ from typing import Any, Callable
 from cachi2.core.errors import UnsupportedFeature
 from cachi2.core.models.input import PackageManagerType, Request
 from cachi2.core.models.output import RequestOutput
-from cachi2.core.package_managers import gomod, npm, pip, rpm, yarn
+from cachi2.core.package_managers import gomod, npm, pip, rpm, rubygems, yarn
 from cachi2.core.rooted_path import RootedPath
 from cachi2.core.utils import copy_directory
 
@@ -17,6 +17,7 @@ _package_managers: dict[PackageManagerType, Handler] = {
     "npm": npm.fetch_npm_source,
     "pip": pip.fetch_pip_source,
     "yarn": yarn.fetch_yarn_source,
+    "rubygems": rubygems.fetch_rubygems_source,
 }
 
 # This is where we put package managers currently under development in order to

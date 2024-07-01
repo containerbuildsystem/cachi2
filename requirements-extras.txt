@@ -105,6 +105,7 @@ attrs==23.2.0 \
     --hash=sha256:99b87a485a5820b23b879f04c2305b44b951b502fd64be915879d77a7e8fc6f1
     # via
     #   aiohttp
+    #   commoncode
     #   jsonschema
     #   mailbits
     #   referencing
@@ -121,6 +122,7 @@ beautifulsoup4==4.12.3 \
     --hash=sha256:b80878c9f40111313e55da8ba20bdba06d8fa3969fc68304167741bbf9e082ed
     # via
     #   cachi2 (pyproject.toml)
+    #   commoncode
     #   pypi-simple
 black==24.4.2 \
     --hash=sha256:257d724c2c9b1660f353b36c802ccece186a30accc7742c176d29c146df6e474 \
@@ -204,6 +206,10 @@ cffi==1.16.0 \
     --hash=sha256:fa3a0128b152627161ce47201262d3140edb5a5c3da88d73a1b790a959126956 \
     --hash=sha256:fcc8eb6d5902bb1cf6dc4f187ee3ea80a1eba0a89aba40a5cb20a5087d961357
     # via reflink
+chardet==5.2.0 \
+    --hash=sha256:1b3b6ff479a8c414bc3fa2c0852995695c4a026dcd6d0633b2dd092ca39c1cf7 \
+    --hash=sha256:e1cf59446890a00105fe7b7912492ea04b6e6f06d4b742b2c788469e34c82970
+    # via gemlock-parser
 charset-normalizer==3.3.2 \
     --hash=sha256:06435b539f889b1f6f4ac1758871aae42dc3a8c0e24ac9e60c2384973ad73027 \
     --hash=sha256:06a81e93cd441c56a9b65d8e1d043daeb97a3d0856d177d5c90ba85acb3db087 \
@@ -302,11 +308,16 @@ click==8.1.7 \
     # via
     #   black
     #   cachi2 (pyproject.toml)
+    #   commoncode
     #   typer
 colorama==0.4.6 \
     --hash=sha256:08695f5cb7ed6e0531a20572697297273c47b8cae5a63ffc6d6ed5c201be6e44 \
     --hash=sha256:4f1d9991f5acc0ca119f9d443620b77f9d6b33703e51011c16baf57afb285fc6
     # via isort
+commoncode==31.2.1 \
+    --hash=sha256:907a75e6a64e16e19c4072c80e2406d89bde3dcebf79963d7ec6578eca22a883 \
+    --hash=sha256:c1ab57f014bf92b609f95b86e5ae5961afbd7cc83cd42c2a4b9bdb3b8453fa5e
+    # via gemlock-parser
 coverage[toml]==7.5.3 \
     --hash=sha256:015eddc5ccd5364dcb902eaecf9515636806fa1e0d5bef5769d06d0f31b54523 \
     --hash=sha256:04aefca5190d1dc7a53a4c1a5a7f8568811306d7a8ee231c42fb69215571944f \
@@ -456,6 +467,9 @@ frozenlist==1.4.1 \
     # via
     #   aiohttp
     #   aiosignal
+gemlock-parser @ https://github.com/containerbuildsystem/gemlock-parser/archive/a2f0f4020e07b1e87813a3254eb3e40047d8e981.zip \
+    --hash=sha256:6d1a080042d2d773bc83f7275382aaf0afd18b5b0ce861e4f383ed71e8530ac3
+    # via cachi2 (pyproject.toml)
 gitdb==4.0.11 \
     --hash=sha256:81a3407ddd2ee8df444cbacea00e2d038e40150acfa3001696fe0dcf1d3adfa4 \
     --hash=sha256:bf5421126136d6d0af55bc1e7c1af1c397a34f5b7bd79e776cd3e89785c2b04b
@@ -844,6 +858,7 @@ pyyaml==6.0.1 \
     # via
     #   bandit
     #   cachi2 (pyproject.toml)
+    #   saneyaml
 referencing==0.35.1 \
     --hash=sha256:25b42124a6c8b632a425174f24087783efb348a6f1e0008e63cd4466fedf703c \
     --hash=sha256:eda6d3234d62814d1c64e305c1331c9a3a6132da475ab6382eaa997b21ee75de
@@ -860,6 +875,7 @@ requests==2.32.3 \
     --hash=sha256:70761cfe03c773ceb22aa2f671b4757976145175cdfca038c02654d061d6dcc6
     # via
     #   cachi2 (pyproject.toml)
+    #   commoncode
     #   pypi-simple
 rich==13.7.1 \
     --hash=sha256:4edbae314f59eb482f54e9e30bf00d33350aaa94f4bfcd4e9e3110e64d0d7222 \
@@ -970,6 +986,10 @@ rpds-py==0.18.1 \
     # via
     #   jsonschema
     #   referencing
+saneyaml==0.6.0 \
+    --hash=sha256:9fdf69e8fe30882221e4bf26eebd34b0fe645478e53ea10231aa49d8d949d8c7 \
+    --hash=sha256:b2309f7836623cd6db932574ebbc43e3f65c743e7635179e64beecb0d1626e44
+    # via commoncode
 semver==3.0.2 \
     --hash=sha256:6253adb39c70f6e51afed2fa7152bcd414c411286088fb4b9effb133885ab4cc \
     --hash=sha256:b1ea4686fe70b981f85359eda33199d60c53964284e0cfb4977d243e37cf4bf4
@@ -994,6 +1014,10 @@ stevedore==5.2.0 \
     --hash=sha256:1c15d95766ca0569cad14cb6272d4d31dae66b011a929d7c18219c176ea1b5c9 \
     --hash=sha256:46b93ca40e1114cea93d738a6c1e365396981bb6bb78c27045b7587c9473544d
     # via bandit
+text-unidecode==1.3 \
+    --hash=sha256:1311f10e8b895935241623731c2ba64f4c455287888b18189350b67134a822e8 \
+    --hash=sha256:bad6603bb14d279193107714b288be206cac565dfa49aa5b105294dd5c4aab93
+    # via commoncode
 tomli==2.0.1 \
     --hash=sha256:939de3e7a6161af0c887ef91b7d41a53e7c5a1ca976325f429cb46ea9bc30ecc \
     --hash=sha256:de526c12914f0c550d15924c62d72abc48d6fe7364aa87328337a31007fe8a4f
