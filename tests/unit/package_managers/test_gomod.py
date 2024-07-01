@@ -1438,13 +1438,15 @@ def test_should_vendor_deps_strict(
 
 @pytest.mark.parametrize("can_make_changes", [True, False])
 @pytest.mark.parametrize("vendor_changed", [True, False])
+@pytest.mark.parametrize("go_vendor_cmd", ["mod", "work"])
 @mock.patch("cachi2.core.package_managers.gomod.Go._run")
 @mock.patch("cachi2.core.package_managers.gomod._vendor_changed")
 def test_vendor_deps(
     mock_vendor_changed: mock.Mock,
     mock_run_cmd: mock.Mock,
-    can_make_changes: bool,
+    go_vendor_cmd: str,
     vendor_changed: bool,
+    can_make_changes: bool,
     rooted_tmp_path: RootedPath,
 ) -> None:
     app_dir = rooted_tmp_path.join_within_root("some/module")
@@ -1455,11 +1457,11 @@ def test_vendor_deps(
     if expect_error:
         msg = "The content of the vendor directory is not consistent with go.mod."
         with pytest.raises(PackageRejected, match=msg):
-            _vendor_deps(Go(), app_dir, can_make_changes, run_params)
+            _vendor_deps(Go(), app_dir, go_vendor_cmd == "work", can_make_changes, run_params)
     else:
-        _vendor_deps(Go(), app_dir, can_make_changes, run_params)
+        _vendor_deps(Go(), app_dir, go_vendor_cmd == "work", can_make_changes, run_params)
 
-    mock_run_cmd.assert_called_once_with(["go", "mod", "vendor"], **run_params)
+    mock_run_cmd.assert_called_once_with(["go", go_vendor_cmd, "vendor"], **run_params)
     if not can_make_changes:
         mock_vendor_changed.assert_called_once_with(app_dir)
 
