@@ -105,6 +105,7 @@ attrs==23.2.0 \
     --hash=sha256:99b87a485a5820b23b879f04c2305b44b951b502fd64be915879d77a7e8fc6f1
     # via
     #   aiohttp
+    #   commoncode
     #   mailbits
 backoff==2.2.1 \
     --hash=sha256:03f829f5bb1923180821643f8753b0502c3b682293992485b0eef2807afa5cba \
@@ -115,6 +116,7 @@ beautifulsoup4==4.12.3 \
     --hash=sha256:b80878c9f40111313e55da8ba20bdba06d8fa3969fc68304167741bbf9e082ed
     # via
     #   cachi2 (pyproject.toml)
+    #   commoncode
     #   pypi-simple
 certifi==2024.2.2 \
     --hash=sha256:0569859f95fc761b18b45ef421b1290a0f65f147e92a1e5eb3e635f9a5e4e66f \
@@ -174,6 +176,10 @@ cffi==1.16.0 \
     --hash=sha256:fa3a0128b152627161ce47201262d3140edb5a5c3da88d73a1b790a959126956 \
     --hash=sha256:fcc8eb6d5902bb1cf6dc4f187ee3ea80a1eba0a89aba40a5cb20a5087d961357
     # via reflink
+chardet==5.2.0 \
+    --hash=sha256:1b3b6ff479a8c414bc3fa2c0852995695c4a026dcd6d0633b2dd092ca39c1cf7 \
+    --hash=sha256:e1cf59446890a00105fe7b7912492ea04b6e6f06d4b742b2c788469e34c82970
+    # via gemlock-parser
 charset-normalizer==3.3.2 \
     --hash=sha256:06435b539f889b1f6f4ac1758871aae42dc3a8c0e24ac9e60c2384973ad73027 \
     --hash=sha256:06a81e93cd441c56a9b65d8e1d043daeb97a3d0856d177d5c90ba85acb3db087 \
@@ -269,7 +275,13 @@ charset-normalizer==3.3.2 \
 click==8.1.7 \
     --hash=sha256:ae74fb96c20a0277a1d615f1e4d73c8414f5a98db8b799a7931d1582f3390c28 \
     --hash=sha256:ca9853ad459e787e2192211578cc907e7594e294c7ccc834310722b41b9ca6de
-    # via typer
+    # via
+    #   commoncode
+    #   typer
+commoncode==31.2.1 \
+    --hash=sha256:907a75e6a64e16e19c4072c80e2406d89bde3dcebf79963d7ec6578eca22a883 \
+    --hash=sha256:c1ab57f014bf92b609f95b86e5ae5961afbd7cc83cd42c2a4b9bdb3b8453fa5e
+    # via gemlock-parser
 frozenlist==1.4.1 \
     --hash=sha256:04ced3e6a46b4cfffe20f9ae482818e34eba9b5fb0ce4056e4cc9b6e212d09b7 \
     --hash=sha256:0633c8d5337cb5c77acbccc6357ac49a1770b8c487e5b3505c57b949b4b82e98 \
@@ -351,6 +363,9 @@ frozenlist==1.4.1 \
     # via
     #   aiohttp
     #   aiosignal
+gemlock-parser @ https://github.com/containerbuildsystem/gemlock-parser/archive/a2f0f4020e07b1e87813a3254eb3e40047d8e981.zip \
+    --hash=sha256:6d1a080042d2d773bc83f7275382aaf0afd18b5b0ce861e4f383ed71e8530ac3
+    # via cachi2 (pyproject.toml)
 gitdb==4.0.11 \
     --hash=sha256:81a3407ddd2ee8df444cbacea00e2d038e40150acfa3001696fe0dcf1d3adfa4 \
     --hash=sha256:bf5421126136d6d0af55bc1e7c1af1c397a34f5b7bd79e776cd3e89785c2b04b
@@ -631,7 +646,9 @@ pyyaml==6.0.1 \
     --hash=sha256:fca0e3a251908a499833aa292323f32437106001d436eca0e6e7833256674585 \
     --hash=sha256:fd1592b3fdf65fff2ad0004b5e363300ef59ced41c2e6b3a99d4089fa8c5435d \
     --hash=sha256:fd66fc5d0da6d9815ba2cebeb4205f95818ff4b79c3ebe268e75d961704af52f
-    # via cachi2 (pyproject.toml)
+    # via
+    #   cachi2 (pyproject.toml)
+    #   saneyaml
 reflink==0.2.2 \
     --hash=sha256:8435c7153af4d6e66dc8acb48a9372c8ec6f978a09cdf7b57cd6656d969e343a \
     --hash=sha256:882375ee7319275ae5f6a6a1287406365dac1e9643b91ad10e5187d3f84253bd \
@@ -642,11 +659,16 @@ requests==2.32.3 \
     --hash=sha256:70761cfe03c773ceb22aa2f671b4757976145175cdfca038c02654d061d6dcc6
     # via
     #   cachi2 (pyproject.toml)
+    #   commoncode
     #   pypi-simple
 rich==13.7.1 \
     --hash=sha256:4edbae314f59eb482f54e9e30bf00d33350aaa94f4bfcd4e9e3110e64d0d7222 \
     --hash=sha256:9be308cb1fe2f1f57d67ce99e95af38a1e2bc71ad9813b0e247cf7ffbcc3a432
     # via typer
+saneyaml==0.6.0 \
+    --hash=sha256:9fdf69e8fe30882221e4bf26eebd34b0fe645478e53ea10231aa49d8d949d8c7 \
+    --hash=sha256:b2309f7836623cd6db932574ebbc43e3f65c743e7635179e64beecb0d1626e44
+    # via commoncode
 semver==3.0.2 \
     --hash=sha256:6253adb39c70f6e51afed2fa7152bcd414c411286088fb4b9effb133885ab4cc \
     --hash=sha256:b1ea4686fe70b981f85359eda33199d60c53964284e0cfb4977d243e37cf4bf4
@@ -663,6 +685,10 @@ soupsieve==2.5 \
     --hash=sha256:5663d5a7b3bfaeee0bc4372e7fc48f9cff4940b3eec54a6451cc5299f1097690 \
     --hash=sha256:eaa337ff55a1579b6549dc679565eac1e3d000563bcb1c8ab0d0fefbc0c2cdc7
     # via beautifulsoup4
+text-unidecode==1.3 \
+    --hash=sha256:1311f10e8b895935241623731c2ba64f4c455287888b18189350b67134a822e8 \
+    --hash=sha256:bad6603bb14d279193107714b288be206cac565dfa49aa5b105294dd5c4aab93
+    # via commoncode
 tomli==2.0.1 \
     --hash=sha256:939de3e7a6161af0c887ef91b7d41a53e7c5a1ca976325f429cb46ea9bc30ecc \
     --hash=sha256:de526c12914f0c550d15924c62d72abc48d6fe7364aa87328337a31007fe8a4f
