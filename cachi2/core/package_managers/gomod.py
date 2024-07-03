@@ -585,8 +585,6 @@ def fetch_gomod_source(request: Request) -> RequestOutput:
         for subpath in subpaths:
             log.info("Fetching the gomod dependencies at subpath %s", subpath)
 
-            log.info(f'Fetching the gomod dependencies at the "{subpath}" directory')
-
             main_module_dir = request.source_dir.join_within_root(subpath)
             go_work_path = _get_go_work_path(main_module_dir)
 
