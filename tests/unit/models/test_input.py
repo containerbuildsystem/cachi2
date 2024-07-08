@@ -93,7 +93,7 @@ class TestPackageInput:
         ],
     )
     def test_valid_packages(self, input_data: dict[str, Any], expect_data: dict[str, Any]) -> None:
-        adapter = pydantic.TypeAdapter(PackageInput)
+        adapter: pydantic.TypeAdapter[PackageInput] = pydantic.TypeAdapter(PackageInput)
         package = cast(PackageInput, adapter.validate_python(input_data))
         assert package.model_dump() == expect_data
 
@@ -167,7 +167,7 @@ class TestPackageInput:
     )
     def test_invalid_packages(self, input_data: dict[str, Any], expect_error: str) -> None:
         with pytest.raises(pydantic.ValidationError, match=expect_error):
-            adapter = pydantic.TypeAdapter(PackageInput)
+            adapter: pydantic.TypeAdapter[PackageInput] = pydantic.TypeAdapter(PackageInput)
             adapter.validate_python(input_data)
 
 
