@@ -146,7 +146,7 @@ Planned:
 
 <https://go.dev/ref/mod>
 
-Current version: 1.23 [^go-version] [^go-compat]
+Current version: 1.24 [^go-version] [^go-compat]
 
 The gomod package manager works by parsing the [go.mod](https://go.dev/ref/mod#go-mod-file) file present in the source
 repository to determine which dependencies to download. Cachi2 does not parse this file on its own - rather, we rely on
