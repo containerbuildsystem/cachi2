@@ -74,7 +74,12 @@ async def _async_download_binary_file(
     :raise FetchError: If download failed
     """
     try:
-        async with session.get(url, auth=auth, raise_for_status=True) as resp:
+        timeout = aiohttp.ClientTimeout(total=get_config().requests_timeout)
+
+        log.debug(
+            f"aiohttp.ClientSession.get(url: {url}, timeout: {timeout}, raise_for_status: True)"
+        )
+        async with session.get(url, timeout=timeout, auth=auth, raise_for_status=True) as resp:
             with open(download_path, "wb") as f:
                 while True:
                     chunk = await resp.content.read(chunk_size)
