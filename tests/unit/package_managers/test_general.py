@@ -7,6 +7,7 @@ from typing import Any, Dict, Optional, Union
 from unittest import mock
 from unittest.mock import MagicMock
 
+import aiohttp
 import aiohttp_retry
 import pytest
 import requests
@@ -145,7 +146,10 @@ def test_extract_git_info(url: str, nonstandard_info: Any) -> None:
 
 
 @pytest.mark.asyncio
-async def test_async_download_binary_file(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+async def test_async_download_binary_file(
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     url = "http://example.com/file.tar"
     download_path = tmp_path / "file.tar"
 
@@ -174,7 +178,9 @@ async def test_async_download_binary_file(tmp_path: Path, caplog: pytest.LogCapt
         assert f.read() == b"first_chunk-second_chunk-"
 
     assert session.get.called
-    assert session.get.call_args == mock.call(url, auth=None, raise_for_status=True)
+    assert session.get.call_args == mock.call(
+        url, timeout=aiohttp.ClientTimeout(total=300), auth=None, raise_for_status=True
+    )
 
 
 @pytest.mark.asyncio
