@@ -1,14 +1,20 @@
-import shutil
+import errno
+import io
 import subprocess
 from pathlib import Path
 from typing import Optional
 from unittest import mock
 
 import pytest
-import reflink  # type: ignore
 
 from cachi2.core.errors import Cachi2Error
-from cachi2.core.utils import copy_directory, get_cache_dir, run_cmd
+from cachi2.core.utils import (
+    _fast_copy,
+    _FastCopyFailedFallback,
+    copy_directory,
+    get_cache_dir,
+    run_cmd,
+)
 
 
 @mock.patch("subprocess.run")
@@ -84,41 +90,83 @@ def test_run_cmd_executable_not_found(
         run_cmd(["foo"], params={})
 
 
-@mock.patch("shutil.copytree")
-@mock.patch("reflink.supported_at")
+@mock.patch("cachi2.core.utils._get_blocksize")
+def test_fast_copy(mock_blocksize: mock.Mock, tmp_path: Path) -> None:
+    mock_blocksize.return_value = 4
+    src = tmp_path / "src/test"
+    dest = tmp_path / "dest/test"
+    for dir_ in [src.parent, dest.parent]:
+        dir_.mkdir()
+    test_str = "hello world"
+
+    with open(src, "w") as fd:
+        fd.write(test_str)
+
+    nbytes = _fast_copy(src, dest)
+    assert nbytes == len(test_str)
+
+
 @pytest.mark.parametrize(
-    "reflink_supported",
-    (True, False),
+    "errno_",
+    [
+        pytest.param(errno.ENOSYS, id="ENOSYS"),
+        pytest.param(errno.EXDEV, id="EXDEV"),
+        pytest.param(errno.EAGAIN, id="unexpected_errno"),
+    ],
 )
-def test_copy_directory(
-    mock_reflink_supported_at: mock.Mock, mock_shutil_copytree: mock.Mock, reflink_supported: bool
+@mock.patch("os.copy_file_range")
+def test_fast_copy_fail_errno(mock_copy_range: mock.Mock, tmp_path: Path, errno_: int) -> None:
+    src = tmp_path / "src/test"
+    dest = tmp_path / "dest/test"
+    for dir_ in [src.parent, dest.parent]:
+        dir_.mkdir()
+
+    mock_copy_range.side_effect = OSError(errno_)
+
+    with pytest.raises(Exception) as ex:
+        _fast_copy(src, dest)
+
+        if errno_ == errno.EAGAIN:
+            assert isinstance(ex, OSError)
+        else:
+            assert isinstance(ex, _FastCopyFailedFallback)
+
+
+@mock.patch("cachi2.core.utils.open")
+def test_fast_copy_fail_io_fileno(mock_open: mock.MagicMock, tmp_path: Path) -> None:
+    """Test that we correctly signal a fallback to regular copy with a irregular files."""
+    # inherits OSError
+    mock_file = mock.Mock()
+    mock_file.fileno.side_effect = io.UnsupportedOperation
+    mock_open.return_value.__enter__.return_value = mock_file
+
+    with pytest.raises(_FastCopyFailedFallback):
+        _fast_copy(tmp_path / "src/foo", tmp_path / "dest/foo")
+
+
+@mock.patch("os.copy_file_range")
+@mock.patch("cachi2.core.utils.open")
+def test_fast_copy_fail_no_data_copied(
+    mock_open: mock.MagicMock, mock_copy_range: mock.Mock, tmp_path: Path
 ) -> None:
-    mock_reflink_supported_at.return_value = reflink_supported
+    """Test that we correctly signal a fallback to regular copy on fast copy IO errors."""
+    mock_file = mock.Mock()
+    mock_file.tell.return_value = 0
+    mock_open.return_value.__enter__.return_value = mock_file
+    mock_copy_range.return_value = 0
 
-    origin = Path("/fake")
-    destination = Path("/phony")
-
-    copy_directory(origin, destination)
-
-    if reflink_supported:
-        copy_function = reflink.reflink
-    else:
-        copy_function = shutil.copy2
-
-    assert mock_shutil_copytree.call_args.kwargs["copy_function"] == copy_function
+    with pytest.raises(_FastCopyFailedFallback):
+        _fast_copy(tmp_path / "src/foo", tmp_path / "dest/foo")
 
 
 @mock.patch("shutil.copy2")
-@mock.patch("reflink.reflink")
-@mock.patch("reflink.supported_at")
-def test_copy_directory_fallback_on_reflink_fail(
-    mock_reflink_supported_at: mock.Mock,
-    mock_reflink: mock.Mock,
+@mock.patch("os.copy_file_range")
+def test_copy_directory(
+    mock_copy_range: mock.Mock,
     mock_shutil_copy2: mock.Mock,
     tmp_path: Path,
 ) -> None:
-    mock_reflink_supported_at.return_value = True
-    mock_reflink.side_effect = reflink.ReflinkImpossibleError
+    mock_copy_range.side_effect = _FastCopyFailedFallback
     mock_shutil_copy2.return_value = None
 
     # prepare dummy copy data
@@ -129,8 +177,8 @@ def test_copy_directory_fallback_on_reflink_fail(
 
     copy_directory(origin, destination)
 
-    # check we called both copy_functions (reflink, copy2)
-    mock_reflink.assert_called_once()
+    # check we called both copy_functions (_fast_copy, copy2)
+    mock_copy_range.assert_called_once()
     mock_shutil_copy2.assert_called_once()
 
 
