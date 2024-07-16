@@ -1928,6 +1928,7 @@ def test_fetch_tags_fail(repo_remote_with_tag: tuple[RootedPath, RootedPath]) ->
     "go_mod_file, go_mod_version, go_toolchain_version",
     [
         pytest.param("go 1.21", "1.21", None, id="go_minor"),
+        pytest.param("go 1.21.0", "1.21.0", None, id="go_micro"),
         pytest.param("    go    1.21.4    ", "1.21.4", None, id="go_spaces"),
         pytest.param("   toolchain   go1.21.4  ", None, "1.21.4", id="toolchain_spaces"),
         pytest.param("go 1.21\ntoolchain go1.21.6", "1.21", "1.21.6", id="go_and_toolchain"),
