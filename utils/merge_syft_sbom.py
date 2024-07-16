@@ -163,7 +163,7 @@ def merge_sboms(cachi2_sbom_path: str, syft_sbom_path: str) -> str:
     is_duplicate_component = _get_syft_component_filter(cachi2_sbom["components"])
 
     filtered_syft_components = [
-        component for component in syft_sbom["components"] if not is_duplicate_component(component)
+        c for c in syft_sbom.get("components", []) if not is_duplicate_component(c)
     ]
 
     syft_sbom["components"] = filtered_syft_components + cachi2_sbom["components"]
