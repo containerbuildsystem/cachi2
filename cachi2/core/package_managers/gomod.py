@@ -664,6 +664,7 @@ def _get_repository_name(source_dir: RootedPath) -> str:
     return f"{url.hostname}{url.path.rstrip('/').removesuffix('.git')}"
 
 
+# NOTE: get rid of this go.mod parser once we can assume Go > 1.21 (1.20 can't parse micro release)
 def _get_gomod_version(go_mod_file: RootedPath) -> Tuple[Optional[str], Optional[str]]:
     """Return the required/recommended version of Go from go.mod.
 
@@ -677,8 +678,9 @@ def _get_gomod_version(go_mod_file: RootedPath) -> Tuple[Optional[str], Optional
     go_version = None
     toolchain_version = None
 
-    go_version_regex = r"^\s*go\s+(?P<ver>\d+\.\d+(:?\.\d+)?)\s*$"
-    toolchain_version_regex = r"^\s*toolchain\s+go(?P<ver>\d+\.\d+(:?\.\d+)?)\s*$"
+    version_str_regex = r"(?P<ver>\d+\.\d+(:?\.\d+)?)"
+    go_version_regex = rf"^\s*go\s+{version_str_regex}\s*$"
+    toolchain_version_regex = rf"^\s*toolchain\s+go{version_str_regex}\s*$"
 
     go_pattern = re.compile(go_version_regex)
     toolchain_pattern = re.compile(toolchain_version_regex)
