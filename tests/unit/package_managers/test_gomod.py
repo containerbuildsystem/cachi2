@@ -1930,6 +1930,11 @@ def test_fetch_tags_fail(repo_remote_with_tag: tuple[RootedPath, RootedPath]) ->
         pytest.param("go 1.21", "1.21", None, id="go_minor"),
         pytest.param("go 1.21.0", "1.21.0", None, id="go_micro"),
         pytest.param("    go    1.21.4    ", "1.21.4", None, id="go_spaces"),
+        pytest.param("go 1.21rc4", "1.21rc4", None, id="go_minor_rc"),
+        pytest.param("go 1.21.0rc4", "1.21.0rc4", None, id="go_micro_rc"),
+        pytest.param("go 1.21.0  // comment", "1.21.0", None, id="go_commentary"),
+        pytest.param("go 1.21.0//commentary", "1.21.0", None, id="go_commentary_no_spaces"),
+        pytest.param("go 1.21.0beta2//comment", "1.21.0beta2", None, id="go_rc_commentary"),
         pytest.param("   toolchain   go1.21.4  ", None, "1.21.4", id="toolchain_spaces"),
         pytest.param("go 1.21\ntoolchain go1.21.6", "1.21", "1.21.6", id="go_and_toolchain"),
     ],
@@ -1949,6 +1954,8 @@ INVALID_VERSION_STRINGS = [
     "go 1.21.0.100",  # non-conforming to the X.Y(.Z)? versioning template
     "1.21",  # missing 'go' at the beginning
     "go 1.21 foo",  # extra characters after version string
+    "go 1.21prerelease",  # pre-release with no number
+    "go 1.21prerelease_4",  # pre-release with non-alphanum character
     "toolchain 1.21",  # missing 'go' prefix for the toolchain spec
 ]
 
