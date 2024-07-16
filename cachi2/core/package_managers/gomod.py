@@ -678,9 +678,15 @@ def _get_gomod_version(go_mod_file: RootedPath) -> Tuple[Optional[str], Optional
     go_version = None
     toolchain_version = None
 
-    version_str_regex = r"(?P<ver>\d+\.\d+(:?\.\d+)?)"
-    go_version_regex = rf"^\s*go\s+{version_str_regex}\s*$"
-    toolchain_version_regex = rf"^\s*toolchain\s+go{version_str_regex}\s*$"
+    # this needs to be able to handle arbitrary pre-release version identifiers and commentaries
+    # as well, since Go itself can parse it
+    # - 'go 1.21.0'
+    # - '   go 1.21.0rc4'
+    # - 'go 1.21beta1//commentary'
+    version_str_regex = r"(?P<ver>\d+\.\d+(:?\.\d+)?(?:[a-zA-Z]+\d+)?)"
+    post_version_chars_regex = r"\s*(?:\/\/.*)?"
+    go_version_regex = rf"^\s*go\s+{version_str_regex}{post_version_chars_regex}$"
+    toolchain_version_regex = rf"^\s*toolchain\s+go{version_str_regex}{post_version_chars_regex}$"
 
     go_pattern = re.compile(go_version_regex)
     toolchain_pattern = re.compile(toolchain_version_regex)
