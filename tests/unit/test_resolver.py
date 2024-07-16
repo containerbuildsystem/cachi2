@@ -104,6 +104,7 @@ def test_resolve_packages(tmp_path: Path) -> None:
     "packages, copy_exists",
     [
         ([{"type": "yarn"}], True),
+        ([{"type": "yarn-classic"}], True),
         ([{"type": "gomod"}, {"type": "pip"}, {"type": "npm"}], False),
     ],
 )

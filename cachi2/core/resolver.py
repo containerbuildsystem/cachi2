@@ -38,9 +38,7 @@ def resolve_packages(request: Request) -> RequestOutput:
     This function performs the operations in a working copy of the source directory in case
     a package manager that can make unwanted modifications will be used.
     """
-    if not request.yarn_packages:
-        return _resolve_packages(request)
-    else:
+    if request.yarn_packages or request.yarn_classic_packages:
         original_source_dir = request.source_dir
 
         with TemporaryDirectory(".cachi2-source-copy", dir=".") as temp_dir:
@@ -51,6 +49,8 @@ def resolve_packages(request: Request) -> RequestOutput:
             request.source_dir = original_source_dir
 
             return output
+    else:
+        return _resolve_packages(request)
 
 
 def _resolve_packages(request: Request) -> RequestOutput:
