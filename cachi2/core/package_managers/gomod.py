@@ -692,13 +692,17 @@ def _get_gomod_version(go_mod_file: RootedPath) -> Tuple[Optional[str], Optional
     toolchain_pattern = re.compile(toolchain_version_regex)
 
     with open(go_mod_file) as f:
-        for line in f:
+        for i, line in enumerate(f):
             if not go_version and (match := re.match(go_pattern, line)):
                 go_version = match.group("ver")
+                log.debug("Matched Go version %s on go.mod line %d: '%s'", go_version, i, line)
                 continue
 
             if not toolchain_version and (match := re.match(toolchain_pattern, line)):
                 toolchain_version = match.group("ver")
+                log.debug(
+                    "Matched toolchain %s on go.mod line %d: '%s'", toolchain_version, i, line
+                )
                 continue
 
     return (go_version, toolchain_version)
