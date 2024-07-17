@@ -48,7 +48,6 @@ pip-compile:
 		"apk add git && \
 		pip3 install pip-tools && \
 		pip-compile \
-			--allow-unsafe \
 			--generate-hashes \
 			--output-file=requirements.txt \
 			pyproject.toml && \

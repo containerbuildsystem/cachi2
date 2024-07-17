@@ -2205,10 +2205,11 @@ class TestPipRequirementsFile:
 
     def test_corner_cases_when_parsing_single_line(self) -> None:
         """Test scenarios in PipRequirement that cannot be triggered via PipRequirementsFile."""
-        # Empty lines are ignored
-        assert pip.PipRequirement.from_line("     ", []) is None
+        # Empty lines are NOT ignored
+        with pytest.raises(UnexpectedFormat, match="Unable to parse the requirement"):
+            assert pip.PipRequirement.from_line("     ", []) is None
 
-        with pytest.raises(RuntimeError, match="Didn't expect to find multiple requirements in:"):
+        with pytest.raises(UnexpectedFormat, match="Unable to parse the requirement"):
             pip.PipRequirement.from_line("aiowsgi==0.7 \nasn1crypto==1.3.0", [])
 
     def test_replace_requirements(self, rooted_tmp_path: RootedPath) -> None:
