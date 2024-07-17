@@ -750,22 +750,22 @@ def _setup_go_toolchain(go_mod_file: RootedPath) -> Go:
     target_version = None
     go_max_version = version.Version("1.21")
     go_base_version = go.version
-    go_mod_version_msg = "go.mod reported versions: '{}'[go], '{}'[toolchain]"
+    go_mod_version_msg = "go.mod reported versions: '%s'[go], '%s'[toolchain]"
 
     go_version_str, toolchain_version_str = _get_gomod_version(go_mod_file)
+    log.info(
+        go_mod_version_msg,
+        go_version_str if go_version_str else "-",
+        toolchain_version_str if toolchain_version_str else "-",
+    )
+
     if not go_version_str:
         # Go added the 'go' directive to go.mod in 1.12 [1]. If missing, 1.16 is assumed [2].
         # For our version comparison purposes we set the version explicitly to 1.20 if missing.
         # [1] https://go.dev/doc/go1.12#modules
         # [2] https://go.dev/ref/mod#go-mod-file-go
         go_version_str = "1.20"
-        go_mod_version_msg += " (cachi2 enforced)"
-
-    log.info(
-        go_mod_version_msg.format(
-            go_version_str, toolchain_version_str if toolchain_version_str else "-"
-        )
-    )
+        log.debug("Could not parse Go version from go.mod, using %s as fallback", go_version_str)
 
     if not toolchain_version_str:
         toolchain_version_str = go_version_str
