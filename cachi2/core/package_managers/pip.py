@@ -23,7 +23,6 @@ from typing import (
     Literal,
     Optional,
     Pattern,
-    Sequence,
     Union,
     cast,
     no_type_check,
@@ -38,11 +37,10 @@ from cachi2.core.scm import clone_as_tarball, get_repo_id
 if TYPE_CHECKING:
     from typing_extensions import TypeGuard
 
-import pkg_resources
 import pypi_simple
 import requests
-from packaging.utils import canonicalize_version
-from pkg_resources import Requirement, RequirementParseError
+from packaging.requirements import InvalidRequirement, Requirement
+from packaging.utils import canonicalize_name, canonicalize_version
 
 from cachi2.core.checksum import ChecksumInfo, must_match_any_checksum
 from cachi2.core.config import get_config
@@ -321,7 +319,7 @@ def _get_pip_metadata(package_dir: RootedPath) -> tuple[str, Optional[str]]:
             package_subpath = package_dir.subpath_from_root
 
             resolved_path = Path(repo_name).joinpath(package_subpath)
-            normalized_path = pkg_resources.safe_name(str(resolved_path))
+            normalized_path = canonicalize_name(str(resolved_path).replace("/", "-"))
             name = normalized_path.strip("-.")
         except UnsupportedFeature:
             raise PackageRejected(
@@ -362,7 +360,7 @@ def _any_to_version(obj: Any) -> str:
         else:
             version = str(version)
 
-    return pkg_resources.safe_version(version)
+    return canonicalize_version(version, strip_trailing_zero=False)
 
 
 def _get_top_level_attr(
@@ -1310,32 +1308,18 @@ class PipRequirement:
             requirement.kind = "pypi"
 
         try:
-            parsed: Sequence[Requirement] = list(pkg_resources.parse_requirements(to_be_parsed))
-        except (
-            RequirementParseError,
-            pkg_resources.extern.packaging.requirements.InvalidRequirement,
-        ) as exc:
+            req = Requirement(to_be_parsed)
+        except InvalidRequirement as exc:
             # see https://github.com/pypa/setuptools/pull/2137
             raise UnexpectedFormat(f"Unable to parse the requirement {to_be_parsed!r}: {exc}")
-
-        if not parsed:
-            return None
-        # parse_requirements is able to process a multi-line string, thus returning multiple
-        # parsed requirements. However, since it cannot handle the additional syntax from a
-        # requirements file, we parse each line individually. The conditional below should
-        # never be reached, but is left here to aid diagnosis in case this assumption is
-        # not correct.
-        if len(parsed) > 1:
-            raise RuntimeError(f"Didn't expect to find multiple requirements in: {line!r}")
-        req: Requirement = parsed[0]
 
         hashes, options = cls._split_hashes_from_options(options)
 
         requirement.download_line = to_be_parsed
         requirement.options = options
-        requirement.package = req.project_name
+        requirement.package = canonicalize_name(req.name)
         requirement.raw_package = req.name
-        requirement.version_specs = req.specs
+        requirement.version_specs = [(spec.operator, spec.version) for spec in req.specifier]
         requirement.extras = req.extras
         requirement.environment_marker = str(req.marker) if req.marker else None
         requirement.hashes = hashes
@@ -1397,13 +1381,13 @@ class PipRequirement:
     def _adjust_direct_access_requirement(
         line: str, direct_ref_pattern: Pattern[str]
     ) -> tuple[str, dict[str, str]]:
-        """Modify the requirement line so it can be parsed by pkg_resources and extract qualifiers.
+        """Modify the requirement line so it can be parsed and extract qualifiers.
 
         :param str line: a direct access requirement line
         :param str direct_ref_pattern: a Regex used to determine if a requirement
             specifies a package name
         :return: two-item tuple where the first item is a modified direct access requirement
-            line that can be parsed by pkg_resources, and the second item is a dict of the
+            line that can be parsed, and the second item is a dict of the
             qualifiers extracted from the direct access URL
         """
         package_name = None
@@ -1443,7 +1427,7 @@ class PipRequirement:
         requirement_parts = [package_name.strip(), "@", url.strip()]
         if environment_marker:
             # Although a space before the semicolon is not needed by pip, it is needed when
-            # using pkg_resources later on.
+            # using packaging later on.
             requirement_parts.append(";")
             requirement_parts.append(environment_marker.strip())
         return " ".join(requirement_parts), qualifiers
