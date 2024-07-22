@@ -1,48 +1,34 @@
-# Problem Statement
-
-In February 2021, a [blog post](https://medium.com/@alex.birsan/dependency-confusion-4a5d60fec610)
-popularized a novel way to inject malicious content into applications. The question was raised as to
-whether using Cachi2 makes this issue worse. This document is an analysis of each package manager
-supported by Cachi2 to address the security concern named *dependency confusion*.
-
 # Dependency Confusion
 
-To paraphrase the meaning of
-*[dependency confusion](https://medium.com/@alex.birsan/dependency-confusion-4a5d60fec610)*:
-a package manager is tricked into installing a dependency from an official, public, repository when
-it should’ve installed it from a custom, often private, repository. For example, a company may host
-its own internal npm registry which hosts internal-only packages. Then, someone on the Internet
-uploads a package of the same name to the official npm repository. When the application is
-installed, the package manager chooses the dependency package from the public repository instead
-of the internal one.
+Dependency confusion is a spoofing type of software supply chain attack where a malicious
+third-party code is packaged and uploaded to standard default public package repositories under
+an identical name as a legitimate internally hosted software dependency, thus tricking the package
+manager into trusting the default origin repository rather than the intended alternative source
+during software builds.
 
-## Potential Impact
+## Dependency Confusion and cachi2
 
-What happens when Cachi2 is tricked into downloading a malicious version of one of your dependencies?
-To the system that runs Cachi2, nothing. Cachi2 never executes your code, or the code of any of your
-dependencies. What about your build?
+_cachi2 is as vulnerable to dependency confusion as your package manager, not more, not less._
 
-Hopefully, you are building your application in an isolated environment (such as a container build
-with no network access) to protect your own system. In the best case scenario, the malicious behaviour
-will manifest at build time and the build will fail. In the worst case scenario, the build will succeed
-but the built product will contain malicious code, which may then affect whoever tries to run it.
+cachi2 downloads software dependencies, doing its best to prevent any arbitrary code execution
+that can be part of the dependency itself and could potentially infect the resulting product,
+for example, by running a pre/post-install script, which requires detailed research on whether
+a package manager can be fully trusted and relied upon to download dependencies using its native
+mechanisms or by a workaround implemented as an abstraction layer.
 
-## Dependency Confusion vs Cachi2
+The impact on the build depends on the built environment. Ideally, the application should be built
+in an isolated environment, such as a container without network access. In this case, if malicious
+behavior is present, it may cause the build to fail, protecting your system from further harm.
+If the build succeeds, the resulting product could contain malicious code, posing a risk to anyone
+who runs it.
 
-Before delving into the specifics of each supported package manager, let us make a general statement
-about Cachi2’s stance towards dependency confusion.
+## Package Managers
 
-Cachi2 aims to match the behaviour of your package manager as closely as possible. Generally
-speaking, Cachi2 is as vulnerable to dependency confusion as your package manager, not more, not
-less. However, all the supported package managers provide means to protect yourself by following
-best practices. For example, you can remove all known attack vectors by simply verifying the
-checksums of your dependencies.
-
-Cachi2 enforces *some* of these best practices. Typically, each package manager provides a lockfile
-or other mechanism for pinning dependency versions. Cachi2 requires this. Verifying checksums is
-usually up to you.
-
-# Package Managers
+cachi2 follows some of the best practices, such as verifying the checksums of your dependencies
+to ensure their integrity or forcing you to pin all your dependencies to exact versions to avoid
+unexpected updates. However, it is essential to understand how a package manager works and
+what security features it provides to protect your software supply chain. cachi2 supports the
+following package managers:
 
 ## gomod
 
