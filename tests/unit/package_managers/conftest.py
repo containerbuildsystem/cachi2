@@ -1,5 +1,4 @@
 import copy
-import os
 import tempfile
 from pathlib import Path
 from typing import Any, Generator, Optional, Union
@@ -195,10 +194,10 @@ def fake_repo() -> Generator[tuple[Union[str, bytes], Union[str, bytes]], Any, N
         r = git.Repo.init(repo_dir)
         r.git.config("user.name", "tester")
         r.git.config("user.email", "tester@localhost")
-        open(os.path.join(repo_dir, "readme.rst"), "w").close()
+        Path(repo_dir, "readme.rst").touch()
         r.index.add(["readme.rst"])
         r.index.commit("first commit", skip_hooks=True)
-        open(os.path.join(repo_dir, "main.py"), "w").close()
+        Path(repo_dir, "main.py").touch()
         r.index.add(["main.py"])
         r.index.commit("add main source", skip_hooks=True)
         yield repo_dir, repo_dir.lstrip("/")
