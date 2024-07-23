@@ -6,7 +6,6 @@ import subprocess
 import textwrap
 from pathlib import Path
 from string import Template
-from textwrap import dedent
 from typing import Any, Iterator, Optional, Tuple, Union
 from unittest import mock
 
@@ -418,7 +417,7 @@ def test_resolve_gomod_no_deps(
 ) -> None:
     module_path = gomod_request.source_dir.join_within_root("path/to/module")
 
-    mock_pkg_deps_no_deps = dedent(
+    mock_pkg_deps_no_deps = textwrap.dedent(
         """
         {
             "ImportPath": "github.com/release-engineering/retrodep/v2",
@@ -528,7 +527,7 @@ def test_resolve_gomod_suspicious_symlinks(symlinked_file: str, gomod_request: R
         (None, set()),
         ("", set()),
         (
-            dedent(
+            textwrap.dedent(
                 """
                 github.com/creack/pty v1.1.18 h1:n56/Zwd5o6whRC5PMGretI4IdRLlmBXYNjScPaBgsbY=
 
@@ -565,7 +564,7 @@ def test_parse_go_sum(
 
 
 def test_parse_broken_go_sum(rooted_tmp_path: RootedPath, caplog: pytest.LogCaptureFixture) -> None:
-    go_sum_content = dedent(
+    go_sum_content = textwrap.dedent(
         """\
         github.com/creack/pty v1.1.18 h1:n56/Zwd5o6whRC5PMGretI4IdRLlmBXYNjScPaBgsbY=
         github.com/davecgh/go-spew v1.1.0/go.mod
@@ -626,7 +625,7 @@ def test_parse_local_modules(go: mock.Mock, version_resolver: mock.Mock) -> None
     (
         pytest.param(
             "/home/my-projects/simple-project",
-            dedent(
+            textwrap.dedent(
                 """
                 {
                     "Path": "github.com/my-org/simple-project",
@@ -651,7 +650,7 @@ def test_parse_local_modules(go: mock.Mock, version_resolver: mock.Mock) -> None
         ),
         pytest.param(
             "/home/my-projects/project-with-workspaces",
-            dedent(
+            textwrap.dedent(
                 """
                 {
                     "Path": "github.com/my-org/project-with-workspaces",
