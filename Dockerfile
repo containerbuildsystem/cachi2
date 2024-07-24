@@ -46,6 +46,7 @@ COPY --from=golang_121 /usr/local/go /usr/local/go/go1.21
 COPY --from=node_223 /usr/local/lib/node_modules/corepack /usr/local/lib/corepack
 COPY --from=node_223 /usr/local/bin/node /usr/local/bin/node
 COPY --from=builder /venv /venv
+COPY --from=builder /src/utils/merge_syft_sbom.py /usr/local/bin/merge_syft_sbom
 
 # link corepack, yarn, and go to standard PATH location
 RUN ln -s /usr/local/lib/corepack/dist/corepack.js /usr/local/bin/corepack && \
