@@ -322,7 +322,7 @@ Planned:
 
 * dnf
 * cargo
-* rubygems
+* bundler
 
 *Based on the [supported package managers](https://github.com/containerbuildsystem/cachito#package-managers) in the
 original Cachito.*
