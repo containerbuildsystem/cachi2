@@ -6,7 +6,7 @@ from typing import Any, Callable
 from cachi2.core.errors import UnsupportedFeature
 from cachi2.core.models.input import PackageManagerType, Request
 from cachi2.core.models.output import RequestOutput
-from cachi2.core.package_managers import gomod, npm, pip, rpm, yarn
+from cachi2.core.package_managers import gomod, npm, pip, rpm, rubygems, yarn
 from cachi2.core.rooted_path import RootedPath
 from cachi2.core.utils import copy_directory
 
@@ -23,6 +23,7 @@ _package_managers: dict[PackageManagerType, Handler] = {
 # invoke them via CLI
 _dev_package_managers: dict[PackageManagerType, Handler] = {
     "rpm": rpm.fetch_rpm_source,
+    "rubygems": rubygems.fetch_rubygems_source,
 }
 
 # This is *only* used to provide a list for `cachi2 --version`

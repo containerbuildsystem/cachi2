@@ -59,7 +59,7 @@ def _present_user_input_error(validation_error: pydantic.ValidationError) -> str
 
 
 # Supported package managers
-PackageManagerType = Literal["gomod", "npm", "pip", "rpm", "yarn"]
+PackageManagerType = Literal["gomod", "npm", "pip", "rpm", "rubygems", "yarn"]
 
 Flag = Literal[
     "cgo-disable", "dev-package-managers", "force-gomod-tidy", "gomod-vendor", "gomod-vendor-check"
@@ -173,6 +173,12 @@ class RpmPackageInput(_PackageInputBase):
     options: Optional[Union[_DNFOptions]] = None
 
 
+class RubyGemsPackageInput(_PackageInputBase):
+    """Accepted input for a rubygems package."""
+
+    type: Literal["rubygems"]
+
+
 class YarnPackageInput(_PackageInputBase):
     """Accepted input for a yarn package."""
 
@@ -180,7 +186,14 @@ class YarnPackageInput(_PackageInputBase):
 
 
 PackageInput = Annotated[
-    Union[GomodPackageInput, NpmPackageInput, PipPackageInput, RpmPackageInput, YarnPackageInput],
+    Union[
+        GomodPackageInput,
+        NpmPackageInput,
+        PipPackageInput,
+        RpmPackageInput,
+        RubyGemsPackageInput,
+        YarnPackageInput,
+    ],
     # https://pydantic-docs.helpmanual.io/usage/types/#discriminated-unions-aka-tagged-unions
     pydantic.Field(discriminator="type"),
 ]
@@ -245,6 +258,11 @@ class Request(pydantic.BaseModel):
     def rpm_packages(self) -> list[RpmPackageInput]:
         """Get the rpm packages specified for this request."""
         return self._packages_by_type(RpmPackageInput)
+
+    @property
+    def rubygems_packages(self) -> list[RubyGemsPackageInput]:
+        """Get the rubygems packages specified for this request."""
+        return self._packages_by_type(RubyGemsPackageInput)
 
     @property
     def yarn_packages(self) -> list[YarnPackageInput]:
