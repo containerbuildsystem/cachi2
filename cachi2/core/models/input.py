@@ -59,7 +59,7 @@ def _present_user_input_error(validation_error: pydantic.ValidationError) -> str
 
 
 # Supported package managers
-PackageManagerType = Literal["gomod", "npm", "pip", "rpm", "yarn"]
+PackageManagerType = Literal["bundler", "gomod", "npm", "pip", "rpm", "yarn"]
 
 Flag = Literal[
     "cgo-disable", "dev-package-managers", "force-gomod-tidy", "gomod-vendor", "gomod-vendor-check"
@@ -131,6 +131,12 @@ class _DNFOptions(pydantic.BaseModel, extra="forbid"):
         return data
 
 
+class BundlerPackageInput(_PackageInputBase):
+    """Accepted input for a bundler package."""
+
+    type: Literal["bundler"]
+
+
 class GomodPackageInput(_PackageInputBase):
     """Accepted input for a gomod package."""
 
@@ -180,7 +186,14 @@ class YarnPackageInput(_PackageInputBase):
 
 
 PackageInput = Annotated[
-    Union[GomodPackageInput, NpmPackageInput, PipPackageInput, RpmPackageInput, YarnPackageInput],
+    Union[
+        BundlerPackageInput,
+        GomodPackageInput,
+        NpmPackageInput,
+        PipPackageInput,
+        RpmPackageInput,
+        YarnPackageInput,
+    ],
     # https://pydantic-docs.helpmanual.io/usage/types/#discriminated-unions-aka-tagged-unions
     pydantic.Field(discriminator="type"),
 ]
@@ -225,6 +238,11 @@ class Request(pydantic.BaseModel):
         if len(packages) == 0:
             raise ValueError("at least one package must be defined, got an empty list")
         return packages
+
+    @property
+    def bundler_packages(self) -> list[BundlerPackageInput]:
+        """Get the rubygems packages specified for this request."""
+        return self._packages_by_type(BundlerPackageInput)
 
     @property
     def gomod_packages(self) -> list[GomodPackageInput]:
