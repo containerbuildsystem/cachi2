@@ -1,0 +1,566 @@
+{
+  "bomFormat": "CycloneDX",
+  "components": [
+    {
+      "name": "aiowsgi",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:pypi/aiowsgi@0.7",
+      "type": "library",
+      "version": "0.7"
+    },
+    {
+      "name": "appr",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:pypi/appr?checksum=sha256:ee6a0a38bed8cff46a562ed3620bc453141a02262ab0c8dd055824af2829ee5c&download_url=https://github.com/quay/appr/archive/37ff9a487a54ad41b59855ecd76ee092fe206a84.zip",
+      "type": "library"
+    },
+    {
+      "name": "async-timeout",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:pypi/async-timeout@4.0.3",
+      "type": "library",
+      "version": "4.0.3"
+    },
+    {
+      "name": "blinker",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:pypi/blinker@1.8.2",
+      "type": "library",
+      "version": "1.8.2"
+    },
+    {
+      "name": "cachito-pip-with-deps",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:pypi/cachito-pip-with-deps@1.0.0?vcs_url=git%2Bhttps://github.com/cachito-testing/cachito-pip-with-deps.git%40bbe76b351bf06fcfbaede8f9e2050976d9fd6f3b",
+      "type": "library",
+      "version": "1.0.0"
+    },
+    {
+      "name": "certifi",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:pypi/certifi@2024.7.4",
+      "type": "library",
+      "version": "2024.7.4"
+    },
+    {
+      "name": "cffi",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:pypi/cffi@1.16.0",
+      "type": "library",
+      "version": "1.16.0"
+    },
+    {
+      "name": "charset-normalizer",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:pypi/charset-normalizer@3.3.2",
+      "type": "library",
+      "version": "3.3.2"
+    },
+    {
+      "name": "click",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:pypi/click@8.1.7",
+      "type": "library",
+      "version": "8.1.7"
+    },
+    {
+      "name": "cryptography",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:pypi/cryptography@43.0.0",
+      "type": "library",
+      "version": "43.0.0"
+    },
+    {
+      "name": "dnspython",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:pypi/dnspython@2.6.1",
+      "type": "library",
+      "version": "2.6.1"
+    },
+    {
+      "name": "ecdsa",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:pypi/ecdsa@0.19.0",
+      "type": "library",
+      "version": "0.19.0"
+    },
+    {
+      "name": "flask-cors",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:pypi/flask-cors@4.0.1",
+      "type": "library",
+      "version": "4.0.1"
+    },
+    {
+      "name": "flask",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:pypi/flask@3.0.3",
+      "type": "library",
+      "version": "3.0.3"
+    },
+    {
+      "name": "future",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:pypi/future@1.0.0",
+      "type": "library",
+      "version": "1.0.0"
+    },
+    {
+      "name": "futures",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:pypi/futures@3.0.5",
+      "type": "library",
+      "version": "3.0.5"
+    },
+    {
+      "name": "gevent",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:pypi/gevent@24.2.1",
+      "type": "library",
+      "version": "24.2.1"
+    },
+    {
+      "name": "greenlet",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:pypi/greenlet@3.0.3",
+      "type": "library",
+      "version": "3.0.3"
+    },
+    {
+      "name": "gunicorn",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:pypi/gunicorn@22.0.0",
+      "type": "library",
+      "version": "22.0.0"
+    },
+    {
+      "name": "idna",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:pypi/idna@3.7",
+      "type": "library",
+      "version": "3.7"
+    },
+    {
+      "name": "importlib-metadata",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:pypi/importlib-metadata@8.2.0",
+      "type": "library",
+      "version": "8.2.0"
+    },
+    {
+      "name": "itsdangerous",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:pypi/itsdangerous@2.2.0",
+      "type": "library",
+      "version": "2.2.0"
+    },
+    {
+      "name": "jinja2",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:pypi/jinja2@3.1.4",
+      "type": "library",
+      "version": "3.1.4"
+    },
+    {
+      "name": "jsonpatch",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:pypi/jsonpatch@1.33",
+      "type": "library",
+      "version": "1.33"
+    },
+    {
+      "name": "jsonpointer",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:pypi/jsonpointer@3.0.0",
+      "type": "library",
+      "version": "3.0.0"
+    },
+    {
+      "name": "markupsafe",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:pypi/markupsafe@2.1.5",
+      "type": "library",
+      "version": "2.1.5"
+    },
+    {
+      "name": "packaging",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:pypi/packaging@24.1",
+      "type": "library",
+      "version": "24.1"
+    },
+    {
+      "name": "pathspec",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:pypi/pathspec@0.12.1",
+      "type": "library",
+      "version": "0.12.1"
+    },
+    {
+      "name": "pycparser",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:pypi/pycparser@2.22",
+      "type": "library",
+      "version": "2.22"
+    },
+    {
+      "name": "pyopenssl",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:pypi/pyopenssl@24.2.1",
+      "type": "library",
+      "version": "24.2.1"
+    },
+    {
+      "name": "python-etcd",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:pypi/python-etcd@0.4.5",
+      "type": "library",
+      "version": "0.4.5"
+    },
+    {
+      "name": "pyyaml",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:pypi/pyyaml@6.0.1",
+      "type": "library",
+      "version": "6.0.1"
+    },
+    {
+      "name": "redis",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:pypi/redis@5.0.7",
+      "type": "library",
+      "version": "5.0.7"
+    },
+    {
+      "name": "requests",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:pypi/requests@2.32.3",
+      "type": "library",
+      "version": "2.32.3"
+    },
+    {
+      "name": "semantic-version",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:pypi/semantic-version@2.10.0",
+      "type": "library",
+      "version": "2.10.0"
+    },
+    {
+      "name": "setuptools",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:pypi/setuptools@71.1.0",
+      "type": "library",
+      "version": "71.1.0"
+    },
+    {
+      "name": "six",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:pypi/six@1.16.0",
+      "type": "library",
+      "version": "1.16.0"
+    },
+    {
+      "name": "tabulate",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:pypi/tabulate@0.9.0",
+      "type": "library",
+      "version": "0.9.0"
+    },
+    {
+      "name": "termcolor",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:pypi/termcolor@2.4.0",
+      "type": "library",
+      "version": "2.4.0"
+    },
+    {
+      "name": "urllib3",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:pypi/urllib3@1.21.1",
+      "type": "library",
+      "version": "1.21.1"
+    },
+    {
+      "name": "waitress",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:pypi/waitress@3.0.0",
+      "type": "library",
+      "version": "3.0.0"
+    },
+    {
+      "name": "webob",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:pypi/webob@1.8.7",
+      "type": "library",
+      "version": "1.8.7"
+    },
+    {
+      "name": "werkzeug",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:pypi/werkzeug@3.0.3",
+      "type": "library",
+      "version": "3.0.3"
+    },
+    {
+      "name": "zipp",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:pypi/zipp@3.19.2",
+      "type": "library",
+      "version": "3.19.2"
+    },
+    {
+      "name": "zope-event",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:pypi/zope-event@5.0",
+      "type": "library",
+      "version": "5.0"
+    },
+    {
+      "name": "zope-interface",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:pypi/zope-interface@6.4.post2",
+      "type": "library",
+      "version": "6.4.post2"
+    }
+  ],
+  "metadata": {
+    "tools": [
+      {
+        "name": "cachi2",
+        "vendor": "red hat"
+      }
+    ]
+  },
+  "specVersion": "1.4",
+  "version": 1
+}

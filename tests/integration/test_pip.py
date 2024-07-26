@@ -33,7 +33,19 @@ log = logging.getLogger(__name__)
                 expected_exit_code=0,
                 expected_output="All dependencies fetched successfully",
             ),
-            id="pip_with_deps",
+            # Mixes hashed (URL with `cachito_hash`) and unhashed deps
+            id="pip_with_deps_mixed",
+        ),
+        pytest.param(
+            utils.TestParameters(
+                repo="https://github.com/cachito-testing/cachito-pip-with-deps.git",
+                ref="bbe76b351bf06fcfbaede8f9e2050976d9fd6f3b",
+                packages=({"path": ".", "type": "pip"},),
+                check_vendor_checksums=False,
+                expected_exit_code=0,
+                expected_output="All dependencies fetched successfully",
+            ),
+            id="pip_with_deps_full_hashes",
         ),
         pytest.param(
             utils.TestParameters(
