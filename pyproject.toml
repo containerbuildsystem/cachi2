@@ -37,6 +37,7 @@ dependencies = [
   "setuptools",
   "tomli",
   "typer",
+  "createrepo-c",
 ]
 [project.optional-dependencies]
 dev = [
