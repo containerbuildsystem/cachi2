@@ -1,4 +1,4 @@
-FROM docker.io/library/rockylinux:9@sha256:d7be1c094cc5845ee815d4632fe377514ee6ebcf8efaed6892889657e5ddaaa6 as rockylinux9
+FROM registry.access.redhat.com/ubi9/ubi@sha256:763f30167f92ec2af02bf7f09e75529de66e98f05373b88bef3c631cdcc39ad8 as ubi
 FROM docker.io/library/golang:1.20.0-bullseye as golang_120
 FROM docker.io/library/golang:1.21.0-bullseye as golang_121
 FROM docker.io/library/node:22.3.0-bullseye as node_223
@@ -6,14 +6,14 @@ FROM docker.io/library/node:22.3.0-bullseye as node_223
 ########################
 # PREPARE OUR BASE IMAGE
 ########################
-FROM rockylinux9 as base
+FROM ubi as base
 RUN dnf -y install \
     --setopt install_weak_deps=0 \
     --nodocs \
-    createrepo_c \
     git-core \
     python3 \
-    && dnf clean all
+    subscription-manager && \
+    dnf clean all
 
 ######################
 # BUILD/INSTALL CACHI2
@@ -52,6 +52,7 @@ COPY --from=builder /src/utils/merge_syft_sbom.py /usr/local/bin/merge_syft_sbom
 RUN ln -s /usr/local/lib/corepack/dist/corepack.js /usr/local/bin/corepack && \
     ln -s /usr/local/lib/corepack/dist/yarn.js /usr/local/bin/yarn && \
     ln -s /usr/local/go/go1.21/bin/go /usr/local/bin/go && \
+    ln -s /venv/bin/createrepo_c /usr/local/bin/createrepo_c && \
     ln -s /venv/bin/cachi2 /usr/local/bin/cachi2
 
 ENTRYPOINT ["/usr/local/bin/cachi2"]
