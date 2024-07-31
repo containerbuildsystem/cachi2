@@ -7,6 +7,8 @@ from os import PathLike
 from pathlib import Path
 from typing import Any, Dict, Optional, Union, no_type_check
 from urllib.parse import quote
+from os import getenv, path
+import ssl
 
 import yaml
 from pydantic import ValidationError
@@ -195,7 +197,7 @@ def _download(lockfile: RedhatRpmsLock, output_dir: Path) -> dict[Path, Any]:
             }
             Path.mkdir(dest.parent, parents=True, exist_ok=True)
 
-        asyncio.run(async_download_files(files, get_config().concurrency_limit))
+        asyncio.run(async_download_files(files, get_config().concurrency_limit, ssl_context=_get_ssl_context()))
     return metadata
 
 
@@ -378,3 +380,37 @@ def _generate_repofiles(
 
             with open(repo_file_path, "w") as f:
                 repofile.write(f)
+
+def _get_ssl_context():
+    client_cert = getenv("C2_CLIENT_CERT")
+    client_key = getenv("C2_CLIENT_KEY")
+    ca_bundle = getenv("C2_CA_BUNDLE")
+    
+    ssl_ctx = ssl.create_default_context()
+
+    if client_cert is None or client_key is None:
+        log.info(f"No client certificates will be used.")
+    elif not path.isfile(path=client_cert) or not path.isfile(path=client_key) :
+        raise(FileNotFoundError)
+    else:
+        # Load the client cert chain. This will be sent to the server
+        ssl_ctx.load_cert_chain(client_cert, client_key)
+        log.info(f"Using client certificate auth.")
+
+    if ca_bundle is not None:
+        if path.isfile(path=ca_bundle):
+            ssl_ctx.load_verify_locations(ca_bundle)
+            log.info(f"Using custom CA bundle.")
+
+    # verify_mode is for client verifying the servers cert
+    # options:
+    # ssl_ctx.verify_mode = ssl.CERT_REQUIRED  - default
+    # ssl_ctx.verify_mode = ssl.CERT_NONE - allow self signed or expired certs
+    
+    ssl_verify = getenv("C2_SSL_VERIFY", "CERT_REQUIRED")
+    if ssl_verify.lower() == "false":
+        log.info(f"Disabling SSL certificate verification. This is insecure and should not be used except for testing.")
+        ssl_ctx.check_hostname = False # required for verify_mode = ssl.CERT_NONE
+        ssl_ctx.verify_mode = ssl.CERT_NONE
+
+    return ssl_ctx

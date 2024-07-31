@@ -23,6 +23,7 @@ from cachi2.core.package_managers.rpm.main import (
     _Repofile,
     _resolve_rpm_project,
     _verify_downloaded,
+    _get_ssl_context
 )
 from cachi2.core.package_managers.rpm.redhat import RedhatRpmsLock
 from cachi2.core.rooted_path import RootedPath
@@ -636,3 +637,32 @@ class TestRepofile:
             _Repofile({"foo": "bar"}).write(f)
 
         mock_apply_defaults.assert_called_once()
+
+def test_get_ssl_context():
+    from os import environ
+    import ssl 
+    ssl_context = ssl.create_default_context()
+    
+    # case 1: no environ var defined
+    test_env = mock.patch.dict(environ, {}, clear=True)
+    with test_env:
+        ssl_context = _get_ssl_context()
+        assert ssl_context.verify_mode is ssl.CERT_REQUIRED
+
+     # case 2: environ var defined to a value we don't use
+    test_env =  mock.patch.dict(environ, C2_SSL_VERIFY="true")
+    with test_env:
+        ssl_context = _get_ssl_context()
+        assert ssl_context.verify_mode is ssl.CERT_REQUIRED
+
+    # case 3: environ var defined in lower case = valid
+    test_env =  mock.patch.dict(environ, C2_SSL_VERIFY="false")
+    with test_env:
+        ssl_context = _get_ssl_context()
+        assert ssl_context.verify_mode is ssl.CERT_NONE
+    
+    # case 4: environ var defined in uppercase, also valid.
+    test_env =  mock.patch.dict(environ, C2_SSL_VERIFY="FALSE")
+    with test_env:
+        ssl_context = _get_ssl_context()
+        assert ssl_context.verify_mode is ssl.CERT_NONE

@@ -6,6 +6,7 @@ from os import PathLike
 from pathlib import Path
 from typing import Any, Dict, Optional, Set, Union
 from urllib.parse import urlparse
+import ssl
 
 import aiohttp
 import aiohttp_retry
@@ -45,7 +46,8 @@ def download_binary_file(
     timeout = get_config().requests_timeout
     try:
         resp = pkg_requests_session.get(
-            url, stream=True, verify=not insecure, auth=auth, timeout=timeout
+            # todo verify needs to be : not insecure
+            url, stream=True, verify=not insecure, auth=auth, timeout=timeout, cert=get_client_certs()
         )
         resp.raise_for_status()
     except requests.RequestException as e:
@@ -61,6 +63,7 @@ async def _async_download_binary_file(
     url: str,
     download_path: Union[str, PathLike[str]],
     auth: Optional[aiohttp.BasicAuth] = None,
+    ssl_context: ssl.SSLContext=None,
     chunk_size: int = 8192,
 ) -> None:
     """
@@ -79,7 +82,8 @@ async def _async_download_binary_file(
         log.debug(
             f"aiohttp.ClientSession.get(url: {url}, timeout: {timeout}, raise_for_status: True)"
         )
-        async with session.get(url, timeout=timeout, auth=auth, raise_for_status=True) as resp:
+         
+        async with session.get(url, timeout=timeout, auth=auth, raise_for_status=True, ssl_context=ssl_context) as resp:
             with open(download_path, "wb") as f:
                 while True:
                     chunk = await resp.content.read(chunk_size)
@@ -100,6 +104,7 @@ async def _async_download_binary_file(
 async def async_download_files(
     files_to_download: Dict[str, Union[str, PathLike[str]]],
     concurrency_limit: int,
+    ssl_context: ssl.SSLContext=None,
 ) -> None:
     """Asynchronous function to download files.
 
@@ -146,7 +151,7 @@ async def async_download_files(
                         t.cancel()
                     raise
 
-            tasks.add(asyncio.create_task(_async_download_binary_file(session, url, download_path)))
+            tasks.add(asyncio.create_task(_async_download_binary_file(session, url, download_path, ssl_context=ssl_context)))
 
         await asyncio.gather(*tasks)
 
