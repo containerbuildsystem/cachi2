@@ -1,7 +1,7 @@
 FROM registry.access.redhat.com/ubi9/ubi@sha256:763f30167f92ec2af02bf7f09e75529de66e98f05373b88bef3c631cdcc39ad8 as ubi
 FROM docker.io/library/golang:1.20.0-bullseye as golang_120
 FROM docker.io/library/golang:1.21.0-bullseye as golang_121
-FROM docker.io/library/node:22.3.0-bullseye as node_223
+FROM docker.io/library/node:22.5.1-bullseye as node_223
 
 ########################
 # PREPARE OUR BASE IMAGE
