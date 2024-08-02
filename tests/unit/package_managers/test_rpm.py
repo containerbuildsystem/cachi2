@@ -666,3 +666,5 @@ def test_get_ssl_context():
     with test_env:
         ssl_context = _get_ssl_context()
         assert ssl_context.verify_mode is ssl.CERT_NONE
+
+    

@@ -390,18 +390,20 @@ def _get_ssl_context():
 
     if client_cert is None or client_key is None:
         log.info(f"No client certificates will be used.")
-    elif not path.isfile(path=client_cert) or not path.isfile(path=client_key) :
-        raise(FileNotFoundError)
+    elif path.isfile(path=client_cert) and path.isfile(path=client_key) :
+            # Load the client cert chain. This will be sent to the server
+            ssl_ctx.load_cert_chain(client_cert, client_key)
+            log.info(f"Using client certificate auth.")
     else:
-        # Load the client cert chain. This will be sent to the server
-        ssl_ctx.load_cert_chain(client_cert, client_key)
-        log.info(f"Using client certificate auth.")
+        raise(FileNotFoundError)
+
 
     if ca_bundle is not None:
         if path.isfile(path=ca_bundle):
             ssl_ctx.load_verify_locations(ca_bundle)
             log.info(f"Using custom CA bundle.")
-
+        else:
+            raise(FileNotFoundError)
     # verify_mode is for client verifying the servers cert
     # options:
     # ssl_ctx.verify_mode = ssl.CERT_REQUIRED  - default
