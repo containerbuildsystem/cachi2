@@ -381,6 +381,7 @@ def _generate_repofiles(
             with open(repo_file_path, "w") as f:
                 repofile.write(f)
 
+
 def _get_ssl_context():
     client_cert = getenv("C2_CLIENT_CERT")
     client_key = getenv("C2_CLIENT_KEY")
@@ -397,21 +398,17 @@ def _get_ssl_context():
     else:
         raise(FileNotFoundError)
 
-
     if ca_bundle is not None:
         if path.isfile(path=ca_bundle):
             ssl_ctx.load_verify_locations(ca_bundle)
             log.info(f"Using custom CA bundle.")
         else:
             raise(FileNotFoundError)
-    # verify_mode is for client verifying the servers cert
-    # options:
-    # ssl_ctx.verify_mode = ssl.CERT_REQUIRED  - default
-    # ssl_ctx.verify_mode = ssl.CERT_NONE - allow self signed or expired certs
     
+    # verify_mode is for client verifying the server's cert
     ssl_verify = getenv("C2_SSL_VERIFY", "CERT_REQUIRED")
     if ssl_verify.lower() == "false":
-        log.info(f"Disabling SSL certificate verification. This is insecure and should not be used except for testing.")
+        log.info(f"Disabling SSL certificate and hostname verification. This is insecure and should not be used except for testing.")
         ssl_ctx.check_hostname = False # required for verify_mode = ssl.CERT_NONE
         ssl_ctx.verify_mode = ssl.CERT_NONE
 

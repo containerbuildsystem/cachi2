@@ -1,8 +1,10 @@
 from configparser import ConfigParser
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
-from unittest import mock
+from unittest import mock, TestCase
 from urllib.parse import quote
+from os import environ, path
+import ssl 
 
 import pytest
 import yaml
@@ -638,33 +640,68 @@ class TestRepofile:
 
         mock_apply_defaults.assert_called_once()
 
-def test_get_ssl_context():
-    from os import environ
-    import ssl 
-    ssl_context = ssl.create_default_context()
+class TestGetSslContext(TestCase):
     
-    # case 1: no environ var defined
-    test_env = mock.patch.dict(environ, {}, clear=True)
-    with test_env:
+    def patched_isfile(self, path=None):
+        return path=="pass"
+
+    @mock.patch.dict(environ, {}, clear=True) 
+    def test_base_case(self):  # case 1: no environ var defined
         ssl_context = _get_ssl_context()
         assert ssl_context.verify_mode is ssl.CERT_REQUIRED
 
-     # case 2: environ var defined to a value we don't use
-    test_env =  mock.patch.dict(environ, C2_SSL_VERIFY="true")
-    with test_env:
+    @mock.patch.dict(environ, C2_SSL_VERIFY="true")
+    def test_invalid_env(self):
         ssl_context = _get_ssl_context()
         assert ssl_context.verify_mode is ssl.CERT_REQUIRED
 
-    # case 3: environ var defined in lower case = valid
-    test_env =  mock.patch.dict(environ, C2_SSL_VERIFY="false")
-    with test_env:
+    @mock.patch.dict(environ, C2_SSL_VERIFY="false")
+    def test_valid_lcase_env(self):
         ssl_context = _get_ssl_context()
         assert ssl_context.verify_mode is ssl.CERT_NONE
     
-    # case 4: environ var defined in uppercase, also valid.
-    test_env =  mock.patch.dict(environ, C2_SSL_VERIFY="FALSE")
-    with test_env:
+    @mock.patch.dict(environ, C2_SSL_VERIFY="FALSE")
+    def test_valid_ucase_env(self):
         ssl_context = _get_ssl_context()
         assert ssl_context.verify_mode is ssl.CERT_NONE
 
+    @mock.patch.object(ssl.SSLContext, "load_cert_chain", return_value=ssl.create_default_context())
+    @mock.patch.object(ssl.SSLContext, "load_verify_locations", return_value=None)
+    def test_file_not_found_client_cert(self, mock_load_cert_chain, mock_load_verify_locations):
+        with mock.patch.object(path, 'isfile', side_effect=self.patched_isfile):
+            test_env = mock.patch.dict(environ, 
+                                    C2_CLIENT_CERT="pass",
+                                    C2_CLIENT_KEY="pass",
+                                    C2_CA_BUNDLE="pass",
+                                    )
+            with test_env:
+                ssl_context = _get_ssl_context()
+                assert ssl_context.verify_mode is ssl.CERT_REQUIRED
+        
+            test_env = mock.patch.dict(environ, 
+                                    C2_CLIENT_CERT="fail",
+                                    C2_CLIENT_KEY="pass",
+                                    C2_CA_BUNDLE="pass",
+                                    )
+            with test_env:             
+                self.assertRaises(FileNotFoundError, _get_ssl_context)
+        
+            test_env = mock.patch.dict(environ, 
+                                    C2_CLIENT_CERT="pass",
+                                    C2_CLIENT_KEY="fail",
+                                    C2_CA_BUNDLE="pass",
+                                    )
+            with test_env:             
+                self.assertRaises(FileNotFoundError, _get_ssl_context)
+
+            test_env = mock.patch.dict(environ, 
+                                    C2_CLIENT_CERT="pass",
+                                    C2_CLIENT_KEY="pass",
+                                    C2_CA_BUNDLE="fail",
+                                    )    
+            with test_env:             
+                self.assertRaises(FileNotFoundError, _get_ssl_context)
+
     
+    
+
