@@ -2,6 +2,7 @@ TOX_ENVLIST ?= py39
 TOX_ARGS ?=
 GENERATE_TEST_DATA = false
 TEST_LOCAL_PYPISERVER = false
+TEST_LOCAL_DNF_SERVER = false
 
 .PHONY: clean pip-compile
 all: venv
@@ -25,6 +26,8 @@ test-unit: venv
 test-integration: venv
 	CACHI2_GENERATE_TEST_DATA=$(GENERATE_TEST_DATA) \
 	CACHI2_TEST_LOCAL_PYPISERVER=$(TEST_LOCAL_PYPISERVER) \
+		venv/bin/tox -e integration -- $(TOX_ARGS)
+	CACHI2_TEST_LOCAL_DNF_SERVER=$(TEST_LOCAL_DNF_SERVER) \
 		venv/bin/tox -e integration -- $(TOX_ARGS)
 
 mock-unittest-data:
