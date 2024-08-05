@@ -82,6 +82,26 @@ The examples below show what types of dependencies Cargo supports, and how they 
   <summary>platform specific</summary>
 
   TODO
+  - note: in cargo docs, "platform" refers interchangeably to both architecture and OS
+  - cargo has support for specifying dependencies under a certain platform, like 
+      ```
+      [target.'cfg(windows)'.dependencies]
+      winhttp = "0.4.0"
+
+      [target.'cfg(unix)'.dependencies]
+      openssl = "1.0.1"
+      ```
+      or
+      ```
+      [target.x86_64-pc-windows-gnu.dependencies]
+      winhttp = "0.4.0"
+
+      [target.i686-unknown-linux-gnu.dependencies]
+      openssl = "1.0.1"
+      ``
+  - Regardless, as far as we could tell from experimenting, cargo build requires ALL dependencies to be present - even if they won't be used.
+  - as a potential optimization, [cargo-vendor-filterer](https://github.com/coreos/cargo-vendor-filterer/) can vendor cargo dependencies
+    - if we adopt this approach, it might be limited to pure-rust builds
 </details>
 
 <details>
@@ -573,6 +593,69 @@ Cons:
 - Sub-packages in git dependencies need to moved to a flat structure
 - The "vendor" configuration needs to be generated manually
 
+# Caveats
+
+## Crates with binaries
+
+Crates are supposed to contain only source code. However, crates.io don't seem to enforce any
+rule to prohibit crates being uploaded with binaries. This happened at least once with [serde](https://www.bleepingcomputer.com/news/security/rust-devs-push-back-as-serde-project-ships-precompiled-binaries/),
+one of the most popular rust libraries.
+
 # Pip + Cargo support in Cachi2
 
-*TODO*
+WIP
+
+## Context
+
+Traditionally, performance bottlenecks in the python ecosystem are addressed with C extensions, which introduce their own complexities and safety concerns.
+
+Rust, with its performance, memory safety, and concurrency capabilities, is emerging as an effective solution. Key Python packages like `cryptography` and `pydantic-core` have incorporated Rust to enhance their performance and reliability​​. Additionally, the Rust-based linter `ruff` is gaining popularity due to its speed and compatibility with tools like `flake8` and `pylint​`.
+
+Tools such as `PyO3`, `Rust-CPython`, `maturin`, and `setuptools-rust` simplify the integration of Rust into Python (and python into rust as well, in the case of `PyO3`)​.
+
+Addressing the integration challenges of Rust in Python projects is crucial to enhancing the performance, safety, and concurrency of Python applications. The "rustification" of Python libraries is here to stay.
+
+## Build dependencies
+
+`maturin` and `setuptools-rust` are PEP517 compliant build backends for python packages with embedded rust code.
+
+Under the hood, `maturin` relies exclusively on `PyO3` while `setuptools-rust` can use either `PyO3` or `Rust-CPython` (but newer projects are likely preferring the former, as the author
+of `Rust-CPython` development is halted and its author recommends `PyO3`).
+
+## Detecting python packages with rust dependencies
+
+We could use the presence of either `maturin` or `setuptools-rust` as build dependencies of a python package as a
+heuristic to determine if a package is a python+rust library. Alternatively, we could simply brute force searching for `.rs` sources and/or `Cargo.toml/lock`, but looking at build dependency has one advantage on potentially confusing situations.
+
+In a research with popular python packages and github python projects relying on maturin or setuptools rust,
+one interesting finding is that some packages contain multiple Cargo.locks. That usually happens when the library
+vendored some other rust code for whatever reason. In this case, it would be better to use for downstream vendoring
+only the "main" lock file, which presumably would be pointing to the rest of the code.
+
+Packages relying on `maturin` and `setuptools` have a default place to have their main Cargo.toml/lock stored.
+Also, parsing the configuration it is possible to know if the path for those manifests were modified.
+
+### maturin
+Detecting `maturin` is easier because it only supports python packages that use `pyproject.toml` to configure it. So detecting its presence is only a matter of verifying if `[build-system].requires` contains `maturin`.
+
+example:
+
+```toml
+#pyproject.toml
+[build-system]
+requires = ["maturin"]
+```
+
+As for the manifest location, `maturin` looks at two places by default:
+- same folder as in `pyproject.toml`
+- `rust/`
+
+The manifest path can be customized under `[tool.maturin].manifest-path`.
+
+example:
+```toml
+#pyproject.toml
+[tool.maturin]
+# Cargo manifest path
+manifest-path = "Cargo.toml"
+```
