@@ -117,3 +117,7 @@ settings.py
 
 # idea files
 .idea/
+
+# docker
+**/.Dockerfile.swp
+**/Dockerfile.save

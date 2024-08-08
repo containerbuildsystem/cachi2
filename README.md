@@ -243,6 +243,12 @@ Run tests which requires a local PyPI server as well:
 make test-integration TEST_LOCAL_PYPISERVER=true
 ```
 
+ Run tests which requires a local http server:
+
+```shell
+make test-integration TEST_LOCAL_DNF_SERVER=true
+```
+
 Note: while developing, you can run the PyPI server with `tests/pypiserver/start.sh &`.
 
 To run integration-tests with custom image, specify the CACHI2\_IMAGE environment variable. Examples:

@@ -69,3 +69,31 @@ def local_pypiserver() -> Iterator[None]:
             raise RuntimeError("pypiserver didn't start fast enough")
 
         yield
+
+
+@pytest.fixture(autouse=True, scope="session")
+def local_dnfserver() -> Iterator[None]:
+    if os.getenv("CACHI2_TEST_LOCAL_DNF_SERVER") != "true":
+        yield
+        return
+
+    dnfserver_dir = Path(__file__).parent.parent / "dnfserver"
+
+    with contextlib.ExitStack() as context:
+        proc = context.enter_context(subprocess.Popen([dnfserver_dir / "start.sh"]))
+        context.callback(proc.terminate)
+
+        dnfserver_port = os.getenv("DNFSERVER_PORT", "8080")
+        for _ in range(60):
+            time.sleep(1)
+            try:
+                resp = requests.get(f"http://localhost:{dnfserver_port}")
+                resp.raise_for_status()
+                log.debug(resp.text)
+                break
+            except requests.RequestException as e:
+                log.debug(e)
+        else:
+            raise RuntimeError("pypiserver didn't start fast enough")
+
+        yield

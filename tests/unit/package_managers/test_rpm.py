@@ -1,8 +1,10 @@
 from configparser import ConfigParser
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
-from unittest import mock
+from unittest import mock, TestCase
 from urllib.parse import quote
+from os import environ, path
+import ssl 
 
 import pytest
 import yaml
@@ -23,6 +25,7 @@ from cachi2.core.package_managers.rpm.main import (
     _Repofile,
     _resolve_rpm_project,
     _verify_downloaded,
+    _get_ssl_context
 )
 from cachi2.core.package_managers.rpm.redhat import RedhatRpmsLock
 from cachi2.core.rooted_path import RootedPath
@@ -636,3 +639,69 @@ class TestRepofile:
             _Repofile({"foo": "bar"}).write(f)
 
         mock_apply_defaults.assert_called_once()
+
+class TestGetSslContext(TestCase):
+    
+    def patched_isfile(self, path=None):
+        return path=="pass"
+
+    @mock.patch.dict(environ, {}, clear=True) 
+    def test_base_case(self):  # case 1: no environ var defined
+        ssl_context = _get_ssl_context()
+        assert ssl_context.verify_mode is ssl.CERT_REQUIRED
+
+    @mock.patch.dict(environ, C2_SSL_VERIFY="true")
+    def test_invalid_env(self):
+        ssl_context = _get_ssl_context()
+        assert ssl_context.verify_mode is ssl.CERT_REQUIRED
+
+    @mock.patch.dict(environ, C2_SSL_VERIFY="false")
+    def test_valid_lcase_env(self):
+        ssl_context = _get_ssl_context()
+        assert ssl_context.verify_mode is ssl.CERT_NONE
+    
+    @mock.patch.dict(environ, C2_SSL_VERIFY="FALSE")
+    def test_valid_ucase_env(self):
+        ssl_context = _get_ssl_context()
+        assert ssl_context.verify_mode is ssl.CERT_NONE
+
+    @mock.patch.object(ssl.SSLContext, "load_cert_chain", return_value=ssl.create_default_context())
+    @mock.patch.object(ssl.SSLContext, "load_verify_locations", return_value=None)
+    def test_file_not_found_client_cert(self, mock_load_cert_chain, mock_load_verify_locations):
+        with mock.patch.object(path, 'isfile', side_effect=self.patched_isfile):
+            test_env = mock.patch.dict(environ, 
+                                    C2_CLIENT_CERT="pass",
+                                    C2_CLIENT_KEY="pass",
+                                    C2_CA_BUNDLE="pass",
+                                    )
+            with test_env:
+                ssl_context = _get_ssl_context()
+                assert ssl_context.verify_mode is ssl.CERT_REQUIRED
+        
+            test_env = mock.patch.dict(environ, 
+                                    C2_CLIENT_CERT="fail",
+                                    C2_CLIENT_KEY="pass",
+                                    C2_CA_BUNDLE="pass",
+                                    )
+            with test_env:             
+                self.assertRaises(FileNotFoundError, _get_ssl_context)
+        
+            test_env = mock.patch.dict(environ, 
+                                    C2_CLIENT_CERT="pass",
+                                    C2_CLIENT_KEY="fail",
+                                    C2_CA_BUNDLE="pass",
+                                    )
+            with test_env:             
+                self.assertRaises(FileNotFoundError, _get_ssl_context)
+
+            test_env = mock.patch.dict(environ, 
+                                    C2_CLIENT_CERT="pass",
+                                    C2_CLIENT_KEY="pass",
+                                    C2_CA_BUNDLE="fail",
+                                    )    
+            with test_env:             
+                self.assertRaises(FileNotFoundError, _get_ssl_context)
+
+    
+    
+
