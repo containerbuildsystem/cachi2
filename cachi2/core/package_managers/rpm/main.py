@@ -3,6 +3,7 @@ import hashlib
 import logging
 import shlex
 from configparser import ConfigParser
+from dataclasses import dataclass
 from os import PathLike
 from pathlib import Path
 from typing import Any, Dict, Optional, Union, no_type_check
@@ -29,6 +30,82 @@ DEFAULT_PACKAGE_DIR = "deps/rpm"
 
 # during the computing of file checksum read chunk of size 1 MB
 READ_CHUNK = 1048576
+
+
+@dataclass
+class Package:
+    """An RPM package with relevant data for the SBOM generation."""
+
+    name: str
+    version: str
+    release: str
+    arch: str
+    epoch: str
+    vendor: str
+    download_url: str
+    checksum: Optional[str] = None
+
+    @classmethod
+    def from_filepath(cls, rpm_filepath: Path, rpm_download_metadata: dict[str, str]) -> "Package":
+        """Instantiate a package dataclass instance from a download RPM file path."""
+        name, version, release, arch, vendor, epoch = cls._query_rpm_fields(rpm_filepath)
+        return cls(
+            name,
+            version,
+            release,
+            arch,
+            epoch,
+            vendor,
+            rpm_download_metadata["url"],
+            rpm_download_metadata["checksum"],
+        )
+
+    @staticmethod
+    def _query_rpm_fields(file_path: Path) -> list[str]:
+        query_format = (
+            # all nvra macros should be present/mandatory in RPM
+            "%{NAME}\n"
+            "%{VERSION}\n"
+            "%{RELEASE}\n"
+            "%{ARCH}\n"
+            # vendor and epoch are optional RPM tags; return "" if not set instead of "(None)"
+            "%|VENDOR?{%{VENDOR}}:{}|\n"
+            "%|EPOCH?{%{EPOCH}}:{}|\n"
+        )
+        rpm_args = [
+            "-q",
+            "--queryformat",
+            query_format.strip(),
+            str(file_path),
+        ]
+        rpm_fields = run_cmd(cmd=["rpm", *rpm_args], params={})
+        return rpm_fields.split("\n")
+
+    @property
+    def purl(self) -> str:
+        """Get the purl for this package."""
+        vendor = quote(self.vendor.lower())
+        download_url = quote(self.download_url)
+
+        # https://github.com/package-url/purl-spec/blob/master/PURL-TYPES.rst#rpm
+        # https://github.com/package-url/purl-spec/blob/master/PURL-SPECIFICATION.rst#known-qualifiers-keyvalue-pairsa
+        purl = (
+            f"pkg:rpm{'/' if self.vendor else ''}{vendor}/{self.name}@"
+            f"{self.version}-{self.release}"
+            f"?arch={self.arch}{'&epoch=' if self.epoch else ''}{self.epoch}"
+            f"&download_url={download_url}"
+        )
+        return purl
+
+    def to_component(self, lockfile_path: Path) -> Component:
+        """Create an SBOM component for this package."""
+        properties = []
+        if not self.checksum:
+            properties = [Property(name="cachi2:missing_hash:in_file", value=str(lockfile_path))]
+
+        return Component(
+            name=self.name, version=self.version, purl=self.purl, properties=properties
+        )
 
 
 class _Repofile(ConfigParser):
@@ -235,63 +312,13 @@ def _verify_downloaded(metadata: dict[Path, Any]) -> None:
                 raise_exception(f"Unmatched checksum of '{file_path}' != '{digest}'")
 
 
-def _query_rpm_fields(file_path: Path) -> list[str]:
-    query_format = (
-        # all nvra macros should be present/mandatory in RPM
-        "%{NAME}\n"
-        "%{VERSION}\n"
-        "%{RELEASE}\n"
-        "%{ARCH}\n"
-        # vendor and epoch are optional RPM tags; return "" if not set instead of "(None)"
-        "%|VENDOR?{%{VENDOR}}:{}|\n"
-        "%|EPOCH?{%{EPOCH}}:{}|\n"
-    )
-    rpm_args = [
-        "-q",
-        "--queryformat",
-        query_format.strip(),
-        str(file_path),
-    ]
-    rpm_fields = run_cmd(cmd=["rpm", *rpm_args], params={})
-    return rpm_fields.split("\n")
-
-
 def _generate_sbom_components(
     files_metadata: dict[Path, Any], lockfile_path: Path
 ) -> list[Component]:
-    """Fill the component list with the package records."""
-    components: list[Component] = []
+    components = []
     for file_path, file_metadata in files_metadata.items():
-        name, version, release, arch, vendor, epoch = _query_rpm_fields(file_path)
-        log.debug(
-            f"RPM attributes for '{file_path}': name='{name}', version='{version}', "
-            f"release='{release}', arch='{arch}', vendor='{vendor}', epoch='{epoch}'"
-        )
-
-        # sanitize RPM attributes (including replacing whitespaces)
-        vendor = quote(vendor.lower())
-        download_url = quote(file_metadata["url"])
-
-        # https://github.com/package-url/purl-spec/blob/master/PURL-TYPES.rst#rpm
-        # https://github.com/package-url/purl-spec/blob/master/PURL-SPECIFICATION.rst#known-qualifiers-keyvalue-pairsa
-        purl = (
-            f"pkg:rpm{'/' if vendor else ''}{vendor}/{name}@{version}-{release}"
-            f"?arch={arch}{'&epoch=' if epoch else ''}{epoch}&download_url={download_url}"
-        )
-
-        if file_metadata["checksum"] is None:
-            properties = [Property(name="cachi2:missing_hash:in_file", value=str(lockfile_path))]
-        else:
-            properties = []
-
-        components.append(
-            Component(
-                name=name,
-                version=version,
-                purl=purl,
-                properties=properties,
-            )
-        )
+        package = Package.from_filepath(file_path, file_metadata)
+        components.append(package.to_component(lockfile_path))
     return components
 
 
