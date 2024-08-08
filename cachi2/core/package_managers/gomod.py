@@ -35,7 +35,13 @@ if TYPE_CHECKING:
     from typing_extensions import Self
 
 from cachi2.core.config import get_config
-from cachi2.core.errors import FetchError, PackageManagerError, PackageRejected, UnexpectedFormat
+from cachi2.core.errors import (
+    FetchError,
+    PackageManagerError,
+    PackageRejected,
+    UnexpectedFormat,
+    UnsupportedFeature,
+)
 from cachi2.core.models.input import Request
 from cachi2.core.models.output import EnvironmentVariable, RequestOutput
 from cachi2.core.models.property_semantics import PropertySet
@@ -761,7 +767,7 @@ def _setup_go_toolchain(go_mod_file: RootedPath) -> Go:
     GO_121 = version.Version("1.21")
     go = Go()
     target_version = None
-    go_max_version = version.Version("1.21")
+    go_max_version = version.Version("1.22")
     go_base_version = go.version
     go_mod_version_msg = "go.mod reported versions: '%s'[go], '%s'[toolchain]"
 
@@ -876,6 +882,12 @@ def _resolve_gomod(
         flags, app_dir, config.gomod_strict_vendor
     )
     if should_vendor:
+        if go_work_path and go_work_path.join_within_root("vendor").path.is_dir():
+            # NOTE: the same error will be reported even for 1.21 which doesn't support workspace
+            # vendoring, but given it's an invalid configuration and that we plan full 1.22 support
+            # in the foreseeable future, a not so user friendly error should be fine
+            raise UnsupportedFeature("Go workspace vendoring is not supported")
+
         downloaded_modules = _vendor_deps(go, app_dir, can_make_changes, run_params)
     else:
         log.info("Downloading the gomod dependencies")
