@@ -117,3 +117,7 @@ settings.py
 
 # idea files
 .idea/
+
+# cachi2 default files
+cachi2-output/
+cachi2.env
