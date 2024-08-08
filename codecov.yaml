@@ -1,0 +1,13 @@
+codecov:
+  notify:
+    wait_for_ci: no
+
+coverage:
+  status:
+    project:
+      default:
+        threshold: 5%
+
+comment:
+  layout: "condensed_files"
+  require_changes: "coverage_drop AND uncovered_patch"
