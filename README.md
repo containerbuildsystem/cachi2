@@ -1,6 +1,6 @@
 # Cachi2
 
-[![coverage][cachi2-coveralls-badge]][cachi2-coveralls]
+[![coverage][cachi2-coverage-badge]][cachi2-coverage-status]
 [![container][cachi2-container-status]][cachi2-container]
 
 Cachi2 is a CLI tool that pre-fetches your project's dependencies to aid in making your build process
@@ -406,8 +406,10 @@ See [docs/yarn.md](docs/yarn.md) for more details.
 Cachi2 was derived (but is not a direct fork) from [Cachito](https://github.com/containerbuildsystem/cachito) and is
 still in early development phase.
 
-[cachi2-coveralls]: https://coveralls.io/github/containerbuildsystem/cachi2?branch=main
-[cachi2-coveralls-badge]: https://coveralls.io/repos/github/containerbuildsystem/cachi2/badge.svg?branch=main
+<!-- DO NOT MERGE: REMOVE slimreaper35 URL -->
+[cachi2-coverage-badge]: https://codecov.io/gh/slimreaper35/cachi2/graph/badge.svg?token=Y9F45ES5RE
+[cachi2-coverage-status]: https://codecov.io/gh/slimreaper35/cachi2
+<!-- DO NOT MERGE: REMOVE slimreaper35 URL -->
 [cachi2-container]: https://quay.io/repository/redhat-appstudio/cachi2
 [cachi2-container-status]: https://quay.io/repository/redhat-appstudio/cachi2/status
 [cachi2-releases]: https://github.com/containerbuildsystem/cachi2/releases
