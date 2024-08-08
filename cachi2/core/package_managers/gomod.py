@@ -1011,7 +1011,7 @@ def _get_go_work_path(app_dir: RootedPath) -> Optional[RootedPath]:
     go = Go()
     go_work_file = go(["env", "GOWORK"], {"cwd": app_dir}).rstrip()
 
-    if not go_work_file:
+    if not go_work_file or go_work_file == "off":
         return None
 
     go_work_path = Path(go_work_file).parent
