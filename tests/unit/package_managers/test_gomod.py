@@ -798,6 +798,7 @@ def test_get_go_sum_files(
     (
         pytest.param(Template("$tmp_path/project"), False, id="go_work_exists"),
         pytest.param(Template(""), True, id="go_work_does_not_exist"),
+        pytest.param(Template("off"), True, id="go_work_disabled"),
     ),
 )
 @mock.patch("cachi2.core.package_managers.gomod.Go.__call__")
