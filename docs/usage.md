@@ -8,6 +8,7 @@ The second section goes through each of these steps for the supported package ma
   * [pre-fetch dependencies](#pre-fetch-dependencies)
   * [generate environment variables](#generate-environment-variables)
   * [inject project files](#inject-project-files)
+  * [merge SBOMs](#merge-sboms)
   * [building the artifact](#Building-the-artifact-with-the-pre-fetched-dependencies)
     * set the environment variables ([Containerfile example](#write-the-dockerfile-or-containerfile))
     * run the build ([container build example](#build-the-container))
@@ -105,6 +106,26 @@ lose) when calling inject-files.*
 it was previously clean. If any scripting depends on the cleanliness of a git repository and you do not want to commit
 the changes, the scripting should either be changed to handle the dirty status or the changes should be temporarily
 stashed by wrapping in `git stash && <command> && git stash pop` according to the suitability of the context.*
+
+### Merge SBOMs
+
+Sometimes it might be necessary to merge two or more SBOMs. This could be done with `cachi2 merge-sboms`:
+
+```shell
+cachi2 merge-sboms <cachi2_sbom_1.json> ... <cachi2_sbom_n.json>
+```
+
+The subcommand expects at least two SBOMs, all produced by Cachi2, and will exit with error
+otherwise. The reason for this is that Cachi2 supports a
+[limited set](https://github.com/containerbuildsystem/cachi2/blob/main/cachi2/core/models/sbom.py#L7-L13)
+of component [properties](https://cyclonedx.org/docs/1.4/json/#components_items_properties),
+and it validates that no other properties exist in the SBOM. By default the result of a merge
+will be printed to stdout. To save it to a file use `-o` option:
+
+```shell
+cachi2 merge-sboms <cachi2_sbom_1.json> ... <cachi2_sbom_n.json> -o <merged_sbom.json>
+```
+
 
 ### Building the Artifact with the Pre-fetched dependencies
 
