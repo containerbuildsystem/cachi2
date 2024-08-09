@@ -174,7 +174,7 @@ def _download(lockfile: RedhatRpmsLock, output_dir: Path) -> dict[Path, Any]:
         # files per URL for downloading packages & sources
         files: dict[str, Union[str, PathLike[str]]] = {}
         for pkg in arch.packages:
-            repoid = lockfile.internal_repoid if pkg.repoid is None else pkg.repoid
+            repoid = lockfile.cachi2_repoid if pkg.repoid is None else pkg.repoid
             dest = output_dir.joinpath(arch.arch, repoid, Path(pkg.url).name)
             files[pkg.url] = str(dest)
             metadata[dest] = {
@@ -185,7 +185,7 @@ def _download(lockfile: RedhatRpmsLock, output_dir: Path) -> dict[Path, Any]:
             Path.mkdir(dest.parent, parents=True, exist_ok=True)
 
         for pkg in arch.source:
-            repoid = lockfile.internal_source_repoid if pkg.repoid is None else pkg.repoid
+            repoid = lockfile.cachi2_source_repoid if pkg.repoid is None else pkg.repoid
             dest = output_dir.joinpath(arch.arch, repoid, Path(pkg.url).name)
             files[pkg.url] = str(dest)
             metadata[dest] = {
