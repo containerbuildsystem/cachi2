@@ -4,6 +4,7 @@ import json
 import logging
 import shutil
 import sys
+from itertools import chain
 from pathlib import Path
 from typing import Any, Callable, Optional
 
@@ -15,6 +16,8 @@ from cachi2.core.errors import Cachi2Error, InvalidInput
 from cachi2.core.extras.envfile import EnvFormat, generate_envfile
 from cachi2.core.models.input import Flag, PackageInput, Request, parse_user_input
 from cachi2.core.models.output import BuildConfig
+from cachi2.core.models.property_semantics import merge_component_properties
+from cachi2.core.models.sbom import Sbom
 from cachi2.core.resolver import inject_files_post, resolve_packages, supported_package_managers
 from cachi2.core.rooted_path import RootedPath
 from cachi2.interface.logging import LogLevel, setup_logging
@@ -24,6 +27,18 @@ log = logging.getLogger(__name__)
 
 DEFAULT_SOURCE = "."
 DEFAULT_OUTPUT = "./cachi2-output"
+
+
+OUTFILE_OPTION = typer.Option(
+    None,
+    "-o",
+    "--output",
+    dir_okay=False,
+    help="Write to this file instead of standard output.",
+)
+
+
+Paths = list[Path]
 
 
 def handle_errors(cmd: Callable[..., None]) -> Callable[..., None]:
@@ -291,13 +306,7 @@ FOR_OUTPUT_DIR_OPTION = typer.Option(
 def generate_env(
     from_output_dir: Path = FROM_OUTPUT_DIR_ARG,
     for_output_dir: Optional[Path] = FOR_OUTPUT_DIR_OPTION,
-    output: Optional[Path] = typer.Option(
-        None,
-        "-o",
-        "--output",
-        dir_okay=False,
-        help="Write to this file instead of standard output.",
-    ),
+    output: Optional[Path] = OUTFILE_OPTION,
     fmt: Optional[EnvFormat] = typer.Option(
         None,
         "-f",
@@ -344,6 +353,66 @@ def inject_files(
         for_output_dir=for_output_dir,
         options=fetch_deps_output.options,
     )
+
+
+def _prevalidate_sbom_files_args(sbom_files_to_merge: Paths) -> Paths:
+    def enough_files_for_merge(sbom_files_to_merge: Paths) -> Paths:
+        if len(sbom_files_to_merge) < 2:
+            raise typer.BadParameter("Need at least two different SBOM files")
+        return sbom_files_to_merge
+
+    def all_files_are_jsons(sbom_files_to_merge: Paths) -> Paths:
+        for sbom_file in sbom_files_to_merge:
+            try:
+                json.loads(sbom_file.read_text())
+            except ValueError:
+                raise typer.BadParameter(f"{sbom_file} does not look like a SBOM file")
+        return sbom_files_to_merge
+
+    return all_files_are_jsons(enough_files_for_merge(list(set(sbom_files_to_merge))))
+
+
+@app.command()
+@handle_errors
+def merge_sboms(
+    sbom_files_to_merge: Paths = typer.Argument(
+        ...,
+        callback=_prevalidate_sbom_files_args,
+        exists=True,
+        file_okay=True,
+        dir_okay=False,
+        resolve_path=True,
+        readable=True,
+        help="Names of files with SBOMs to merge.",
+    ),
+    output_sbom_file_name: Optional[Path] = OUTFILE_OPTION,
+) -> None:
+    """Merge two or more SBOMs into one.
+
+    The command works with Cachi2-generated SBOMs only. You might want to run
+
+    cachi2 fetch-deps <args...>
+
+    first to produce SBOMs to merge.
+    """
+    sboms_to_merge = []
+    for sbom_file in sbom_files_to_merge:
+        try:
+            sboms_to_merge.append(Sbom.model_validate_json(sbom_file.read_text()))
+        except pydantic.ValidationError:
+            raise typer.BadParameter(f"{sbom_file} does not appear to be a valid Cachi2 SBOM.")
+
+    sbom = Sbom(
+        components=merge_component_properties(
+            chain.from_iterable(s.components for s in sboms_to_merge)
+        )
+    )
+    sbom_json = sbom.model_dump_json(indent=2, by_alias=True, exclude_none=True)
+
+    if output_sbom_file_name is not None:
+        output_sbom_file_name.write_text(sbom_json)
+    else:
+        print(sbom_json)
 
 
 def _get_build_config(output_dir: Path) -> BuildConfig:

@@ -117,3 +117,8 @@ settings.py
 
 # idea files
 .idea/
+
+# Vim temporary files and ctags tags
+*.swp
+*.swo
+tags
