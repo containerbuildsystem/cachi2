@@ -2,6 +2,7 @@ import importlib.metadata
 import logging
 import os
 import re
+import tempfile
 from contextlib import contextmanager
 from pathlib import Path
 from textwrap import dedent
@@ -791,3 +792,137 @@ class TestInjectFiles:
 
         assert f"Overwriting {tmp_path / 'requirements.txt'}" in caplog.text
         assert f"Creating {tmp_path / 'some-dir' / 'requirements-extra.txt'}" in caplog.text
+
+
+class TestMergeSboms:
+    # Below is a high-level description of tests defined in this class.
+    #
+    # Feature: user-input errors are handled gracefully.
+    #     Scenario outine: a user tries to merge SBOMs, but does not provide correct SBOM files.
+    #     # A user can merge SBOMs with "cachi2 merge-sboms" subcommand.
+    #         When a user invokes "cachi2 merge-sboms" with "incorrect_arguments"
+    #         Then a user sees "error_pattern" in cacho2 response
+    #     Examples:
+    #             | incorrect_arguments         | error_message             |
+    #             | no files                    | Missing argument          |
+    #             | single file                 | Need at least two         |
+    #             | same file multiple times    | Need at least two         |
+    #             | not a JSON among some JSONS | does not look like        |
+    #             | unsupported SBOM format     | a valid Cachi2 SBOM       |
+    #
+    # Feature: user can merge SBOMS with a CLI command.
+    #     Scenario outline: a user can merge several SBOMs.
+    #         When a user invokes "cachi2 merge-sboms" with "some_sbom_filenames"
+    #         Then cachi2 exits with return code of success.
+    #     Examples:
+    #             | some_sbom_filenames         |
+    #             | two valid file names        |
+    #             | three valid file names      |
+    #
+    #     Scenario outline: a user can merge several SBOMs and save results to a file.
+    #         When a user invokes "cachi2 merge-sboms -o tempfile" with "some_sbom_filenames".
+    #         Then cachi2 exits with return code of success.
+    #          And tempfile contains merge result.
+    #     Examples:
+    #             | some_sbom_filenames         |
+    #             | two valid file names        |
+    #             | three valid file names      |
+    @pytest.mark.parametrize(
+        "sbom_files_to_merge, pattern",
+        [
+            ([], "Missing argument"),
+            (["./tests/unit/data/sboms/cachi2.bom.json"], "Need at least two"),
+            (
+                [
+                    "./tests/unit/data/sboms/cachi2.bom.json",
+                    "./tests/unit/data/sboms/cachi2.bom.json",
+                ],
+                "Need at least two",
+            ),
+        ],
+    )
+    def test_a_user_sees_error_when_they_dont_provide_enough_unique_sboms_for_a_merge(
+        self,
+        sbom_files_to_merge: list[str],
+        pattern: str,
+    ) -> None:
+        result = invoke_expecting_invalid_usage(app, ["merge-sboms", *sbom_files_to_merge])
+        assert pattern in result.output
+
+    @pytest.mark.parametrize(
+        "sbom_files_to_merge, pattern",
+        [
+            (["./tests/unit/data/sboms/cachi2.bom.json", "./README.md"], "does not look like"),
+        ],
+    )
+    def test_a_user_sees_error_when_they_provide_a_non_json_file_for_a_merge(
+        self,
+        sbom_files_to_merge: list[str],
+        pattern: str,
+    ) -> None:
+        result = invoke_expecting_invalid_usage(app, ["merge-sboms", *sbom_files_to_merge])
+        assert pattern in result.output
+
+    @pytest.mark.parametrize(
+        "sbom_files_to_merge, pattern",
+        [
+            (
+                [
+                    "./tests/unit/data/sboms/cachi2.bom.json",
+                    "./tests/unit/data/sboms/syft.bom.json",
+                ],
+                "a valid Cachi2 SBOM",
+            ),
+        ],
+    )
+    def test_a_user_sees_error_when_they_provide_a_non_cachi2_sbom_for_a_merge(
+        self,
+        sbom_files_to_merge: list[str],
+        pattern: str,
+    ) -> None:
+        result = invoke_expecting_invalid_usage(app, ["merge-sboms", *sbom_files_to_merge])
+        assert pattern in result.output
+
+    @pytest.mark.parametrize(
+        "sbom_files_to_merge",
+        [
+            [
+                "./tests/unit/data/sboms/cachi2.bom.json",
+                "./tests/unit/data/sboms/cachito_gomod.bom.json",
+            ],
+            [
+                "./tests/unit/data/sboms/cachi2.bom.json",
+                "./tests/unit/data/sboms/cachito_gomod.bom.json",
+                "./tests/unit/data/sboms/cachito_gomod_nodeps.bom.json",
+            ],
+        ],
+    )
+    def test_a_user_can_successfully_merge_several_cachi2_sboms(
+        self,
+        sbom_files_to_merge: list[str],
+    ) -> None:
+        # Asserts exit code is 0. All subcomponents are tested elsewhere.
+        invoke_expecting_sucess(app, ["merge-sboms", *sbom_files_to_merge])
+
+    @pytest.mark.parametrize(
+        "sbom_files_to_merge",
+        [
+            [
+                "./tests/unit/data/sboms/cachi2.bom.json",
+                "./tests/unit/data/sboms/cachito_gomod.bom.json",
+            ],
+            [
+                "./tests/unit/data/sboms/cachi2.bom.json",
+                "./tests/unit/data/sboms/cachito_gomod.bom.json",
+                "./tests/unit/data/sboms/cachito_gomod_nodeps.bom.json",
+            ],
+        ],
+    )
+    def test_a_user_can_successfully_save_sboms_merge_results_to_a_file(
+        self,
+        sbom_files_to_merge: list[str],
+    ) -> None:
+        with tempfile.NamedTemporaryFile(delete=False) as fp:
+            fp.close()
+            invoke_expecting_sucess(app, ["merge-sboms", "-o", fp.name, *sbom_files_to_merge])
+            assert Path(fp.name).lstat().st_size > 0, "SBOM failed to be written to output file!"
