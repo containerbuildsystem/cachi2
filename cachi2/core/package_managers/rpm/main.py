@@ -1,5 +1,6 @@
 import asyncio
 import hashlib
+import itertools
 import logging
 import shlex
 from configparser import ConfigParser
@@ -297,20 +298,17 @@ def _download(lockfile: RedhatRpmsLock, output_dir: Path) -> dict[Path, Any]:
         log.info(f"Downloading files for '{arch.arch}' architecture.")
         # files per URL for downloading packages & sources
         files: dict[str, Union[str, PathLike[str]]] = {}
-        for pkg in arch.packages:
-            repoid = lockfile.cachi2_repoid if pkg.repoid is None else pkg.repoid
-            dest = output_dir.joinpath(arch.arch, repoid, Path(pkg.url).name)
-            files[pkg.url] = str(dest)
-            metadata[dest] = {
-                "repoid": pkg.repoid,
-                "url": pkg.url,
-                "size": pkg.size,
-                "checksum": pkg.checksum,
-            }
-            Path.mkdir(dest.parent, parents=True, exist_ok=True)
+        rpm_iterator = zip(itertools.repeat("rpm"), arch.packages)
+        srpm_iterator = zip(itertools.repeat("srpm"), arch.source)
 
-        for pkg in arch.source:
-            repoid = lockfile.cachi2_source_repoid if pkg.repoid is None else pkg.repoid
+        for tag, pkg in itertools.chain(rpm_iterator, srpm_iterator):
+            repoid = pkg.repoid
+            if not repoid:
+                if tag == "rpm":
+                    repoid = lockfile.cachi2_repoid
+                else:
+                    repoid = lockfile.cachi2_source_repoid
+
             dest = output_dir.joinpath(arch.arch, repoid, Path(pkg.url).name)
             files[pkg.url] = str(dest)
             metadata[dest] = {
