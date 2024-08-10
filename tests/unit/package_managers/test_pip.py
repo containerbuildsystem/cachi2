@@ -42,11 +42,6 @@ def setup_module() -> None:
     pip.log.setLevel(logging.DEBUG)
 
 
-@pytest.fixture
-def rooted_tmp_path(tmp_path: Path) -> RootedPath:
-    return RootedPath(tmp_path)
-
-
 def make_dpi(
     name: str,
     version: str = "1.0",
