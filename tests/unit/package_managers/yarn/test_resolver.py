@@ -16,15 +16,6 @@ from cachi2.core.package_managers.yarn.resolver import Package, create_component
 from cachi2.core.rooted_path import RootedPath
 from cachi2.core.scm import RepoID
 
-
-def setup_module() -> None:
-    """Re-enable logging that was disabled at some point in previous tests."""
-    from cachi2.core.package_managers.yarn.resolver import log as yarn_resolver_logger
-
-    yarn_resolver_logger.disabled = False
-    yarn_resolver_logger.setLevel("DEBUG")
-
-
 MOCK_REPO_ID = RepoID("https://github.com/org/project.git", "fffffff")
 MOCK_REPO_VCS_URL = quote("git+https://github.com/org/project.git@fffffff", safe="://")
 
