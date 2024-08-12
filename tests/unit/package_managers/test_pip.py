@@ -1,5 +1,4 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-import logging
 import re
 from copy import deepcopy
 from pathlib import Path
@@ -34,12 +33,6 @@ PKG_DIR = RootedPath("/foo/package_dir")
 PKG_DIR_SUBPATH = PKG_DIR.join_within_root("subpath")
 MOCK_REPO_ID = RepoID("https://github.com/foolish/bar.git", "abcdef1234")
 CUSTOM_PYPI_ENDPOINT = "https://my-pypi.org/simple/"
-
-
-def setup_module() -> None:
-    """Re-enable logging that was disabled at some point in previous tests."""
-    pip.log.disabled = False
-    pip.log.setLevel(logging.DEBUG)
 
 
 def make_dpi(

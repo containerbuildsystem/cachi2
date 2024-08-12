@@ -17,7 +17,6 @@ from cachi2.core.errors import FetchError, PackageManagerError, PackageRejected,
 from cachi2.core.models.input import Flag, Request
 from cachi2.core.models.output import BuildConfig, EnvironmentVariable, RequestOutput
 from cachi2.core.models.sbom import Component, Property
-from cachi2.core.package_managers import gomod
 from cachi2.core.package_managers.gomod import (
     Go,
     Module,
@@ -53,12 +52,6 @@ from cachi2.core.rooted_path import PathOutsideRoot, RootedPath
 from tests.common_utils import write_file_tree
 
 GO_CMD_PATH = "/usr/bin/go"
-
-
-def setup_module() -> None:
-    """Re-enable logging that was disabled at some point in previous tests."""
-    gomod.log.disabled = False
-    gomod.log.setLevel("DEBUG")
 
 
 @pytest.fixture(scope="module")
