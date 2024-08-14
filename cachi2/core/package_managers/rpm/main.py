@@ -235,32 +235,34 @@ def _verify_downloaded(metadata: dict[Path, Any]) -> None:
                 raise_exception(f"Unmatched checksum of '{file_path}' != '{digest}'")
 
 
+def _query_rpm_fields(file_path: Path) -> list[str]:
+    query_format = (
+        # all nvra macros should be present/mandatory in RPM
+        "%{NAME}\n"
+        "%{VERSION}\n"
+        "%{RELEASE}\n"
+        "%{ARCH}\n"
+        # vendor and epoch are optional RPM tags; return "" if not set instead of "(None)"
+        "%|VENDOR?{%{VENDOR}}:{}|\n"
+        "%|EPOCH?{%{EPOCH}}:{}|\n"
+    )
+    rpm_args = [
+        "-q",
+        "--queryformat",
+        query_format.strip(),
+        str(file_path),
+    ]
+    rpm_fields = run_cmd(cmd=["rpm", *rpm_args], params={})
+    return rpm_fields.split("\n")
+
+
 def _generate_sbom_components(
     files_metadata: dict[Path, Any], lockfile_path: Path
 ) -> list[Component]:
     """Fill the component list with the package records."""
     components: list[Component] = []
     for file_path, file_metadata in files_metadata.items():
-        query_format = (
-            # all nvra macros should be present/mandatory in RPM
-            "%{NAME}\n"
-            "%{VERSION}\n"
-            "%{RELEASE}\n"
-            "%{ARCH}\n"
-            # vendor and epoch are optional in RPM file and in PURL as well
-            # return "" when vendor is not set instead of "(None)"
-            "%|VENDOR?{%{VENDOR}}:{}|\n"
-            # return "" when epoch is not set instead of "(None)"
-            "%|EPOCH?{%{EPOCH}}:{}|\n"
-        )
-        rpm_args = [
-            "-q",
-            "--queryformat",
-            query_format.strip(),
-            str(file_path),
-        ]
-        rpm_fields = run_cmd(cmd=["rpm", *rpm_args], params={})
-        name, version, release, arch, vendor, epoch = rpm_fields.split("\n")
+        name, version, release, arch, vendor, epoch = _query_rpm_fields(file_path)
         log.debug(
             f"RPM attributes for '{file_path}': name='{name}', version='{version}', "
             f"release='{release}', arch='{arch}', vendor='{vendor}', epoch='{epoch}'"
