@@ -1,3 +1,4 @@
+import textwrap
 from configparser import ConfigParser
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
@@ -431,7 +432,15 @@ def test_generate_sbom_components(mock_run_cmd: mock.Mock) -> None:
     arch = "x86_64"
     vendor = "redhat"
     epoch = ""
-    mock_run_cmd.return_value = f"{name}\n{version}\n{release}\n{arch}\n{vendor}\n{epoch}"
+    mock_run_cmd.return_value = textwrap.dedent(
+        f"""
+        name={name}
+        version={version}
+        release={release}
+        arch={arch}
+        vendor={vendor}
+        epoch={epoch}"""
+    )
     rpm = f"{name}-{version}-{release}.{arch}.rpm"
     url = f"https://example.com/{rpm}"
     files_metadata = {
@@ -460,7 +469,16 @@ def test_generate_sbom_components_missing_checksum(mock_run_cmd: mock.Mock) -> N
     arch = "x86_64"
     vendor = "redhat"
     epoch = ""
-    mock_run_cmd.return_value = f"{name}\n{version}\n{release}\n{arch}\n{vendor}\n{epoch}"
+    mock_run_cmd.return_value = textwrap.dedent(
+        f"""
+        name={name}
+        version={version}
+        release={release}
+        arch={arch}
+        vendor={vendor}
+        epoch={epoch}"""
+    )
+
     rpm = f"{name}-{version}-{release}.{arch}.rpm"
     url = f"https://example.com/{rpm}"
     files_metadata = {

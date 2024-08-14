@@ -40,37 +40,43 @@ class Package:
     version: str
     release: str
     arch: str
-    epoch: str
-    vendor: str
     download_url: str
+    epoch: Optional[str] = None
+    vendor: Optional[str] = None
     checksum: Optional[str] = None
 
     @classmethod
-    def from_filepath(cls, rpm_filepath: Path, rpm_download_metadata: dict[str, str]) -> "Package":
+    def from_filepath(cls, rpm_filepath: Path, rpm_download_metadata: dict[str, Any]) -> "Package":
         """Instantiate a package dataclass instance from a download RPM file path."""
-        name, version, release, arch, vendor, epoch = cls._query_rpm_fields(rpm_filepath)
-        return cls(
-            name,
-            version,
-            release,
-            arch,
-            epoch,
-            vendor,
-            rpm_download_metadata["url"],
-            rpm_download_metadata["checksum"],
-        )
+        kwargs: dict[str, Optional[str]] = {}
+        kwargs.update(cls._query_rpm_fields(rpm_filepath))
+
+        kwargs["download_url"] = rpm_download_metadata["url"]
+        kwargs["checksum"] = rpm_download_metadata["checksum"]
+
+        # Disable mypy here:
+        # - the required fields here correspond with mandatory RPM tags, so they won't be None
+        # - download_url isn't an RPM tag, but it's non-null value is guarded by a pydantic model
+        package = cls(**kwargs)  # type: ignore
+        log.debug("RPM package attributes for '%s': %s", rpm_filepath, package)
+        return package
 
     @staticmethod
-    def _query_rpm_fields(file_path: Path) -> list[str]:
+    def _query_rpm_fields(file_path: Path) -> dict[str, str]:
+        """Query a set of RPM tags.
+
+        Tags which are optional and not set won't be returned in the resulting dict.
+        """
+        ret = {}
         query_format = (
             # all nvra macros should be present/mandatory in RPM
-            "%{NAME}\n"
-            "%{VERSION}\n"
-            "%{RELEASE}\n"
-            "%{ARCH}\n"
+            "name=%{NAME}\n"
+            "version=%{VERSION}\n"
+            "release=%{RELEASE}\n"
+            "arch=%{ARCH}\n"
             # vendor and epoch are optional RPM tags; return "" if not set instead of "(None)"
-            "%|VENDOR?{%{VENDOR}}:{}|\n"
-            "%|EPOCH?{%{EPOCH}}:{}|\n"
+            "vendor=%|VENDOR?{%{VENDOR}}:{}|\n"
+            "epoch=%|EPOCH?{%{EPOCH}}:{}|\n"
         )
         rpm_args = [
             "-q",
@@ -79,21 +85,26 @@ class Package:
             str(file_path),
         ]
         rpm_fields = run_cmd(cmd=["rpm", *rpm_args], params={})
-        return rpm_fields.split("\n")
+        for entry in rpm_fields.split("\n"):
+            key, value = entry.partition("=")[::2]
+            if not value:
+                continue
+            ret[key] = value
+
+        return ret
 
     @property
     def purl(self) -> str:
         """Get the purl for this package."""
-        vendor = quote(self.vendor.lower())
+        vendor = "/" + quote(self.vendor.lower()) if self.vendor else ""
+        epoch = "&epoch=" + self.epoch if self.epoch else ""
         download_url = quote(self.download_url)
 
         # https://github.com/package-url/purl-spec/blob/master/PURL-TYPES.rst#rpm
         # https://github.com/package-url/purl-spec/blob/master/PURL-SPECIFICATION.rst#known-qualifiers-keyvalue-pairsa
         purl = (
-            f"pkg:rpm{'/' if self.vendor else ''}{vendor}/{self.name}@"
-            f"{self.version}-{self.release}"
-            f"?arch={self.arch}{'&epoch=' if self.epoch else ''}{self.epoch}"
-            f"&download_url={download_url}"
+            f"pkg:rpm{vendor}/{self.name}@{self.version}-{self.release}"
+            f"?arch={self.arch}{epoch}&download_url={download_url}"
         )
         return purl
 
