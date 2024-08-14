@@ -13,7 +13,7 @@
           "value": "rpms.lock.yaml"
         }
       ],
-      "purl": "pkg:rpm/fedora%20project/gpm-libs@1.20.7-46.fc40?arch=x86_64&download_url=http%3A//fedora.c3sl.ufpr.br/linux/releases/40/Everything/x86_64/os/Packages/g/gpm-libs-1.20.7-46.fc40.x86_64.rpm",
+      "purl": "pkg:rpm/fedora/gpm-libs@1.20.7-46.fc40?arch=x86_64&repository_id=releases",
       "type": "library",
       "version": "1.20.7"
     },
@@ -29,7 +29,7 @@
           "value": "rpms.lock.yaml"
         }
       ],
-      "purl": "pkg:rpm/fedora%20project/gpm@1.20.7-46.fc40?arch=i686&download_url=http%3A//fedora.c3sl.ufpr.br/linux/releases/40/Everything/source/tree/Packages/g/gpm-1.20.7-46.fc40.src.rpm",
+      "purl": "pkg:rpm/fedora/gpm@1.20.7-46.fc40?arch=src&repository_id=releases",
       "type": "library",
       "version": "1.20.7"
     },
@@ -41,7 +41,7 @@
           "value": "cachi2"
         }
       ],
-      "purl": "pkg:rpm/fedora%20project/libsodium@1.0.19-4.fc40?arch=i686&download_url=http%3A//fedora.c3sl.ufpr.br/linux/releases/40/Everything/source/tree/Packages/l/libsodium-1.0.19-4.fc40.src.rpm",
+      "purl": "pkg:rpm/fedora/libsodium@1.0.19-4.fc40?arch=src&checksum=sha256:9158cc55b14fe31e53d127521c29e25abe6a7e13d56e9d8630f89a1082cfc3c2&repository_id=releases",
       "type": "library",
       "version": "1.0.19"
     },
@@ -53,7 +53,7 @@
           "value": "cachi2"
         }
       ],
-      "purl": "pkg:rpm/fedora%20project/libsodium@1.0.19-4.fc40?arch=x86_64&download_url=http%3A//fedora.c3sl.ufpr.br/linux/releases/40/Everything/x86_64/os/Packages/l/libsodium-1.0.19-4.fc40.x86_64.rpm",
+      "purl": "pkg:rpm/fedora/libsodium@1.0.19-4.fc40?arch=x86_64&checksum=sha256:91d67f2a3be65b2904c432f4585189540978dcfb6ef994c2eaac5b7cfb4010a5&repository_id=releases",
       "type": "library",
       "version": "1.0.19"
     }

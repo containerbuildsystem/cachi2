@@ -9,7 +9,19 @@
           "value": "cachi2"
         }
       ],
-      "purl": "pkg:rpm/fedora%20project/vim-common@9.1.158-1.fc40?arch=x86_64&epoch=2&download_url=http%3A//fedora.c3sl.ufpr.br/linux/releases/40/Everything/x86_64/os/Packages/v/vim-common-9.1.158-1.fc40.x86_64.rpm",
+      "purl": "pkg:rpm/fedora/vim-common@9.1.158-1.fc40?arch=x86_64&checksum=sha256:d7792ddb38887fae32d8d19e550023459b1dfa1c6b63056c9bc6299e7276fe50&epoch=2&repository_id=releases",
+      "type": "library",
+      "version": "9.1.158"
+    },
+    {
+      "name": "vim-data",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:rpm/fedora/vim-data@9.1.158-1.fc40?arch=noarch&checksum=sha256:2d86baedd44f642f6a8f11ca8388829c69a0196ed66261df60dc8cb5b4c7f262&epoch=2&repository_id=releases",
       "type": "library",
       "version": "9.1.158"
     },
@@ -25,7 +37,7 @@
           "value": "rpms.lock.yaml"
         }
       ],
-      "purl": "pkg:rpm/fedora%20project/vim-data@9.1.158-1.fc40?arch=noarch&epoch=2&download_url=http%3A//fedora.c3sl.ufpr.br/linux/releases/40/Everything/x86_64/os/Packages/v/vim-data-9.1.158-1.fc40.noarch.rpm",
+      "purl": "pkg:rpm/fedora/vim-data@9.1.158-1.fc40?arch=noarch&epoch=2&repository_id=releases",
       "type": "library",
       "version": "9.1.158"
     },
@@ -37,7 +49,7 @@
           "value": "cachi2"
         }
       ],
-      "purl": "pkg:rpm/fedora%20project/vim-minimal@9.1.158-1.fc40?arch=aarch64&epoch=2&download_url=http%3A//fedora.c3sl.ufpr.br/linux/releases/40/Everything/aarch64/os/Packages/v/vim-minimal-9.1.158-1.fc40.aarch64.rpm",
+      "purl": "pkg:rpm/fedora/vim-minimal@9.1.158-1.fc40?arch=aarch64&checksum=sha256:8b61b4526e120fe2ba857c254df2bbb5162a0cd5832c5ed9b3079484465df19d&epoch=2&repository_id=releases",
       "type": "library",
       "version": "9.1.158"
     },
@@ -49,7 +61,7 @@
           "value": "cachi2"
         }
       ],
-      "purl": "pkg:rpm/fedora%20project/vim-minimal@9.1.158-1.fc40?arch=x86_64&epoch=2&download_url=http%3A//fedora.c3sl.ufpr.br/linux/releases/40/Everything/x86_64/os/Packages/v/vim-minimal-9.1.158-1.fc40.x86_64.rpm",
+      "purl": "pkg:rpm/fedora/vim-minimal@9.1.158-1.fc40?arch=x86_64&checksum=sha256:6a640ca5a4594859ce5ce7396f6c818c82d5de52dbcf1527078fc5bb4ee6503b&epoch=2&repository_id=releases",
       "type": "library",
       "version": "9.1.158"
     },
@@ -61,7 +73,7 @@
           "value": "cachi2"
         }
       ],
-      "purl": "pkg:rpm/fedora%20project/vim@9.1.158-1.fc40?arch=i686&epoch=2&download_url=http%3A//fedora.c3sl.ufpr.br/linux/releases/40/Everything/source/tree/Packages/v/vim-9.1.158-1.fc40.src.rpm",
+      "purl": "pkg:rpm/fedora/vim@9.1.158-1.fc40?arch=src&checksum=sha256:f99a3a8db367058084be10c0c281ab4cb2514440899d811d8be19f3b3a6139ef&epoch=2&repository_id=releases",
       "type": "library",
       "version": "9.1.158"
     }

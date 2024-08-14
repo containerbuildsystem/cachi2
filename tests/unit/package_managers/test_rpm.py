@@ -1,9 +1,7 @@
-import textwrap
 from configparser import ConfigParser
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 from unittest import mock
-from urllib.parse import quote
 
 import pytest
 import yaml
@@ -301,6 +299,7 @@ def test_resolve_rpm_project_correct_format(
                         "arch": "x86_64",
                         "packages": [
                             {
+                                "repoid": "foo",
                                 "url": "SOME_URL",
                             },
                         ],
@@ -424,80 +423,105 @@ def test_generate_repofiles(
         assert expected == actual
 
 
+RPM_FILE = "foo-1.0-2.fc39.x86_64.rpm"
+DOWNLOAD_URL = f"https://example.com/{RPM_FILE}"
+
+
+@pytest.mark.parametrize(
+    "opt_rpm_tags,metadata,purl_format_str,sbom_properties",
+    [
+        pytest.param(
+            {},
+            {"repoid": "foorepo", "url": DOWNLOAD_URL, "checksum": "sha256:21bb2a09"},
+            "pkg:rpm/{name}@{version}-{release}?arch={arch}&checksum={checksum}&repository_id={repoid}",
+            [],
+            id="with_repoid_and_url",
+        ),
+        pytest.param(
+            {"vendor": "Fedora Project"},
+            {"repoid": "foorepo", "url": DOWNLOAD_URL, "checksum": "sha256:21bb2a09"},
+            "pkg:rpm/fedora/{name}@{version}-{release}?arch={arch}&checksum={checksum}&repository_id={repoid}",
+            [],
+            id="with_namespace",
+        ),
+        pytest.param(
+            {"vendor": "RPM Fusion"},
+            {"repoid": "foorepo", "url": DOWNLOAD_URL, "checksum": "sha256:21bb2a09"},
+            "pkg:rpm/rpm_fusion/{name}@{version}-{release}?arch={arch}&checksum={checksum}&repository_id={repoid}",
+            [],
+            id="with_normalized_namespace",
+        ),
+        pytest.param(
+            {"epoch": "2"},
+            {"repoid": "foorepo", "url": DOWNLOAD_URL, "checksum": "sha256:21bb2a09"},
+            "pkg:rpm/{name}@{version}-{release}?arch={arch}&checksum={checksum}&epoch={epoch}&repository_id={repoid}",
+            [],
+            id="with_epoch",
+        ),
+        pytest.param(
+            {"arch": "noarch"},
+            {"repoid": "foorepo", "url": DOWNLOAD_URL, "checksum": "sha256:21bb2a09"},
+            "pkg:rpm/{name}@{version}-{release}?arch={arch}&checksum={checksum}&repository_id={repoid}",
+            [],
+            id="with_noarch",
+        ),
+        pytest.param(
+            {},
+            {"repoid": "foorepo", "url": DOWNLOAD_URL, "checksum": "sha256:21bb2a09"},
+            "pkg:rpm/{name}@{version}-{release}?arch=src&checksum={checksum}&repository_id={repoid}",
+            [],
+            id="with_src_rpm",
+        ),
+        pytest.param(
+            {},
+            {"url": DOWNLOAD_URL, "checksum": "sha256:21bb2a09"},
+            "pkg:rpm/{name}@{version}-{release}?arch={arch}&checksum={checksum}&download_url={url}",
+            [],
+            id="no_repoid",
+        ),
+        pytest.param(
+            {},
+            {"repoid": "foorepo", "url": DOWNLOAD_URL},
+            "pkg:rpm/{name}@{version}-{release}?arch={arch}&repository_id={repoid}",
+            [Property(name="cachi2:missing_hash:in_file", value="rpms.lock.yaml")],
+            id="no_checksum",
+        ),
+    ],
+)
 @mock.patch("cachi2.core.package_managers.rpm.main.run_cmd")
-def test_generate_sbom_components(mock_run_cmd: mock.Mock) -> None:
-    name = "foo"
-    version = "1.0"
-    release = "2.fc39"
-    arch = "x86_64"
-    vendor = "redhat"
-    epoch = ""
-    mock_run_cmd.return_value = textwrap.dedent(
-        f"""
-        name={name}
-        version={version}
-        release={release}
-        arch={arch}
-        vendor={vendor}
-        epoch={epoch}"""
-    )
-    rpm = f"{name}-{version}-{release}.{arch}.rpm"
-    url = f"https://example.com/{rpm}"
-    files_metadata = {
-        Path(f"/path/to/{rpm}"): {
-            "package": True,
-            "url": url,
-            "size": 12345,
-            "checksum": "sha256:21bb2a09852e75a693d277435c162e1a910835c53c3cee7636dd552d450ed0f1",
-        }
+def test_generate_sbom_components(
+    mock_run_cmd: mock.Mock,
+    opt_rpm_tags: dict[str, str],
+    metadata: dict[str, str],
+    purl_format_str: str,
+    sbom_properties: list[Property],
+    tmp_path: Path,
+    request: pytest.FixtureRequest,
+) -> None:
+    rpm_tags = {
+        "name": "foo",
+        "version": "1.0",
+        "release": "2.fc39",
+        "arch": "x86_64",
     }
+    rpm_tags.update(opt_rpm_tags)
+
+    if request.node.callspec.id == "with_src_rpm":
+        rpm_file_path = tmp_path / Path(RPM_FILE).with_suffix(".src.rpm")
+    else:
+        rpm_file_path = tmp_path / RPM_FILE
+
+    files_metadata = {rpm_file_path: metadata}
+
+    mock_run_cmd.return_value = "\n".join([f"{k}={v}" for k, v in rpm_tags.items()])
     components = _generate_sbom_components(files_metadata, Path("rpms.lock.yaml"))
+
     assert components == [
         Component(
-            name=name,
-            version=version,
-            purl=f"pkg:rpm/{vendor}/{name}@{version}-{release}?arch={arch}&download_url={quote(url)}",
-        )
-    ]
-
-
-@mock.patch("cachi2.core.package_managers.rpm.main.run_cmd")
-def test_generate_sbom_components_missing_checksum(mock_run_cmd: mock.Mock) -> None:
-    name = "foo"
-    version = "1.0"
-    release = "2.fc39"
-    arch = "x86_64"
-    vendor = "redhat"
-    epoch = ""
-    mock_run_cmd.return_value = textwrap.dedent(
-        f"""
-        name={name}
-        version={version}
-        release={release}
-        arch={arch}
-        vendor={vendor}
-        epoch={epoch}"""
-    )
-
-    rpm = f"{name}-{version}-{release}.{arch}.rpm"
-    url = f"https://example.com/{rpm}"
-    files_metadata = {
-        Path(f"/path/to/{rpm}"): {
-            "package": True,
-            "url": url,
-            "size": 12345,
-            "checksum": None,
-        }
-    }
-    components = _generate_sbom_components(files_metadata, Path("rpms.lock.yaml"))
-    assert components == [
-        Component(
-            name=name,
-            version=version,
-            purl=f"pkg:rpm/{vendor}/{name}@{version}-{release}?arch={arch}&download_url={quote(url)}",
-            properties=[
-                Property(name="cachi2:missing_hash:in_file", value="rpms.lock.yaml"),
-            ],
+            name=rpm_tags["name"],
+            version=rpm_tags["version"],
+            purl=purl_format_str.format(**{**rpm_tags, **metadata}),
+            properties=sbom_properties,
         )
     ]
 

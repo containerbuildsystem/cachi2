@@ -7,9 +7,9 @@ from dataclasses import dataclass
 from os import PathLike
 from pathlib import Path
 from typing import Any, Dict, Optional, Union, no_type_check
-from urllib.parse import quote
 
 import yaml
+from packageurl import PackageURL
 from pydantic import ValidationError
 
 from cachi2.core.config import get_config
@@ -44,6 +44,7 @@ class Package:
     epoch: Optional[str] = None
     vendor: Optional[str] = None
     checksum: Optional[str] = None
+    repository_id: Optional[str] = None
 
     @classmethod
     def from_filepath(cls, rpm_filepath: Path, rpm_download_metadata: dict[str, Any]) -> "Package":
@@ -51,8 +52,16 @@ class Package:
         kwargs: dict[str, Optional[str]] = {}
         kwargs.update(cls._query_rpm_fields(rpm_filepath))
 
+        repoid = rpm_download_metadata.get("repoid")
+        is_srpm = rpm_filepath.name.endswith("src.rpm")
+
+        if is_srpm:
+            # Red Hat PURL RPM guideline suggests injecting 'src' into the arch qualifier for SRPMS
+            kwargs["arch"] = "src"
+
+        kwargs["repository_id"] = repoid if repoid and not repoid.startswith("cachi2") else None
         kwargs["download_url"] = rpm_download_metadata["url"]
-        kwargs["checksum"] = rpm_download_metadata["checksum"]
+        kwargs["checksum"] = rpm_download_metadata.get("checksum")
 
         # Disable mypy here:
         # - the required fields here correspond with mandatory RPM tags, so they won't be None
@@ -96,17 +105,44 @@ class Package:
     @property
     def purl(self) -> str:
         """Get the purl for this package."""
-        vendor = "/" + quote(self.vendor.lower()) if self.vendor else ""
-        epoch = "&epoch=" + self.epoch if self.epoch else ""
-        download_url = quote(self.download_url)
+        # TODO: get rid of these mappings the moment the upstream PURL spec provides clear
+        # guidelines where does the namespace value come from, i.e. not the VENDOR RPM header tag
+        vendor_namespace_mapping = {
+            "Red Hat": "redhat",  # common Vendor string 'Red Hat Inc.'
+            "Fedora": "fedora",  # common Vendor string: Fedora Project, Fedora Copr - group @XYZ
+            "SUSE": "suse",  # common Vendor string: SUSE LLC <https://www.suse.com/>
+        }
 
-        # https://github.com/package-url/purl-spec/blob/master/PURL-TYPES.rst#rpm
-        # https://github.com/package-url/purl-spec/blob/master/PURL-SPECIFICATION.rst#known-qualifiers-keyvalue-pairsa
-        purl = (
-            f"pkg:rpm{vendor}/{self.name}@{self.version}-{self.release}"
-            f"?arch={self.arch}{epoch}&download_url={download_url}"
-        )
-        return purl
+        qualifier_fields = [
+            ("epoch", self.epoch),
+            ("arch", self.arch),
+            ("repository_id", self.repository_id),
+            ("checksum", self.checksum),
+            ("download_url", None if self.repository_id else self.download_url),
+        ]
+        qualifiers: dict[str, str] = {k: v for k, v in qualifier_fields if v is not None}
+
+        # VENDOR tag is optional (under Informative package tags) [1]
+        # [1] https://rpm-software-management.github.io/rpm/manual/tags.html
+        if self.vendor is None:
+            namespace = ""
+        else:
+            for mapping, namespc in vendor_namespace_mapping.items():
+                if mapping in self.vendor:
+                    namespace = namespc
+                    break
+            else:
+                # vendor string not recognized, normalize it in a very basic, best effort manner
+                namespace = self.vendor.lower().replace(" ", "_")
+                log.debug("Normalized unknown namespace '%s' -> '%s'", self.vendor, namespace)
+
+        return PackageURL(
+            type="rpm",
+            name=self.name,
+            namespace=namespace,
+            version=f"{self.version}-{self.release}",
+            qualifiers=qualifiers,
+        ).to_string()
 
     def to_component(self, lockfile_path: Path) -> Component:
         """Create an SBOM component for this package."""
@@ -266,6 +302,7 @@ def _download(lockfile: RedhatRpmsLock, output_dir: Path) -> dict[Path, Any]:
             dest = output_dir.joinpath(arch.arch, repoid, Path(pkg.url).name)
             files[pkg.url] = str(dest)
             metadata[dest] = {
+                "repoid": pkg.repoid,
                 "url": pkg.url,
                 "size": pkg.size,
                 "checksum": pkg.checksum,
@@ -277,6 +314,7 @@ def _download(lockfile: RedhatRpmsLock, output_dir: Path) -> dict[Path, Any]:
             dest = output_dir.joinpath(arch.arch, repoid, Path(pkg.url).name)
             files[pkg.url] = str(dest)
             metadata[dest] = {
+                "repoid": pkg.repoid,
                 "url": pkg.url,
                 "size": pkg.size,
                 "checksum": pkg.checksum,
