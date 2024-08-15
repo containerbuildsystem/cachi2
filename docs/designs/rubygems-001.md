@@ -2,10 +2,9 @@
 
 - [Overview](#overview)
 - [Context](#context)
-- [Description](#description)
-    - [Ruby ecosystem overview](#i-ruby-ecosystem-overview)
-    - [Current implementation overview (Cachito)](#ii-overview-of-the-current-implementation-in-cachito)
-    - [Design for the Cachi2 implementation](#iii-design-for-the-implementation-in-cachi2)
+- [Ruby ecosystem overview](#i-ruby-ecosystem-overview)
+- [Current implementation overview (Cachito)](#ii-overview-of-the-current-implementation-in-cachito)
+- [Design for the Cachi2 implementation](#iii-design-for-the-implementation-in-cachi2)
 - [Decision](#decision)
 
 ## Overview
@@ -21,11 +20,9 @@ Design that covers the initial implementation of the Rubygem/Bundler package man
 ## Context
 In the effort to evolve Cachi2 to be a full solution for the prefetching feature of Cachito, we have decided to implement support to the currently missing package managers: Rubygems and Yarn v1. This design covers only the implementation of Rubygems, and the Yarn v1 design will follow.
 
-## Description
+## I. Ruby ecosystem overview
 
-### I. Ruby ecosystem overview
-
-#### Development prerequisites
+### Development prerequisites
 In order to execute the commands in the examples below, make sure you have the following packages installed in your
 environment:
 
@@ -38,7 +35,7 @@ Or use the official Ruby image from Docker hub:
 podman run --rm -it docker.io/library/ruby:3.3.3 bash
 ```
 
-#### Project structure
+### Project structure
 ```bash
 bundle init # creates Gemfile in the current directory
 bundle lock # creates Gemfile.lock in the current directory
@@ -52,7 +49,7 @@ bundle lock # creates Gemfile.lock in the current directory
 ├── vendor/cache
 ```
 
-#### Glossary
+### Glossary
 - **Gemfile**: A file that specifies the gems that your project depends on and their versions. Bundler uses this file
 to install the correct versions of gems for your project.
 
@@ -95,12 +92,12 @@ RubyGems uses it to install, update, and uninstall gems.
   end
   ```
 
-#### Dependency types
+### Dependency types
 There are four types of
 [sources](https://github.com/rubygems/rubygems/blob/master/bundler/lib/bundler/lockfile_parser.rb#L48) for dependencies
 in the `Gemfile.lock` file:
 
-##### Gem dependencies
+#### Gem dependencies
 Regular gem dependencies are located at the source URL, in our case, always <https://rubygems.org>. Each gem can be
 accessed by its name and version - rubygems.org/gems/`<name>`-`<version>`.gem
 
@@ -128,7 +125,7 @@ GEM
     sprockets-rails (>= 2.0.0)
 ```
 
-##### Git dependencies
+#### Git dependencies
 Example of a Git dependency in the `Gemfile.lock` file:
 
 ```
@@ -140,7 +137,7 @@ GIT
     porta (2.14.1)
 ```
 
-##### Path dependencies
+#### Path dependencies
 Example of a path dependency in the `Gemfile.lock` file:
 
 ```
@@ -154,7 +151,7 @@ All path dependencies must be in the project directory. Bundler
 [does not copy](https://github.com/rubygems/rubygems/blob/master/bundler/lib/bundler/source/path.rb#L83) those
 dependencies that are already within the root directory of the project.
 
-##### Plugins
+#### Plugins
 Installing a plugin, even when on a folder that is a Bundler project, doesn't seem to affect the `Gemfile.lock`. The
 plugin seems to be installed by default in the `$PWD/.bundle/`. The `Gemfile.lock` does have a section for plugins,
 though, so further investigation would be needed. This initial investigation was done with the plugins listed under
@@ -164,7 +161,7 @@ though, so further investigation would be needed. This initial investigation was
 extend the functionality of `gem` itself, and don't seem to have any impact on Bundler directly.*
 
 
-#### Platforms
+### Platforms
 Some gems may contain pre-compiled binaries that provide native extensions to the Ruby package. Any gem declared in the
 `Gemfile` can be limited to specific
 [platforms](https://bundler.io/v2.5/man/gemfile.5.html#PLATFORMS), making Bundler ignore it in case the project is
@@ -192,7 +189,7 @@ PLATFORMS
 In case a user wants to force all the binaries to be compiled from source, the `BUNDLE_FORCE_RUBY_PLATFORM` environment
 variable can be used.
 
-#### Dev dependencies
+### Dev dependencies
 When adding a Gem into a Gemfile, the user might opt to nest them under a specific
 [group](https://bundler.io/guides/groups.html). The name of the group can be any string, but the usual groups tend to
 be common labels such as `:test`, `:development` or `:production`.
@@ -214,7 +211,7 @@ Another way to declare a dependency in the `:development` group is to
 which is usually declared in the `.gemspec` file. This means we can safely assume that all dependencies under
 `:development` are dev dependencies.
 
-#### Dependency checksums
+### Dependency checksums
 The support to checksums in the `Gemfile.lock` is still in development, and currently is an
 [opt-in feature](https://github.com/rubygems/rubygems/pull/7217). To enable it, we need to manually add a `CHECKSUMS`
 section in the `Gemfile.lock`:
@@ -243,7 +240,7 @@ CHECKSUMS
 This feature is available since Bundler [v2.5.0](https://github.com/rubygems/rubygems/blob/master/bundler/lib/bundler/lockfile_parser.rb#L55),
 from this [PR](https://github.com/rubygems/rubygems/pull/6374) being merged on Oct 21, 2023.
 
-### II. Overview of the current implementation in Cachito
+## II. Overview of the current implementation in Cachito
 
 [cachito/workers/pkg_mangers/rubygems.py](https://github.com/containerbuildsystem/cachito/blob/master/cachito/workers/pkg_managers/rubygems.py)
 
@@ -261,9 +258,9 @@ which is vendored from
 Source code for "official" Bundler lockfile parsing in Ruby:
 <https://github.com/rubygems/rubygems/blob/master/bundler/lib/bundler/lockfile_parser.rb>
 
-### III. Design for the implementation in Cachi2
+## III. Design for the implementation in Cachi2
 
-#### Prefetching
+### Prefetching
 
 Running a bundler command to fetch the dependencies always executes the `Gemfile`, which is arbitrary Ruby code.
 Executing arbitrary code is a security risk and makes it impossible to assert that the resulting SBOM is accurate
@@ -287,7 +284,7 @@ A Gem can be fetched from its original location by using the following template:
 We should also leverage the existing code used to perform parallel downloads based on `asyncio` to download the necessary
 Gems from the internet.
 
-##### Output folder structure
+#### Output folder structure
 
 Bundler has a built-in feature to cache all dependencies locally. This is done with the `bundle cache --all` command or
 `bundle package --all` alias. In order to make bundler use the prefetched dependencies during the build, Cachi2 needs
@@ -317,7 +314,7 @@ The name of the directory **must come from the Git URL**, not the actual name of
 contain unpacked source code. Any other format will cause bundler to try to re-download the repository, causing the
 build to fail.
 
-###### Multiple Gems in a single repository
+##### Multiple Gems in a single repository
 
 A single repository can hold multiple Gems, and those can be imported as dependencies. When this happens, Bundler still
 expects a single clone to be made. Here's an example of how multiple gems imported from a single repository+revision
@@ -340,9 +337,9 @@ GIT
       nokogiri (~> 1, >= 1.10.8)
 ```
 
-#### Out of scope
+### Out of scope
 
-##### Plugins
+#### Plugins
 Bundler has support for using [plugins](https://bundler.io/guides/bundler_plugins.html), which allows users to extend
 Bundler's functionality in any way that they seem fit. Since this can open the possibility for security issues, plugins
 will not be supported by Cachi2.
@@ -350,7 +347,7 @@ will not be supported by Cachi2.
 Since we're not proposing the direct usage of Bundler to fetch the dependencies, no other actions are needed in the
 prefetch phase, existing plugin definitions will be ignored.
 
-##### Pre-compiled binaries
+#### Pre-compiled binaries
 For the initial implementation, we're aiming to provide support only for plain Ruby gems (which are idenfied as `ruby`
 in the `PLATFORMS` section of the `Gemfile.lock`). Platforms that relate to specific architectures will contain
 binaries that were pre-compiled for that architecture (see [Platforms](#platforms)).
@@ -375,13 +372,13 @@ and also document it properly.
 Proper support for pre-compiled binaries should be probably left as a follow-up feature, similarly to what was done
 with [pip wheels](https://github.com/containerbuildsystem/cachi2/blob/main/docs/pip.md#distribution-formats).
 
-##### Checksum verification
+#### Checksum verification
 Since checksums in the `Gemlock.file` is still a feature in development (see [checksums](#dependency-checksums)), we
 can postpone implementing support for it until the feature is delivered.
 
 We need to decide if we will report all dependencies as having missing checksums in the SBOM, or not.
 
-##### Dev dependencies
+#### Dev dependencies
 Bundler declares all dev dependencies under the `:development`
 [group](#dependency-groups-or-how-bundler-deals-with-dev-dependencies). Unfortunately, groups declared in the `Gemfile`
 are not reflected in the `Gemfile.lock`.
@@ -389,7 +386,7 @@ are not reflected in the `Gemfile.lock`.
 To implement proper reporting of dev dependencies, we'll very likely need to also parse the `Gemfile`. It can be done
 as a follow-up if the need arises.
 
-##### Prefetching Bundler
+#### Prefetching Bundler
 When running `bundle install`, Bundler will always try to fetch the exact version that is pinned in the `Gemfile.lock`
 to perform the install. When doing an offline install from cache, a warning message is instead printed, but Bundler
 will usually perform the install as expected.
@@ -401,9 +398,9 @@ is treated as an ordinary Gem: https://rubygems.org/gems/bundler.
 This feature, however, is out of scope for the initial implementation, and could be added if there's user demand for
 it.
 
-#### Providing the content for the hermetic build
+### Providing the content for the hermetic build
 
-##### Setting the Bundler configuration
+#### Setting the Bundler configuration
 
 The order of precedence for Bundler configuration options is as follows:
 
@@ -420,7 +417,7 @@ or use `BUNDLE_APP_CONFIG` to point Bundler to a config directory within the Cac
 the benefit of not needing to dirty the cloned sources, but it wouldn't be able to support a multiple Ruby project per
 repository scenario (since we would need to keep multiple configuration files).
 
-##### Relevant configuration for the build
+#### Relevant configuration for the build
 
 ```
 BUNDLE_CACHE_PATH=${output_dir}/deps/rubygems
@@ -441,14 +438,14 @@ install won't prune any cached dependencies that are unrelated to it.
 
 For more information, see Bundler's [documentation](https://bundler.io/v2.5/man/bundle-config.1.html).
 
-###### Other configuration that was considered
+##### Other configuration that was considered
 
 - `BUNDLE_ALLOW_OFFLINE_INSTALL` is not working either with `bundle install` for some reason, which could be probably
 the most logical solution in this case.
 
-#### Generating the SBOM
+### Generating the SBOM
 
-##### Main package metadata
+#### Main package metadata
 
 Ruby uses [Gem::Specification](https://guides.rubygems.org/specification-reference/) as a means of defining a Gem's
 metadata, and it is usually defined in a `{gem-name}.gemspec` file. This file is not mandatory, though, and when it
@@ -478,16 +475,16 @@ mandatory field.
 [^main-package]: In Cachi2's terms, the **main package** is the path in the repository that is currently being
   processed.
 
-##### PURLs
+#### PURLs
 
 Also check the Ruby PURL [specification](https://github.com/package-url/purl-spec/blob/master/PURL-TYPES.rst#gem).
 
-###### Standard Gem
+##### Standard Gem
 ```txt
 pkg:gem/my-gem-name@0.1.1
 ```
 
-###### Git dependency
+##### Git dependency
 
 ```txt
 pkg:gem/my-git-dependency?vcs_url=git%2Bhttps://github.com/my-org/mygem.git%26487618a68443e94d623bb585cb464b07d36702
@@ -504,7 +501,7 @@ GIT
       addressable (>= 2.4)
 ```
 
-###### Path dependency
+##### Path dependency
 
 ```txt
 pkg:gem/my-path-dependency?vcs_url=git%2Bhttps://github.com/my-org/mygem.git%40b6f47bd07e669c8d2eced8015c4bfb06db49949#subpath

@@ -4,6 +4,6 @@
 
 ## Context
 
-## Description
+## [Free-form sections]
 
 ## Decision
