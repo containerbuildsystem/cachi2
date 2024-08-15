@@ -7,11 +7,12 @@ Contents:
 3. [Design for the Cachi2 implementation](#design-for-the-implementation-in-cachi2)
 
 ## PNC
+Also known as Project NewCastle - [open-source project](https://github.com/project-ncl/pnc) for managing, executing, 
+and tracking cross-platform builds. The part that is important for cachi2 integration is the exposed API that provides
+information about builds and their artifacts, as well as the means to download those artifacts.
 
-### Glossary
-- **PNC**: Project NewCastle - [open-source project](https://github.com/project-ncl/pnc) for managing, executing, 
-  and tracking cross-platform builds.
 
+## Overview of the current implementation in OSBS
 
 ### Repository configuration 
 Projects that currently use OSBS to fetch sources from PNC do so through a file named `fetch-artifacts-pnc.yaml`
@@ -45,7 +46,7 @@ These artifacts are fetched to `artifacts/<target>` path at the root of the repo
 ### PNC instance configuration
 Currently, the url of the PNC instance is configured as a part of OSBS config. 
 
-## Overview of the current implementation in OSBS
+
 
 [atomic_reactor/plugins/fetch_maven_artifacts.py](https://github.com/containerbuildsystem/atomic-reactor/blob/master/atomic_reactor/plugins/fetch_maven_artifacts.py)
 1) OSBS loads the `fetch-artifacts-pnc.yaml`
@@ -72,19 +73,16 @@ or products that contain other components. Purl should also specify a `repositor
 
 ## Design for the implementation in Cachi2
 
-
-### Providing the content for the hermetic build
-
-#### PNC config
+### PNC config
 Existing `fetch-artifacts-pnc.yaml` file ([docs](https://osbs.readthedocs.io/en/osbs_ocp3/users.html?highlight=fetch#fetch-artifacts-pnc-yaml))
 will be used as configuration. It needs to be extended to also include PNC instance url.
 
-#### Pre-fetch PNC dependencies
+### Pre-fetch PNC dependencies
 Cachi2 will use the `artifacts` key specified in the `fetch-artifacts-pnc.yaml` file to fetch info about given artifacts
 from PNC (`/artifacts/{id}` endpoint), including url to download the artifact, checksums to verify integrity, and the purl.
 The artifacts should be fetched into a separate subdirectory in cachi2 output folder, and into the target path.
 
-##### Fetching sources
+#### Fetching sources
 Cachi2 will use the `build_id` keys to fetch build sources from PNC (`/builds/{id}/scm-archive` endpoint). These sources
 should be fetched into a separate subdirectory in cachi2 output folder, different from the artifacts.
 
