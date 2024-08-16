@@ -1144,7 +1144,7 @@ yarl==1.9.4 \
     # via aiohttp
 
 # The following packages are considered to be unsafe in a requirements file:
-setuptools==70.2.0 \
-    --hash=sha256:b8b8060bb426838fbe942479c90296ce976249451118ef566a5a0b7d8b78fb05 \
-    --hash=sha256:bd63e505105011b25c3c11f753f7e3b8465ea739efddaccef8f0efac2137bac1
+setuptools==72.2.0 \
+    --hash=sha256:80aacbf633704e9c8bfa1d99fa5dd4dc59573efcf9e4042c13d3bcef91ac2ef9 \
+    --hash=sha256:f11dd94b7bae3a156a95ec151f24e4637fb4fa19c878e4d191bfb8b2d82728c4
     # via cachi2 (pyproject.toml)
