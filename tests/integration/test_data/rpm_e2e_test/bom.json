@@ -156,6 +156,18 @@
       "purl": "pkg:rpm/fedora/xxd@9.0.1927-1.fc39?arch=x86_64&checksum=sha256:e770b0a0e5e51225a76069d2210551a90f3140913f90f33759d002055179ecc7&epoch=2&repository_id=releases",
       "type": "library",
       "version": "9.0.1927"
+    },
+    {
+      "name": "libftl",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:rpm/rpm_fusion/libftl@0.9.14-12.fc39?arch=x86_64&checksum=sha256:6b0d8d3329150151fb8ea1eba7a4b464f112326777bee7a2e202753adc767281&repository_id=rpmfusion-free",
+      "type": "library",
+      "version": "0.9.14"
     }
   ],
   "metadata": {
