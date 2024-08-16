@@ -1,7 +1,7 @@
 FROM registry.access.redhat.com/ubi9/ubi@sha256:763f30167f92ec2af02bf7f09e75529de66e98f05373b88bef3c631cdcc39ad8 as ubi
 FROM docker.io/library/golang:1.20.0-bullseye as golang_120
 FROM docker.io/library/golang:1.21.0-bullseye as golang_121
-FROM docker.io/library/node:22.5.1-bullseye as node_223
+FROM docker.io/library/node:22.5.1-bullseye as node
 
 ########################
 # PREPARE OUR BASE IMAGE
@@ -43,8 +43,8 @@ LABEL maintainer="Red Hat"
 # copy Go SDKs and Node.js installation from official images
 COPY --from=golang_120 /usr/local/go /usr/local/go/go1.20
 COPY --from=golang_121 /usr/local/go /usr/local/go/go1.21
-COPY --from=node_223 /usr/local/lib/node_modules/corepack /usr/local/lib/corepack
-COPY --from=node_223 /usr/local/bin/node /usr/local/bin/node
+COPY --from=node /usr/local/lib/node_modules/corepack /usr/local/lib/corepack
+COPY --from=node /usr/local/bin/node /usr/local/bin/node
 COPY --from=builder /venv /venv
 
 # link corepack, yarn, and go to standard PATH location
