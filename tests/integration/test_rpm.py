@@ -195,7 +195,7 @@ def test_repo_files(
         pytest.param(
             utils.TestParameters(
                 repo="https://github.com/cachito-testing/cachi2-rpm.git",
-                ref="eef99f074a9abd288b421697d7e00cec77590d0d",
+                ref="7660507280b7021651dfd543fad28b0a535f4d8d",
                 packages=(
                     {
                         "type": "rpm",
