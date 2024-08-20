@@ -9,7 +9,81 @@ Contents:
 ## PNC
 Also known as Project NewCastle - [open-source project](https://github.com/project-ncl/pnc) for managing, executing, 
 and tracking cross-platform builds. The part that is important for cachi2 integration is the exposed API that provides
-information about builds and their artifacts, as well as the means to download those artifacts.
+information about builds and their artifacts, as well as the means to download those artifacts. The API does not require
+authentication.
+
+### Relevant endpoints and their payloads
+#### /artifacts/{id}
+This endpoint takes an `id` of an artifact from the `fetch-artifacts-pnc.yaml` file. It will respond with
+various information about the specified artifact. The API response is [documented here](https://github.com/project-ncl/pnc-api/blob/5b35ad6fe22769510f60b0025752dc6c954c9734/src/main/java/org/jboss/pnc/api/repositorydriver/dto/RepositoryArtifact.java).
+Below is an example response, some irrelevant fields left out:
+```json
+{
+  "id": "1234",
+  "identifier": "org.example:package:zip:1.2.3.org-1",
+  "purl": "pkg:maven/org.example/package@1.2.3.org-1?type=zip",
+  "artifactQuality": "NEW",
+  "buildCategory": "STANDARD",
+  "md5": "<md5 hash>",
+  "sha1": "<sha1 hash>",
+  "sha256": "<sha256 hash>",
+  "filename": "package-1.2.3.org-1.zip",
+  "deployPath": "<path>",
+  "importDate": null,
+  "originUrl": null,
+  "size": 12345,
+  "deployUrl": "<local url>",
+  "publicUrl": "<public url>",
+  "creationTime": null,
+  "modificationTime": "2023-08-14T15:04:44.388Z",
+  "qualityLevelReason": null,
+  "targetRepository": {
+    "id": "456",
+    "temporaryRepo": false,
+    "identifier": "indy-maven",
+    "repositoryType": "MAVEN",
+    "repositoryPath": "/api/content/maven/hosted/pnc-builds/"
+  },
+  "build": {
+    "id": "ABCD123",
+    "submitTime": "2023-08-14T14:43:16.097Z",
+    "startTime": "2023-08-14T14:43:16.179Z",
+    "endTime": "2023-08-14T15:04:44.494Z",
+    "progress": "FINISHED",
+    "status": "SUCCESS",
+    "buildContentId": "build-ABCD123",
+    "temporaryBuild": false,
+    "alignmentPreference": null,
+    "scmUrl": "<source repo>",
+    "scmRevision": "<hash>",
+    "scmTag": "1.2.3.org-1-ABCD123",
+    "buildOutputChecksum": "<hash>",
+    "lastUpdateTime": "2023-08-14T15:05:02.382Z",
+    "scmBuildConfigRevision": null,
+    "scmBuildConfigRevisionInternal": null,
+    "project": {
+      "id": "5",
+      "name": "package-parent",
+      "description": null,
+      "issueTrackerUrl": null,
+      "projectUrl": null,
+      "engineeringTeam": null,
+      "technicalLeader": null
+    },
+    "attributes": {
+      "BREW_BUILD_VERSION": "1.2.3.org-1",
+      "BUILD_OUTPUT_OK": "false",
+      "BREW_BUILD_NAME": "org.example:package-parent"
+    },
+    "noRebuildCause": null
+  },
+  "creationUser": null
+}
+```
+
+#### /builds/{id}/scm-archive
+This endpoint will return the source build archive as a tarball (.tar.gz). Build `id` can be located in
+the  `fetch-artifacts-pnc.yaml` file.
 
 
 ## Overview of the current implementation in OSBS
@@ -50,7 +124,7 @@ Currently, the url of the PNC instance is configured as a part of OSBS config.
 
 [atomic_reactor/plugins/fetch_maven_artifacts.py](https://github.com/containerbuildsystem/atomic-reactor/blob/master/atomic_reactor/plugins/fetch_maven_artifacts.py)
 1) OSBS loads the `fetch-artifacts-pnc.yaml`
-2) Information about individual artifacts is fetched from PNC api at `/artifacts/{id}` endpoint
+2) Information about individual artifacts is fetched from PNC API at `/artifacts/{id}` endpoint ([docs](https://github.com/project-ncl/pnc-api/blob/5b35ad6fe22769510f60b0025752dc6c954c9734/src/main/java/org/jboss/pnc/api/repositorydriver/dto/RepositoryArtifact.java))
    - `publicUrl` key is used to get download url
    - supported checksums are saved
    - build ids are saved
@@ -92,11 +166,18 @@ As mentioned in [missing features](#missing-features), the purl needs to specify
   from PNC `/artifacts/{id}` endpoint response.
 - `type` & `classifier` - solution pending
 
+Here's an example purl that should be generated:
+```
+pkg:maven/org.example/package@1.2.3.org-1?type=zip&classifier=dist&repository_url=https://repo.maven.apache.org/maven2
+```
+
 #### Relevant configuration for the build
 No environment variables need to be set.
 
-#### Injecting files to an expected location
-The actual artifacts should be injected into `artifacts/` path in the repository. 
+#### Expected location of artifacts
+The current implementation expects artifacts in the `artifacts/` path in the root of repository.
+Due to cachi2's usual design patterns, the artifacts will remain in cachi2's default output directory
+(`./cachi2-output`), and users will be required to act accordingly.
 
 
 ### Summary
