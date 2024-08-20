@@ -1,26 +1,25 @@
 # Initial Design for the Rubygems Package Manager
 
-- [Overview](#overview)
+- [Introduction](#introduction)
 - [Context](#context)
-- [Ruby ecosystem overview](#i-ruby-ecosystem-overview)
-- [Current implementation overview (Cachito)](#ii-overview-of-the-current-implementation-in-cachito)
-- [Design for the Cachi2 implementation](#iii-design-for-the-implementation-in-cachi2)
-- [Decision](#decision)
+- [Ruby ecosystem overview](#ruby-ecosystem-overview)
+- [Current implementation overview (Cachito)](#overview-of-the-current-implementation-in-cachito)
+- [Design for the Cachi2 implementation](#design-for-the-implementation-in-cachi2)
+- [Outcomes](#outcomes)
 
-## Overview
+## Introduction
 
-Design that covers the initial implementation of the Rubygem/Bundler package manager in Cachi2. It takes inspiration from the original implementation done in [Cachito](https://github.com/containerbuildsystem/cachito).
+Design that covers the initial implementation of the Rubygem/Bundler package manager in Cachi2. It takes inspiration from the original implementation done in [Cachito](https://github.com/containerbuildsystem/cachito). 
 
-| | |
-|---------|---------|
-|Author |[Michal Šoltis](msoltis@redhat.com) |
-|Co-author |[Bruno Pimentel](bpimente@redhat.com) |
-|Proposed on |August 01, 2024 |
+This document has three main parts: 
+- An overview on how the Ruby ecosystem works, touching only the parts that are relevant to the Cachi2 implementation
+- A quick overview on how the implementation was done in Cachito
+- The actual design for the implementation in Cachi2
 
 ## Context
 In the effort to evolve Cachi2 to be a full solution for the prefetching feature of Cachito, we have decided to implement support to the currently missing package managers: Rubygems and Yarn v1. This design covers only the implementation of Rubygems, and the Yarn v1 design will follow.
 
-## I. Ruby ecosystem overview
+## Ruby ecosystem overview
 
 ### Development prerequisites
 In order to execute the commands in the examples below, make sure you have the following packages installed in your
@@ -240,7 +239,7 @@ CHECKSUMS
 This feature is available since Bundler [v2.5.0](https://github.com/rubygems/rubygems/blob/master/bundler/lib/bundler/lockfile_parser.rb#L55),
 from this [PR](https://github.com/rubygems/rubygems/pull/6374) being merged on Oct 21, 2023.
 
-## II. Overview of the current implementation in Cachito
+## Overview of the current implementation in Cachito
 
 [cachito/workers/pkg_mangers/rubygems.py](https://github.com/containerbuildsystem/cachito/blob/master/cachito/workers/pkg_managers/rubygems.py)
 
@@ -258,7 +257,7 @@ which is vendored from
 Source code for "official" Bundler lockfile parsing in Ruby:
 <https://github.com/rubygems/rubygems/blob/master/bundler/lib/bundler/lockfile_parser.rb>
 
-## III. Design for the implementation in Cachi2
+## Design for the implementation in Cachi2
 
 ### Prefetching
 
@@ -517,9 +516,7 @@ PATH
     my-path-dependency (1.0.0)
 ```
 
-## Decision
-
-The support for Rubygems will be implemented as currently described in this design document.
+## Outcomes
 
 ### Scoping of the initial implementation
 - design high-level code structure into multiple modules
@@ -535,7 +532,7 @@ The support for Rubygems will be implemented as currently described in this desi
 - add integration and e2e tests
 - add documentation
 
-### Potential follow-up features
+### Out of scope
 - implement checksum parsing and validation when prefetching from the registry
 - downloading the Bundler version specified in the `Gemfile.lock`
 - support for pre-compiled binaries (platforms other than `ruby`)
