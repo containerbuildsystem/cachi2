@@ -622,14 +622,18 @@ is here to stay.
 
 ## The challenge and cachi2 boundaries
 
-Building projects that do DIRECTLY depend on both rust and python should be straighforward and 
-similar to build with pip and cargo independently. The challenge comes with indirect rust
-dependencies. For instance, when you project is "pure python" but have dependencies that rely on
-rust.
+Building projects that do DIRECTLY depend on both rust and python should be straightforward and 
+similar to build with pip and cargo independently. The developers of those projects can easily 
+have `requirements.txt`, `Cargo.lock`, etc readily available to them and have full control of
+how to build their own software. The challenge comes with indirect rust dependencies. For instance,
+when your project is "pure python" but have dependencies that rely on rust (like cryptography).
 
 In this scenario, cargo vendor won't help unless you have all sources available. Also, users don't
 have a way to explicitly declare those dependencies, and, henceforth, aren't necessarily doing
 reproducible builds.
+
+Another issue is how to configure cargo, something those developers are not even calling directly -
+that will be made by the python build backend (hopefully `maturin` or `setuptools-rust`).
 
 In the following sections we are going to expose a bit of how `maturin` and `setuptools-rust` are
 configured in order to come with ideas on how to tackle the problem of FINDING rust dependencies
@@ -823,13 +827,17 @@ RUN source /tmp/cachi2.env && \
 
 ### Limitations
 
-- the process likely won't work with python packages lacking Cargo.lock.
+- The process likely won't work with python packages lacking Cargo.lock.
   - Interestingly, while inspecting some projects relying on maturin I saw many that didn't have a
   Cargo.lock BUT their sources uploaded to pypi actually HAD those. I couldn't find in maturin
   documentation if this is a behavior we could rely upon. Example library with this behavior:
   [css-inline][css-inline-github]
   - this might represent a risk for dependencies pointing to git sources instead of pypi/crates.io
- 
+- This approach might work well for setuptools-rust and maturin - and might work for some new tool
+that resorts to invoke `cargo` at some point, but it won't work if a completely alien approach is
+created.
+  - OTOH, that's not a problem for fetching dependencies, only for actually building the project.
+  Given this is only a big IF, this is probably fine.
 
 <!-- REFERENCES -->
 
