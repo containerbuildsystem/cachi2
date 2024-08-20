@@ -634,7 +634,7 @@ reproducible builds.
 In the following sections we are going to expose a bit of how `maturin` and `setuptools-rust` are
 configured in order to come with ideas on how to tackle the problem of FINDING rust dependencies
 on a pure-python project. This is probably outside of the scope of cachi2, but we will need to at
-very least come up with a way for those customers to share the (potential) multiple Cargo.locks
+very least come up with a way for those users to share the (potential) multiple Cargo.locks
 the package indirectly depends or a file format designed for this. Also [pybuild-deps][pybuild-deps]
 might evolve to help solving this problem, so it is not like we would waste any time understanding
 these problems.
