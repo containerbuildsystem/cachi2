@@ -620,6 +620,25 @@ Addressing the integration challenges of Rust in Python projects is crucial to e
 performance, safety, and concurrency of Python applications. The "rustification" of Python libraries
 is here to stay.
 
+## The challenge and cachi2 boundaries
+
+Building projects that do DIRECTLY depend on both rust and python should be straighforward and 
+similar to build with pip and cargo independently. The challenge comes with indirect rust
+dependencies. For instance, when you project is "pure python" but have dependencies that rely on
+rust.
+
+In this scenario, cargo vendor won't help unless you have all sources available. Also, users don't
+have a way to explicitly declare those dependencies, and, henceforth, aren't necessarily doing
+reproducible builds.
+
+In the following sections we are going to expose a bit of how `maturin` and `setuptools-rust` are
+configured in order to come with ideas on how to tackle the problem of FINDING rust dependencies
+on a pure-python project. This is probably outside of the scope of cachi2, but we will need to at
+very least come up with a way for those customers to share the (potential) multiple Cargo.locks
+the package indirectly depends or a file format designed for this. Also [pybuild-deps][pybuild-deps]
+might evolve to help solving this problem, so it is not like we would waste any time understanding
+these problems.
+
 ## Build dependencies
 
 `maturin` and `setuptools-rust` are PEP517 compliant build backends for python packages with
@@ -802,9 +821,21 @@ RUN source /tmp/cachi2.env && \
 
 ```
 
+### Limitations
+
+- the process likely won't work with python packages lacking Cargo.lock.
+  - Interestingly, while inspecting some projects relying on maturin I saw many that didn't have a
+  Cargo.lock BUT their sources uploaded to pypi actually HAD those. I couldn't find in maturin
+  documentation if this is a behavior we could rely upon. Example library with this behavior:
+  [css-inline][css-inline-github]
+  - this might represent a risk for dependencies pointing to git sources instead of pypi/crates.io
+ 
+
 <!-- REFERENCES -->
 
 [cachi2-rust-poc]: https://github.com/bruno-fs/cachi2/blob/920e7efc9abc525d7db8abec621d25f2691a178b/cachi2/core/package_managers/cargo.py
 [cachi2-rust-poc-usage]: https://github.com/bruno-fs/cachi2/blob/920e7efc9abc525d7db8abec621d25f2691a178b/docs/usage.md#example-pip-with-indirect-cargo-dependencies
+[ccs-inline-github]: https://github.com/Stranger6667/css-inline/tree/wasm-v0.11.2/bindings/python
 [serde-with-binaries]: https://www.bleepingcomputer.com/news/security/rust-devs-push-back-as-serde-project-ships-precompiled-binaries/
+[pybuild-deps]: https://pybuild-deps.readthedocs.io/en/latest/
 [python-rust-research]: https://github.com/bruno-fs/python-rust-research/blob/afebfc7ab6ef55aa0db6879b0cda7760373b60cd/python-rusty-exploration.ipynb
