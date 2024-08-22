@@ -286,9 +286,9 @@ def _resolve_rpm_project(source_dir: RootedPath, output_dir: RootedPath) -> list
 
 def _download(lockfile: RedhatRpmsLock, output_dir: Path) -> dict[Path, Any]:
     """
-    Download packages mentioned in the lockfile.
+    Download packages and module metadata mentioned in the lockfile.
 
-    Go through the parsed lockfile structure and find all RPM and SRPM files.
+    Go through the parsed lockfile structure and find all RPM, SRPM and module metadata files.
     Create a metadata structure indexed by destination path used
     for later verification (size, checksum) after download.
     Prepare a list of files to be downloaded, and then download files.
@@ -300,8 +300,9 @@ def _download(lockfile: RedhatRpmsLock, output_dir: Path) -> dict[Path, Any]:
         files: dict[str, Union[str, PathLike[str]]] = {}
         rpm_iterator = zip(itertools.repeat("rpm"), arch.packages)
         srpm_iterator = zip(itertools.repeat("srpm"), arch.source)
+        mmd_iterator = zip(itertools.repeat("module_metadata"), arch.module_metadata)
 
-        for tag, pkg in itertools.chain(rpm_iterator, srpm_iterator):
+        for tag, pkg in itertools.chain(rpm_iterator, srpm_iterator, mmd_iterator):
             repoid = pkg.repoid
             if not repoid:
                 if tag == "rpm":
@@ -359,11 +360,18 @@ def _verify_downloaded(metadata: dict[Path, Any]) -> None:
                 raise_exception(f"Unmatched checksum of '{file_path}' != '{digest}'")
 
 
+def _is_rpm_file(file_path: Path) -> bool:
+    """Check if it's a rpm file."""
+    return file_path.suffix == ".rpm"
+
+
 def _generate_sbom_components(
     files_metadata: dict[Path, Any], lockfile_path: Path
 ) -> list[Component]:
     components = []
     for file_path, file_metadata in files_metadata.items():
+        if not _is_rpm_file(file_path):
+            continue
         package = Package.from_filepath(file_path, file_metadata)
         components.append(package.to_component(lockfile_path))
     return components

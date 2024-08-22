@@ -41,6 +41,11 @@ arches:
         checksum: sha256:94803b5e1ff601bf4009f223cb53037cdfa2fe559d90251bbe85a3a5bc6d2aab
         size: 14735448
         repoid: updates-source
+    module_metadata:
+      - url: https://example.com/x86_64/repodata/683718e724821ff45bf625a1b63f0431919bfff012af57589da57fd88dc6b445-modules.yaml.gz
+        checksum: sha256:683718e724821ff45bf625a1b63f0431919bfff012af57589da57fd88dc6b445
+        size: 76926
+        repoid: updates
 """
 
 
@@ -558,6 +563,11 @@ def test_download(
             ),
             "https://example.com/source/tree/Packages/v/vim-9.1.158-1.fc38.src.rpm": str(
                 rooted_tmp_path.path.joinpath("x86_64/updates-source/vim-9.1.158-1.fc38.src.rpm")
+            ),
+            "https://example.com/x86_64/repodata/683718e724821ff45bf625a1b63f0431919bfff012af57589da57fd88dc6b445-modules.yaml.gz": str(
+                rooted_tmp_path.path.joinpath(
+                    "x86_64/updates/683718e724821ff45bf625a1b63f0431919bfff012af57589da57fd88dc6b445-modules.yaml.gz"
+                )
             ),
         },
         5,
