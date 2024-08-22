@@ -209,6 +209,26 @@ def test_repo_files(
             ["VIM - Vi IMproved 9.0"],
             id="rpm_e2e_test",
         ),
+        # Test case that checks fetching RPM and module metadata files, generating repos and repofiles,
+        # building an image that requires the RPM files to be installed and running the image to check
+        # if the RPMs (including modular packages) were properly installed.
+        pytest.param(
+            utils.TestParameters(
+                repo="https://github.com/cachito-testing/cachi2-rpm.git",
+                ref="00ba90ca7bff585c7a286dc223e44bcbcd1de865",
+                packages=(
+                    {
+                        "type": "rpm",
+                    },
+                ),
+                flags=["--dev-package-managers"],
+                expected_exit_code=0,
+                expected_output="All dependencies fetched successfully",
+            ),
+            ["ab", "-V"],
+            ["This is ApacheBench, Version 2.3"],
+            id="rpm_e2e_test_module",
+        ),
     ],
 )
 def test_e2e_rpm(

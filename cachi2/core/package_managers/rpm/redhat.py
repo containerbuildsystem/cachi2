@@ -17,12 +17,19 @@ class LockfilePackage(BaseModel):
     size: Optional[int] = None
 
 
+class LockfileModuleMetadata(LockfilePackage):
+    """Module metadata item; represents module metadata file."""
+
+    repoid: str
+
+
 class LockfileArch(BaseModel):
     """Architecture structure."""
 
     arch: str
     packages: list[LockfilePackage] = []
     source: list[LockfilePackage] = []
+    module_metadata: list[LockfileModuleMetadata] = []
 
     @model_validator(mode="after")
     def _arch_empty(self) -> "LockfileArch":
