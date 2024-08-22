@@ -1,3 +1,4 @@
+import enum
 import functools
 import importlib.metadata
 import json
@@ -6,7 +7,7 @@ import shutil
 import sys
 from itertools import chain
 from pathlib import Path
-from typing import Any, Callable, Optional
+from typing import Any, Callable, List, Optional, Union, cast
 
 import pydantic
 import typer
@@ -17,7 +18,7 @@ from cachi2.core.extras.envfile import EnvFormat, generate_envfile
 from cachi2.core.models.input import Flag, PackageInput, Request, parse_user_input
 from cachi2.core.models.output import BuildConfig
 from cachi2.core.models.property_semantics import merge_component_properties
-from cachi2.core.models.sbom import Sbom
+from cachi2.core.models.sbom import Sbom, SPDXSbom
 from cachi2.core.resolver import inject_files_post, resolve_packages, supported_package_managers
 from cachi2.core.rooted_path import RootedPath
 from cachi2.interface.logging import LogLevel, setup_logging
@@ -35,6 +36,20 @@ OUTFILE_OPTION = typer.Option(
     "--output",
     dir_okay=False,
     help="Write to this file instead of standard output.",
+)
+
+
+class SBOMFormat(str, enum.Enum):
+    """The type of SBOM to generate."""
+
+    cyclonedx = "cyclonedx"
+    spdx = "spdx"
+
+
+SBOM_TYPE_OPTION = typer.Option(
+    SBOMFormat.cyclonedx,
+    "--sbom-type",
+    help=("Format of processed or generated SBOM. Default is CycloneDX"),
 )
 
 
@@ -180,6 +195,7 @@ def fetch_deps(
             "already have a vendor/ directory (will fail if changes would be made)."
         ),
     ),
+    sbom_type: SBOMFormat = SBOM_TYPE_OPTION,
 ) -> None:
     """Fetch dependencies for supported package managers.
 
@@ -285,7 +301,10 @@ def fetch_deps(
         request_output.build_config.model_dump_json(indent=2, exclude_none=True)
     )
 
-    sbom = request_output.generate_sbom()
+    if sbom_type == SBOMFormat.cyclonedx:
+        sbom: Union[Sbom, SPDXSbom] = request_output.generate_sbom()
+    else:
+        sbom = request_output.generate_sbom().to_spdx()
     request.output_dir.join_within_root("bom.json").path.write_text(
         # the Sbom model has camelCase aliases in some fields
         sbom.model_dump_json(indent=2, by_alias=True, exclude_none=True)
@@ -400,6 +419,8 @@ def merge_sboms(
         help="Names of files with SBOMs to merge.",
     ),
     output_sbom_file_name: Optional[Path] = OUTFILE_OPTION,
+    sbom_type: SBOMFormat = SBOM_TYPE_OPTION,
+    sbom_name: Optional[str] = typer.Option(None, "--sbom-name", help="Name of the merged SBOM."),
 ) -> None:
     """Merge two or more SBOMs into one.
 
@@ -409,17 +430,33 @@ def merge_sboms(
 
     first to produce SBOMs to merge.
     """
-    sboms_to_merge = []
+    sboms_to_merge: List[Union[Sbom, SPDXSbom]] = []
     for sbom_file in sbom_files_to_merge:
         try:
-            sboms_to_merge.append(Sbom.model_validate_json(sbom_file.read_text()))
+            if sbom_type == SBOMFormat.cyclonedx:
+                sboms_to_merge.append(Sbom.model_validate_json(sbom_file.read_text()))
+            else:
+                sboms_to_merge.append(SPDXSbom.model_validate_json(sbom_file.read_text()))
         except pydantic.ValidationError:
             raise UnexpectedFormat(f"{sbom_file} does not appear to be a valid Cachi2 SBOM.")
-    sbom = Sbom(
-        components=merge_component_properties(
-            chain.from_iterable(s.components for s in sboms_to_merge)
+
+    if sbom_type == SBOMFormat.cyclonedx:
+        sbom: Union[Sbom, SPDXSbom] = Sbom(
+            components=merge_component_properties(
+                chain.from_iterable(cast(Sbom, s).components for s in sboms_to_merge)
+            )
         )
-    )
+    else:
+        packages = chain.from_iterable(cast(SPDXSbom, s).packages for s in sboms_to_merge)
+        sbom = SPDXSbom(
+            spdxVersion="SPDX-2.3",
+            spdxIdentifier="SPDXRef-DOCUMENT",
+            dataLicense="CC0-1.0",
+            name=sbom_name or cast(SPDXSbom, sboms_to_merge[0]).name,
+            creationInfo=cast(SPDXSbom, sboms_to_merge[0]).creationInfo,
+            packages=packages,
+        )
+
     sbom_json = sbom.model_dump_json(indent=2, by_alias=True, exclude_none=True)
 
     if output_sbom_file_name is not None:

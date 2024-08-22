@@ -1,7 +1,21 @@
+import datetime
+import json
+
 import pydantic
 import pytest
 
-from cachi2.core.models.sbom import FOUND_BY_CACHI2_PROPERTY, Component, Property, Sbom
+from cachi2.core.models.sbom import (
+    FOUND_BY_CACHI2_PROPERTY,
+    Component,
+    Property,
+    Sbom,
+    SPDXPackage,
+    SPDXPackageAnnotation,
+    SPDXPackageExternalRefPackageManagerPURL,
+    SPDXPackageExternalRefType,
+    SPDXRelation,
+    SPDXSbom,
+)
 
 
 class TestComponent:
@@ -93,6 +107,218 @@ class TestComponent:
         )
 
 
+class TestSPDXPackage:
+    @pytest.mark.parametrize(
+        "input_data, expected_data",
+        [
+            (
+                {
+                    "SPDXID": "SPDXRef-Package-mypkg--4035f88e9e6be21e9717c7170c40cbdce83f591dc862c5a8e4ac21b5636fa875",
+                    "name": "mypkg",
+                    "externalRefs": [
+                        {
+                            "referenceLocator": "pkg:generic/mypkg",
+                            "referenceCategory": "PACKAGE-MANAGER",
+                            "referenceType": "purl",
+                        }
+                    ],
+                },
+                SPDXPackage(
+                    SPDXID="SPDXRef-Package-mypkg--4035f88e9e6be21e9717c7170c40cbdce83f591dc862c5a8e4ac21b5636fa875",
+                    name="mypkg",
+                    externalRefs=[
+                        SPDXPackageExternalRefPackageManagerPURL(
+                            referenceLocator="pkg:generic/mypkg",
+                            referenceCategory="PACKAGE-MANAGER",
+                            referenceType="purl",
+                        ),
+                    ],
+                ),
+            ),
+            (
+                {
+                    "name": "mypkg",
+                    "versionInfo": "1.0.0",
+                    "externalRefs": [
+                        {
+                            "referenceLocator": "pkg:generic/mypkg@1.0.0",
+                            "referenceCategory": "PACKAGE-MANAGER",
+                            "referenceType": "purl",
+                        }
+                    ],
+                },
+                SPDXPackage(
+                    SPDXID="SPDXRef-Package-mypkg-1.0.0-749090e8a712537053313f293a48fd4f1013b6012575def5ad5d9b9800dfe3bc",
+                    name="mypkg",
+                    versionInfo="1.0.0",
+                    externalRefs=[
+                        SPDXPackageExternalRefPackageManagerPURL(
+                            referenceLocator="pkg:generic/mypkg@1.0.0",
+                            referenceCategory="PACKAGE-MANAGER",
+                            referenceType="purl",
+                        ),
+                    ],
+                ),
+            ),
+            (
+                {
+                    "name": "mypkg",
+                    "versionInfo": "random-version-string",
+                    "externalRefs": [
+                        {
+                            "referenceLocator": "pkg:generic/mypkg",
+                            "referenceCategory": "PACKAGE-MANAGER",
+                            "referenceType": "purl",
+                        }
+                    ],
+                },
+                SPDXPackage(
+                    SPDXID="SPDXRef-Package-mypkg-random-version-string-7c62f398717859aaa55c8bac951906cabb53e84b4ca9b177c35f5a6a573f970a",
+                    name="mypkg",
+                    versionInfo="random-version-string",
+                    externalRefs=[
+                        SPDXPackageExternalRefPackageManagerPURL(
+                            referenceLocator="pkg:generic/mypkg",
+                            referenceCategory="PACKAGE-MANAGER",
+                            referenceType="purl",
+                        )
+                    ],
+                ),
+            ),
+            (
+                {
+                    "name": "mypkg",
+                    "externalRefs": [
+                        {
+                            "referenceLocator": "pkg:generic/mypkg@1.0.0",
+                            "referenceCategory": "PACKAGE-MANAGER",
+                            "referenceType": "purl",
+                        }
+                    ],
+                    "versionInfo": "1.0.0",
+                    "path": ".",
+                    "dependencies": [],
+                },
+                SPDXPackage(
+                    SPDXID="SPDXRef-Package-mypkg-1.0.0-749090e8a712537053313f293a48fd4f1013b6012575def5ad5d9b9800dfe3bc",
+                    name="mypkg",
+                    versionInfo="1.0.0",
+                    externalRefs=[
+                        SPDXPackageExternalRefPackageManagerPURL(
+                            referenceLocator="pkg:generic/mypkg@1.0.0",
+                            referenceCategory="PACKAGE-MANAGER",
+                            referenceType="purl",
+                        )
+                    ],
+                ),
+            ),
+        ],
+    )
+    def test_construct_from_package_dict(
+        self, input_data: dict[str, str], expected_data: SPDXPackage
+    ) -> None:
+        spdx_package = SPDXPackage.from_package_dict(input_data)
+        assert spdx_package == expected_data
+
+    @pytest.mark.parametrize(
+        "input_data, expect_error",
+        [
+            (
+                {"versionInfo": "some-version"},
+                "1 validation error for SPDXPackage\nname\n  Field required",
+            )
+        ],
+    )
+    def test_invalid_packages(self, input_data: dict[str, str], expect_error: str) -> None:
+        with pytest.raises(pydantic.ValidationError, match=expect_error):
+            SPDXPackage(**input_data)
+
+    @pytest.mark.parametrize(
+        "category,type,locator,valid",
+        [
+            ("SECURITY", "cpe22Type", "cpe:/o:canonical:ubuntu_linux:10.04:-:lts", True),
+            (
+                "SECURITY",
+                "cpe23Type",
+                "cpe:2.3:a:microsoft:internet_explorer:8.0.6001:beta:*:*:*:*:*:*",
+                True,
+            ),
+            ("SECURITY", "advisory", "https://nvd.nist.gov/vuln/detail/CVE-2020-28498", True),
+            ("SECURITY", "fix", "https://github.com/indutny/elliptic/commit/441b7428", True),
+            (
+                "SECURITY",
+                "url",
+                "https://github.com/christianlundkvist/blog/blob/master/2020_05_26_secp256k1_twist_attacks/secp256k1_twist_attacks.md",
+                True,
+            ),
+            ("SECURITY", "swid", "2df9de35-0aff-4a86-ace6-f7dddd1ade4c", True),
+            ("PACKAGE-MANAGER", "maven-central", "org.apache.tomcat:tomcat:9.0.0.M4", True),
+            ("PACKAGE-MANAGER", "npm", "http-server@0.3.0", True),
+            ("PACKAGE-MANAGER", "nuget", "Microsoft.AspNet.MVC/5.0.0", True),
+            ("PACKAGE-MANAGER", "bower", "modernizr#2.6.2", True),
+            ("PERSISTENT-ID", "swh", "swh:1:cnt:94a9ed024d3859793618152ea559a168bbcbb5e2", True),
+            (
+                "PERSISTENT-ID",
+                "gitoid",
+                "gitoid:blob:sha1:261eeb9e9f8b2b4b0d119366dda99c6fd7d35c64",
+                True,
+            ),
+            (
+                "OTHER",
+                "some-id",
+                "anythingcangohere",
+                True,
+            ),
+            ("SECURITY", "cpe22Type", "xpe:/o:canonical:ubuntu_linux:-:lts", False),
+            (
+                "SECURITY",
+                "cpe23Type",
+                "cpe:2.3:a:microsoft:internet_explorer:8.0.6001:*:*:*:*:*",
+                False,
+            ),
+            ("SECURITY", "advisory", "/nvd.nist.gov/vuln/detail/CVE-2020-28498", False),
+            ("SECURITY", "fix", "^github.com/indutny/elliptic/commit/441b7428", False),
+            (
+                "SECURITY",
+                "url",
+                "g^ithub.com/christianlundkvist/blog/blob/master/2020_05_26_secp256k1_twist_attacks/secp256k1_twist_attacks.md",
+                False,
+            ),
+            ("SECURITY", "swid", "", False),
+            ("PACKAGE-MANAGER", "maven-central", "org.apache.tomcat", False),
+            ("PACKAGE-MANAGER", "npm", "http-server#0.3.0", False),
+            ("PACKAGE-MANAGER", "nuget", "Microsoft.AspNet.MVC#5.0.0", False),
+            ("PACKAGE-MANAGER", "bower", "modernizr@2.6.2", False),
+            ("PERSISTENT-ID", "swh", "swh:1:cxt:94a9ed024d3859793618152ea559a168bbcbb5e2", False),
+            (
+                "PERSISTENT-ID",
+                "gitoid",
+                "gitoid:blob:sha1:261eeb9e9f8b2b4b0d119366dda99c6fd7d35",
+                False,
+            ),
+            (
+                "OTHER",
+                "some-id",
+                "no spaces allowed",
+                False,
+            ),
+        ],
+    )
+    def test_package_external_ref_reference_locator(
+        self, category: str, type: str, locator: str, valid: str
+    ) -> None:
+        adapter: pydantic.TypeAdapter = pydantic.TypeAdapter(SPDXPackageExternalRefType)
+        if valid:
+            adapter.validate_python(
+                dict(referenceCategory=category, referenceLocator=locator, referenceType=type)
+            )
+        else:
+            with pytest.raises(pydantic.ValidationError):
+                adapter.validate_python(
+                    dict(referenceCategory=category, referenceLocator=locator, referenceType=type)
+                )
+
+
 class TestSbom:
     def test_sort_and_dedupe_components(self) -> None:
         sbom = Sbom(
@@ -127,7 +353,6 @@ class TestSbom:
                 {"name": "bytes", "version": None, "purl": "pkg:golang/bytes"},
             ],
         )
-        print(sbom.components)
         assert sbom.components == [
             Component(name="bytes", purl="pkg:golang/bytes"),
             Component(name="fmt", purl="pkg:golang/fmt"),
@@ -141,3 +366,408 @@ class TestSbom:
                 name="github.com/org/B", purl="pkg:golang/github.com/org/B@v1.0.0", version="v1.0.0"
             ),
         ]
+
+    def test_to_spdx(self, isodate: datetime.datetime) -> None:
+        sbom = Sbom(
+            components=[
+                {
+                    "name": "spdx-expression-parse",
+                    "version": "v1.0.0",
+                    "purl": "pkg:npm/spdx-expression-parse@1.0.0",
+                },
+                {
+                    "name": "github.com/org/A",
+                    "version": "v1.0.0",
+                    "purl": "pkg:golang/github.com/org/A@v1.0.0",
+                },
+                {
+                    "name": "github.com/org/A",
+                    "version": "v1.1.0",
+                    "purl": "pkg:golang/github.com/org/A@v1.1.0",
+                },
+            ],
+        )
+        sbom.components[0].properties.extend(
+            [
+                Property(name="cdx:npm:package:bundled", value="true"),
+            ]
+        )
+        spdx_sbom = sbom.to_spdx()
+
+        assert spdx_sbom.packages == [
+            SPDXPackage(
+                SPDXID="SPDXID-Package-github.com/org/A-v1.0.0-6df9fc352e16de9e8513dd4994a6b5b600102b8ccba07104d31cd44165068607",
+                name="github.com/org/A",
+                versionInfo="v1.0.0",
+                externalRefs=[
+                    SPDXPackageExternalRefPackageManagerPURL(
+                        referenceCategory="PACKAGE-MANAGER",
+                        referenceLocator="pkg:golang/github.com/org/A@v1.0.0",
+                        referenceType="purl",
+                    )
+                ],
+                annotations=[
+                    SPDXPackageAnnotation(
+                        annotator="cachi2",
+                        annotationDate="2021-07-01T00:00:00Z",
+                        annotationType="OTHER",
+                        comment=json.dumps({"name": "cachi2:found_by", "value": "cachi2"}),
+                    ),
+                    SPDXPackageAnnotation(
+                        annotator="cachi2",
+                        annotationDate="2021-07-01T00:00:00Z",
+                        annotationType="OTHER",
+                        comment=json.dumps({"name": "cdx:npm:package:bundled", "value": "true"}),
+                    ),
+                ],
+            ),
+            SPDXPackage(
+                SPDXID="SPDXID-Package-github.com/org/A-v1.1.0-fb958d07f1a9da02ec0af3946bd4365bc12ad5ff14efa8c2eae377be0cad0957",
+                name="github.com/org/A",
+                versionInfo="v1.1.0",
+                externalRefs=[
+                    SPDXPackageExternalRefPackageManagerPURL(
+                        referenceCategory="PACKAGE-MANAGER",
+                        referenceLocator="pkg:golang/github.com/org/A@v1.1.0",
+                        referenceType="purl",
+                    )
+                ],
+                annotations=[
+                    SPDXPackageAnnotation(
+                        annotator="cachi2",
+                        annotationDate="2021-07-01T00:00:00Z",
+                        annotationType="OTHER",
+                        comment=json.dumps({"name": "cachi2:found_by", "value": "cachi2"}),
+                    ),
+                ],
+            ),
+            SPDXPackage(
+                SPDXID="SPDXID-Package-spdx-expression-parse-v1.0.0-3bb53ba5f3217e27f55d2eb5b8ce94810f6159eed829369255e057f138e129a7",
+                name="spdx-expression-parse",
+                versionInfo="v1.0.0",
+                externalRefs=[
+                    SPDXPackageExternalRefPackageManagerPURL(
+                        referenceCategory="PACKAGE-MANAGER",
+                        referenceLocator="pkg:npm/spdx-expression-parse@1.0.0",
+                        referenceType="purl",
+                    )
+                ],
+                annotations=[
+                    SPDXPackageAnnotation(
+                        annotator="cachi2",
+                        annotationDate="2021-07-01T00:00:00Z",
+                        annotationType="OTHER",
+                        comment=json.dumps({"name": "cachi2:found_by", "value": "cachi2"}),
+                    ),
+                ],
+            ),
+        ]
+        assert spdx_sbom.relationships == [
+            SPDXRelation(
+                spdxElementId="SPDXRef-DOCUMENT",
+                comment="",
+                relatedSpdxElement="SPDXID-Package-github.com/org/A-v1.0.0-6df9fc352e16de9e8513dd4994a6b5b600102b8ccba07104d31cd44165068607",
+                relationshipType="CONTAINS",
+            ),
+            SPDXRelation(
+                spdxElementId="SPDXRef-DOCUMENT",
+                comment="",
+                relatedSpdxElement="SPDXID-Package-github.com/org/A-v1.1.0-fb958d07f1a9da02ec0af3946bd4365bc12ad5ff14efa8c2eae377be0cad0957",
+                relationshipType="CONTAINS",
+            ),
+            SPDXRelation(
+                spdxElementId="SPDXRef-DOCUMENT",
+                comment="",
+                relatedSpdxElement="SPDXID-Package-spdx-expression-parse-v1.0.0-3bb53ba5f3217e27f55d2eb5b8ce94810f6159eed829369255e057f138e129a7",
+                relationshipType="CONTAINS",
+            ),
+        ]
+
+
+class TestSPDXSbom:
+    def test_sort_and_dedupe_packages(self) -> None:
+        sbom = SPDXSbom(
+            creationInfo={"creators": []},
+            packages=[
+                {
+                    "name": "github.com/org/B",
+                    "versionInfo": "v1.0.0",
+                    "externalRefs": [
+                        {
+                            "referenceCategory": "PACKAGE-MANAGER",
+                            "referenceLocator": "pkg:golang/github.com/org/B@v1.0.0",
+                            "referenceType": "purl",
+                        }
+                    ],
+                },
+                {
+                    "name": "github.com/org/A",
+                    "versionInfo": "v1.1.0",
+                    "externalRefs": [
+                        {
+                            "referenceCategory": "PACKAGE-MANAGER",
+                            "referenceLocator": "pkg:golang/github.com/org/A@v1.1.0?repository_id=R1",
+                            "referenceType": "purl",
+                        }
+                    ],
+                },
+                {
+                    "name": "github.com/org/A",
+                    "versionInfo": "v1.1.0",
+                    "externalRefs": [
+                        {
+                            "referenceCategory": "PACKAGE-MANAGER",
+                            "referenceLocator": "pkg:golang/github.com/org/A@v1.1.0?repository_id=R2",
+                            "referenceType": "purl",
+                        }
+                    ],
+                },
+                {
+                    "name": "github.com/org/A",
+                    "versionInfo": "v1.0.0",
+                    "externalRefs": [
+                        {
+                            "referenceCategory": "PACKAGE-MANAGER",
+                            "referenceLocator": "pkg:golang/github.com/org/A@v1.0.0",
+                            "referenceType": "purl",
+                        }
+                    ],
+                },
+                {
+                    "name": "github.com/org/A",
+                    "versionInfo": "v1.0.0",
+                    "externalRefs": [
+                        {
+                            "referenceCategory": "PACKAGE-MANAGER",
+                            "referenceLocator": "pkg:golang/github.com/org/A@v1.0.0",
+                            "referenceType": "purl",
+                        }
+                    ],
+                },
+                {
+                    "name": "github.com/org/B",
+                    "versionInfo": "v1.0.0",
+                    "externalRefs": [
+                        {
+                            "referenceCategory": "PACKAGE-MANAGER",
+                            "referenceLocator": "pkg:golang/github.com/org/B@v1.0.0",
+                            "referenceType": "purl",
+                        }
+                    ],
+                },
+                {
+                    "name": "fmt",
+                    "versionInfo": None,
+                    "externalRefs": [
+                        {
+                            "referenceCategory": "PACKAGE-MANAGER",
+                            "referenceLocator": "pkg:golang/fmt",
+                            "referenceType": "purl",
+                        }
+                    ],
+                },
+                {
+                    "name": "bytes",
+                    "versionInfo": None,
+                    "externalRefs": [
+                        {
+                            "referenceCategory": "PACKAGE-MANAGER",
+                            "referenceLocator": "pkg:golang/bytes",
+                            "referenceType": "purl",
+                        }
+                    ],
+                },
+            ],
+        )
+        assert len(sbom.packages) == 5
+        assert sbom.packages == [
+            SPDXPackage(
+                name="bytes",
+                externalRefs=[
+                    SPDXPackageExternalRefPackageManagerPURL(
+                        referenceCategory="PACKAGE-MANAGER",
+                        referenceLocator="pkg:golang/bytes",
+                        referenceType="purl",
+                    )
+                ],
+            ),
+            SPDXPackage(
+                name="fmt",
+                externalRefs=[
+                    SPDXPackageExternalRefPackageManagerPURL(
+                        referenceCategory="PACKAGE-MANAGER",
+                        referenceLocator="pkg:golang/fmt",
+                        referenceType="purl",
+                    )
+                ],
+            ),
+            SPDXPackage(
+                name="github.com/org/A",
+                versionInfo="v1.0.0",
+                externalRefs=[
+                    SPDXPackageExternalRefPackageManagerPURL(
+                        referenceCategory="PACKAGE-MANAGER",
+                        referenceLocator="pkg:golang/github.com/org/A@v1.0.0",
+                        referenceType="purl",
+                    )
+                ],
+            ),
+            SPDXPackage(
+                name="github.com/org/A",
+                versionInfo="v1.1.0",
+                externalRefs=[
+                    SPDXPackageExternalRefPackageManagerPURL(
+                        referenceCategory="PACKAGE-MANAGER",
+                        referenceLocator="pkg:golang/github.com/org/A@v1.1.0?repository_id=R1",
+                        referenceType="purl",
+                    ),
+                    SPDXPackageExternalRefPackageManagerPURL(
+                        referenceCategory="PACKAGE-MANAGER",
+                        referenceLocator="pkg:golang/github.com/org/A@v1.1.0?repository_id=R2",
+                        referenceType="purl",
+                    ),
+                ],
+            ),
+            SPDXPackage(
+                name="github.com/org/B",
+                versionInfo="v1.0.0",
+                externalRefs=[
+                    SPDXPackageExternalRefPackageManagerPURL(
+                        referenceCategory="PACKAGE-MANAGER",
+                        referenceLocator="pkg:golang/github.com/org/B@v1.0.0",
+                        referenceType="purl",
+                    )
+                ],
+            ),
+        ]
+
+    def test_package_external_ref_invalid_reference_type_for_category(self) -> None:
+        adapter: pydantic.TypeAdapter = pydantic.TypeAdapter(SPDXPackageExternalRefType)
+
+        with pytest.raises(pydantic.ValidationError):
+            adapter.validate_python(
+                dict(
+                    referenceCategory="SECURITY",
+                    referenceLocator="pkg:golang/github.com/org/B@v1.0.0",
+                    referenceType="purl",
+                )
+            )
+        with pytest.raises(pydantic.ValidationError):
+            adapter.validate_python(
+                dict(
+                    referenceCategory="PERSISTENT-ID",
+                    referenceLocator="pkg:golang/github.com/org/B@v1.0.0",
+                    referenceType="purl",
+                )
+            )
+        with pytest.raises(pydantic.ValidationError):
+            adapter.validate_python(
+                dict(
+                    referenceCategory="PACKAGE-MANAGER",
+                    referenceLocator="gitoid:blob:sha1:261eeb9e9f8b2b4b0d119366dda99c6fd7d35c64",
+                    referenceType="gitbom",
+                )
+            )
+
+    def test_package_external_ref_invalid_reference(self) -> None:
+        adapter: pydantic.TypeAdapter = pydantic.TypeAdapter(SPDXPackageExternalRefType)
+        with pytest.raises(
+            pydantic.ValidationError,
+        ):
+            adapter.validate_python(
+                dict(
+                    referenceCategory="INVALID",
+                    referenceLocator="pkg:golang/github.com/org/B@v1.0.0",
+                    referenceType="purl",
+                )
+            )
+
+
+def test_deduplicate_spdx_packages() -> None:
+    packages = [
+        SPDXPackage(
+            name="github.com/org/A",
+            versionInfo="v1.0.0",
+            externalRefs=[
+                SPDXPackageExternalRefPackageManagerPURL(
+                    referenceCategory="PACKAGE-MANAGER",
+                    referenceLocator="pkg:golang/github.com/org/A@v1.0.0?repository_id=R1",
+                    referenceType="purl",
+                )
+            ],
+        ),
+        SPDXPackage(
+            name="github.com/org/A",
+            versionInfo="v1.0.0",
+            externalRefs=[
+                SPDXPackageExternalRefPackageManagerPURL(
+                    referenceCategory="PACKAGE-MANAGER",
+                    referenceLocator="pkg:golang/github.com/org/A@v1.0.0?repository_id=R1",
+                    referenceType="purl",
+                ),
+                SPDXPackageExternalRefPackageManagerPURL(
+                    referenceCategory="PACKAGE-MANAGER",
+                    referenceLocator="pkg:golang/github.com/org/A@v1.0.0?repository_id=R2",
+                    referenceType="purl",
+                ),
+            ],
+        ),
+        SPDXPackage(
+            name="github.com/org/B",
+            versionInfo="v1.0.0",
+            externalRefs=[
+                SPDXPackageExternalRefPackageManagerPURL(
+                    referenceCategory="PACKAGE-MANAGER",
+                    referenceLocator="pkg:golang/github.com/org/B@v1.0.0",
+                    referenceType="purl",
+                )
+            ],
+        ),
+        SPDXPackage(
+            name="github.com/org/B",
+            versionInfo="v1.0.0",
+            externalRefs=[
+                SPDXPackageExternalRefPackageManagerPURL(
+                    referenceCategory="PACKAGE-MANAGER",
+                    referenceLocator="pkg:golang/github.com/org/B@v1.0.0?repository_id=R1",
+                    referenceType="purl",
+                )
+            ],
+        ),
+    ]
+    deduped_packages = SPDXSbom.deduplicate_spdx_packages(packages)
+    assert len(deduped_packages) == 2
+    assert deduped_packages == [
+        SPDXPackage(
+            name="github.com/org/A",
+            versionInfo="v1.0.0",
+            externalRefs=[
+                SPDXPackageExternalRefPackageManagerPURL(
+                    referenceCategory="PACKAGE-MANAGER",
+                    referenceLocator="pkg:golang/github.com/org/A@v1.0.0?repository_id=R1",
+                    referenceType="purl",
+                ),
+                SPDXPackageExternalRefPackageManagerPURL(
+                    referenceCategory="PACKAGE-MANAGER",
+                    referenceLocator="pkg:golang/github.com/org/A@v1.0.0?repository_id=R2",
+                    referenceType="purl",
+                ),
+            ],
+        ),
+        SPDXPackage(
+            name="github.com/org/B",
+            versionInfo="v1.0.0",
+            externalRefs=[
+                SPDXPackageExternalRefPackageManagerPURL(
+                    referenceCategory="PACKAGE-MANAGER",
+                    referenceLocator="pkg:golang/github.com/org/B@v1.0.0",
+                    referenceType="purl",
+                ),
+                SPDXPackageExternalRefPackageManagerPURL(
+                    referenceCategory="PACKAGE-MANAGER",
+                    referenceLocator="pkg:golang/github.com/org/B@v1.0.0?repository_id=R1",
+                    referenceType="purl",
+                ),
+            ],
+        ),
+    ]
