@@ -3,7 +3,7 @@ import logging
 import os
 import re
 import shutil
-import subprocess  # nosec
+import subprocess
 import tempfile
 from datetime import datetime
 from functools import cached_property
