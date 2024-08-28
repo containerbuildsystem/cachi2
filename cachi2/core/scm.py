@@ -120,8 +120,6 @@ def clone_as_tarball(url: str, ref: str, to_path: Path) -> None:
             _reset_git_head(repo, ref)
 
             with tarfile.open(to_path, mode="w:gz") as archive:
-                # GitPython wrongly annotates working_dir as Optional, it cannot be None
-                assert repo.working_dir is not None  # nosec assert_used
                 archive.add(repo.working_dir, "app")
 
             return
