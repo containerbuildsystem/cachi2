@@ -1,5 +1,5 @@
 import os
-import subprocess  # nosec
+import subprocess
 from typing import Optional
 
 from cachi2.core.errors import PackageManagerError

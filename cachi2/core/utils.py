@@ -4,7 +4,7 @@ import logging
 import os
 import re
 import shutil
-import subprocess  # nosec
+import subprocess
 import sys
 from functools import cache
 from pathlib import Path
@@ -48,7 +48,7 @@ def run_cmd(cmd: Sequence[str], params: dict) -> str:
             ),
         )
 
-    response = subprocess.run([executable_path, *args], **params)  # nosec
+    response = subprocess.run([executable_path, *args], **params)
 
     try:
         response.check_returncode()

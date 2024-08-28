@@ -94,3 +94,9 @@ exclude_lines = [
   "if TYPE_CHECKING:",
   "return NotImplemented",
 ]
+
+[tool.bandit]
+skips = [
+  "B404", # import subprocess
+  "B603", # subprocess_without_shell_equals_true
+]
