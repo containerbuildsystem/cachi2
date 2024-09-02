@@ -12,6 +12,8 @@ RUN dnf -y install \
     --nodocs \
     git-core \
     python3 \
+    rubygem-bundler \
+    rubygem-json \
     subscription-manager && \
     dnf clean all
 
