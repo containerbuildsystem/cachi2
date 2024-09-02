@@ -12,6 +12,8 @@ updates:
     directory: "/"
     schedule:
       interval: "monthly"
+    commit-message:
+      prefix: "Dockerfile"
 
   - package-ecosystem: "pip"
     directory: "/"
