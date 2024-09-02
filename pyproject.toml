@@ -75,6 +75,7 @@ profile = "black"
 line_length = 100
 
 [tool.mypy]
+python_version = "3.9"
 plugins = ["pydantic.mypy"]
 disallow_untyped_defs = true
 disallow_incomplete_defs = true
