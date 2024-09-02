@@ -241,7 +241,7 @@ class Request(pydantic.BaseModel):
 
     @property
     def bundler_packages(self) -> list[BundlerPackageInput]:
-        """Get the rubygems packages specified for this request."""
+        """Get the bundler packages specified for this request."""
         return self._packages_by_type(BundlerPackageInput)
 
     @property
