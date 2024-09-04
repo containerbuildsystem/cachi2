@@ -80,10 +80,6 @@ disallow_untyped_defs = true
 disallow_incomplete_defs = true
 disallow_untyped_decorators = true
 
-[[tool.mypy.overrides]]
-module = ["semver"]
-ignore_missing_imports = true
-
 [tool.coverage.report]
 skip_covered = true
 show_missing = true
