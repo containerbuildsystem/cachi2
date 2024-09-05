@@ -2585,7 +2585,7 @@ class TestPipRequirementsFile:
         self,
         requirement_line: str,
         requirement_options: list[str],
-        new_values: dict[str, str],
+        new_values: Union[dict[str, str], dict[str, list[str]]],
         expected_changes: dict[str, str],
     ) -> None:
         """Test PipRequirement.copy method."""
