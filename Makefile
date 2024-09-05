@@ -1,3 +1,4 @@
+PYTHON_VERSION_VENV ?= python3
 TOX_ENVLIST ?= py39
 TOX_ARGS ?=
 GENERATE_TEST_DATA = false
@@ -10,7 +11,7 @@ clean:
 	rm -rf dist venv .tox *.egg-info *.log*
 
 venv:
-	/usr/bin/env python3 -m venv venv
+	/usr/bin/env $(PYTHON_VERSION_VENV) -m venv venv
 	venv/bin/pip install --upgrade pip
 	venv/bin/pip install -r requirements.txt -r requirements-extras.txt
 	venv/bin/pip install tox
