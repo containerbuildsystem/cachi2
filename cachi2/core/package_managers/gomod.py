@@ -5,7 +5,7 @@ import re
 import shutil
 import subprocess
 import tempfile
-from datetime import datetime
+from datetime import datetime, timezone
 from functools import cached_property
 from itertools import chain
 from pathlib import Path
@@ -1398,7 +1398,7 @@ class ModuleVersionResolver:
         :rtype: str
         """
         # Use this instead of commit.committed_datetime so that the datetime object is UTC
-        committed_dt = datetime.utcfromtimestamp(self._commit.committed_date)
+        committed_dt = datetime.fromtimestamp(self._commit.committed_date, timezone.utc)
         commit_timestamp = committed_dt.strftime(r"%Y%m%d%H%M%S")
         commit_hash = self._commit.hexsha[0:12]
 
