@@ -827,6 +827,13 @@ def _setup_go_toolchain(go_mod_file: RootedPath) -> Go:
     return go
 
 
+def _disable_telemetry(go: Go, run_params: dict[str, Any]) -> None:
+    telemetry = go(["env", "GOTELEMETRY"], run_params).rstrip()
+    if telemetry and telemetry != "off":
+        log.debug("Disabling Go telemetry")
+        go(["telemetry", "off"], run_params)
+
+
 def _resolve_gomod(
     app_dir: RootedPath,
     request: Request,
@@ -870,6 +877,9 @@ def _resolve_gomod(
     log.info(f"Using Go release: {go.release}")
 
     run_params = {"env": env, "cwd": app_dir}
+
+    # Explicitly disable toolchain telemetry for go >= 1.23
+    _disable_telemetry(go, run_params)
 
     if go_work_path:
         modules_in_go_sum = _parse_go_sum_from_workspaces(go_work_path, go, run_params)
