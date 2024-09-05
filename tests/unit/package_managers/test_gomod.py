@@ -31,6 +31,7 @@ from cachi2.core.package_managers.gomod import (
     _create_modules_from_parsed_data,
     _create_packages_from_parsed_data,
     _deduplicate_resolved_modules,
+    _disable_telemetry,
     _get_go_sum_files,
     _get_go_work_path,
     _get_gomod_version,
@@ -137,6 +138,7 @@ def _parse_mocked_data(data_dir: Path, file_path: str) -> ResolvedGoModule:
         pytest.param(False, False, True, id="has_workspaces"),
     ),
 )
+@mock.patch("cachi2.core.package_managers.gomod._disable_telemetry")
 @mock.patch("cachi2.core.package_managers.gomod._get_go_work_path")
 @mock.patch("cachi2.core.package_managers.gomod.Go.release", new_callable=mock.PropertyMock)
 @mock.patch("cachi2.core.package_managers.gomod._get_gomod_version")
@@ -150,6 +152,7 @@ def test_resolve_gomod(
     mock_get_gomod_version: mock.Mock,
     mock_go_release: mock.PropertyMock,
     mock_get_go_work: mock.Mock,
+    mock_disable_telemetry: mock.Mock,
     cgo_disable: bool,
     force_gomod_tidy: bool,
     has_workspaces: bool,
@@ -159,6 +162,7 @@ def test_resolve_gomod(
 ) -> None:
     module_dir = gomod_request.source_dir.join_within_root("path/to/module")
     mocked_data_folder = "non-vendored" if not has_workspaces else "workspaces"
+    mock_disable_telemetry.return_value = None
 
     # Mock the "subprocess.run" calls
     run_side_effects = []
@@ -281,6 +285,7 @@ def test_resolve_gomod(
 
 
 @pytest.mark.parametrize("force_gomod_tidy", [False, True])
+@mock.patch("cachi2.core.package_managers.gomod._disable_telemetry")
 @mock.patch("cachi2.core.package_managers.gomod.Go.release", new_callable=mock.PropertyMock)
 @mock.patch("cachi2.core.package_managers.gomod._get_gomod_version")
 @mock.patch("cachi2.core.package_managers.gomod.ModuleVersionResolver")
@@ -292,12 +297,14 @@ def test_resolve_gomod_vendor_dependencies(
     mock_version_resolver: mock.Mock,
     mock_get_gomod_version: mock.Mock,
     mock_go_release: mock.PropertyMock,
+    mock_disable_telemetry: mock.Mock,
     force_gomod_tidy: bool,
     tmp_path: Path,
     data_dir: Path,
     gomod_request: Request,
 ) -> None:
     module_dir = gomod_request.source_dir.join_within_root("path/to/module")
+    mock_disable_telemetry.return_value = None
 
     # Mock the "subprocess.run" calls
     run_side_effects = []
@@ -368,11 +375,13 @@ def test_resolve_gomod_vendor_dependencies(
     assert resolve_result.modules_in_go_sum == expect_result.modules_in_go_sum
 
 
+@mock.patch("cachi2.core.package_managers.gomod._disable_telemetry")
 @mock.patch("cachi2.core.package_managers.gomod.Go.release", new_callable=mock.PropertyMock)
 @mock.patch("cachi2.core.package_managers.gomod._get_gomod_version")
 def test_resolve_gomod_vendor_without_flag(
     mock_get_gomod_version: mock.Mock,
     mock_go_release: mock.PropertyMock,
+    mock_disable_telemetry: mock.Mock,
     tmp_path: Path,
     gomod_request: Request,
 ) -> None:
@@ -381,6 +390,7 @@ def test_resolve_gomod_vendor_without_flag(
     version_resolver = mock.Mock()
     mock_go_release.return_value = "go0.1.0"
     mock_get_gomod_version.return_value = ("0.1.1", "0.1.2")
+    mock_disable_telemetry.return_value = None
 
     expected_error = (
         'The "gomod-vendor" or "gomod-vendor-check" flag must be set when your repository has '
@@ -391,6 +401,7 @@ def test_resolve_gomod_vendor_without_flag(
 
 
 @pytest.mark.parametrize("force_gomod_tidy", [False, True])
+@mock.patch("cachi2.core.package_managers.gomod._disable_telemetry")
 @mock.patch("cachi2.core.package_managers.gomod.Go.release", new_callable=mock.PropertyMock)
 @mock.patch("cachi2.core.package_managers.gomod.Go._install")
 @mock.patch("cachi2.core.package_managers.gomod.Go._locate_toolchain")
@@ -404,11 +415,13 @@ def test_resolve_gomod_no_deps(
     mock_go_locate_toolchain: mock.Mock,
     mock_go_install: mock.Mock,
     mock_go_release: mock.PropertyMock,
+    mock_disable_telemetry: mock.Mock,
     force_gomod_tidy: bool,
     tmp_path: Path,
     gomod_request: Request,
 ) -> None:
     module_path = gomod_request.source_dir.join_within_root("path/to/module")
+    mock_disable_telemetry.return_value = None
 
     mock_pkg_deps_no_deps = textwrap.dedent(
         """
@@ -1117,6 +1130,7 @@ def test_package_to_component(package: Package, expected_component: Component) -
 
 
 @pytest.mark.parametrize(("go_mod_rc", "go_list_rc"), ((0, 1), (1, 0)))
+@mock.patch("cachi2.core.package_managers.gomod._disable_telemetry")
 @mock.patch("cachi2.core.package_managers.gomod.Go.release", new_callable=mock.PropertyMock)
 @mock.patch("cachi2.core.package_managers.gomod._get_gomod_version")
 @mock.patch("cachi2.core.package_managers.gomod.get_config")
@@ -1126,6 +1140,7 @@ def test_go_list_cmd_failure(
     mock_config: mock.Mock,
     mock_get_gomod_version: mock.Mock,
     mock_go_release: mock.PropertyMock,
+    mock_disable_telemetry: mock.Mock,
     tmp_path: Path,
     go_mod_rc: int,
     go_list_rc: int,
@@ -1137,6 +1152,7 @@ def test_go_list_cmd_failure(
     mock_config.return_value.gomod_download_max_tries = 1
     mock_go_release.return_value = "go0.1.0"
     mock_get_gomod_version.return_value = ("0.1.1", "0.1.2")
+    mock_disable_telemetry.return_value = None
 
     # Mock the "subprocess.run" calls
     mock_run.side_effect = [
@@ -2012,6 +2028,35 @@ def test_setup_go_toolchain_failure(
     error_msg = f"Required/recommended Go toolchain version '{unsupported}' is not supported yet."
     with pytest.raises(PackageManagerError, match=error_msg):
         _setup_go_toolchain(rooted_tmp_path.join_within_root("go.mod"))
+
+
+@pytest.mark.parametrize(
+    "GOTELEMETRY, telemetry_disable",
+    [
+        pytest.param("", False, id="telemetry_not_set"),
+        pytest.param("off", False, id="telemetry_disabled"),
+        pytest.param("local", True, id="telemetry_enabled"),
+    ],
+)
+@mock.patch("cachi2.core.package_managers.gomod.run_cmd")
+def test_disable_telemetry(
+    mock_run_cmd: mock.Mock,
+    rooted_tmp_path: RootedPath,
+    GOTELEMETRY: str,
+    telemetry_disable: bool,
+) -> None:
+    mock_run_cmd.side_effect = [GOTELEMETRY, None]
+
+    go = Go()
+    cmd = [go._bin, "telemetry", "off"]
+    params = {"env": {"GOTOOLCHAIN": "auto"}}
+    _disable_telemetry(go, params)
+
+    if not telemetry_disable:
+        assert mock_run_cmd.call_count == 1
+    else:
+        assert mock_run_cmd.call_count == 2
+        mock_run_cmd.assert_called_with(cmd, params)
 
 
 class TestGo:
