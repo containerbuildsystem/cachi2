@@ -25,7 +25,6 @@ from typing import (
     Pattern,
     Union,
     cast,
-    no_type_check,
 )
 
 import tomli
@@ -1068,7 +1067,7 @@ class PipRequirementsFile:
 
         :return: a dict with the keys ``requirements`` and ``options``
         """
-        parsed: dict[str, list[str]] = {"requirements": [], "options": []}
+        parsed: dict[str, list[Union[str, PipRequirement]]] = {"requirements": [], "options": []}
 
         for line in self._read_lines():
             (
@@ -1189,11 +1188,11 @@ class PipRequirement:
         self.package: str = ""
         # The package name as defined in the requirement line
         self.raw_package: str = ""
-        self.extras: list[str] = []
-        self.version_specs: list[str] = []
-        self.environment_marker: str = ""
+        self.extras: set[str] = set()
+        self.version_specs: list[tuple[str, str]] = []
+        self.environment_marker: Optional[str] = None
         self.hashes: list[str] = []
-        self.qualifiers: dict[str, Any] = {}
+        self.qualifiers: dict[str, str] = {}
 
         self.kind: Literal["pypi", "url", "vcs"]
         self.download_line: str = ""
@@ -1260,12 +1259,12 @@ class PipRequirement:
                 )
 
         requirement = self.__class__()
-
+        # Extras are incorrectly treated as part of the URL itself. If we're setting
+        # the URL, they must be skipped.
+        if not url:
+            requirement.extras = set(self.extras)
         requirement.package = self.package
         requirement.raw_package = self.raw_package
-        # Extras are incorrectly treated as part of the URL itself. If we're setting
-        # the URL, clear them.
-        requirement.extras = [] if url else list(self.extras)
         # Version specs are ignored by pip when applied to a URL, let's do the same.
         requirement.version_specs = [] if url else list(self.version_specs)
         requirement.environment_marker = self.environment_marker
@@ -1277,9 +1276,8 @@ class PipRequirement:
 
         return requirement
 
-    @no_type_check
     @classmethod
-    def from_line(cls, line: str, options: list[str]) -> Optional["PipRequirement"]:
+    def from_line(cls, line: str, options: list[str]) -> "PipRequirement":
         """Create an instance of PipRequirement from the given requirement and its options.
 
         Only ``url`` and ``vcs`` direct access requirements are supported. ``file`` is not.
@@ -1289,23 +1287,16 @@ class PipRequirement:
         :return: PipRequirement instance
         """
         to_be_parsed = line
-        qualifiers = {}
+        qualifiers: dict[str, str] = {}
         requirement = cls()
 
-        direct_access_kind, is_direct_access = cls._assess_direct_access_requirement(line)
-        if is_direct_access:
-            if direct_access_kind in ["url", "vcs"]:
-                requirement.kind = direct_access_kind
-                to_be_parsed, qualifiers = cls._adjust_direct_access_requirement(
-                    to_be_parsed, cls.HAS_NAME_IN_DIRECT_ACCESS_REQUIREMENT
-                )
-            else:
-                raise UnsupportedFeature(
-                    f"Direct references with {direct_access_kind!r} scheme are not supported, "
-                    f"{to_be_parsed!r}"
-                )
-        else:
+        if not (direct_access_kind := cls._assess_direct_access_requirement(line)):
             requirement.kind = "pypi"
+        else:
+            requirement.kind = direct_access_kind
+            to_be_parsed, qualifiers = cls._adjust_direct_access_requirement(
+                to_be_parsed, cls.HAS_NAME_IN_DIRECT_ACCESS_REQUIREMENT
+            )
 
         try:
             req = Requirement(to_be_parsed)
@@ -1328,7 +1319,7 @@ class PipRequirement:
         return requirement
 
     @staticmethod
-    def _assess_direct_access_requirement(line: str) -> tuple[Optional[str], bool]:
+    def _assess_direct_access_requirement(line: str) -> Optional[Literal["url", "vcs"]]:
         """Determine if the line contains a direct access requirement.
 
         :param str line: the requirement line
@@ -1355,10 +1346,10 @@ class PipRequirement:
             "svn+http",
             "svn+https",
         }
-        direct_access_kind = None
+        direct_access_kind: Literal["url", "vcs"]
 
         if ":" not in line:
-            return None, False
+            return None
         # Extract the scheme from the line and strip off the package name if needed
         # e.g. name @ https://...
         scheme_parts = line.split(":", 1)[0].split("@")
@@ -1373,9 +1364,11 @@ class PipRequirement:
         elif scheme in VCS_SCHEMES:
             direct_access_kind = "vcs"
         else:
-            direct_access_kind = scheme
+            raise UnsupportedFeature(
+                f"Direct references with {scheme!r} scheme are not supported, " f"{line!r}"
+            )
 
-        return direct_access_kind, True
+        return direct_access_kind
 
     @staticmethod
     def _adjust_direct_access_requirement(
