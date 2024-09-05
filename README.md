@@ -331,7 +331,7 @@ original Cachito.*
 
 <https://go.dev/ref/mod>
 
-Current version: 1.21 [^go-version] [^go-compat]
+Current version: 1.23 [^go-version] [^go-compat] [^workspace-vendoring]
 
 The gomod package manager works by parsing the [go.mod](https://go.dev/ref/mod#go-mod-file) file present in the source
 repository to determine which dependencies to download. Cachi2 does not parse this file on its own - rather, we rely on
@@ -357,6 +357,10 @@ See [docs/gomod.md](docs/gomod.md) for more details.
   [go 1.19][go119-changelog]. Things are a bit more complicated with [Go 1.21][go121-changelog], if
   you are or have been experiencing issues with cachi2 related to Go 1.21+, please refer to
   [docs/gomod.md](docs/gomod.md#go-121-since-cachi2-v050).
+
+[^workspace-vendoring]: Although Cachi2 supports Go 1.23, support for workspace vendoring
+  introduced in Go 1.22 hasn't been added yet (still in development) and so if your project makes
+  use of the feature cachi2 will error out.
 
 ### pip
 
