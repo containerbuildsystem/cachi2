@@ -16,24 +16,27 @@ jobs:
       matrix:
         python-version: ["3.9", "3.10", "3.11", "3.12"]
 
+    container:
+      image: python:${{ matrix.python-version }}-slim
+
     steps:
+    - name: Install dependencies
+      run: |
+        # We need to install git inside the container otherwise the checkout action will use Git
+        # REST API and the .git directory won't be present which fails due to setuptools-scm
+        apt-get update && apt-get install --no-install-recommends --no-install-suggests -y git
+        python3 -m pip install --upgrade pip
+        pip install tox
+
     - uses: actions/checkout@v4
       with:
         fetch-depth: 0
 
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v5
-      with:
-        python-version: ${{ matrix.python-version }}
-
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install tox
-        pip install tox-gh-actions
-
     - name: Test with tox
-      run: tox
+      run: |
+        # Disable Git's safe.directory mechanism as some unit tests do clone repositories
+        git config --global --add safe.directory '*'
+        tox -e py3
 
     - name: Upload coverage reports to Codecov
       if: matrix.python-version == '3.12'
@@ -43,6 +46,7 @@ jobs:
 
   linters:
     name: Linters
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
@@ -52,17 +56,23 @@ jobs:
           - isort
           - flake8
           - mypy
-    runs-on: ubuntu-latest
+
+    container:
+      image: python:3.9-slim
+
     steps:
-    - uses: actions/checkout@v4
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: "3.9"
     - name: Install dependencies
       run: |
-        python -m pip install --upgrade pip
+        # We need to install git inside the container otherwise the checkout action will use Git
+        # REST API and the .git directory won't be present which fails due to setuptools-scm
+        apt-get update && apt-get install --no-install-recommends --no-install-suggests -y git
+        python3 -m pip install --upgrade pip
         pip install tox
+
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
     - name: Test '${{ matrix.tox_env }}' with tox
       run: tox -e ${{ matrix.tox_env }}
 
