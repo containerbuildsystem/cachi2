@@ -1,7 +1,6 @@
 import copy
-import tempfile
 from pathlib import Path
-from typing import Any, Generator, Optional, Union
+from typing import Any, Optional
 
 import git
 import pytest
@@ -181,28 +180,18 @@ def sample_pkg_lvl_pkg() -> dict[str, str]:
 
 
 @pytest.fixture()
-def fake_repo() -> Generator[tuple[Union[str, bytes], Union[str, bytes]], Any, None]:
-    """
-    Create a fake git repository representing a remote resource to be fetched.
-
-    This fixture yields a tuple containing two data. The first one is the
-    absolute path to the repository, and the other one is the namespaced
-    repository name. Because of the repository is created as a temporary
-    directory, the repository name looks like tmp/test-tasks-xxxxx.
-    """
-    with tempfile.TemporaryDirectory(prefix="test-tasks-") as repo_dir:
-        r = git.Repo.init(repo_dir)
-        r.git.config("user.name", "tester")
-        r.git.config("user.email", "tester@localhost")
-        Path(repo_dir, "readme.rst").touch()
-        r.index.add(["readme.rst"])
-        r.index.commit("first commit", skip_hooks=True)
-        Path(repo_dir, "main.py").touch()
-        r.index.add(["main.py"])
-        r.index.commit("add main source", skip_hooks=True)
-        yield repo_dir, repo_dir.lstrip("/")
-
-
-@pytest.fixture
 def rooted_tmp_path(tmp_path: Path) -> RootedPath:
     return RootedPath(tmp_path)
+
+
+@pytest.fixture()
+def rooted_tmp_path_repo(rooted_tmp_path: RootedPath) -> RootedPath:
+    repo = git.Repo.init(rooted_tmp_path)
+    repo.git.config("user.name", "user")
+    repo.git.config("user.email", "user@example.com")
+
+    Path(rooted_tmp_path, "README.md").touch()
+    repo.index.add(["README.md"])
+    repo.index.commit("Initial commit")
+
+    return rooted_tmp_path
