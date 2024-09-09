@@ -126,4 +126,5 @@ jobs:
           CACHI2_IMAGE: localhost/cachi2:${{ github.sha }}
           CACHI2_TEST_LOCAL_PYPISERVER: 'true'
         run: |
+          git config --global --add safe.directory "*"
           tox -e integration
