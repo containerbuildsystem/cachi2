@@ -1,16 +1,5 @@
 from pathlib import Path
-from typing import (
-    TYPE_CHECKING,
-    Annotated,
-    Any,
-    Callable,
-    ClassVar,
-    Dict,
-    Literal,
-    Optional,
-    TypeVar,
-    Union,
-)
+from typing import TYPE_CHECKING, Annotated, Any, Callable, Dict, Literal, Optional, TypeVar, Union
 
 import pydantic
 
@@ -267,12 +256,3 @@ class Request(pydantic.BaseModel):
 
     def _packages_by_type(self, pkgtype: type[T]) -> list[T]:
         return [package for package in self.packages if isinstance(package, pkgtype)]
-
-    # This is kept here temporarily, should be refactored
-    go_mod_cache_download_part: ClassVar[Path] = Path("pkg", "mod", "cache", "download")
-
-    # This is kept here temporarily, should be refactored
-    @property
-    def gomod_download_dir(self) -> RootedPath:
-        """Directory where the fetched dependencies will be placed."""
-        return self.output_dir.join_within_root("deps", "gomod", self.go_mod_cache_download_part)
