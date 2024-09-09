@@ -43,7 +43,6 @@ from cachi2.core.package_managers.gomod import (
     _process_modules_json_stream,
     _resolve_gomod,
     _setup_go_toolchain,
-    _should_vendor_deps,
     _validate_local_replacements,
     _vendor_changed,
     _vendor_deps,
@@ -290,9 +289,11 @@ def test_resolve_gomod(
 @mock.patch("cachi2.core.package_managers.gomod._get_gomod_version")
 @mock.patch("cachi2.core.package_managers.gomod.ModuleVersionResolver")
 @mock.patch("cachi2.core.package_managers.gomod._validate_local_replacements")
+@mock.patch("cachi2.core.package_managers.gomod._vendor_changed")
 @mock.patch("subprocess.run")
 def test_resolve_gomod_vendor_dependencies(
     mock_run: mock.Mock,
+    mock_vendor_changed: mock.Mock,
     mock_validate_local_replacements: mock.Mock,
     mock_version_resolver: mock.Mock,
     mock_get_gomod_version: mock.Mock,
@@ -339,8 +340,9 @@ def test_resolve_gomod_vendor_dependencies(
     mock_version_resolver.get_golang_version.return_value = "v0.1.0"
     mock_go_release.return_value = "go0.1.0"
     mock_get_gomod_version.return_value = ("0.1.1", "0.1.2")
+    mock_vendor_changed.return_value = False
 
-    flags: list[Flag] = ["gomod-vendor"]
+    flags: list[Flag] = []
     if force_gomod_tidy:
         flags.append("force-gomod-tidy")
 
@@ -373,31 +375,6 @@ def test_resolve_gomod_vendor_dependencies(
     assert list(resolve_result.parsed_modules) == expect_result.parsed_modules
     assert list(resolve_result.parsed_packages) == expect_result.parsed_packages
     assert resolve_result.modules_in_go_sum == expect_result.modules_in_go_sum
-
-
-@mock.patch("cachi2.core.package_managers.gomod._disable_telemetry")
-@mock.patch("cachi2.core.package_managers.gomod.Go.release", new_callable=mock.PropertyMock)
-@mock.patch("cachi2.core.package_managers.gomod._get_gomod_version")
-def test_resolve_gomod_vendor_without_flag(
-    mock_get_gomod_version: mock.Mock,
-    mock_go_release: mock.PropertyMock,
-    mock_disable_telemetry: mock.Mock,
-    tmp_path: Path,
-    gomod_request: Request,
-) -> None:
-    module_dir = gomod_request.source_dir.join_within_root("path/to/module")
-    module_dir.path.joinpath("vendor").mkdir(parents=True)
-    version_resolver = mock.Mock()
-    mock_go_release.return_value = "go0.1.0"
-    mock_get_gomod_version.return_value = ("0.1.1", "0.1.2")
-    mock_disable_telemetry.return_value = None
-
-    expected_error = (
-        'The "gomod-vendor" or "gomod-vendor-check" flag must be set when your repository has '
-        "vendored dependencies."
-    )
-    with pytest.raises(PackageRejected, match=expected_error):
-        _resolve_gomod(module_dir, gomod_request, tmp_path, version_resolver)
 
 
 @pytest.mark.parametrize("force_gomod_tidy", [False, True])
@@ -1393,84 +1370,28 @@ def test_invalid_local_replacements(tmpdir: Path) -> None:
         _validate_local_replacements(modules, app_path)
 
 
-@pytest.mark.parametrize(
-    "flags, vendor_exists, expect_result",
-    [
-        # no flags => should not vendor, cannot modify (irrelevant)
-        ([], True, (False, False)),
-        ([], False, (False, False)),
-        # gomod-vendor => should vendor, can modify
-        (["gomod-vendor"], True, (True, True)),
-        (["gomod-vendor"], False, (True, True)),
-        # gomod-vendor-check, vendor exists => should vendor, cannot modify
-        (["gomod-vendor-check"], True, (True, False)),
-        # gomod-vendor-check, vendor does not exist => should vendor, can modify
-        (["gomod-vendor-check"], False, (True, True)),
-        # both vendor flags => gomod-vendor-check takes priority
-        (["gomod-vendor", "gomod-vendor-check"], True, (True, False)),
-    ],
-)
-def test_should_vendor_deps(
-    flags: list[str],
-    vendor_exists: bool,
-    expect_result: tuple[bool, bool],
-    rooted_tmp_path: RootedPath,
-) -> None:
-    if vendor_exists:
-        rooted_tmp_path.join_within_root("vendor").path.mkdir()
-
-    assert _should_vendor_deps(flags, rooted_tmp_path, False) == expect_result
-
-
-@pytest.mark.parametrize(
-    "flags, vendor_exists, expect_error",
-    [
-        ([], True, True),
-        ([], False, False),
-        (["gomod-vendor"], True, False),
-        (["gomod-vendor-check"], True, False),
-    ],
-)
-def test_should_vendor_deps_strict(
-    flags: list[str], vendor_exists: bool, expect_error: bool, rooted_tmp_path: RootedPath
-) -> None:
-    if vendor_exists:
-        rooted_tmp_path.join_within_root("vendor").path.mkdir()
-
-    if expect_error:
-        msg = 'The "gomod-vendor" or "gomod-vendor-check" flag must be set'
-        with pytest.raises(PackageRejected, match=msg):
-            _should_vendor_deps(flags, rooted_tmp_path, True)
-    else:
-        _should_vendor_deps(flags, rooted_tmp_path, True)
-
-
-@pytest.mark.parametrize("can_make_changes", [True, False])
 @pytest.mark.parametrize("vendor_changed", [True, False])
 @mock.patch("cachi2.core.package_managers.gomod.Go._run")
 @mock.patch("cachi2.core.package_managers.gomod._vendor_changed")
 def test_vendor_deps(
     mock_vendor_changed: mock.Mock,
     mock_run_cmd: mock.Mock,
-    can_make_changes: bool,
     vendor_changed: bool,
     rooted_tmp_path: RootedPath,
 ) -> None:
     app_dir = rooted_tmp_path.join_within_root("some/module")
     run_params = {"cwd": app_dir}
     mock_vendor_changed.return_value = vendor_changed
-    expect_error = vendor_changed and not can_make_changes
 
-    if expect_error:
+    if vendor_changed:
         msg = "The content of the vendor directory is not consistent with go.mod."
         with pytest.raises(PackageRejected, match=msg):
-            _vendor_deps(Go(), app_dir, can_make_changes, run_params)
+            _vendor_deps(Go(), app_dir, run_params)
     else:
-        _vendor_deps(Go(), app_dir, can_make_changes, run_params)
+        _vendor_deps(Go(), app_dir, run_params)
 
     mock_run_cmd.assert_called_once_with(["go", "mod", "vendor"], **run_params)
-    if not can_make_changes:
-        mock_vendor_changed.assert_called_once_with(app_dir)
+    mock_vendor_changed.assert_called_once_with(app_dir)
 
 
 def test_parse_vendor(rooted_tmp_path: RootedPath, data_dir: Path) -> None:

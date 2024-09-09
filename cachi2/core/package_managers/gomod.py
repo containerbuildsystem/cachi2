@@ -888,9 +888,7 @@ def _resolve_gomod(
 
     # Vendor dependencies if the gomod-vendor flag is set
     flags = request.flags
-    should_vendor, can_make_changes = _should_vendor_deps(
-        flags, app_dir, config.gomod_strict_vendor
-    )
+    should_vendor = app_dir.join_within_root("vendor").path.is_dir()
     if should_vendor:
         if go_work_path and go_work_path.join_within_root("vendor").path.is_dir():
             # NOTE: the same error will be reported even for 1.21 which doesn't support workspace
@@ -898,7 +896,7 @@ def _resolve_gomod(
             # in the foreseeable future, a not so user friendly error should be fine
             raise UnsupportedFeature("Go workspace vendoring is not supported")
 
-        downloaded_modules = _vendor_deps(go, app_dir, can_make_changes, run_params)
+        downloaded_modules = _vendor_deps(go, app_dir, run_params)
     else:
         log.info("Downloading the gomod dependencies")
         downloaded_modules = (
@@ -1149,46 +1147,6 @@ class GoCacheTemporaryDirectory(tempfile.TemporaryDirectory[str]):
             Go()(["clean", "-modcache"], {"env": {"GOPATH": self.name, "GOCACHE": self.name}})
         finally:
             super().__exit__(exc, value, tb)
-
-
-def _should_vendor_deps(
-    flags: Iterable[str], app_dir: RootedPath, strict: bool
-) -> Tuple[bool, bool]:
-    """
-    Determine if Cachi2 should vendor dependencies and if it is allowed to make changes.
-
-    This is based on the presence of flags:
-    - gomod-vendor-check => should vendor, can only make changes if vendor dir does not exist
-    - gomod-vendor => should vendor, can make changes
-
-    :param flags: flags from the Cachi2 request
-    :param app_dir: absolute path to the app directory
-    :param strict: fail the request if the vendor dir is present but the flags are not used?
-    :return: (should vendor: bool, allowed to make changes in the vendor directory: bool)
-    :raise PackageRejected: if the vendor dir is present, the flags are not used and we are strict
-    """
-    vendor = app_dir.join_within_root("vendor").path
-
-    if "gomod-vendor-check" in flags:
-        return True, not vendor.exists()
-    if "gomod-vendor" in flags:
-        return True, True
-
-    if strict and vendor.is_dir():
-        raise PackageRejected(
-            reason=(
-                'The "gomod-vendor" or "gomod-vendor-check" flag must be set when your repository '
-                "has vendored dependencies."
-            ),
-            solution=(
-                "Consider removing the vendor/ directory and letting Cachi2 download dependencies "
-                "instead.\n"
-                "If you do want to keep using vendoring, please pass one of the required flags."
-            ),
-            docs=VENDORING_DOC,
-        )
-
-    return False, False
 
 
 class ModuleVersionResolver:
@@ -1559,7 +1517,6 @@ def _parse_vendor(module_dir: RootedPath) -> Iterable[ParsedModule]:
 def _vendor_deps(
     go: Go,
     app_dir: RootedPath,
-    can_make_changes: bool,
     run_params: dict[str, Any],
 ) -> Iterable[ParsedModule]:
     """
@@ -1577,7 +1534,7 @@ def _vendor_deps(
     """
     log.info("Vendoring the gomod dependencies")
     go(["mod", "vendor"], run_params)
-    if not can_make_changes and _vendor_changed(app_dir):
+    if _vendor_changed(app_dir):
         raise PackageRejected(
             reason=(
                 "The content of the vendor directory is not consistent with go.mod. "

@@ -166,6 +166,7 @@ def fetch_deps(
         False,
         "--gomod-vendor",
         help=(
+            "DEPRECATED (no longer has any effect when set). "
             "Fetch go deps via 'go mod vendor' rather than 'go mod download'. If you "
             "have a vendor/ dir, one of --gomod-vendor/--gomod-vendor-check is required."
         ),
@@ -174,6 +175,7 @@ def fetch_deps(
         False,
         "--gomod-vendor-check",
         help=(
+            "DEPRECATED (no longer has any effect when set). "
             "Same as gomod-vendor, but will not make unexpected changes if you "
             "already have a vendor/ directory (will fail if changes would be made)."
         ),

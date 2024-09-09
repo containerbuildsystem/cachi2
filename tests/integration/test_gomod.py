@@ -36,46 +36,6 @@ log = logging.getLogger(__name__)
             ),
             id="gomod_without_deps",
         ),
-        pytest.param(
-            utils.TestParameters(
-                repo="https://github.com/cachito-testing/gomod-vendored.git",
-                ref="ff1960095dd158d3d2a4f31d15b244c24930248b",
-                packages=({"path": ".", "type": "gomod"},),
-                check_output=False,
-                check_deps_checksums=False,
-                check_vendor_checksums=False,
-                expected_exit_code=2,
-                expected_output='The "gomod-vendor" or "gomod-vendor-check" flag'
-                " must be set when your repository has vendored dependencies",
-            ),
-            id="gomod_vendored_without_flag",
-        ),
-        # Test case checks if vendor folder with dependencies will remain unchanged in cloned
-        # source repo, deps folder in output folder should be empty.
-        pytest.param(
-            utils.TestParameters(
-                repo="https://github.com/cachito-testing/gomod-vendored.git",
-                ref="ff1960095dd158d3d2a4f31d15b244c24930248b",
-                packages=({"path": ".", "type": "gomod"},),
-                flags=["--gomod-vendor"],
-                expected_exit_code=0,
-                expected_output="All dependencies fetched successfully",
-            ),
-            id="gomod_vendored_with_flag",
-        ),
-        # Test case checks if vendor folder will be created with dependencies in cloned
-        # source repo, deps folder in output folder should be empty.
-        pytest.param(
-            utils.TestParameters(
-                repo="https://github.com/cachito-testing/gomod-vendor-check-no-vendor.git",
-                ref="7ba383d5592910edbf7f287d4b5a00c5ababf751",
-                packages=({"path": ".", "type": "gomod"},),
-                flags=["--gomod-vendor-check"],
-                expected_exit_code=0,
-                expected_output="All dependencies fetched successfully",
-            ),
-            id="gomod_vendor_check_no_vendor",
-        ),
         # Test case checks if vendor folder with dependencies will remain unchanged in cloned
         # source repo, deps folder in output folder should be empty.
         pytest.param(
