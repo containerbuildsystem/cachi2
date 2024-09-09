@@ -24,7 +24,7 @@ updates:
         update-types:
           - "minor"
           - "patch"
-        exclude_patterns:
+        exclude-patterns:
           - "pydantic*"
 
       # pydantic is a known violator of version updates where they don't release the core backend
