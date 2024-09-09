@@ -1541,13 +1541,12 @@ def test_vendor_changed(
     vendor_before: dict[str, Any],
     vendor_changes: dict[str, Any],
     expected_change: Optional[str],
-    fake_repo: tuple[str, str],
+    rooted_tmp_path_repo: RootedPath,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    repo_dir, _ = fake_repo
-    repo = git.Repo(repo_dir)
+    repo = git.Repo(rooted_tmp_path_repo)
 
-    app_dir = RootedPath(repo_dir).join_within_root(subpath)
+    app_dir = rooted_tmp_path_repo.join_within_root(subpath)
     os.makedirs(app_dir, exist_ok=True)
 
     write_file_tree(vendor_before, app_dir)
