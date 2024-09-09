@@ -578,7 +578,10 @@ def fetch_gomod_source(request: Request) -> RequestOutput:
     version_resolver = ModuleVersionResolver.from_repo_path(request.source_dir)
 
     with GoCacheTemporaryDirectory(prefix="cachi2-") as tmp_dir:
-        request.gomod_download_dir.path.mkdir(exist_ok=True, parents=True)
+        gomod_download_dir = request.output_dir.join_within_root(
+            "deps/gomod/pkg/mod/cache/download"
+        )
+        gomod_download_dir.path.mkdir(exist_ok=True, parents=True)
         for subpath in subpaths:
             log.info("Fetching the gomod dependencies at subpath %s", subpath)
 
@@ -617,16 +620,16 @@ def fetch_gomod_source(request: Request) -> RequestOutput:
             components.extend(package.to_component() for package in packages)
 
         if "gomod-vendor-check" not in request.flags and "gomod-vendor" not in request.flags:
-            tmp_download_cache_dir = Path(tmp_dir).joinpath(request.go_mod_cache_download_part)
+            tmp_download_cache_dir = Path(tmp_dir).joinpath("pkg/mod/cache/download")
             if tmp_download_cache_dir.exists():
                 log.debug(
                     "Adding dependencies from %s to %s",
                     tmp_download_cache_dir,
-                    request.gomod_download_dir,
+                    gomod_download_dir,
                 )
                 shutil.copytree(
                     tmp_download_cache_dir,
-                    str(request.gomod_download_dir),
+                    str(gomod_download_dir),
                     dirs_exist_ok=True,
                 )
 
