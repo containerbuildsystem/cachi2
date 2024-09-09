@@ -442,9 +442,9 @@ packaging==24.1 \
     # via
     #   cachi2 (pyproject.toml)
     #   pypi-simple
-pydantic==2.8.2 \
-    --hash=sha256:6f62c13d067b0755ad1c21a34bdd06c0c12625a22b0fc09c6b149816604f7c2a \
-    --hash=sha256:73ee9fddd406dc318b885c7a2eab8a6472b68b8fb5ba8150949fc3db939f23c8
+pydantic==2.9.1 \
+    --hash=sha256:1363c7d975c7036df0db2b4a61f2e062fbc0aa5ab5f2772e0ffc7191a4f4bce2 \
+    --hash=sha256:7aff4db5fdf3cf573d4b3c30926a510a10e19a0774d38fc4967f78beb6deb612
     # via
     #   cachi2 (pyproject.toml)
     #   pypi-simple
