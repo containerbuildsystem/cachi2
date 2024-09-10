@@ -619,19 +619,18 @@ def fetch_gomod_source(request: Request) -> RequestOutput:
             components.extend(module.to_component() for module in modules)
             components.extend(package.to_component() for package in packages)
 
-        if "gomod-vendor-check" not in request.flags and "gomod-vendor" not in request.flags:
-            tmp_download_cache_dir = Path(tmp_dir).joinpath("pkg/mod/cache/download")
-            if tmp_download_cache_dir.exists():
-                log.debug(
-                    "Adding dependencies from %s to %s",
-                    tmp_download_cache_dir,
-                    gomod_download_dir,
-                )
-                shutil.copytree(
-                    tmp_download_cache_dir,
-                    str(gomod_download_dir),
-                    dirs_exist_ok=True,
-                )
+        tmp_download_cache_dir = Path(tmp_dir).joinpath("pkg/mod/cache/download")
+        if tmp_download_cache_dir.exists():
+            log.debug(
+                "Adding dependencies from %s to %s",
+                tmp_download_cache_dir,
+                gomod_download_dir,
+            )
+            shutil.copytree(
+                tmp_download_cache_dir,
+                str(gomod_download_dir),
+                dirs_exist_ok=True,
+            )
 
     return RequestOutput.from_obj_list(
         components=components,
@@ -860,12 +859,22 @@ def _resolve_gomod(
 
     config = get_config()
 
+    should_vendor = app_dir.join_within_root("vendor").path.is_dir()
+
+    if should_vendor:
+        # Even though we do not perform a "go mod download" when vendoring is detected, some
+        # go commands still download dependencies as a side effect. Since we don't want those
+        # copied to the output dir, we need to set the GOMODCACHE to a different directory.
+        gomod_cache = f"{tmp_dir}/vendor-cache"
+    else:
+        gomod_cache = f"{tmp_dir}/pkg/mod"
+
     env = {
         "GOPATH": tmp_dir,
         "GO111MODULE": "on",
         "GOCACHE": tmp_dir,
         "PATH": os.environ.get("PATH", ""),
-        "GOMODCACHE": f"{tmp_dir}/pkg/mod",
+        "GOMODCACHE": gomod_cache,
         "GOSUMDB": "sum.golang.org",
         "GOTOOLCHAIN": "auto",
     }
@@ -891,7 +900,6 @@ def _resolve_gomod(
 
     # Vendor dependencies if the gomod-vendor flag is set
     flags = request.flags
-    should_vendor = app_dir.join_within_root("vendor").path.is_dir()
     if should_vendor:
         if go_work_path and go_work_path.join_within_root("vendor").path.is_dir():
             # NOTE: the same error will be reported even for 1.21 which doesn't support workspace

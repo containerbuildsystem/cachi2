@@ -246,6 +246,8 @@ def test_resolve_gomod(
     if force_gomod_tidy:
         assert mock_run.call_args_list[1][0][0] == [GO_CMD_PATH, "mod", "tidy"]
 
+    assert mock_run.call_args_list[0][1]["env"]["GOMODCACHE"] == f"{tmp_path}/pkg/mod"
+
     # when not vendoring, go list should be called with -mod readonly
     listdeps_cmd = [
         GO_CMD_PATH,
@@ -359,6 +361,7 @@ def test_resolve_gomod_vendor_dependencies(
     resolve_result = _resolve_gomod(module_dir, gomod_request, tmp_path, mock_version_resolver)
 
     assert mock_run.call_args_list[0][0][0] == [GO_CMD_PATH, "mod", "vendor"]
+    assert mock_run.call_args_list[0][1]["env"]["GOMODCACHE"] == f"{tmp_path}/vendor-cache"
     # when vendoring, go list should be called without -mod readonly
     assert mock_run.call_args_list[-2][0][0] == [
         GO_CMD_PATH,
