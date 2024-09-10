@@ -1,12 +1,14 @@
 import json
 import logging
 import subprocess
+from functools import cached_property
 from pathlib import Path
 from typing import Annotated, Optional, Union
 
 import pydantic
 
 from cachi2.core.errors import PackageManagerError, PackageRejected, UnexpectedFormat
+from cachi2.core.package_managers.general import download_binary_file
 from cachi2.core.rooted_path import PathOutsideRoot, RootedPath
 from cachi2.core.utils import run_cmd
 
@@ -38,18 +40,31 @@ class _GemMetadata(pydantic.BaseModel):
     name: str
     version: str
 
+    def download_to(self, fs_location: RootedPath) -> None:
+        return None
+
 
 class GemDependency(_GemMetadata):
     """
     Represents a gem dependency.
 
     Attributes:
-        source:     The source URL of the gem.
+        source:     The source URL of the gem as stated in 'remote' field from Gemfile.lock.
         checksum:   The checksum of the gem.
     """
 
     source: str
     checksum: Optional[str] = None
+
+    @cached_property
+    def remote_location(self) -> str:
+        """Return remote location to download this gem from."""
+        return f"{self.source}/gems/{self.name}-{self.version}.gem"
+
+    def download_to(self, fs_location: RootedPath) -> None:
+        """Download represented gem to specified file system location."""
+        fs_location = fs_location.join_within_root(Path(f"{self.name}-{self.version}.gem"))
+        download_binary_file(self.remote_location, fs_location)
 
 
 class GitDependency(_GemMetadata):

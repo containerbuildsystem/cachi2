@@ -1,6 +1,7 @@
 import json
 import subprocess
 from copy import deepcopy
+from pathlib import Path
 from typing import Any
 from unittest import mock
 
@@ -180,3 +181,25 @@ def test_parse_gemlock_empty(
 
     assert f"Package {rooted_tmp_path.path.name} is bundled with version 2.5.10" in caplog.messages
     assert result == []
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "https://rubygems.org",
+        "https://dedicatedprivategemrepo.com",
+    ],
+)
+@mock.patch("cachi2.core.package_managers.bundler.parser.download_binary_file")
+def test_dependencies_could_be_downloaded(
+    mock_downloader: mock.MagicMock,
+    source: str,
+) -> None:
+    base_destination = RootedPath("/tmp/foo")
+    dependency = GemDependency(name="foo", version="0.0.2", source=source)
+    expected_source_url = f"{source}/gems/foo-0.0.2.gem"
+    expected_destination = base_destination.join_within_root(Path("foo-0.0.2.gem"))
+
+    dependency.download_to(base_destination)
+
+    mock_downloader.assert_called_once_with(expected_source_url, expected_destination)
