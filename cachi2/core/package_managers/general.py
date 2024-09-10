@@ -3,7 +3,6 @@ import asyncio
 import logging
 import types
 from os import PathLike
-from pathlib import Path
 from typing import Any, Dict, Optional, Set, Union
 from urllib.parse import urlparse
 
@@ -27,7 +26,7 @@ log = logging.getLogger(__name__)
 
 def download_binary_file(
     url: str,
-    download_path: Union[str, Path],
+    download_path: Union[str, PathLike[str]],
     auth: Optional[AuthBase] = None,
     insecure: bool = False,
     chunk_size: int = 8192,
@@ -36,7 +35,7 @@ def download_binary_file(
     Download a binary file (such as a TAR archive) from a URL.
 
     :param str url: URL for file download
-    :param (str | Path) download_path: Path to download file to
+    :param (str | PathLike) download_path: Path to download file to
     :param requests.auth.AuthBase auth: Authentication for the URL
     :param bool insecure: Do not verify SSL for the URL
     :param int chunk_size: Chunk size param for Response.iter_content()
