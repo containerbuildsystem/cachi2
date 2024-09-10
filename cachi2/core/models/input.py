@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Any, Callable, Dict, Literal, Optional, TypeVar, Union
 
@@ -9,6 +10,9 @@ from cachi2.core.rooted_path import PathOutsideRoot, RootedPath
 
 if TYPE_CHECKING:
     from pydantic.error_wrappers import ErrorDict
+
+
+log = logging.getLogger(__name__)
 
 T = TypeVar("T")
 ModelT = TypeVar("ModelT", bound=pydantic.BaseModel)
@@ -216,6 +220,25 @@ class Request(pydantic.BaseModel):
                         f"package path does not exist (or is not a directory): {p.path}"
                     )
         return packages
+
+    @pydantic.field_validator("flags")
+    def _deprecation_warning(cls, flags: frozenset[Flag]) -> frozenset[Flag]:
+        """Print a deprecation warning for flags, if needed."""
+        if "gomod-vendor" in flags:
+            log.warning(
+                "The `gomod-vendor` flag is deprecated and will be removed in future versions. "
+                "Note that it will no longer perform automatic vendoring, so in case vendoring "
+                "is needed, it needs to be manually added to the source repository."
+            )
+
+        if "gomod-vendor-check" in flags:
+            log.warning(
+                "The `gomod-vendor-check` flag is deprecated and will be removed in future versions. "
+                "Its use is no longer necessary, Cachi2 will automatically check the contents of the "
+                "vendor directory in case it is present."
+            )
+
+        return flags
 
     @pydantic.field_validator("packages")
     def _packages_not_empty(cls, packages: list[PackageInput]) -> list[PackageInput]:
