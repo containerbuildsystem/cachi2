@@ -204,3 +204,54 @@ def test_dependencies_could_be_downloaded(
     dependency.download_to(base_destination)
 
     mock_downloader.assert_called_once_with(expected_source_url, expected_destination)
+
+
+@mock.patch("cachi2.core.package_managers.bundler.parser.Repo.clone_from")
+def test_download_git_dependency_works(
+    mock_git_clone: mock.Mock,
+    rooted_tmp_path: RootedPath,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    dep = GitDependency(
+        name="example",
+        version="0.1.0",
+        url="https://github.com/user/repo.git",
+        ref=GIT_REF,
+    )
+    dep_path = rooted_tmp_path.join_within_root(f"{dep.repo_name}-{dep.ref[:12]}").path
+
+    dep.download_to(output_dir=rooted_tmp_path)
+    assert f"Cloning git repository {dep.url}" in caplog.messages
+
+    mock_git_clone.assert_called_once_with(
+        url=str(dep.url),
+        to_path=dep_path,
+        env={"GIT_TERMINAL_PROMPT": "0"},
+    )
+    assert dep_path.exists()
+
+
+@mock.patch("cachi2.core.package_managers.bundler.parser.Repo.clone_from")
+def test_download_duplicate_git_dependency_is_skipped(
+    mock_git_clone: mock.Mock,
+    rooted_tmp_path: RootedPath,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    dep = GitDependency(
+        name="example",
+        version="0.1.0",
+        url="https://github.com/user/repo.git",
+        ref=GIT_REF,
+    )
+    dep_path = rooted_tmp_path.join_within_root(f"{dep.repo_name}-{dep.ref[:12]}").path
+
+    dep.download_to(output_dir=rooted_tmp_path)
+    dep.download_to(output_dir=rooted_tmp_path)
+    assert f"Skipping existing git repository {dep.url}" in caplog.messages
+
+    mock_git_clone.assert_called_once_with(
+        url=str(dep.url),
+        to_path=dep_path,
+        env={"GIT_TERMINAL_PROMPT": "0"},
+    )
+    assert dep_path.exists()

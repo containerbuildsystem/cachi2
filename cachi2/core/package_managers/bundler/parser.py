@@ -4,8 +4,10 @@ import subprocess
 from functools import cached_property
 from pathlib import Path
 from typing import Annotated, Optional, Union
+from urllib.parse import urlparse
 
 import pydantic
+from git import Repo
 
 from cachi2.core.errors import PackageManagerError, PackageRejected, UnexpectedFormat
 from cachi2.core.package_managers.general import download_binary_file
@@ -78,6 +80,32 @@ class GitDependency(_GemMetadata):
 
     url: AcceptedUrl
     ref: AcceptedGitRef
+
+    @cached_property
+    def repo_name(self) -> str:
+        """Extract the repository name from the URL."""
+        parse_result = urlparse(str(self.url))
+        return Path(parse_result.path).stem
+
+    def download_to(self, output_dir: RootedPath) -> None:
+        """Download git repository to the output directory with a specific name."""
+        short_ref_length = 12
+        short_ref = self.ref[:short_ref_length]
+
+        git_repo_path = output_dir.join_within_root(f"{self.repo_name}-{short_ref}")
+        if git_repo_path.path.exists():
+            log.info("Skipping existing git repository %s", self.url)
+            return
+
+        git_repo_path.path.mkdir(parents=True)
+
+        log.info("Cloning git repository %s", self.url)
+        repo = Repo.clone_from(
+            url=str(self.url),
+            to_path=git_repo_path.path,
+            env={"GIT_TERMINAL_PROMPT": "0"},
+        )
+        repo.git.checkout(self.ref)
 
 
 class PathDependency(_GemMetadata):
