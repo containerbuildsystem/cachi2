@@ -1,10 +1,13 @@
+import logging
 from pathlib import Path
+from typing import Any
 
 import yaml
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 
 from cachi2.core.models.input import parse_user_input
 
+log = logging.getLogger(__name__)
 config = None
 
 
@@ -21,6 +24,18 @@ class Config(BaseModel, extra="forbid"):
     # https://docs.aiohttp.org/en/v3.9.5/client_reference.html#aiohttp.ClientSession
     requests_timeout: int = 300
     concurrency_limit: int = 5
+
+    @model_validator(mode="before")
+    @classmethod
+    def _print_deprecation_warning(cls, data: Any) -> Any:
+        if "gomod_strict_vendor" in data:
+            log.warning(
+                "The `gomod_strict_vendor` config option is deprecated and will be removed in "
+                "future versions. Note that it no longer has any effect when set, Cachi2 will "
+                "always check the vendored contents and fail if they are not up-to-date."
+            )
+
+        return data
 
 
 def get_config() -> Config:
