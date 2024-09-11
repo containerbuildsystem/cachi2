@@ -172,11 +172,62 @@ class PipPackageInput(_PackageInputBase):
         return paths
 
 
+class _ExtraOptions(pydantic.BaseModel, extra="forbid"):
+    """Global package manager extra options model.
+
+    This model takes care of carrying and parsing various kind of extra options that need to be
+    passed through to CLI commands/services we interact with underneath to tweak their behaviour
+    rather than our own. Each option set is namespaced by the corresponding tool/service it is
+    related to.
+
+    TODO: Enable this globally for all pkg managers not just the RpmPackageInput model.
+    """
+
+    dnf: Optional[Dict[Union[Literal["main"], str], Dict[str, Any]]] = None
+
+    @pydantic.model_validator(mode="before")
+    def _validate_dnf_options(cls, data: Any, info: pydantic.ValidationInfo) -> Any:
+        """DNF options model.
+
+        DNF options can be provided via 2 'streams':
+            1) global /etc/dnf/dnf.conf OR
+            2) /etc/yum.repos.d/.repo files
+
+        Config options are specified via INI format based on sections. There are 2 types of sections:
+            1) global 'main' - either global repo options or DNF control-only options
+                - NOTE: there must always ever be a single "main" section
+
+            2) <repoid> sections - options tied specifically to a given defined repo
+
+        [1] https://man7.org/linux/man-pages/man5/dnf.conf.5.html
+        """
+
+        def _raise_unexpected_type(repr_: str, *prefixes: str) -> None:
+            loc = ".".join(prefixes + (repr_,))
+            raise ValueError(f"Unexpected data type for '{loc}' in input JSON: expected 'dict'")
+
+        if "dnf" not in data:
+            return data
+
+        prefixes: list[str] = ["options", "dnf"]
+        dnf_opts = data["dnf"]
+
+        if not isinstance(dnf_opts, dict):
+            _raise_unexpected_type(str(dnf_opts), *prefixes)
+
+        for repo, repo_options in dnf_opts.items():
+            prefixes.append(repo)
+            if not isinstance(repo_options, dict):
+                _raise_unexpected_type(str(repo_options), *prefixes)
+
+        return data
+
+
 class RpmPackageInput(_PackageInputBase):
     """Accepted input for a rpm package."""
 
     type: Literal["rpm"]
-    options: Optional[Union[_DNFOptions]] = None
+    options: Optional[_ExtraOptions] = None
 
 
 class YarnPackageInput(_PackageInputBase):

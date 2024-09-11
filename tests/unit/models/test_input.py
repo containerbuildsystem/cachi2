@@ -144,14 +144,9 @@ class TestPackageInput:
                 id="pip_no_requirements_build_files",
             ),
             pytest.param(
-                {"type": "rpm", "options": "bad_type"},
-                r"Unexpected data type for 'options.bad_type' in input JSON",
-                id="rpm_bad_options_type",
-            ),
-            pytest.param(
-                {"type": "rpm", "options": {"unknown": "foo"}},
-                r"Missing required namespace attribute in '{\'unknown\': \'foo\'}': 'dnf'",
-                id="rpm_missing_required_namespace_dnf",
+                {"type": "rpm", "options": {"extra": "foo"}},
+                r".*Extra inputs are not permitted \[type=extra_forbidden, input_value='foo'.*",
+                id="rpm_extra_unknown_options",
             ),
             pytest.param(
                 {"type": "rpm", "options": {"dnf": "bad_type"}},
