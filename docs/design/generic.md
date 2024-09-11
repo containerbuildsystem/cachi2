@@ -69,13 +69,14 @@ checksums. However, it will provide enough information in the SBOM so tooling th
 An example of this would be the [Enterprise Contract](https://enterprisecontract.dev/) (EC) project, that enforces policies
 based on the provided SBOM.
 
-In the context of this feature, EC policy would be supplied with the following information by cachi2:
+In the context of this feature, EC would be supplied with the following information by cachi2 in the SBOM:
 
 - checksums were provided and verified
 - list of checksum algorithms used
 - download urls (as part of the purl)
-  Enterprise contract policy would then be able to restrict accepting content without checksums, enforce certain algorithms
-- for checksum verification or only allow certain patterns in the download url.
+
+Enterprise contract policy would then be able to restrict accepting content without checksums, enforce certain algorithms
+for checksum verification or only allow certain patterns in the download url.
 
 ### Integration testing
 
