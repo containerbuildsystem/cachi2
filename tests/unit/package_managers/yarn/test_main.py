@@ -27,25 +27,6 @@ from cachi2.core.package_managers.yarn.project import Plugin, YarnRc
 from cachi2.core.rooted_path import RootedPath
 
 
-@pytest.fixture
-def yarn_input_packages(request: pytest.FixtureRequest) -> list[dict[str, str]]:
-    return request.param
-
-
-@pytest.fixture
-def yarn_request(tmp_path: Path, yarn_input_packages: list[dict[str, str]]) -> Request:
-    # Create folder in the specified path, otherwise Request validation would fail
-    for package in yarn_input_packages:
-        if "path" in package:
-            (tmp_path / package["path"]).mkdir(exist_ok=True)
-
-    return Request(
-        source_dir=tmp_path,
-        output_dir=tmp_path / "output",
-        packages=yarn_input_packages,
-    )
-
-
 @pytest.fixture(scope="module")
 def yarn_env_variables() -> list[EnvironmentVariable]:
     return [
@@ -383,7 +364,7 @@ def test_generate_environment_variables(yarn_env_variables: list[EnvironmentVari
 
 
 @pytest.mark.parametrize(
-    "yarn_input_packages, package_components",
+    "input_request, package_components",
     (
         pytest.param(
             [{"type": "yarn", "path": "."}],
@@ -429,7 +410,7 @@ def test_generate_environment_variables(yarn_env_variables: list[EnvironmentVari
             id="multiple_input_packages",
         ),
     ),
-    indirect=["yarn_input_packages"],
+    indirect=["input_request"],
 )
 @mock.patch("cachi2.core.package_managers.yarn.main._resolve_yarn_project")
 @mock.patch("cachi2.core.package_managers.yarn.project.Project.from_source_dir")
@@ -437,27 +418,27 @@ def test_fetch_yarn_source(
     mock_project_from_source_dir: mock.Mock,
     mock_resolve_yarn: mock.Mock,
     package_components: list[Component],
-    yarn_request: Request,
+    input_request: Request,
     yarn_env_variables: list[EnvironmentVariable],
 ) -> None:
-    mock_project = [mock.Mock() for _ in yarn_request.packages]
+    mock_project = [mock.Mock() for _ in input_request.packages]
     mock_project_from_source_dir.side_effect = mock_project
     mock_resolve_yarn.side_effect = package_components
 
-    output = fetch_yarn_source(yarn_request)
+    output = fetch_yarn_source(input_request)
 
     calls = [
         mock.call(
-            yarn_request.source_dir.join_within_root(package.path),
+            input_request.source_dir.join_within_root(package.path),
         )
-        for package in yarn_request.packages
+        for package in input_request.packages
     ]
     mock_project_from_source_dir.assert_has_calls(calls)
 
     calls = [
         mock.call(
             project,
-            yarn_request.output_dir,
+            input_request.output_dir,
         )
         for project in mock_project
     ]
