@@ -115,17 +115,18 @@ Go supports [vendoring](https://go.dev/ref/mod#vendoring) to store the source co
 directory alongside your module. Before go 1.17, `go mod vendor` used to download fewer dependencies than
 `go mod download`. Starting with 1.17, that is no longer true - see the [overview][readme-gomod] in the README.
 
-We generally discourage vendoring, but Cachi2 does support it nonetheless via the `--gomod-vendor` and
-`--gomod-vendor-check` flags. Here's how Cachi2 behaves based on the flags used and the state of your repository:
+We generally discourage vendoring, but Cachi2 does support processing repositories that contain vendored content. In
+this case, instead of a regular prefetching of dependencies, Cachi2 will only validate if the contents of the vendor
+directory are consistent with what `go mod vendor` would produce.
 
-* No flags - call go mod download to download dependencies. If there is a vendor/ directory, ignore it.
-* `--gomod-vendor` - call go mod vendor to create the vendor/ directory. If there is one already, overwrite it.
-* `--gomod-vendor-check` - if the vendor/ directory does not exist, do the same thing as gomod-vendor. Otherwise, call
-  go mod vendor and verify that nothing changed in the vendor/ directory. If anything did change, raise an error.
+### Deprecated flags
 
-⚠ The default (no flags) vendoring behavior is problematic, since Cachi2 does not know if you will use the vendored
-dependencies or the downloaded ones. Cachi2 reports the downloaded ones, but cannot guarantee the report is correct.
-The default behavior and the available flags may change in the future.
+Cachi2's behavior towards vendoring used to be governed by two flags:
+
+* `--gomod-vendor`
+* `--gomod-vendor-check`
+
+Both are deprecated and will have no effect when set. They are only kept for backwards compatibility reasons.
 
 ## Understanding reported dependencies
 
