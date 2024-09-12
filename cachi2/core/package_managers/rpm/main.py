@@ -3,6 +3,7 @@ import hashlib
 import itertools
 import logging
 import shlex
+import ssl
 from configparser import ConfigParser
 from dataclasses import dataclass
 from os import PathLike
@@ -15,7 +16,7 @@ from pydantic import ValidationError
 
 from cachi2.core.config import get_config
 from cachi2.core.errors import PackageManagerError, PackageRejected
-from cachi2.core.models.input import Request
+from cachi2.core.models.input import ExtraOptions, Request, SSLOptions
 from cachi2.core.models.output import RequestOutput
 from cachi2.core.models.sbom import Component, Property
 from cachi2.core.package_managers.general import async_download_files
@@ -204,7 +205,7 @@ def fetch_rpm_source(request: Request) -> RequestOutput:
 
     for package in request.rpm_packages:
         path = request.source_dir.join_within_root(package.path)
-        components.extend(_resolve_rpm_project(path, request.output_dir))
+        components.extend(_resolve_rpm_project(path, request.output_dir, options=package.options))
 
         # FIXME: this is only ever good enough for a PoC, but needs to be handled properly in the
         # future.
@@ -235,12 +236,18 @@ def fetch_rpm_source(request: Request) -> RequestOutput:
     )
 
 
-def _resolve_rpm_project(source_dir: RootedPath, output_dir: RootedPath) -> list[Component]:
+def _resolve_rpm_project(
+    source_dir: RootedPath,
+    output_dir: RootedPath,
+    options: Optional[ExtraOptions] = None,
+) -> list[Component]:
     """
     Process a request for a single RPM source directory.
 
     Process the input lockfile, fetch packages and generate SBOM.
     """
+    ssl_options = options.ssl if options and options.ssl else None
+
     # Check the availability of the input lockfile.
     if not source_dir.join_within_root(DEFAULT_LOCKFILE_NAME).path.exists():
         raise PackageRejected(
@@ -277,14 +284,18 @@ def _resolve_rpm_project(source_dir: RootedPath, output_dir: RootedPath) -> list
             )
 
         package_dir = output_dir.join_within_root(DEFAULT_PACKAGE_DIR)
-        metadata = _download(redhat_rpms_lock, package_dir.path)
+        metadata = _download(redhat_rpms_lock, package_dir.path, ssl_options)
         _verify_downloaded(metadata)
 
         lockfile_relative_path = source_dir.subpath_from_root / DEFAULT_LOCKFILE_NAME
         return _generate_sbom_components(metadata, lockfile_relative_path)
 
 
-def _download(lockfile: RedhatRpmsLock, output_dir: Path) -> dict[Path, Any]:
+def _download(
+    lockfile: RedhatRpmsLock,
+    output_dir: Path,
+    ssl_options: Optional[SSLOptions] = None,
+) -> dict[Path, Any]:
     """
     Download packages and module metadata mentioned in the lockfile.
 
@@ -320,7 +331,13 @@ def _download(lockfile: RedhatRpmsLock, output_dir: Path) -> dict[Path, Any]:
             }
             Path.mkdir(dest.parent, parents=True, exist_ok=True)
 
-        asyncio.run(async_download_files(files, get_config().concurrency_limit))
+        asyncio.run(
+            async_download_files(
+                files,
+                get_config().concurrency_limit,
+                ssl_context=_get_ssl_context(ssl_options=ssl_options) if ssl_options else None,
+            )
+        )
     return metadata
 
 
@@ -462,3 +479,35 @@ def _generate_repofiles(
 
             with open(repo_file_path, "w") as f:
                 repofile.write(f)
+
+
+def _get_ssl_context(ssl_options: SSLOptions) -> ssl.SSLContext:
+    log.debug(f"Creating SSL context for: '{ssl_options}'")
+    client_cert = ssl_options.client_cert
+    client_key = ssl_options.client_key
+    ca_bundle = ssl_options.ca_bundle
+    ssl_verify = ssl_options.ssl_verify
+
+    ssl_ctx = ssl.create_default_context()
+
+    if client_cert is None and client_key is None:
+        log.debug("No client certificates will be used.")
+    elif client_cert and client_key:
+        # can't use plain 'else' due to mypy complaining about arg nr. 1 being optional/positional
+        log.info("Using client certificate auth.")
+        ssl_ctx.load_cert_chain(client_cert, client_key)
+
+    if ca_bundle is not None:
+        log.debug("Using custom CA bundle.")
+        ssl_ctx.load_verify_locations(ca_bundle)
+
+    if not ssl_verify:
+        log.warning(
+            "Disabling SSL certificate and hostname verification. This is insecure and should not be used except for testing."
+        )
+        # required for verify_mode = ssl.CERT_NONE
+        ssl_ctx.check_hostname = False
+
+        ssl_ctx.verify_mode = ssl.CERT_NONE
+
+    return ssl_ctx
