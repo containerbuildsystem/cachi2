@@ -171,14 +171,18 @@ async def test_async_download_binary_file(
 
     session.get().__aenter__.side_effect = mock_aenter
 
-    await _async_download_binary_file(session, url, download_path)
+    await _async_download_binary_file(session, url, download_path, ssl_context=None)
 
     with open(download_path, "rb") as f:
         assert f.read() == b"first_chunk-second_chunk-"
 
     assert session.get.called
     assert session.get.call_args == mock.call(
-        url, timeout=aiohttp.ClientTimeout(total=300), auth=None, raise_for_status=True
+        url,
+        timeout=aiohttp.ClientTimeout(total=300),
+        auth=None,
+        raise_for_status=True,
+        ssl=None,
     )
 
 

@@ -1,3 +1,4 @@
+import ssl
 from configparser import ConfigParser
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
@@ -8,7 +9,7 @@ import yaml
 from _pytest.logging import LogCaptureFixture
 
 from cachi2.core.errors import PackageManagerError, PackageRejected
-from cachi2.core.models.input import ExtraOptions, RpmPackageInput
+from cachi2.core.models.input import ExtraOptions, RpmPackageInput, SSLOptions
 from cachi2.core.models.sbom import Component, Property
 from cachi2.core.package_managers.rpm import fetch_rpm_source, inject_files_post
 from cachi2.core.package_managers.rpm.main import (
@@ -19,6 +20,7 @@ from cachi2.core.package_managers.rpm.main import (
     _generate_repofiles,
     _generate_repos,
     _generate_sbom_components,
+    _get_ssl_context,
     _Repofile,
     _resolve_rpm_project,
     _verify_downloaded,
@@ -354,8 +356,10 @@ def test_resolve_rpm_project(
     source_dir = mock.Mock()
     source_dir.subpath_from_root = Path()
 
-    _resolve_rpm_project(source_dir, output_dir)
-    mock_download.assert_called_once_with(mock_model_validate.return_value, mock_package_dir_path)
+    _resolve_rpm_project(source_dir, output_dir, None)
+    mock_download.assert_called_once_with(
+        mock_model_validate.return_value, mock_package_dir_path, None
+    )
     mock_verify_downloaded.assert_called_once_with({})
     mock_generate_sbom_components.assert_called_once_with({}, Path("rpms.lock.yaml"))
 
@@ -557,6 +561,7 @@ def test_inject_files_post(
     mock_generate_repofiles.assert_called_with(rooted_tmp_path.path, rooted_tmp_path.path, {})
 
 
+@mock.patch("ssl.create_default_context")
 @mock.patch("cachi2.core.package_managers.rpm.main.asyncio.run")
 @mock.patch("cachi2.core.package_managers.rpm.main.async_download_files")
 def test_download(
@@ -581,6 +586,7 @@ def test_download(
             ),
         },
         5,
+        ssl_context=None,
     )
     mock_asyncio.assert_called_once()
 
@@ -691,3 +697,15 @@ class TestRepofile:
             _Repofile({"foo": "bar"}).write(f)
 
         mock_apply_defaults.assert_called_once()
+
+
+@pytest.mark.parametrize(
+    "ssl_verify, expected_mode",
+    [
+        pytest.param(True, ssl.CERT_REQUIRED, id="host_verification_required_when_verify_true"),
+        pytest.param(False, ssl.CERT_NONE, id="host_verification_disabled_when_verify_false"),
+    ],
+)
+def test__get_ssl_context_verify_mode(ssl_verify: bool, expected_mode: int) -> None:
+    ssl_context = _get_ssl_context(SSLOptions(ssl_verify=ssl_verify))
+    assert ssl_context.verify_mode is expected_mode
