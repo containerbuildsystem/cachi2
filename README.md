@@ -140,17 +140,15 @@ This installs the Cachi2 CLI in [editable mode](https://setuptools.pypa.io/en/la
 which means changes to the source code will reflect in the behavior of the CLI without the need for reinstalling.
 
 You may need to install Python 3.9 in case you want to test your changes against Python 3.9 locally
-before submitting a pull request.
+before submitting a pull request. This is optional though as our gating CI checks compatibility
+with all currently supported Python versions upstream and so we respect your choice to only test
+with your default Python installation. That said, if you test against e.g. Python 3.12 be prepared
+to see potential issues on 3.9 due to new arguments, attributes, operators, etc.
 
-```shell
-dnf install python3.9
-```
-
-The CLI also depends on the following non-Python dependencies:
-
-```shell
-dnf install golang-bin git
-```
+Note though that we also have several non-Pythonic runtime dependencies, so depending on which part
+of cachi2 you want to work on you may need to install further binaries or toolkits. Please refer to
+our [Dockerfile](https://github.com/containerbuildsystem/cachi2/blob/main/Dockerfile) on what those
+dependencies are as that always contains the latest information.
 
 You should now have everything needed to [try out](#basic-usage) the CLI or hack on the code in ~~vim~~ your favorite
 editor.
@@ -227,7 +225,10 @@ tox -e py39 -- tests/unit/test_cli.py::TestGenerateEnv::test_invalid_format
 tox -e py39 -- tests/unit/extras/test_envfile.py::test_cannot_determine_format
 ```
 
-In short, tox passes all arguments to the right of `--` directly to pytest.
+Double dash (--) signifies the end of command options, so any arguments after it are passed
+directly to pytest without further interpretation by tox. For more information on what test
+environments we have defined for tox, please refer to our `tox.ini` file and the respective [tox
+documentation](https://tox.wiki/en/stable/).
 
 ### Running integration tests
 
