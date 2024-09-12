@@ -114,9 +114,11 @@ are names of package managers. The values are dictionaries where the keys
 are default environment variables to set for that package manager and the
 values are the environment variable values.
 * `gomod_download_max_tries` - a maximum number of attempts for retrying go commands.
-* `gomod_strict_vendor` - the bool to disable/enable the strict vendor mode. For a repo that has gomod dependencies,
-if the `vendor` directory exists and this config option is set to `True`, one of the
-[vendoring flags](gomod.md#vendoring) must be used.
+* `gomod_strict_vendor` - (deprecated) the bool to disable/enable the strict vendor mode. For a repo that has gomod
+dependencies, if the `vendor` directory exists and this config option is set to `True`, one of the vendoring flags
+must be used.
+  *This option no longer has any effect when set. Check the  [vendoring docs](docs/gomod.md#vendoring) for
+  more information.*
 * `goproxy_url` - sets the value of the GOPROXY variable that Cachi2 uses internally
 when downloading Go modules. See [Go environment variables](https://go.dev/ref/mod#environment-variables).
 * `requests_timeout` - a number (in seconds) for `requests.get()`'s 'timeout' parameter,
