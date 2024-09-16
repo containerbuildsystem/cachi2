@@ -17,6 +17,15 @@ import requests
 import yaml
 from git import Repo
 
+from cachi2.core import resolver
+
+# Individual files could be added to the set as well.
+PATHS_TO_CODE = frozenset((Path("cachi2"), Path("tests/integration")))
+SUPPORTED_PMS: frozenset[str] = frozenset(
+    list(resolver._package_managers) + list(resolver._dev_package_managers)
+)
+
+
 log = logging.getLogger(__name__)
 
 # use the '|' style for multiline strings
@@ -463,3 +472,177 @@ def _validate_expected_dep_file_contents(dep_contents_file: Path, output_dir: Pa
         dep_file = output_dir / "deps" / path
         assert dep_file.exists()
         assert dep_file.read_text() == expected_content
+
+
+def retrieve_changed_files_from_git() -> tuple[Path, ...]:
+    repo = Repo(".", search_parent_directories=True)
+    # >>> type(repo.branches)
+    # <class 'git.util.IterableList'>
+    # Despite the fact stated above mypy does not believe one can use 'in' with
+    # repo.branches because branches is an alias to heads and heads are decorated
+    # with @property:
+    #  Unsupported right operand type for in ("Callable[[], IterableList[Head]]")
+    main = "main" if "main" in repo.branches else "origin/main"  # type: ignore
+    try:
+        files = repo.git.diff("--name-only", f"{main}..HEAD").split("\n")
+    # Widest net possible in order not to interfere with testing for no good reason.
+    except Exception as e:
+        # If there is no main and no origin/main then someone is probably doing
+        # something unusual. Implicitly falling back to retesting everything.
+        msg = (
+            "Detection of changed files unexpectedly failed. This either indicates "
+            "that both 'main' and 'origin/main' branches are missing in a repo or "
+            "a more fundamental failure. The tool will attempt to recover from this "
+            f"by not filtering any tests out. This is the exception that was encountered: {e}"
+        )
+        log.warning(msg)
+        files = PATHS_TO_CODE
+    modified_files = [Path(f) for f in files]
+    return tuple(modified_files)
+
+
+def name_of(path: Path) -> str:
+    return path.stem
+
+
+def tested_object_name(path: Path) -> str:
+    return path.stem.lstrip("test_")
+
+
+def affects_pm(change: Path) -> bool:
+    """Check if a pm is affected.
+
+    >>> affects_pm(Path('cachi2/core/config.py'))
+    False
+    >>> affects_pm(Path('requirements.txt'))
+    False
+    >>> affects_pm(Path('tests/integration/test_gomod.py'))
+    True
+    >>> affects_pm(Path('tests/integration/utils.py'))
+    False
+    >>> affects_pm(Path('cachi2/core/package_managers/rpm/main.py'))
+    True
+    >>> affects_pm(Path('cachi2/core/package_managers/general.py'))
+    False
+    >>> affects_pm(Path('cachi2/core/package_managers/gomod.py'))
+    True
+    """
+
+    def name_belongs_to_a_pm(change: Path) -> bool:
+        return name_of(change) in SUPPORTED_PMS or change.parent.stem in SUPPORTED_PMS
+
+    def affects_pm_directly(change: Path) -> bool:
+        return "package_managers" in change.parts and name_belongs_to_a_pm(change)
+
+    def affects_pm_tests(change: Path) -> bool:
+        return tested_object_name(change) in SUPPORTED_PMS
+
+    return affects_pm_directly(change) or affects_pm_tests(change)
+
+
+def pm_name(pm_change: Path) -> str:
+    """Extract package manager name from a known package manager-related change.
+
+    >>> pm_name(Path('tests/integration/test_gomod.py'))
+    'gomod'
+    >>> pm_name(Path('cachi2/core/package_managers/rpm/main.py'))
+    'rpm'
+    >>> pm_name(Path('cachi2/core/package_managers/pip.py'))
+    'pip'
+    """
+    if (name := name_of(pm_change)) in SUPPORTED_PMS:
+        return name
+    elif (name := tested_object_name(pm_change)) in SUPPORTED_PMS:
+        return name
+    else:
+        return pm_change.parent.stem
+
+
+def affected_package_managers(pm_changes: tuple[Path, ...]) -> set[str]:
+    return set(pm_name(c) for c in pm_changes)
+
+
+def is_testable_code(c: Path) -> bool:
+    """Check if any actual code was affected by any of the changes.
+
+    Does this by checking if a change is in watched subtree.
+
+    >>> is_testable_code(Path('cachi2/core/config.py'))
+    True
+    >>> is_testable_code(Path('tests/integration/test_gomod.py'))
+    True
+    >>> is_testable_code(Path('tests/integration/utils.py'))
+    True
+    >>> is_testable_code(Path('tests/integration/conftest.py'))
+    True
+    >>> is_testable_code(Path('README.md'))
+    False
+    >>> is_testable_code(Path('reqruiements.txt'))
+    False
+    """
+    return any(c.is_relative_to(p) for p in PATHS_TO_CODE)
+
+
+def select_testable_changes(changes: tuple[Path, ...]) -> tuple[Path, ...]:
+    """Weed out changes that cannot be tested.
+
+    If a change is outside of paths to testable code it is dropped as if
+    it never happened. Any file or module outside of watched directories
+    will be rejected.
+    """
+    return tuple(c for c in changes if is_testable_code(c))
+
+
+def just_some_package_managers_were_affected_by(changes: tuple[Path, ...]) -> bool:
+    """Check that just package managers were affected.
+
+    If any code outside of package managers subtree was affected or if a module
+    shared by package managers was affected will return False.
+
+    >>> just_some_package_managers_were_affected_by((Path('tests/integration/test_pip.py'),))
+    True
+    >>> c = Path('cachi2/core/package_managers/pip.py'), Path('tests/integration/test_pip.py')
+    >>> just_some_package_managers_were_affected_by(c)
+    True
+    >>> c = (Path('cachi2/core/package_managers/rpm/main.py'),)
+    >>> just_some_package_managers_were_affected_by(c)
+    True
+    >>> c = Path('cachi2/core/package_managers/gomod.py'), Path('tests/integration/test_pip.py')
+    >>> just_some_package_managers_were_affected_by(c)
+    True
+    >>> c = Path('cachi2/core/package_managers/general.py'), Path('tests/integration/test_pip.py')
+    >>> just_some_package_managers_were_affected_by(c)
+    False
+    >>> c = (Path('cachi2/core/package_managers/general.py'),
+    ...      Path('cachi2/core/package_managers/pip.py'))
+    >>> just_some_package_managers_were_affected_by(c)
+    False
+    >>> c = Path('tests/integration/utils.py'), Path('tests/integration/test_pip.py')
+    >>> just_some_package_managers_were_affected_by(c)
+    False
+    >>> c = Path('cachi2/core/package_managers/pip.py'), Path('tests/integration/utils.py')
+    >>> just_some_package_managers_were_affected_by(c)
+    False
+    >>> just_some_package_managers_were_affected_by((Path('cachi2/core/utils.py'),))
+    False
+    >>> c = (Path('cachi2/core/package_managers/general.py'),)
+    >>> just_some_package_managers_were_affected_by(c)
+    False
+    """
+    return all(affects_pm(c) for c in changes)
+
+
+def must_test_all() -> bool:
+    return os.getenv("CACHI2_RUN_ALL_INTEGRATION_TESTS", "false").lower() == "true"
+
+
+def determine_integration_tests_to_skip() -> Any:
+    """Check which tests to run basing on which files were changed in a commit."""
+    if must_test_all():
+        return set()
+    changes = select_testable_changes(retrieve_changed_files_from_git())
+    if len(changes) == 0:
+        return SUPPORTED_PMS
+    elif just_some_package_managers_were_affected_by(changes):
+        return SUPPORTED_PMS - affected_package_managers(changes)
+    return set()
