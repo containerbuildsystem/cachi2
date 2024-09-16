@@ -22,8 +22,7 @@ from cachi2.core.package_managers.general import (
     download_binary_file,
     pkg_requests_session,
 )
-
-GIT_REF = "9a557920b2a6d4110f838506120904a6fda421a2"
+from tests.common_utils import GIT_REF
 
 
 @pytest.mark.parametrize("auth", [None, HTTPBasicAuth("user", "password")])

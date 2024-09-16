@@ -25,10 +25,9 @@ from cachi2.core.models.sbom import Component, Property
 from cachi2.core.package_managers import pip
 from cachi2.core.rooted_path import PathOutsideRoot, RootedPath
 from cachi2.core.scm import RepoID
-from tests.common_utils import Symlink, write_file_tree
+from tests.common_utils import GIT_REF, Symlink, write_file_tree
 
 THIS_MODULE_DIR = Path(__file__).resolve().parent
-GIT_REF = "9a557920b2a6d4110f838506120904a6fda421a2"
 PKG_DIR = RootedPath("/foo/package_dir")
 PKG_DIR_SUBPATH = PKG_DIR.join_within_root("subpath")
 MOCK_REPO_ID = RepoID("https://github.com/foolish/bar.git", "abcdef1234")
@@ -4146,7 +4145,7 @@ def test_fetch_pip_source(
 
     mocked_repo = mock.Mock()
     mocked_repo.remote.return_value.url = "https://github.com/my-org/my-repo"
-    mocked_repo.head.commit.hexsha = "f" * 40
+    mocked_repo.head.commit.hexsha = GIT_REF
     mock_git_repo.return_value = mocked_repo
 
     output = pip.fetch_pip_source(request)
@@ -4321,7 +4320,7 @@ def test_generate_purl_main_package(
 
     mocked_repo = mock.Mock()
     mocked_repo.remote.return_value.url = "ssh://git@github.com/my-org/my-repo"
-    mocked_repo.head.commit.hexsha = "f" * 40
+    mocked_repo.head.commit.hexsha = GIT_REF
     mock_git_repo.return_value = mocked_repo
 
     purl = pip._generate_purl_main_package(package, rooted_tmp_path.join_within_root(subpath))

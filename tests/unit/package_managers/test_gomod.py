@@ -50,7 +50,7 @@ from cachi2.core.package_managers.gomod import (
     fetch_gomod_source,
 )
 from cachi2.core.rooted_path import PathOutsideRoot, RootedPath
-from tests.common_utils import write_file_tree
+from tests.common_utils import GIT_REF, write_file_tree
 
 GO_CMD_PATH = "/usr/bin/go"
 
@@ -1874,7 +1874,7 @@ def test_get_repository_name(mock_git_repo: Any, input_url: str) -> None:
 
     mocked_repo = mock.Mock()
     mocked_repo.remote.return_value.url = input_url
-    mocked_repo.head.commit.hexsha = "f" * 40
+    mocked_repo.head.commit.hexsha = GIT_REF
     mock_git_repo.return_value = mocked_repo
 
     resolved_url = _get_repository_name(RootedPath("/my-folder/cloned-repo"))

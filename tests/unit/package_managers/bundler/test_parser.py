@@ -18,6 +18,7 @@ from cachi2.core.package_managers.bundler.parser import (
     parse_lockfile,
 )
 from cachi2.core.rooted_path import RootedPath
+from tests.common_utils import GIT_REF
 
 
 @pytest.fixture
@@ -89,7 +90,7 @@ def test_parse_lockfile_invalid_format(
             {
                 "type": "git",
                 "url": "github",
-                "ref": "f" * 40,
+                "ref": GIT_REF,
             }
         )
     elif error == "LOCKFILE_INVALID_URL_SCHEME":
@@ -97,7 +98,7 @@ def test_parse_lockfile_invalid_format(
             {
                 "type": "git",
                 "url": "http://github.com/3scale/json-schema.git",
-                "ref": "f" * 40,
+                "ref": GIT_REF,
             }
         )
     elif error == "LOCKFILE_INVALID_REVISION":
@@ -136,7 +137,7 @@ def test_parse_gemlock(
         {
             "type": "git",
             "url": "https://github.com/3scale/json-schema.git",
-            "ref": "f" * 40,
+            "ref": GIT_REF,
             **base_dep,
         },
         {
@@ -159,7 +160,7 @@ def test_parse_gemlock(
             name="example",
             version="0.1.0",
             url="https://github.com/3scale/json-schema.git",
-            ref="f" * 40,
+            ref=GIT_REF,
         ),
         PathDependency(name="example", version="0.1.0", path="subpath/pathgem"),
         GemDependency(name="example", version="0.1.0", source="https://rubygems.org/"),
