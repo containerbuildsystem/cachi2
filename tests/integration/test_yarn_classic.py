@@ -39,6 +39,20 @@ log = logging.getLogger(__name__)
             ),
             id="yarn_classic_yarnpath_ignored",
         ),
+        pytest.param(
+            utils.TestParameters(
+                repo="https://github.com/cachito-testing/cachi2-yarn.git",
+                ref="ab0e1befff22af6fe92b75c8a75cb024fa7d8c33",
+                packages=({"path": ".", "type": "yarn-classic"},),
+                flags=["--dev-package-managers"],
+                check_output=False,
+                check_deps_checksums=False,
+                check_vendor_checksums=False,
+                expected_exit_code=1,
+                expected_output='Integrity check failed for "@colors/colors"',
+            ),
+            id="yarn_classic_invalid_checksum",
+        ),
     ],
 )
 def test_yarn_classic_packages(
