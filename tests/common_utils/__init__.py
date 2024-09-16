@@ -3,6 +3,8 @@ import os
 from pathlib import Path
 from typing import Union
 
+GIT_REF = "f" * 40
+
 
 def assert_directories_equal(dir_a: str, dir_b: str) -> None:
     """

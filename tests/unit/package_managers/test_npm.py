@@ -33,6 +33,7 @@ from cachi2.core.package_managers.npm import (
 )
 from cachi2.core.rooted_path import RootedPath
 from cachi2.core.scm import RepoID
+from tests.common_utils import GIT_REF
 
 MOCK_REPO_ID = RepoID("https://github.com/foolish/bar.git", "abcdef1234")
 MOCK_REPO_VCS_URL = "git%2Bhttps://github.com/foolish/bar.git%40abcdef1234"
@@ -1458,12 +1459,10 @@ def test_resolve_npm_unsupported_lockfileversion(rooted_tmp_path: RootedPath) ->
     "vcs, expected",
     [
         (
-            (
-                "git+ssh://git@bitbucket.org/cachi-testing/cachi2-without-deps.git#9e164b97043a2d91bbeb992f6cc68a3d1015086a"
-            ),
+            (f"git+ssh://git@bitbucket.org/cachi-testing/cachi2-without-deps.git#{GIT_REF}"),
             {
                 "url": "ssh://git@bitbucket.org/cachi-testing/cachi2-without-deps.git",
-                "ref": "9e164b97043a2d91bbeb992f6cc68a3d1015086a",
+                "ref": GIT_REF,
                 "host": "bitbucket.org",
                 "namespace": "cachi-testing",
                 "repo": "cachi2-without-deps",
