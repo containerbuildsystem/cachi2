@@ -69,3 +69,18 @@ def local_pypiserver() -> Iterator[None]:
             raise RuntimeError("pypiserver didn't start fast enough")
 
         yield
+
+
+def pytest_collection_modifyitems(
+    session: pytest.Session, config: pytest.Config, items: list[pytest.Item]
+) -> None:
+    """Remove redundant tests which don't have to run for the latest code change.
+
+    This function implements a standard pytest hook. Please refer to pytest
+    docs for further information.
+    """
+    skip_mark = pytest.mark.skip(reason="No changes to tested code")
+    tests_to_skip = utils.determine_integration_tests_to_skip()
+    for item in items:
+        if utils.tested_object_name(item.path) in tests_to_skip:
+            item.add_marker(skip_mark)
