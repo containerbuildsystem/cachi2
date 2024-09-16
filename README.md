@@ -259,6 +259,31 @@ Similarly to unit tests, for finer control over which tests get executed, e.g. t
 tox -e integration -- tests/integration/test_package_managers.py::test_packages[gomod_without_deps]
 ```
 
+Integration tests verify package managers handlers behavior and ensure that it remains consistent.
+Some integration tests also act as end-to-end tests and verify properties of images built with
+supported package managers. The tests do this by executing actual cachi2 commands, making
+actual connections to external resources and potentially building actual container images.
+This could be a lengthy process especially on a local developer's machine.
+
+Thus please note, that test runner will attempt to trim down the number of integration tests to run
+to only those which were affected by changes in a feature branch for which the tests are run.
+It will do this by comparing all locations changed between feature branch tip and mainline.
+If the change was solely to project configuration or some other auxiliary files then no integration
+tests should run. If the change touches one or more package managers directly then only the
+tests which exercise these affected package managers will be selected and run. If the change
+affects all package managers (e.g. by modifying any shared module) then all package managers
+will be retested. Please also note that detection mechanism ignores any uncommitted changes.
+
+To override this behavior and unconditionally retest everything one could set
+CACHI2_RUN_ALL_INTEGRATION_TESTS to true. When present and set to true this variable short circuits
+the trimming process and makes test runner run all tests. Also note that unless short circuited
+the trimming process would affect all test runs, including those which themselves trim the number
+of tests to run. I.e. if someone wishes to use `-k test_specific_package_manager` argument then
+all tests not related to this package manager will be deselected, and the resulting set of tests
+will be trimmed further, so if a change has not affected the selected package manager then
+it will not be tested.
+
+
 ### Running integration tests and generating new test data
 
 To re-generate new data (output, dependencies checksums, vendor checksums) and run integration tests with them:
