@@ -9,6 +9,7 @@
   * [Virtual environment](#virtual-environment)
   * [Developer flags](#developer-flags)
   * [Coding standards](#coding-standards)
+  * [Pull request guidelines](#pull-request-guidelines)
   * [Error message guidelines](#error-message-guidelines)
   * [Running unit tests](#running-unit-tests)
   * [Running integration tests](#running-integration-tests)
@@ -125,6 +126,22 @@ Run all the checks that your pull request will be subjected to:
 ```shell
 make test
 ```
+
+### Pull request guidelines
+
+Observe the following guidelines when submitting a pull request for review
+
+* Write clear and informative *commit messages*. If you want to provide further context, use the PR's description 
+* [Sign off on](https://developercertificate.org) all commits
+* Please use the PR's description to provide further explanation of the pull request's title
+* Split changes into multiple commits such that each commit addresses a clear and concise problem
+* Avoid PRs which are too large — split the work into multiple PRs if necessary
+* Amend existing commits rather than add new commits to fix issues introduced in the same pull request
+* Keep your branch up-to-date using `rebase` — we don't use merge commits
+* Verify the coding standards by running the configured linters
+* Ensure that every single commit passes CI — this is mandatory
+* Feel free to use Github comments to clarify implementation points and consider adding the same comments to the code
+* Feel free to use diagrams, sample code, or links to specific parts of external documentation — they are highly encouraged
 
 ### Error message guidelines
 
@@ -248,3 +265,4 @@ possible from the OpenShift UI or by deleting and re-pushing the version tag.
 *⚠ The release pipeline runs as soon as you push a tag into the repository. Do not push the new version
 tag until you are ready to publish the release. You can use GitHub's ability to auto-create the tag
 upon publishment.*
+- [Pull request guidelines](#pull-request-guidelines)
