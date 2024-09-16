@@ -20,6 +20,7 @@ The primary intended use of Cachi2's outputs is for network-isolated container b
 * [Releasing](#releasing)
 * [Package managers](#package-managers)
 * [Project status](#project-status)
+* [Contributing](CONTRIBUTING.md)
 
 ## Goals
 
