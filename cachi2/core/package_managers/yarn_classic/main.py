@@ -1,7 +1,15 @@
+import logging
+
+import semver
+
+from cachi2.core.errors import PackageManagerError
 from cachi2.core.models.input import Request
 from cachi2.core.models.output import Component, EnvironmentVariable, RequestOutput
 from cachi2.core.package_managers.yarn.utils import run_yarn_cmd
 from cachi2.core.rooted_path import RootedPath
+
+log = logging.getLogger(__name__)
+
 
 MIRROR_DIR = "deps/yarn-classic"
 
@@ -16,7 +24,9 @@ def fetch_yarn_source(request: Request) -> RequestOutput:
     for package in request.yarn_classic_packages:
         path = request.source_dir.join_within_root(package.path)
         _ensure_mirror_dir_exists(request.output_dir)
-        _fetch_dependencies(path, _get_prefetch_environment_variables(request.output_dir))
+        prefetch_env = _get_prefetch_environment_variables(request.output_dir)
+        _verify_corepack_yarn_version(path, prefetch_env)
+        _fetch_dependencies(path, prefetch_env)
 
     return RequestOutput.from_obj_list(
         components, _generate_build_environment_variables(), project_files=[]
@@ -71,3 +81,29 @@ def _generate_build_environment_variables() -> list[EnvironmentVariable]:
     }
 
     return [EnvironmentVariable(name=key, value=value) for key, value in env_vars.items()]
+
+
+def _verify_corepack_yarn_version(source_dir: RootedPath, env: dict[str, str]) -> None:
+    """Verify that corepack installed the correct version of yarn by checking `yarn --version`."""
+    yarn_version_output = run_yarn_cmd(["--version"], source_dir, env=env).strip()
+
+    try:
+        installed_yarn_version = semver.version.Version.parse(yarn_version_output)
+    except ValueError as e:
+        raise PackageManagerError(
+            "The command `yarn --version` did not return a valid semver."
+        ) from e
+
+    min_version_inclusive = semver.version.Version(1, 22, 0)
+    max_version_exclusive = semver.version.Version(2, 0, 0)
+
+    if (
+        installed_yarn_version < min_version_inclusive
+        or installed_yarn_version >= max_version_exclusive
+    ):
+        raise PackageManagerError(
+            "Cachi2 expected corepack to install yarn >=1.22.0,<2.0.0, but instead "
+            f"found yarn@{yarn_version_output}."
+        )
+
+    log.info("Processing the request using yarn@%s", yarn_version_output)

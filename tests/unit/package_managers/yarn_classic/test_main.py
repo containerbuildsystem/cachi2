@@ -3,6 +3,7 @@ from unittest import mock
 
 import pytest
 
+from cachi2.core.errors import PackageManagerError
 from cachi2.core.models.input import Request
 from cachi2.core.models.output import BuildConfig, EnvironmentVariable, RequestOutput
 from cachi2.core.models.sbom import Component
@@ -10,6 +11,7 @@ from cachi2.core.package_managers.yarn_classic.main import (
     _fetch_dependencies,
     _generate_build_environment_variables,
     _get_prefetch_environment_variables,
+    _verify_corepack_yarn_version,
     fetch_yarn_source,
 )
 from cachi2.core.rooted_path import RootedPath
@@ -48,11 +50,13 @@ def test_generate_build_environment_variables(
     ],
     indirect=["input_request"],
 )
+@mock.patch("cachi2.core.package_managers.yarn_classic.main._verify_corepack_yarn_version")
 @mock.patch("cachi2.core.package_managers.yarn_classic.main._get_prefetch_environment_variables")
 @mock.patch("cachi2.core.package_managers.yarn_classic.main._fetch_dependencies")
 def test_fetch_yarn_source(
     mock_fetch_dependencies: mock.Mock,
     mock_prefetch_env_vars: mock.Mock,
+    mock_verify_yarn_version: mock.Mock,
     input_request: Request,
     yarn_classic_env_variables: list[EnvironmentVariable],
     components: list[Component],
@@ -72,6 +76,7 @@ def test_fetch_yarn_source(
     for package in input_request.packages:
         package_path = input_request.source_dir.join_within_root(package.path)
         calls.append(mock.call(package_path, mock_prefetch_env_vars(input_request.output_dir)))
+    mock_verify_yarn_version.assert_has_calls(calls)
     mock_fetch_dependencies.assert_has_calls(calls)
 
     assert input_request.output_dir.join_within_root("deps/yarn-classic").path.exists()
@@ -114,3 +119,54 @@ def test_get_prefetch_environment_variables(tmp_path: Path) -> None:
     output = _get_prefetch_environment_variables(request_output_dir)
 
     assert output == expected_output
+
+
+@pytest.mark.parametrize(
+    "yarn_version_output",
+    [
+        pytest.param("1.22.0", id="valid_version"),
+        pytest.param("1.22.0\n", id="valid_version_with_whitespace"),
+    ],
+)
+@mock.patch("cachi2.core.package_managers.yarn_classic.main.run_yarn_cmd")
+def test_verify_corepack_yarn_version(
+    mock_run_yarn_cmd: mock.Mock, yarn_version_output: str, tmp_path: Path
+) -> None:
+    rooted_tmp_path = RootedPath(tmp_path)
+    env = {"foo": "bar"}
+    mock_run_yarn_cmd.return_value = yarn_version_output
+
+    _verify_corepack_yarn_version(RootedPath(tmp_path), env)
+    mock_run_yarn_cmd.assert_called_once_with(["--version"], rooted_tmp_path, env=env)
+
+
+@pytest.mark.parametrize(
+    "yarn_version_output",
+    [
+        pytest.param("1.21.0", id="version_too_low"),
+        pytest.param("2.0.0", id="version_too_high"),
+    ],
+)
+@mock.patch("cachi2.core.package_managers.yarn_classic.main.run_yarn_cmd")
+def test_verify_corepack_yarn_version_disallowed_version(
+    mock_run_yarn_cmd: mock.Mock, yarn_version_output: str, tmp_path: Path
+) -> None:
+    mock_run_yarn_cmd.return_value = yarn_version_output
+    error_message = (
+        "Cachi2 expected corepack to install yarn >=1.22.0,<2.0.0, but "
+        f"instead found yarn@{yarn_version_output}"
+    )
+
+    with pytest.raises(PackageManagerError, match=error_message):
+        _verify_corepack_yarn_version(RootedPath(tmp_path), env={"foo": "bar"})
+
+
+@mock.patch("cachi2.core.package_managers.yarn_classic.main.run_yarn_cmd")
+def test_verify_corepack_yarn_version_invalid_version(
+    mock_run_yarn_cmd: mock.Mock, tmp_path: Path
+) -> None:
+    mock_run_yarn_cmd.return_value = "foobar"
+    error_message = "The command `yarn --version` did not return a valid semver."
+
+    with pytest.raises(PackageManagerError, match=error_message):
+        _verify_corepack_yarn_version(RootedPath(tmp_path), env={"foo": "bar"})
