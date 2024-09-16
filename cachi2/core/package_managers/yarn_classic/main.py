@@ -9,7 +9,6 @@ MIRROR_DIR = "deps/yarn-classic"
 def fetch_yarn_source(request: Request) -> RequestOutput:
     """Process all the yarn source directories in a request."""
     components: list[Component] = []
-    env_vars: list[EnvironmentVariable] = []
 
     def _ensure_mirror_dir_exists(output_dir: RootedPath) -> None:
         output_dir.join_within_root(MIRROR_DIR).path.mkdir(parents=True, exist_ok=True)
@@ -19,7 +18,9 @@ def fetch_yarn_source(request: Request) -> RequestOutput:
         _ensure_mirror_dir_exists(request.output_dir)
         _fetch_dependencies(path, _get_prefetch_environment_variables(request.output_dir))
 
-    return RequestOutput.from_obj_list(components, env_vars, project_files=[])
+    return RequestOutput.from_obj_list(
+        components, _generate_build_environment_variables(), project_files=[]
+    )
 
 
 def _fetch_dependencies(source_dir: RootedPath, env: dict[str, str]) -> None:
