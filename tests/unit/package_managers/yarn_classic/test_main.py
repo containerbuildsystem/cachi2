@@ -54,11 +54,12 @@ def test_fetch_yarn_source(
     mock_fetch_dependencies: mock.Mock,
     mock_prefetch_env_vars: mock.Mock,
     input_request: Request,
+    yarn_classic_env_variables: list[EnvironmentVariable],
     components: list[Component],
 ) -> None:
     expected_output = RequestOutput(
         components=components,
-        build_config=BuildConfig(environment_variables=[]),
+        build_config=BuildConfig(environment_variables=yarn_classic_env_variables),
     )
 
     output = fetch_yarn_source(input_request)
