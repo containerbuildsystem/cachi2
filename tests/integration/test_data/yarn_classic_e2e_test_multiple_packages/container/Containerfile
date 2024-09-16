@@ -1,0 +1,23 @@
+FROM docker.io/node:22.8.0
+
+# Test disabled network access
+RUN if curl -IsS www.google.com; then echo "Has network access!"; exit 1; fi
+
+# Print cachi2 env vars file
+RUN cat /tmp/cachi2.env
+
+# Check yarn deps
+RUN ls /tmp/yarn_classic_e2e_test_multiple_packages-output/deps/yarn-classic
+
+# Check content of source repository folder
+RUN ls /tmp/yarn_classic_e2e_test_multiple_packages-source
+
+WORKDIR /tmp/yarn_classic_e2e_test_multiple_packages-source/second-pkg
+RUN . /tmp/cachi2.env && yarn install
+
+WORKDIR /tmp/yarn_classic_e2e_test_multiple_packages-source/first-pkg
+RUN . /tmp/cachi2.env && yarn install
+
+# This should be a COPY, but the source code and Containerfile are in different directories
+RUN cp -r /tmp/yarn_classic_e2e_test_multiple_packages-source/first-pkg /src
+WORKDIR /src
