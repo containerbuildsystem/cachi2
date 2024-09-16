@@ -265,4 +265,8 @@ possible from the OpenShift UI or by deleting and re-pushing the version tag.
 *⚠ The release pipeline runs as soon as you push a tag into the repository. Do not push the new version
 tag until you are ready to publish the release. You can use GitHub's ability to auto-create the tag
 upon publishment.*
-- [Pull request guidelines](#pull-request-guidelines)
+
+## Release schedule
+
+This project follows a two-week release cycle. Note that a release might be skipped if there's no
+significant changes to release.
