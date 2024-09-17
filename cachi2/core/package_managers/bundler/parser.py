@@ -42,7 +42,8 @@ class _GemMetadata(pydantic.BaseModel):
     name: str
     version: str
 
-    def download_to(self, fs_location: RootedPath) -> None:
+    def download_to(self, deps_dir: RootedPath) -> None:
+        """Download gem to the specified directory."""
         return None
 
 
@@ -63,9 +64,9 @@ class GemDependency(_GemMetadata):
         """Return remote location to download this gem from."""
         return f"{self.source}/gems/{self.name}-{self.version}.gem"
 
-    def download_to(self, fs_location: RootedPath) -> None:
+    def download_to(self, deps_dir: RootedPath) -> None:
         """Download represented gem to specified file system location."""
-        fs_location = fs_location.join_within_root(Path(f"{self.name}-{self.version}.gem"))
+        fs_location = deps_dir.join_within_root(Path(f"{self.name}-{self.version}.gem"))
         download_binary_file(self.remote_location, fs_location)
 
 
@@ -87,12 +88,12 @@ class GitDependency(_GemMetadata):
         parse_result = urlparse(str(self.url))
         return Path(parse_result.path).stem
 
-    def download_to(self, output_dir: RootedPath) -> None:
+    def download_to(self, deps_dir: RootedPath) -> None:
         """Download git repository to the output directory with a specific name."""
         short_ref_length = 12
         short_ref = self.ref[:short_ref_length]
 
-        git_repo_path = output_dir.join_within_root(f"{self.repo_name}-{short_ref}")
+        git_repo_path = deps_dir.join_within_root(f"{self.repo_name}-{short_ref}")
         if git_repo_path.path.exists():
             log.info("Skipping existing git repository %s", self.url)
             return
@@ -113,10 +114,10 @@ class PathDependency(_GemMetadata):
     Represents a path dependency.
 
     Attributes:
-        path:       Subpath from package root.
+        subpath:    Subpath from the package root.
     """
 
-    path: str
+    subpath: str
 
 
 BundlerDependency = Union[GemDependency, GitDependency, PathDependency]
@@ -155,16 +156,16 @@ def parse_lockfile(package_dir: RootedPath) -> ParseResult:
         elif dep["type"] == "git":
             result.append(GitDependency(**dep))
         elif dep["type"] == "path":
-            _validate_path_dependency_subpath(package_dir, dep["path"])
+            _validate_path_dependency_subpath(package_dir, dep["subpath"])
             result.append(PathDependency(**dep))
 
     return result
 
 
-def _validate_path_dependency_subpath(package_dir: RootedPath, path: str) -> None:
+def _validate_path_dependency_subpath(package_dir: RootedPath, subpath: str) -> None:
     """Validate that the path dependency is within the package root."""
     try:
-        package_dir.join_within_root(path)
+        package_dir.join_within_root(subpath)
     except PathOutsideRoot:
         reason = "PATH dependencies should be within the package root"
         raise UnexpectedFormat(reason=reason)
