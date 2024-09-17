@@ -53,6 +53,20 @@ log = logging.getLogger(__name__)
             ),
             id="yarn_classic_invalid_checksum",
         ),
+        pytest.param(
+            utils.TestParameters(
+                repo="https://github.com/cachito-testing/cachi2-yarn.git",
+                ref="200cc9423b1df173c12b61f951e463d8a18d9e19",
+                packages=({"path": ".", "type": "yarn-classic"},),
+                flags=["--dev-package-managers"],
+                check_output=False,
+                check_deps_checksums=False,
+                check_vendor_checksums=False,
+                expected_exit_code=0,
+                expected_output="All dependencies fetched successfully",
+            ),
+            id="yarn_classic_lifecycle_scripts",
+        ),
     ],
 )
 def test_yarn_classic_packages(
