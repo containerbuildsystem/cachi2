@@ -24,7 +24,7 @@ lockfile_parser.specs.each do |spec|
       parsed_spec[:ref] = spec.source.revision
     when Bundler::Source::Path
       parsed_spec[:type] = 'path'
-      parsed_spec[:path] = spec.source.path.to_s
+      parsed_spec[:subpath] = spec.source.path.to_s
     end
 
     parsed_specs << parsed_spec

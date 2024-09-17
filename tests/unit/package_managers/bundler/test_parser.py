@@ -113,7 +113,7 @@ def test_parse_lockfile_invalid_format(
         sample_parser_output["dependencies"][0].update(
             {
                 "type": "path",
-                "path": "/root/pathgem",
+                "subpath": "/root/pathgem",
             }
         )
 
@@ -142,7 +142,7 @@ def test_parse_gemlock(
         },
         {
             "type": "path",
-            "path": "subpath/pathgem",
+            "subpath": "vendor/pathgem",
             **base_dep,
         },
         {
@@ -162,7 +162,7 @@ def test_parse_gemlock(
             url="https://github.com/3scale/json-schema.git",
             ref=GIT_REF,
         ),
-        PathDependency(name="example", version="0.1.0", path="subpath/pathgem"),
+        PathDependency(name="example", version="0.1.0", subpath="vendor/pathgem"),
         GemDependency(name="example", version="0.1.0", source="https://rubygems.org/"),
     ]
 
@@ -220,7 +220,7 @@ def test_download_git_dependency_works(
     )
     dep_path = rooted_tmp_path.join_within_root(f"{dep.repo_name}-{dep.ref[:12]}").path
 
-    dep.download_to(output_dir=rooted_tmp_path)
+    dep.download_to(deps_dir=rooted_tmp_path)
     assert f"Cloning git repository {dep.url}" in caplog.messages
 
     mock_git_clone.assert_called_once_with(
@@ -245,8 +245,8 @@ def test_download_duplicate_git_dependency_is_skipped(
     )
     dep_path = rooted_tmp_path.join_within_root(f"{dep.repo_name}-{dep.ref[:12]}").path
 
-    dep.download_to(output_dir=rooted_tmp_path)
-    dep.download_to(output_dir=rooted_tmp_path)
+    dep.download_to(deps_dir=rooted_tmp_path)
+    dep.download_to(deps_dir=rooted_tmp_path)
     assert f"Skipping existing git repository {dep.url}" in caplog.messages
 
     mock_git_clone.assert_called_once_with(

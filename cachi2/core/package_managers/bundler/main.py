@@ -86,7 +86,7 @@ def _get_name_and_version_from_lockfile(dependencies: ParseResult) -> Optional[t
     https://github.com/containerbuildsystem/cachi2/blob/main/docs/design/bundler.md
     """
     for dep in dependencies:
-        if isinstance(dep, PathDependency) and dep.path == ".":
+        if isinstance(dep, PathDependency) and dep.subpath == ".":
             return dep.name, dep.version
 
     return None
