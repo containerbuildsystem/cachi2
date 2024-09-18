@@ -53,6 +53,34 @@ log = logging.getLogger(__name__)
             ),
             id="bundler_malformed_lockfile",
         ),
+        pytest.param(
+            utils.TestParameters(
+                repo="https://github.com/cachito-testing/cachi2-bundler.git",
+                ref="well_formed_ruby_all_features",
+                packages=({"path": ".", "type": "bundler"},),
+                flags=["--dev-package-managers"],
+                check_output=False,
+                check_deps_checksums=False,
+                check_vendor_checksums=False,
+                expected_exit_code=0,
+                expected_output="",
+            ),
+            id="bundler_everything_present",
+        ),
+        pytest.param(
+            utils.TestParameters(
+                repo="https://github.com/cachito-testing/cachi2-bundler.git",
+                ref="well_formed_ruby_without_gemspec",
+                packages=({"path": ".", "type": "bundler"},),
+                flags=["--dev-package-managers"],
+                check_output=False,
+                check_deps_checksums=False,
+                check_vendor_checksums=False,
+                expected_exit_code=0,
+                expected_output="",
+            ),
+            id="bundler_everything_present_except_gemspec",
+        ),
     ],
 )
 def test_bundler_packages(

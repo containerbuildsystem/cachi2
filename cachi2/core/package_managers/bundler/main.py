@@ -1,5 +1,7 @@
 import logging
+import os
 from pathlib import Path
+from textwrap import dedent
 from typing import Optional
 
 from packageurl import PackageURL
@@ -14,11 +16,15 @@ from cachi2.core.scm import get_repo_id
 
 log = logging.getLogger(__name__)
 
+CONFIG_OVERRIDE = "bundler/config_override"
+
 
 def fetch_bundler_source(request: Request) -> RequestOutput:
     """Resolve and process all bundler packages."""
     components: list[Component] = []
-    environment_variables: list[EnvironmentVariable] = []
+    environment_variables: list[EnvironmentVariable] = (
+        _prepare_environment_variables_for_hermetic_build()
+    )
     project_files: list[ProjectFile] = []
 
     for package in request.packages:
@@ -26,6 +32,7 @@ def fetch_bundler_source(request: Request) -> RequestOutput:
         components.extend(
             _resolve_bundler_package(package_dir=path_within_root, output_dir=request.output_dir)
         )
+        project_files.append(_prepare_for_hermetic_build(request.source_dir, request.output_dir))
 
     return RequestOutput.from_obj_list(
         components=components,
@@ -118,3 +125,35 @@ def _get_repo_name_from_origin_remote(package_dir: RootedPath) -> str:
 
     resolved_path = Path(repo_name).joinpath(package_dir.subpath_from_root)
     return str(resolved_path)
+
+
+def _prepare_environment_variables_for_hermetic_build() -> list[EnvironmentVariable]:
+    return [
+        # Contains path to a directory where a new config could be found.
+        EnvironmentVariable(name="BUNDLE_APP_CONFIG", value="${output_dir}/" + CONFIG_OVERRIDE),
+    ]
+
+
+def _prepare_for_hermetic_build(source_dir: RootedPath, output_dir: RootedPath) -> ProjectFile:
+    """Prepare a package for hermetic build by injecting necessary config."""
+    potential_bundle_config = source_dir.join_within_root(".bundle/config").path
+    hermetic_config = dedent(
+        """
+        BUNDLE_CACHE_PATH: "${output_dir}/deps/bundler"
+        BUNDLE_DEPLOYMENT: "true"
+        BUNDLE_NO_PRUNE: "true"
+    """
+    )
+    if potential_bundle_config.is_file():
+        config_data = potential_bundle_config.read_text()
+        config_data += hermetic_config
+    elif (alternative_config := os.getenv("BUNDLE_APP_CONFIG")) is not None:
+        # Corner case: a user decides to define their own alternate config.
+        # In this scenario cachi2 must try to copy over user-defined variables
+        # to its overriding alternate config.
+        config_data = Path(alternative_config, "config").read_text()
+        config_data += hermetic_config
+    else:
+        config_data = hermetic_config
+    overriding_bundler_config_path = output_dir.join_within_root(CONFIG_OVERRIDE, "config").path
+    return ProjectFile(abspath=overriding_bundler_config_path, template=config_data)
