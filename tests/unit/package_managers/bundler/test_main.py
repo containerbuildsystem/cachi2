@@ -1,3 +1,4 @@
+from textwrap import dedent
 from unittest import mock
 
 import pytest
@@ -6,6 +7,7 @@ from git.repo import Repo
 from cachi2.core.errors import PackageRejected
 from cachi2.core.package_managers.bundler.main import (
     _get_main_package_name_and_version,
+    _prepare_for_hermetic_build,
     _resolve_bundler_package,
 )
 from cachi2.core.package_managers.bundler.parser import (
@@ -114,3 +116,104 @@ def test_get_main_package_name_and_version_from_repo_without_origin(
         _get_main_package_name_and_version(package_dir=rooted_tmp_path_repo, dependencies=[])
 
     assert "Failed to extract package name from origin remote" in exc_info.value.friendly_msg()
+
+
+def test__prepare_for_hermetic_build_injects_necessary_variable_into_empty_config(
+    rooted_tmp_path: RootedPath,
+) -> None:
+    expected_config_location = rooted_tmp_path.join_within_root(".bundle/config").path
+    expected_config_contents = dedent(
+        """
+        BUNDLE_CACHE_PATH: "${output_dir}/deps/bundler"
+        BUNDLE_DEPLOYMENT: "true"
+        BUNDLE_NO_PRUNE: "true"
+        """
+    )
+
+    assert not expected_config_location.exists(), "Unexpected .bundle/config in rooted_tmp_path"
+
+    result = _prepare_for_hermetic_build(rooted_tmp_path, rooted_tmp_path)
+
+    assert result.template == expected_config_contents
+
+
+def test__prepare_for_hermetic_build_injects_necessary_variable_into_existing_config(
+    rooted_tmp_path: RootedPath,
+) -> None:
+    expected_config_location = rooted_tmp_path.join_within_root(".bundle/config").path
+    expected_config_contents = dedent(
+        """
+        BUNDLE_CACHE_PATH: "${output_dir}/deps/bundler"
+        BUNDLE_DEPLOYMENT: "true"
+        BUNDLE_NO_PRUNE: "true"
+        """
+    )
+    existing_preamble = dedent(
+        """---
+
+        BUNDLER_NONEXISTENT_VARIABLE: "true"
+        """
+    )
+
+    assert not expected_config_location.exists(), "Unexpected .bundle/config in rooted_tmp_path"
+    assert not expected_config_location.parent.exists(), "Unexpected .bundle/ in rooted_tmp_path"
+
+    expected_config_location.parent.mkdir()
+    expected_config_location.write_text(existing_preamble)
+
+    result = _prepare_for_hermetic_build(rooted_tmp_path, rooted_tmp_path)
+
+    assert result.template == existing_preamble + expected_config_contents
+
+
+def test__prepare_for_hermetic_build_injects_necessary_variable_into_existing_alternate_config(
+    rooted_tmp_path: RootedPath,
+) -> None:
+    expected_alternate_config_location = rooted_tmp_path.join_within_root("alternate/config").path
+    expected_alternate_config_contents = dedent(
+        """
+        BUNDLE_CACHE_PATH: "${output_dir}/deps/bundler"
+        BUNDLE_DEPLOYMENT: "true"
+        BUNDLE_NO_PRUNE: "true"
+        """
+    )
+    existing_preamble = dedent(
+        """---
+        BUNDLER_NONEXISTENT_VARIABLE: "true"
+        """
+    )
+
+    assert (
+        not expected_alternate_config_location.exists()
+    ), "Unexpected .bundle/config in rooted_tmp_path"
+    assert (
+        not expected_alternate_config_location.parent.exists()
+    ), "Unexpected .bundle/ in rooted_tmp_path"
+
+    expected_alternate_config_location.parent.mkdir()
+    expected_alternate_config_location.write_text(existing_preamble)
+
+    with mock.patch("cachi2.core.package_managers.bundler.main.os.getenv") as ge:
+        ge.return_value = str(expected_alternate_config_location.parent)
+        result = _prepare_for_hermetic_build(rooted_tmp_path, rooted_tmp_path)
+
+    assert result.template == existing_preamble + expected_alternate_config_contents
+
+
+def test__prepare_for_hermetic_build_ignores_a_directory_in_place_of_config(
+    rooted_tmp_path: RootedPath,
+) -> None:
+    expected_config_location = rooted_tmp_path.join_within_root(".bundle/config").path
+    expected_config_contents = dedent(
+        """
+        BUNDLE_CACHE_PATH: "${output_dir}/deps/bundler"
+        BUNDLE_DEPLOYMENT: "true"
+        BUNDLE_NO_PRUNE: "true"
+        """
+    )
+
+    assert not expected_config_location.exists(), "Unexpected .bundle/config in rooted_tmp_path"
+    assert not expected_config_location.parent.exists(), "Unexpected .bundle/ in rooted_tmp_path"
+    result = _prepare_for_hermetic_build(rooted_tmp_path, rooted_tmp_path)
+
+    assert result.template == expected_config_contents
