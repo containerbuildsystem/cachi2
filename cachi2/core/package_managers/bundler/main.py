@@ -51,8 +51,6 @@ def _get_main_package_name_and_version(
     if name_and_version is not None:
         return name_and_version
 
-    log.info("Failed to extract name and version from gemspec file")
-
     # fallback to origin remote
     try:
         name = _get_repo_name_from_origin_remote(package_dir)

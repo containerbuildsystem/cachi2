@@ -194,6 +194,7 @@ def test_parse_gemlock_empty(
 @mock.patch("cachi2.core.package_managers.bundler.parser.download_binary_file")
 def test_dependencies_could_be_downloaded(
     mock_downloader: mock.MagicMock,
+    caplog: pytest.LogCaptureFixture,
     source: str,
 ) -> None:
     base_destination = RootedPath("/tmp/foo")
@@ -203,6 +204,7 @@ def test_dependencies_could_be_downloaded(
 
     dependency.download_to(base_destination)
 
+    assert f"Downloading gem {dependency.name}" in caplog.messages
     mock_downloader.assert_called_once_with(expected_source_url, expected_destination)
 
 
