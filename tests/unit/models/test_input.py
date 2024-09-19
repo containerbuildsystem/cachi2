@@ -1,6 +1,7 @@
 import re
 from pathlib import Path
 from typing import Any, cast
+from unittest import mock
 
 import pydantic
 import pytest as pytest
@@ -13,6 +14,7 @@ from cachi2.core.models.input import (
     PipPackageInput,
     Request,
     RpmPackageInput,
+    SSLOptions,
     parse_user_input,
 )
 from cachi2.core.rooted_path import RootedPath
@@ -86,7 +88,55 @@ class TestPackageInput:
                         "dnf": {
                             "main": {"best": True, "debuglevel": 2},
                             "foorepo": {"arch": "x86_64", "enabled": True},
-                        }
+                        },
+                        "ssl": None,
+                    },
+                },
+            ),
+            (
+                {
+                    "type": "rpm",
+                    "options": {"ssl": {"ssl_verify": 0}},
+                },
+                {
+                    "type": "rpm",
+                    "path": Path("."),
+                    "options": {
+                        "dnf": None,
+                        "ssl": {
+                            "ca_bundle": None,
+                            "client_cert": None,
+                            "client_key": None,
+                            "ssl_verify": False,
+                        },
+                    },
+                },
+            ),
+            (
+                {
+                    "type": "rpm",
+                    "options": {
+                        "dnf": {
+                            "main": {"best": True, "debuglevel": 2},
+                            "foorepo": {"arch": "x86_64", "enabled": True},
+                        },
+                        "ssl": {"ssl_verify": 0},
+                    },
+                },
+                {
+                    "type": "rpm",
+                    "path": Path("."),
+                    "options": {
+                        "dnf": {
+                            "main": {"best": True, "debuglevel": 2},
+                            "foorepo": {"arch": "x86_64", "enabled": True},
+                        },
+                        "ssl": {
+                            "ca_bundle": None,
+                            "client_cert": None,
+                            "client_key": None,
+                            "ssl_verify": False,
+                        },
                     },
                 },
             ),
@@ -164,6 +214,61 @@ class TestPackageInput:
         with pytest.raises(pydantic.ValidationError, match=expect_error):
             adapter: pydantic.TypeAdapter[PackageInput] = pydantic.TypeAdapter(PackageInput)
             adapter.validate_python(input_data)
+
+
+class TestSSLOptions:
+    @staticmethod
+    def patched_isfile(path: Path) -> bool:
+        return str(path) == "pass"
+
+    def test_defaults(self) -> None:
+        ssl = SSLOptions()
+        assert (
+            ssl.client_cert is None
+            and ssl.client_key is None
+            and ssl.ca_bundle is None
+            and ssl.ssl_verify is True
+        )
+
+    @pytest.mark.parametrize(
+        "data",
+        [
+            pytest.param(
+                {"client_cert": "fail", "client_key": "pass"}, id="client_cert_file_not_found"
+            ),
+            pytest.param(
+                {"client_cert": "pass", "client_key": "fail"}, id="client_key_file_not_found"
+            ),
+            pytest.param(
+                {"client_cert": "pass", "client_key": "pass", "ca_bundle": "fail"},
+                id="ca_bundle_file_not_found",
+            ),
+        ],
+    )
+    def test_auth_file_not_found(self, data: dict[str, str]) -> None:
+        fail_opt = [i for i, v in data.items() if v == "fail"].pop()
+        err = rf"Specified ssl auth file '{fail_opt}':'fail' is not a regular file."
+
+        with mock.patch.object(Path, "is_file", new=self.patched_isfile):
+            with pytest.raises(pydantic.ValidationError, match=err):
+                SSLOptions(**data)
+
+    @pytest.mark.parametrize(
+        "data",
+        [
+            pytest.param({"client_cert": "pass"}, id="client_key_missing"),
+            pytest.param({"client_key": "pass"}, id="client_cert_missing"),
+            pytest.param(
+                {"client_key": "pass", "ca_bundle": "pass"},
+                id="client_cert_missing_ca_bundle_no_effect",
+            ),
+        ],
+    )
+    def test_client_cert_and_key_both_provided(self, data: dict[str, str]) -> None:
+        err = "When using client certificates, client_key and client_cert must both be provided."
+        with mock.patch.object(Path, "is_file", new=self.patched_isfile):
+            with pytest.raises(pydantic.ValidationError, match=err):
+                SSLOptions(**data)
 
 
 class TestRequest:
