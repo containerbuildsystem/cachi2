@@ -58,7 +58,12 @@ arches:
                 type="rpm",
                 options=_ExtraOptions.model_construct(dnf={"foorepo": {"foo": 1, "bar": False}}),
             ),
-            {"rpm": {"dnf": {"foorepo": {"foo": 1, "bar": False}}}},
+            {
+                "rpm": {
+                    "dnf": {"foorepo": {"foo": 1, "bar": False}},
+                    "ssl": None,
+                },
+            },
             id="fetch_with_dnf_options",
         ),
         pytest.param(
@@ -74,7 +79,12 @@ arches:
                     options=_ExtraOptions.model_construct(dnf={"bazrepo": {"baz": 0}}),
                 ),
             ],
-            {"rpm": {"dnf": {"bazrepo": {"baz": 0}}}},
+            {
+                "rpm": {
+                    "dnf": {"bazrepo": {"baz": 0}},
+                    "ssl": None,
+                }
+            },
             id="fetch_multiple_dnf_option_sets",
         ),
     ],
