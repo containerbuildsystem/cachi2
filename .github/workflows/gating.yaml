@@ -98,6 +98,8 @@ jobs:
     steps:
       - name: Install required packages
         run: |
+          sudo apt-get update
+          sudo apt-get install createrepo-c
           python3 -m venv /var/tmp/venv
           /var/tmp/venv/bin/pip3 install --upgrade pip
           /var/tmp/venv/bin/pip3 install tox
@@ -121,6 +123,38 @@ jobs:
                         http://127.0.0.1:8080)
           [[ ${status} == "200" ]] || exit 1
 
+      - name: DNF test server start
+        run: |
+          tests/dnfserver/start.sh &
+
+          # Testing basic HTTP request
+          status=$(curl -sSI \
+                        --output /dev/null \
+                        --write-out %{http_code} \
+                        --retry-delay 1 \
+                        --retry 60 \
+                        --retry-all-errors \
+                        http://127.0.0.1:8081)
+          [[ ${status} == "200" ]] || exit 1
+
+          # Testing expected error on unauthenticated TLS access
+          status=$(curl -ssI \
+                        --output /dev/null \
+                        --write-out %{http_code} \
+                        --insecure \
+                        https://127.0.0.1:8443)
+          [[ ${status} == "400" ]] || exit 1
+
+          # Testing TLS client authentication
+          status=$(curl -sSI \
+                        --output /dev/null \
+                        --write-out %{http_code} \
+                        --cacert tests/dnfserver/certificates/CA.crt \
+                        --key tests/dnfserver/certificates/client.key \
+                        --cert tests/dnfserver/certificates/client.crt \
+                        https://127.0.0.1:8443/pkg/redhat-release-9.4-0.5.el9.x86_64.rpm)
+          [[ ${status} == "200" ]] || exit 1
+
       - name: Build Cachi2 image
         run: |
           podman build -t cachi2:${{ github.sha }} .
@@ -134,6 +168,7 @@ jobs:
         env:
           CACHI2_IMAGE: localhost/cachi2:${{ github.sha }}
           CACHI2_TEST_LOCAL_PYPISERVER: 'true'
+          CACHI2_TEST_LOCAL_DNF_SERVER: 'true'
         run: |
           git config --global --add safe.directory "*"
           /var/tmp/venv/bin/tox -e integration
