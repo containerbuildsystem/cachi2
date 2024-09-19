@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Any, Callable, Dict, Literal, Optional, TypeVar, Union
 
 import pydantic
+from typing_extensions import Self
 
 from cachi2.core.errors import InvalidInput
 from cachi2.core.models.validators import check_sane_relpath, unique
@@ -71,6 +72,45 @@ class _PackageInputBase(pydantic.BaseModel, extra="forbid"):
         return check_sane_relpath(path)
 
 
+class SSLOptions(pydantic.BaseModel, extra="forbid"):
+    """SSL options model.
+
+    Defines extra options fields for client TLS authentication.
+    """
+
+    client_cert: Optional[str] = None
+    client_key: Optional[str] = None
+    ca_bundle: Optional[str] = None
+    ssl_verify: bool = True
+
+    @pydantic.field_validator("client_key", "client_cert", "ca_bundle")
+    @classmethod
+    def _validate_auth_file_paths(cls, val: str, info: pydantic.ValidationInfo) -> Optional[str]:
+        if val is None:
+            return val
+
+        if not Path(val).is_file():
+            raise ValueError(
+                (
+                    f"Specified ssl auth file '{info.field_name}':'{val}' is not a regular file.",
+                    "Make sure the file exists and that it has correct permissions.",
+                )
+            )
+
+        return val
+
+    @pydantic.model_validator(mode="after")
+    def _validate_ssl_options(self) -> Self:
+
+        cert_and_key = (self.client_cert, self.client_key)
+        if any(cert_and_key) and not all(cert_and_key):
+            raise ValueError(
+                "When using client certificates, client_key and client_cert must both be provided."
+            )
+
+        return self
+
+
 class BundlerPackageInput(_PackageInputBase):
     """Accepted input for a bundler package."""
 
@@ -130,6 +170,7 @@ class ExtraOptions(pydantic.BaseModel, extra="forbid"):
     """
 
     dnf: Optional[Dict[Union[Literal["main"], str], Dict[str, Any]]] = None
+    ssl: Optional[SSLOptions] = None
 
     @pydantic.model_validator(mode="before")
     def _validate_dnf_options(cls, data: Any, info: pydantic.ValidationInfo) -> Any:
