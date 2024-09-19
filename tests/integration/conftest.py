@@ -77,6 +77,52 @@ def local_pypiserver() -> Iterator[None]:
         yield
 
 
+@pytest.fixture(autouse=True, scope="session")
+def local_dnfserver(top_level_test_dir: Path) -> Iterator[None]:
+    def _check_ssl_configuration() -> None:
+        # TLS auth enforced
+        resp = requests.get(
+            f"https://{TEST_SERVER_LOCALHOST}:{ssl_port}",
+            verify=f"{dnfserver_dir}/certificates/CA.crt",
+        )
+        if resp.status_code == requests.codes.ok:
+            raise requests.RequestException("DNF server TLS client authentication misconfigured")
+
+        # TLS auth passes
+        resp = requests.get(
+            f"https://{TEST_SERVER_LOCALHOST}:{ssl_port}",
+            cert=(
+                f"{dnfserver_dir}/certificates/client.crt",
+                f"{dnfserver_dir}/certificates/client.key",
+            ),
+            verify=f"{dnfserver_dir}/certificates/CA.crt",
+        )
+        resp.raise_for_status()
+
+    if os.getenv("CACHI2_TEST_LOCAL_DNF_SERVER") != "true":
+        yield
+        return
+
+    dnfserver_dir = top_level_test_dir / "dnfserver"
+
+    with contextlib.ExitStack() as context:
+        proc = context.enter_context(subprocess.Popen([dnfserver_dir / "start.sh"]))
+        context.callback(proc.terminate)
+
+        ssl_port = os.getenv("DNFSERVER_SSL_PORT", "8443")
+        for _ in range(60):
+            time.sleep(1)
+            try:
+                _check_ssl_configuration()
+                break
+            except requests.RequestException as e:
+                raise RuntimeError(e)
+        else:
+            raise RuntimeError("DNF server didn't start fast enough")
+
+        yield
+
+
 def pytest_collection_modifyitems(
     session: pytest.Session, config: pytest.Config, items: list[pytest.Item]
 ) -> None:
