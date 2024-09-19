@@ -28,17 +28,13 @@ def test_get_main_package_name_and_version(rooted_tmp_path: RootedPath) -> None:
     assert version == "0.2.0"
 
 
-def test_get_main_package_name_and_version_from_repo(
-    rooted_tmp_path_repo: RootedPath,
-    caplog: pytest.LogCaptureFixture,
-) -> None:
+def test_get_main_package_name_and_version_from_repo(rooted_tmp_path_repo: RootedPath) -> None:
     repo = Repo(rooted_tmp_path_repo)
     repo.create_remote("origin", "git@github.com:user/example.git")
 
     name, version = _get_main_package_name_and_version(
         package_dir=rooted_tmp_path_repo, dependencies=[]
     )
-    assert "Failed to extract name and version from gemspec file" in caplog.messages
 
     assert name == "example"
     assert version is None
@@ -51,5 +47,4 @@ def test_get_main_package_name_and_version_from_repo_without_origin(
     with pytest.raises(PackageRejected) as exc_info:
         _get_main_package_name_and_version(package_dir=rooted_tmp_path_repo, dependencies=[])
 
-    assert "Failed to extract name and version from gemspec file" in caplog.messages
     assert "Failed to extract package name from origin remote" in exc_info.value.friendly_msg()

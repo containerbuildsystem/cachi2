@@ -67,6 +67,7 @@ class GemDependency(_GemMetadata):
     def download_to(self, deps_dir: RootedPath) -> None:
         """Download represented gem to specified file system location."""
         fs_location = deps_dir.join_within_root(Path(f"{self.name}-{self.version}.gem"))
+        log.info("Downloading gem %s", self.name)
         download_binary_file(self.remote_location, fs_location)
 
 
