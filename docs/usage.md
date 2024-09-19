@@ -54,7 +54,7 @@ The main parameter (PKG) can handle different types of definitions:
 * JSON object: `{"path": "subpath/to/other/module", "type": "<package manager>"}`
 * JSON array: `[{"path": ".", "type": "<package manager>"}, {"path": "subpath/to/other/module", "type": "<package manager>"}]`
 * JSON object with flags:
-`{"packages": [{"path": ".", "type": "<package manager>"}], "flags": ["gomod-vendor"]}`
+`{"packages": [{"path": ".", "type": "<package manager>"}], "flags": ["cgo-disable"]}`
 
 See also `cachi2 fetch-deps --help`.
 
