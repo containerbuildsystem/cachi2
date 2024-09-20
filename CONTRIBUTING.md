@@ -12,6 +12,7 @@
   * [Pull request guidelines](#pull-request-guidelines)
   * [Error message guidelines](#error-message-guidelines)
   * [Test guidelines](#test-guidelines)
+  * [Comment guidelines](#comment-guidelines)
   * [Running unit tests](#running-unit-tests)
   * [Running integration tests](#running-integration-tests)
   * [Adding new dependencies to the project](#adding-new-dependencies-to-the-project)
@@ -154,6 +155,12 @@ We try to keep error messages friendly and actionable.
 * If retrying is a possible solution, suggest retrying and where to look for help if the issue persists
 
 The error classes aim to encourage these guidelines. See the [errors.py](cachi2/core/errors.py) module.
+
+### Comment guidelines
+
+In general, consider adding comments to the code whenever there exists any context which is not obvious from the code alone. When writing a comment do not repeat how a piece of code works, do explain why this is needed.
+
+If your code was inspired by any third-party sources, consider adding a comment with a link to these sources.
 
 ### Test guidelines
 
