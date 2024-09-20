@@ -8,8 +8,9 @@ from urllib.parse import urlparse
 
 import pydantic
 from git import Repo
+from typing_extensions import Self
 
-from cachi2.core.errors import PackageManagerError, PackageRejected, UnexpectedFormat
+from cachi2.core.errors import PackageManagerError, PackageRejected
 from cachi2.core.package_managers.general import download_binary_file
 from cachi2.core.rooted_path import PathOutsideRoot, RootedPath
 from cachi2.core.utils import run_cmd
@@ -115,10 +116,22 @@ class PathDependency(_GemMetadata):
     Represents a path dependency.
 
     Attributes:
+        root:       The root of the package.
         subpath:    Subpath from the package root.
     """
 
+    root: RootedPath
     subpath: str
+
+    @pydantic.model_validator(mode="after")
+    def validate_subpath(self) -> Self:
+        """Validate that the subpath is within the package root."""
+        try:
+            self.root.join_within_root(self.subpath)
+        except PathOutsideRoot:
+            raise ValueError("PATH dependencies should be within the package root")
+
+        return self
 
 
 BundlerDependency = Union[GemDependency, GitDependency, PathDependency]
@@ -157,16 +170,6 @@ def parse_lockfile(package_dir: RootedPath) -> ParseResult:
         elif dep["type"] == "git":
             result.append(GitDependency(**dep))
         elif dep["type"] == "path":
-            _validate_path_dependency_subpath(package_dir, dep["subpath"])
-            result.append(PathDependency(**dep))
+            result.append(PathDependency(**dep, root=package_dir))
 
     return result
-
-
-def _validate_path_dependency_subpath(package_dir: RootedPath, subpath: str) -> None:
-    """Validate that the path dependency is within the package root."""
-    try:
-        package_dir.join_within_root(subpath)
-    except PathOutsideRoot:
-        reason = "PATH dependencies should be within the package root"
-        raise UnexpectedFormat(reason=reason)

@@ -162,7 +162,12 @@ def test_parse_gemlock(
             url="https://github.com/3scale/json-schema.git",
             ref=GIT_REF,
         ),
-        PathDependency(name="example", version="0.1.0", subpath="vendor/pathgem"),
+        PathDependency(
+            name="example",
+            version="0.1.0",
+            root=str(rooted_tmp_path),
+            subpath="vendor/pathgem",
+        ),
         GemDependency(name="example", version="0.1.0", source="https://rubygems.org/"),
     ]
 
