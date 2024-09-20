@@ -26,7 +26,12 @@ of the fetched artifacts. This decision was made mainly because it allows for fo
 with accurate SBOM information. Alternatively, for better user experience, the download url and checksums can be specified
 separately, always resulting in a `pkg:generic` purl. Here's an example of such a lockfile with both options.
 
+In order to account for possible future breaking changes, the lockfile will contain a `metadata` section with a `version`
+field that will indicate the version of the lockfile format.
+
 ```yaml
+metadata:
+  version: 1.0.0
 artifacts:
   - purl: pkg:generic/granite-model?download_url=https://huggingface.co/instructlab/granite-7b-lab/resolve/main/model-00001-of-00003.safetensors?download=true
     target: granite-model-1.safetensors
