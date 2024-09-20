@@ -11,6 +11,7 @@
   * [Coding standards](#coding-standards)
   * [Pull request guidelines](#pull-request-guidelines)
   * [Error message guidelines](#error-message-guidelines)
+  * [Test guidelines](#test-guidelines)
   * [Running unit tests](#running-unit-tests)
   * [Running integration tests](#running-integration-tests)
   * [Adding new dependencies to the project](#adding-new-dependencies-to-the-project)
@@ -153,6 +154,10 @@ We try to keep error messages friendly and actionable.
 * If retrying is a possible solution, suggest retrying and where to look for help if the issue persists
 
 The error classes aim to encourage these guidelines. See the [errors.py](cachi2/core/errors.py) module.
+
+### Test guidelines
+
+When extending an existing feature, please add a new test case instead of modifying any existing ones. Large test scenarios with many branching paths are very hard to understand and to maintain. It is ok to copy and paste large parts of an existing test if needed for a new scenario. It is also fine to add a new parameter group to an existing test, as long as the test function remains unchanged.
 
 ### Running unit tests
 
