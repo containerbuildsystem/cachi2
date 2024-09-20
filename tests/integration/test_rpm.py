@@ -82,6 +82,36 @@ from . import utils
             ),
             id="rpm_multiple_archs",
         ),
+        pytest.param(
+            utils.TestParameters(
+                repo="https://github.com/cachito-testing/cachi2-rpm",
+                ref="b9189ebf73e04fb91d90ff6f5b348c4c879ff589",
+                packages=(
+                    {
+                        "path": ".",
+                        "type": "rpm",
+                        "options": {
+                            "ssl": {
+                                "client_cert": "/certificates/client.crt",
+                                "client_key": "/certificates/client.key",
+                                "ca_bundle": "/certificates/CA.crt",
+                                "ssl_verify": 0,
+                            },
+                        },
+                    },
+                ),
+                flags=["--dev-package-managers"],
+                check_output=True,
+                check_deps_checksums=False,
+                check_vendor_checksums=False,
+                expected_exit_code=0,
+            ),
+            id="rpm_with_cert_auth",
+            marks=pytest.mark.skipif(
+                os.getenv("CACHI2_TEST_LOCAL_DNF_SERVER") != "true",
+                reason="CACHI2_TEST_LOCAL_DNF_SERVER!=true",
+            ),
+        ),
     ],
 )
 def test_rpm_packages(
@@ -89,6 +119,7 @@ def test_rpm_packages(
     cachi2_image: utils.ContainerImage,
     tmp_path: Path,
     test_data_dir: Path,
+    top_level_test_dir: Path,
     request: pytest.FixtureRequest,
 ) -> None:
     """
@@ -104,7 +135,13 @@ def test_rpm_packages(
     )
 
     utils.fetch_deps_and_check_output(
-        tmp_path, test_case, test_params, source_folder, test_data_dir, cachi2_image
+        tmp_path,
+        test_case,
+        test_params,
+        source_folder,
+        test_data_dir,
+        cachi2_image,
+        mounts=[(top_level_test_dir / "dnfserver/certificates", "/certificates")],
     )
 
 
