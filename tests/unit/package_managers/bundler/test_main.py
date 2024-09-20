@@ -17,6 +17,7 @@ def test_get_main_package_name_and_version(rooted_tmp_path: RootedPath) -> None:
         PathDependency(
             name="my_path_dep",
             version="0.2.0",
+            root=str(rooted_tmp_path),
             subpath=".",
         ),
     ]
