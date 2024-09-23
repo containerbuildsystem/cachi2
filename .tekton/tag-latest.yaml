@@ -55,7 +55,7 @@ spec:
             - name: name
               value: slack-webhook-notification
             - name: bundle
-              value: quay.io/redhat-appstudio-tekton-catalog/task-slack-webhook-notification:0.1
+              value: quay.io/konflux-ci/tekton-catalog/task-slack-webhook-notification:0.1
             - name: kind
               value: task
         when:
