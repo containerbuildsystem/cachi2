@@ -8,11 +8,13 @@ from urllib.parse import urlparse
 
 import pydantic
 from git import Repo
+from packageurl import PackageURL
 from typing_extensions import Self
 
 from cachi2.core.errors import PackageManagerError, PackageRejected
 from cachi2.core.package_managers.general import download_binary_file
 from cachi2.core.rooted_path import PathOutsideRoot, RootedPath
+from cachi2.core.scm import get_repo_id
 from cachi2.core.utils import run_cmd
 
 log = logging.getLogger(__name__)
@@ -61,6 +63,12 @@ class GemDependency(_GemMetadata):
     checksum: Optional[str] = None
 
     @cached_property
+    def purl(self) -> str:
+        """Get PURL for this dependency."""
+        purl = PackageURL(type="gem", name=self.name, version=self.version)
+        return purl.to_string()
+
+    @cached_property
     def remote_location(self) -> str:
         """Return remote location to download this gem from."""
         return f"{self.source}/gems/{self.name}-{self.version}.gem"
@@ -83,6 +91,13 @@ class GitDependency(_GemMetadata):
 
     url: AcceptedUrl
     ref: AcceptedGitRef
+
+    @cached_property
+    def purl(self) -> str:
+        """Get PURL for this dependency."""
+        qualifiers = {"vcs_url": f"git+{str(self.url)}@{self.ref}"}
+        purl = PackageURL(type="gem", name=self.name, version=self.version, qualifiers=qualifiers)
+        return purl.to_string()
 
     @cached_property
     def repo_name(self) -> str:
@@ -132,6 +147,19 @@ class PathDependency(_GemMetadata):
             raise ValueError("PATH dependencies should be within the package root")
 
         return self
+
+    @cached_property
+    def purl(self) -> str:
+        """Get PURL for this dependency."""
+        vcs_url = get_repo_id(self.root.path).as_vcs_url_qualifier()
+        purl = PackageURL(
+            type="gem",
+            name=self.name,
+            version=self.version,
+            qualifiers={"vcs_url": vcs_url},
+            subpath=self.subpath,
+        )
+        return purl.to_string()
 
 
 BundlerDependency = Union[GemDependency, GitDependency, PathDependency]
