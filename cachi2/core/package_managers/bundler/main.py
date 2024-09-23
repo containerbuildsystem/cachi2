@@ -2,6 +2,8 @@ import logging
 from pathlib import Path
 from typing import Optional
 
+from packageurl import PackageURL
+
 from cachi2.core.errors import PackageRejected, UnsupportedFeature
 from cachi2.core.models.input import Request
 from cachi2.core.models.output import EnvironmentVariable, ProjectFile, RequestOutput
@@ -21,7 +23,9 @@ def fetch_bundler_source(request: Request) -> RequestOutput:
 
     for package in request.packages:
         path_within_root = request.source_dir.join_within_root(package.path)
-        _resolve_bundler_package(package_dir=path_within_root, output_dir=request.output_dir)
+        components.extend(
+            _resolve_bundler_package(package_dir=path_within_root, output_dir=request.output_dir)
+        )
 
     return RequestOutput.from_obj_list(
         components=components,
@@ -32,9 +36,26 @@ def fetch_bundler_source(request: Request) -> RequestOutput:
 
 def _resolve_bundler_package(package_dir: RootedPath, output_dir: RootedPath) -> list[Component]:
     """Process a request for a single bundler package."""
+    deps_dir = output_dir.join_within_root("deps", "bundler")
+    deps_dir.path.mkdir(parents=True, exist_ok=True)
     dependencies = parse_lockfile(package_dir)
-    _get_main_package_name_and_version(package_dir, dependencies)
-    return []
+
+    name, version = _get_main_package_name_and_version(package_dir, dependencies)
+    vcs_url = get_repo_id(package_dir.root).as_vcs_url_qualifier()
+    main_package_purl = PackageURL(
+        type="gem",
+        name=name,
+        version=version,
+        qualifiers={"vcs_url": vcs_url},
+        subpath=str(package_dir.subpath_from_root),
+    )
+
+    components = [Component(name=name, version=version, purl=main_package_purl.to_string())]
+    for dep in dependencies:
+        dep.download_to(deps_dir)
+        components.append(Component(name=dep.name, version=dep.version, purl=dep.purl))
+
+    return components
 
 
 def _get_main_package_name_and_version(
