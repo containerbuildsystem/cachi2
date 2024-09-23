@@ -7,11 +7,13 @@ from unittest import mock
 
 import pydantic
 import pytest
+from git.repo import Repo
 
 from cachi2.core.errors import PackageManagerError, PackageRejected, UnexpectedFormat
 from cachi2.core.package_managers.bundler.parser import (
     GEMFILE,
     GEMFILE_LOCK,
+    BundlerDependency,
     GemDependency,
     GitDependency,
     PathDependency,
@@ -262,3 +264,41 @@ def test_download_duplicate_git_dependency_is_skipped(
         env={"GIT_TERMINAL_PROMPT": "0"},
     )
     assert dep_path.exists()
+
+
+def test_purls(rooted_tmp_path_repo: RootedPath) -> None:
+    repo = Repo(rooted_tmp_path_repo)
+    repo.create_remote("origin", "git@github.com:user/repo.git")
+    repo_commit = repo.head.commit
+
+    deps: list[tuple[BundlerDependency, str]] = [
+        (
+            GemDependency(
+                name="my-gem-dep",
+                version="0.1.0",
+                source="https://rubygems.org",
+            ),
+            "pkg:gem/my-gem-dep@0.1.0",
+        ),
+        (
+            GitDependency(
+                name="my-git-dep",
+                version="0.1.0",
+                url="https://github.com/rubygems/example.git",
+                ref=GIT_REF,
+            ),
+            f"pkg:gem/my-git-dep@0.1.0?vcs_url=git%2Bhttps://github.com/rubygems/example.git%40{GIT_REF}",
+        ),
+        (
+            PathDependency(
+                name="my-path-dep",
+                version="0.1.0",
+                root=rooted_tmp_path_repo,
+                subpath="vendor",
+            ),
+            f"pkg:gem/my-path-dep@0.1.0?vcs_url=git%2Bssh://git%40github.com/user/repo.git%40{repo_commit.hexsha}#vendor",
+        ),
+    ]
+
+    for dep, expected_purl in deps:
+        assert dep.purl == expected_purl
