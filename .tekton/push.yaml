@@ -15,7 +15,7 @@ spec:
     - name: revision
       value: "{{revision}}"
     - name: output-image
-      value: "quay.io/redhat-appstudio/cachi2:{{revision}}"
+      value: "quay.io/konflux-ci/cachi2:{{revision}}"
     - name: dockerfile
       value: Containerfile
     - name: slack-webhook-notification-team

@@ -16,7 +16,7 @@ spec:
     - name: revision
       value: "{{revision}}"
     - name: output-image
-      value: "quay.io/redhat-appstudio/pull-request-builds:rhtap-build-cachi2-{{revision}}"
+      value: "quay.io/konflux-ci/pull-request-builds:cachi2-build-{{revision}}"
     - name: dockerfile
       value: Containerfile
   pipelineRef:

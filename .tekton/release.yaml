@@ -82,8 +82,8 @@ spec:
                 set -eufx
 
                 version=$(cat $(results.version.path)) 
-                skopeo copy docker://quay.io/redhat-appstudio/cachi2:$PARAM_REVISION \
-                  docker://quay.io/redhat-appstudio/cachi2:$version
+                skopeo copy docker://quay.io/konflux-ci/cachi2:$PARAM_REVISION \
+                  docker://quay.io/konflux-ci/cachi2:$version
 
     finally:
       - name: slack-webhook-notification
