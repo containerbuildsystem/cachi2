@@ -1,4 +1,4 @@
-# Generic artifact fetching
+# Maven artifact fetching
 
 ## Introduction
 
