@@ -33,10 +33,8 @@ field that will indicate the version of the lockfile format.
 metadata:
   version: 1.0.0
 artifacts:
-  - purl: pkg:generic/granite-model?download_url=https://huggingface.co/instructlab/granite-7b-lab/resolve/main/model-00001-of-00003.safetensors?download=true
-    target: granite-model-1.safetensors
-    checksums:
-      sha256: 07123e1f482356c415f684407a3b8723e10b2cbbc0b8fcd6282c49d37c9c1abc
+  - purl: pkg:generic/granite-model?checksums=sha256:07123e1f482356c415f684407a3b8723e10b2cbbc0b8fcd6282c49d37c9c1abc&download_url=https://huggingface.co/instructlab/granite-7b-lab/resolve/main/model-00001-of-00003.safetensors?download=true
+    target: granite-model-1.safetensors      
   - download_url: https://huggingface.co/instructlab/granite-7b-lab/resolve/main/model-00002-of-00003.safetensors?download=true
     target: granite-model-2.safetensors
     checksums:
