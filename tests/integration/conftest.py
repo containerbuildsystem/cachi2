@@ -16,10 +16,21 @@ from . import utils
 log = logging.getLogger(__name__)
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def test_data_dir() -> Path:
     """Path to the directory for storing unit test data."""
     return Path(__file__).parent / "test_data"
+
+
+@pytest.fixture(scope="session")
+def top_level_test_dir() -> Path:
+    """Path to the top-level tests directory inside our repository.
+
+    This is useful in tests which have to reference particular test data directories, e.g. the
+    simple PyPI server which may contain other data that have to be mount to either the cachi2
+    image during a test execution or to some other service container we may need for testing.
+    """
+    return Path(__file__).parents[1]
 
 
 @pytest.fixture(scope="session")
