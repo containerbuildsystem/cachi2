@@ -91,12 +91,22 @@ This option would just extend the lockfile with support for maven purls, meaning
 generic package manager. The benefit of this approach would be simplicity, as it would one package manager per lockfile.
 On the other hand, maven artifacts are not so generic.
 
+Example:
+```
+cachi2 fetch-deps --source /path/to/sources '[{"type": "generic"}]'
+```
+
 #### 2) As a separate package manager
 
 This option would actually add a maven package manager. However, this would mean that the generic package manager would
 only process some of the artifacts in the lockfile, and some would not be processed unless maven package manager is
 explicitly called. This might create some weird UX for the user as they might expect the lockfile to be processed all at
 once, since it is cachi2 specific.
+
+Example:
+```
+cachi2 fetch-deps --source /path/to/sources '[{"type": "generic"}, {"type": "maven-artifacts"}]'
+```
 
 ### SBOM
 
