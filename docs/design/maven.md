@@ -16,7 +16,8 @@ time and bandwidth.
 ### Maven artifacts
 
 [Maven artifacts][maven-artifacts] are defined as anything that resides in a maven repository. Maven has a special way of
-addressing artifacts in its repositories called coordinates, which is usually represented by `GAV` (Group, Artifact, Version)
+addressing artifacts in its repositories called coordinates, which are usually represented by a `GAV` tuple (stands for
+'Group, Artifact, Version').
 This is used to uniquely identify an artifact in a maven repository.
 
 ### Maven purls
