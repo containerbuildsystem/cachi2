@@ -1,7 +1,7 @@
 # Cachi2
 
 [![coverage][cachi2-coverage-badge]][cachi2-coverage-status]
-[![container][cachi2-container-status]][cachi2-container]
+[![container][cachi2-container-badge]][cachi2-container-status]
 
 Cachi2 is a CLI tool that pre-fetches your project's dependencies to aid in making your build process
 [hermetic](https://slsa.dev/spec/v0.1/requirements#hermetic).
@@ -61,10 +61,10 @@ To install Cachi2 for local development, see the [development](#development) sec
 
 ### Container image
 
-[![container][cachi2-container-status]][cachi2-container]
+[![container][cachi2-container-badge]][cachi2-container-status]
 
 ```text
-quay.io/redhat-appstudio/cachi2:latest
+quay.io/konflux-ci/cachi2:latest
 ```
 
 The container is re-built automatically on every merge to the main branch.
@@ -72,7 +72,7 @@ The container is re-built automatically on every merge to the main branch.
 You may wish to set up an alias to make local usage more convenient:
 
 ```shell
-alias cachi2='podman run --rm -ti -v "$PWD:$PWD:z" -w "$PWD" quay.io/redhat-appstudio/cachi2:latest'
+alias cachi2='podman run --rm -ti -v "$PWD:$PWD:z" -w "$PWD" quay.io/konflux-ci/cachi2:latest'
 ```
 
 Note that the alias mounts the current working directory - the container will have access to files in that directory
@@ -230,8 +230,10 @@ still in early development phase.
 
 [cachi2-coverage-badge]: https://codecov.io/github/containerbuildsystem/cachi2/graph/badge.svg?token=VJKRTZQBMY
 [cachi2-coverage-status]: https://codecov.io/github/containerbuildsystem/cachi2
-[cachi2-container]: https://quay.io/repository/redhat-appstudio/cachi2
-[cachi2-container-status]: https://quay.io/repository/redhat-appstudio/cachi2/status
+
+[cachi2-container-badge]: https://img.shields.io/badge/container-latest-blue
+[cachi2-container-status]: https://quay.io/repository/konflux-ci/cachi2/tag/latest
+
 [cachi2-releases]: https://github.com/containerbuildsystem/cachi2/releases
 [sdist-spec]: https://packaging.python.org/en/latest/specifications/source-distribution-format/
 [wheel-spec]: https://packaging.python.org/en/latest/specifications/binary-distribution-format/

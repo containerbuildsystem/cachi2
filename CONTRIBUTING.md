@@ -216,7 +216,7 @@ Note: while developing, you can run the PyPI server with `tests/pypiserver/start
 To run integration-tests with custom image, specify the CACHI2\_IMAGE environment variable. Examples:
 
 ```shell
-CACHI2_IMAGE=quay.io/redhat-appstudio/cachi2:{tag} tox -e integration
+CACHI2_IMAGE=quay.io/konflux-ci/cachi2:{tag} tox -e integration
 CACHI2_IMAGE=localhost/cachi2:latest tox -e integration
 ```
 
