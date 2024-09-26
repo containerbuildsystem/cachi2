@@ -42,7 +42,7 @@ def get_repo_id(repo: Union[str, PathLike[str], Repo]) -> RepoID:
     See `man git-clone` (GIT URLS) for some of the url formats that git supports.
     """
     if isinstance(repo, (str, PathLike)):
-        repo = Repo(repo)
+        repo = Repo(repo, search_parent_directories=True)
 
     try:
         origin = repo.remote("origin")
