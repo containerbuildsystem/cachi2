@@ -225,7 +225,7 @@ and DNF server with `tests/dnfserver/start.sh &` to speed up the tests.
 To run integration-tests with custom image, specify the CACHI2\_IMAGE environment variable. Examples:
 
 ```shell
-CACHI2_IMAGE=quay.io/redhat-appstudio/cachi2:{tag} nox -s integration-tests
+CACHI2_IMAGE=quay.io/konflux-ci/cachi2:{tag} nox -s integration-tests
 CACHI2_IMAGE=localhost/cachi2:latest nox -s  integration-tests
 ```
 
