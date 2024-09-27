@@ -242,4 +242,3 @@ still in early development phase.
 [go118-changelog]: https://tip.golang.org/doc/go1.18#go-command
 [go119-changelog]: https://tip.golang.org/doc/go1.19#go-command
 [go121-changelog]: https://tip.golang.org/doc/go1.21
-[ocp-cachi2-pipelines]: https://console-openshift-console.apps.stone-prd-rh01.pg1f.p1.openshiftapps.com/pipelines/ns/tekton-ci/pipeline-runs?name=cachi2
