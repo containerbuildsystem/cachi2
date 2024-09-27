@@ -66,7 +66,7 @@ spec:
         - name: message
           value: |-
             Tekton pipelineRun $(context.pipelineRun.name) failed.
-            See https://console-openshift-console.apps.stone-prd-rh01.pg1f.p1.openshiftapps.com/k8s/ns/tekton-ci/tekton.dev~v1beta1~PipelineRun/$(context.pipelineRun.name)
+            See https://console-openshift-console.apps.stone-prd-rh01.pg1f.p1.openshiftapps.com/k8s/ns/konflux-ci/tekton.dev~v1~PipelineRun/$(context.pipelineRun.name)
             (Quick! It may disappear soon!)
         - name: key-name
           value: $(params.slack-webhook-notification-team)
