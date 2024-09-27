@@ -1010,7 +1010,7 @@ def _parse_workspace_module(
 ) -> ParsedModule:
     """Create a ParsedModule from a listed workspace.
 
-    The replacement info returned will always be relative to the module currently being processed.
+    The replacement info returned will always be relative to the go.work file path.
     """
     # We can't use pathlib since corresponding method PurePath.relative_to('foo', walk_up=True)
     # is available only in Python 3.12 and later.
@@ -1517,14 +1517,12 @@ def _vendor_deps(
     """
     Vendor golang dependencies.
 
-    If Cachi2 is not allowed to make changes, it will verify that the vendor directory already
-    contained the correct content.
+    Cachi2 checks the vendor directory for updated content, failing if Go'd be to make any changes.
 
     :param app_dir: path to the module directory
-    :param can_make_changes: is Cachi2 allowed to make changes?
     :param run_params: common params for the subprocess calls to `go`
     :return: the list of Go modules parsed from vendor/modules.txt
-    :raise PackageRejected: if vendor directory changed and Cachi2 is not allowed to make changes
+    :raise PackageRejected: if vendor directory changed
     :raise UnexpectedFormat: if Cachi2 fails to parse vendor/modules.txt
     """
     log.info("Vendoring the gomod dependencies")
@@ -1537,8 +1535,7 @@ def _vendor_deps(
             ),
             solution=(
                 "Please try running `go mod vendor` and committing the changes.\n"
-                "Note that you may need to `git add --force` ignored files in the vendor/ dir.\n"
-                "Also consider whether you really want the -check variant of the flag."
+                "Note that you may need to `git add --force` ignored files in the vendor/ dir."
             ),
             docs=VENDORING_DOC,
         )
