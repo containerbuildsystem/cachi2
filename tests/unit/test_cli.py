@@ -978,7 +978,7 @@ class TestMergeSboms:
             ],
         ],
     )
-    def test_a_user_can_successfully_save_sboms_merge_results_to_a_file_spdx(
+    def test_a_user_can_successfully_save_sboms_merge_results_to_a_file_in_spdx_format(
         self,
         sbom_files_to_merge: list[str],
     ) -> None:

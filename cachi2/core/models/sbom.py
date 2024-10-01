@@ -1,7 +1,7 @@
 import datetime
 import hashlib
 import json
-from typing import Annotated, Any, Iterable, Literal, Optional, Union
+from typing import Annotated, Any, Dict, Iterable, Literal, Optional, Union
 from urllib.parse import urlparse
 
 import pydantic
@@ -113,15 +113,14 @@ class Sbom(pydantic.BaseModel):
                         comment=json.dumps({"name": f"{prop.name}", "value": f"{prop.value}"}),
                     )
                 )
-            package_hash = hashlib.sha256(
-                json.dumps(
-                    {
-                        "name": component.name,
-                        "version": component.version,
-                        "purl": component.purl,
-                    }
-                ).encode()
-            ).hexdigest()
+            package_hash = SPDXPackage._calculate_package_hash_from_dict(
+                {
+                    "name": component.name,
+                    "version": component.version,
+                    "purl": component.purl,
+                }
+            )
+
             packages.append(
                 SPDXPackage(
                     SPDXID=f"SPDXID-Package-{component.name}-{component.version}-{package_hash}",
@@ -458,28 +457,30 @@ class SPDXPackage(pydantic.BaseModel):
     externalRefs: list[SPDXPackageExternalRefType] = []
     annotations: list[SPDXPackageAnnotation] = []
 
+    @staticmethod
+    def _calculate_package_hash_from_dict(package_dict: Dict[str, Any]) -> str:
+        return hashlib.sha256(json.dumps(package_dict, sort_keys=True).encode()).hexdigest()
+
     @classmethod
     def from_package_dict(cls, package: dict[str, Any]) -> "SPDXPackage":
         """Create a SPDXPackage from a Cachi2 package dictionary."""
-        external_refs = []
-        for er in package.get("externalRefs", []):
-            external_refs.append(er)
+        external_refs = package.get("externalRefs", [])
         annotations = [SPDXPackageAnnotation(**an) for an in package.get("annotations", [])]
         if not package.get("SPDXID"):
-            purls = [
-                ref["referenceLocator"]
-                for ref in package["externalRefs"]
-                if ref["referenceType"] == "purl"
-            ]
-            package_hash = hashlib.sha256(
-                json.dumps(
-                    {
-                        "name": package["name"],
-                        "versionInfo": package.get("versionInfo", ""),
-                        "purls": purls,
-                    }
-                ).encode()
-            ).hexdigest()
+            purls = sorted(
+                [
+                    ref["referenceLocator"]
+                    for ref in package["externalRefs"]
+                    if ref["referenceType"] == "purl"
+                ]
+            )
+            package_hash = cls._calculate_package_hash_from_dict(
+                {
+                    "name": package["name"],
+                    "version": package.get("versionInfo", None),
+                    "purls": purls,
+                }
+            )
             SPDXID = (
                 f"SPDXRef-Package-{package['name']}-{package.get('versionInfo', '')}-{package_hash}"
             )

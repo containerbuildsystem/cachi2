@@ -420,7 +420,9 @@ def merge_sboms(
     ),
     output_sbom_file_name: Optional[Path] = OUTFILE_OPTION,
     sbom_type: SBOMFormat = SBOM_TYPE_OPTION,
-    sbom_name: Optional[str] = typer.Option(None, "--sbom-name", help="Name of the merged SBOM."),
+    sbom_name: Optional[str] = typer.Option(
+        None, "--sbom-name", help="Name of the resulting merged SBOM."
+    ),
 ) -> None:
     """Merge two or more SBOMs into one.
 

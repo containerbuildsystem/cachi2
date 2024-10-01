@@ -148,7 +148,7 @@ class TestSPDXPackage:
                     ],
                 },
                 SPDXPackage(
-                    SPDXID="SPDXRef-Package-mypkg-1.0.0-749090e8a712537053313f293a48fd4f1013b6012575def5ad5d9b9800dfe3bc",
+                    SPDXID="SPDXRef-Package-mypkg-1.0.0-ded235cb82fb6d084178a362048a549edb6586fd5cd5f84c7afbd919789b801d",
                     name="mypkg",
                     versionInfo="1.0.0",
                     externalRefs=[
@@ -173,7 +173,7 @@ class TestSPDXPackage:
                     ],
                 },
                 SPDXPackage(
-                    SPDXID="SPDXRef-Package-mypkg-random-version-string-7c62f398717859aaa55c8bac951906cabb53e84b4ca9b177c35f5a6a573f970a",
+                    SPDXID="SPDXRef-Package-mypkg-random-version-string-5c73e2936cdb76c672fbee4c7a357695b052c97bcddacc5fb886f82bc78098d4",
                     name="mypkg",
                     versionInfo="random-version-string",
                     externalRefs=[
@@ -200,7 +200,7 @@ class TestSPDXPackage:
                     "dependencies": [],
                 },
                 SPDXPackage(
-                    SPDXID="SPDXRef-Package-mypkg-1.0.0-749090e8a712537053313f293a48fd4f1013b6012575def5ad5d9b9800dfe3bc",
+                    SPDXID="SPDXRef-Package-mypkg-1.0.0-ded235cb82fb6d084178a362048a549edb6586fd5cd5f84c7afbd919789b801d",
                     name="mypkg",
                     versionInfo="1.0.0",
                     externalRefs=[
@@ -396,7 +396,7 @@ class TestSbom:
 
         assert spdx_sbom.packages == [
             SPDXPackage(
-                SPDXID="SPDXID-Package-github.com/org/A-v1.0.0-6df9fc352e16de9e8513dd4994a6b5b600102b8ccba07104d31cd44165068607",
+                SPDXID="SPDXID-Package-github.com/org/A-v1.0.0-8090f86e9eb851549de5f8391948c1df6a2c8976bfa33c3cbd82e917564ac94f",
                 name="github.com/org/A",
                 versionInfo="v1.0.0",
                 externalRefs=[
@@ -422,7 +422,7 @@ class TestSbom:
                 ],
             ),
             SPDXPackage(
-                SPDXID="SPDXID-Package-github.com/org/A-v1.1.0-fb958d07f1a9da02ec0af3946bd4365bc12ad5ff14efa8c2eae377be0cad0957",
+                SPDXID="SPDXID-Package-github.com/org/A-v1.1.0-898f4d436d82296d12247741855acc48a1f80639d2418e556268f30ae2336303",
                 name="github.com/org/A",
                 versionInfo="v1.1.0",
                 externalRefs=[
@@ -442,7 +442,7 @@ class TestSbom:
                 ],
             ),
             SPDXPackage(
-                SPDXID="SPDXID-Package-spdx-expression-parse-v1.0.0-3bb53ba5f3217e27f55d2eb5b8ce94810f6159eed829369255e057f138e129a7",
+                SPDXID="SPDXID-Package-spdx-expression-parse-v1.0.0-2d5c537d20208409089cf9c7ae9398b7105beef1f883cfc4c0b1f804bca86b02",
                 name="spdx-expression-parse",
                 versionInfo="v1.0.0",
                 externalRefs=[
@@ -466,19 +466,19 @@ class TestSbom:
             SPDXRelation(
                 spdxElementId="SPDXRef-DOCUMENT",
                 comment="",
-                relatedSpdxElement="SPDXID-Package-github.com/org/A-v1.0.0-6df9fc352e16de9e8513dd4994a6b5b600102b8ccba07104d31cd44165068607",
+                relatedSpdxElement="SPDXID-Package-github.com/org/A-v1.0.0-8090f86e9eb851549de5f8391948c1df6a2c8976bfa33c3cbd82e917564ac94f",
                 relationshipType="CONTAINS",
             ),
             SPDXRelation(
                 spdxElementId="SPDXRef-DOCUMENT",
                 comment="",
-                relatedSpdxElement="SPDXID-Package-github.com/org/A-v1.1.0-fb958d07f1a9da02ec0af3946bd4365bc12ad5ff14efa8c2eae377be0cad0957",
+                relatedSpdxElement="SPDXID-Package-github.com/org/A-v1.1.0-898f4d436d82296d12247741855acc48a1f80639d2418e556268f30ae2336303",
                 relationshipType="CONTAINS",
             ),
             SPDXRelation(
                 spdxElementId="SPDXRef-DOCUMENT",
                 comment="",
-                relatedSpdxElement="SPDXID-Package-spdx-expression-parse-v1.0.0-3bb53ba5f3217e27f55d2eb5b8ce94810f6159eed829369255e057f138e129a7",
+                relatedSpdxElement="SPDXID-Package-spdx-expression-parse-v1.0.0-2d5c537d20208409089cf9c7ae9398b7105beef1f883cfc4c0b1f804bca86b02",
                 relationshipType="CONTAINS",
             ),
         ]
