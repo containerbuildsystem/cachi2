@@ -396,6 +396,13 @@ class TestSbom:
 
         assert spdx_sbom.packages == [
             SPDXPackage(
+                SPDXID="SPDXRef-DocumentRoot-File-",
+                name="",
+                versionInfo="",
+                externalRefs=[],
+                annotations=[],
+            ),
+            SPDXPackage(
                 SPDXID="SPDXID-Package-github.com/org/A-v1.0.0-8090f86e9eb851549de5f8391948c1df6a2c8976bfa33c3cbd82e917564ac94f",
                 name="github.com/org/A",
                 versionInfo="v1.0.0",
@@ -466,17 +473,23 @@ class TestSbom:
             SPDXRelation(
                 spdxElementId="SPDXRef-DOCUMENT",
                 comment="",
+                relatedSpdxElement="SPDXRef-DocumentRoot-File-",
+                relationshipType="DESCRIBES",
+            ),
+            SPDXRelation(
+                spdxElementId="SPDXRef-DocumentRoot-File-",
+                comment="",
                 relatedSpdxElement="SPDXID-Package-github.com/org/A-v1.0.0-8090f86e9eb851549de5f8391948c1df6a2c8976bfa33c3cbd82e917564ac94f",
                 relationshipType="CONTAINS",
             ),
             SPDXRelation(
-                spdxElementId="SPDXRef-DOCUMENT",
+                spdxElementId="SPDXRef-DocumentRoot-File-",
                 comment="",
                 relatedSpdxElement="SPDXID-Package-github.com/org/A-v1.1.0-898f4d436d82296d12247741855acc48a1f80639d2418e556268f30ae2336303",
                 relationshipType="CONTAINS",
             ),
             SPDXRelation(
-                spdxElementId="SPDXRef-DOCUMENT",
+                spdxElementId="SPDXRef-DocumentRoot-File-",
                 comment="",
                 relatedSpdxElement="SPDXID-Package-spdx-expression-parse-v1.0.0-2d5c537d20208409089cf9c7ae9398b7105beef1f883cfc4c0b1f804bca86b02",
                 relationshipType="CONTAINS",
