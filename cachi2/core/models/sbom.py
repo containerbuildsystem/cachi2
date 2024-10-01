@@ -204,103 +204,6 @@ class SPDXPackageExternalRef(pydantic.BaseModel):
         return hash((self.referenceLocator, self.referenceType, self.referenceCategory))
 
 
-class SPDXPackageExternalRefSecurity(SPDXPackageExternalRef):
-    """SPDX Package External Reference for security category.
-
-    Compliant to the SPDX specification:
-    https://spdx.github.io/spdx-spec/v2.3/package-information/#721-external-reference-field
-    """
-
-    referenceCategory: Literal["SECURITY"]
-
-
-class SPDXPackageExternalRefSecurityCPE22(SPDXPackageExternalRefSecurity):
-    """SPDX Package External Reference for security category and type cpe22.
-
-    Compliant to the SPDX specification:
-    https://spdx.github.io/spdx-spec/v2.3/package-information/#721-external-reference-field
-    """
-
-    referenceCategory: Literal["SECURITY"]
-    referenceLocator: str = pydantic.Field(
-        pattern=r"[c][pP][eE]:/[AHOaho]?(:[A-Za-z0-9\._\-~%]*){0,6}"
-    )
-    referenceType: Literal["cpe22Type"]
-
-
-class SPDXPackageExternalRefSecurityCPE23(SPDXPackageExternalRefSecurity):
-    """SPDX Package External Reference for security category and type cpe23.
-
-    Compliant to the SPDX specification:
-    https://spdx.github.io/spdx-spec/v2.3/package-information/#721-external-reference-field
-    """
-
-    referenceCategory: Literal["SECURITY"]
-
-    # Regex taken from https://csrc.nist.gov/schema/cpe/2.3/cpe-naming_2.3.xsd
-    # Explanations of groups can be found here:
-    # https://nvlpubs.nist.gov/nistpubs/Legacy/IR/nistir7695.pdf
-    # or here: https://en.wikipedia.org/wiki/Common_Platform_Enumeration
-    referenceLocator: str = pydantic.Field(
-        pattern=r"""cpe:2\.3:(?P<part>[aho\*\-])
-(:(?P<vendor>((\?*|\*?)([a-zA-Z0-9\-\._]|(\\[\\\*\?!"#$$%&'\(\)\+,/:;<=>@\[\]\^`\{\|}~]))+(\?*|\*?))|[\*\-]))
-(:(?P<product>((\?*|\*?)([a-zA-Z0-9\-\._]|(\\[\\\*\?!"#$$%&'\(\)\+,/:;<=>@\[\]\^`\{\|}~]))+(\?*|\*?))|[\*\-]))
-(:(?P<version>((\?*|\*?)([a-zA-Z0-9\-\._]|(\\[\\\*\?!"#$$%&'\(\)\+,/:;<=>@\[\]\^`\{\|}~]))+(\?*|\*?))|[\*\-]))
-(:(?P<update>((\?*|\*?)([a-zA-Z0-9\-\._]|(\\[\\\*\?!"#$$%&'\(\)\+,/:;<=>@\[\]\^`\{\|}~]))+(\?*|\*?))|[\*\-]))
-(:(?P<edition>((\?*|\*?)([a-zA-Z0-9\-\._]|(\\[\\\*\?!"#$$%&'\(\)\+,/:;<=>@\[\]\^`\{\|}~]))+(\?*|\*?))|[\*\-]))
-(:(?P<lang>([a-zA-Z]{2,3}(-([a-zA-Z]{2}|[0-9]{3}))?)|[\*\-]))
-(:(?P<sw_edition>((\?*|\*?)([a-zA-Z0-9\-\._]|(\\[\\\*\?!"#$$%&'\(\)\+,/:;<=>@\[\]\^`\{\|}~]))+(\?*|\*?))|[\*\-]))
-(:(?P<target_sw>((\?*|\*?)([a-zA-Z0-9\-\._]|(\\[\\\*\?!"#$$%&'\(\)\+,/:;<=>@\[\]\^`\{\|}~]))+(\?*|\*?))|[\*\-]))
-(:(?P<target_hw>((\?*|\*?)([a-zA-Z0-9\-\._]|(\\[\\\*\?!"#$$%&'\(\)\+,/:;<=>@\[\]\^`\{\|}~]))+(\?*|\*?))|[\*\-]))
-(:(?P<other>((\?*|\*?)([a-zA-Z0-9\-\._]|(\\[\\\*\?!"#$$%&'\(\)\+,/:;<=>@\[\]\^`\{\|}~]))+(\?*|\*?))|[\*\-]))
-""".replace(
-            "\n", ""
-        )
-    )
-    referenceType: Literal["cpe23Type"]
-
-
-class SPDXPackageExternalRefSecurityURL(
-    SPDXPackageExternalRefSecurity, SPDXPackageExternalRefReferenceLocatorURI
-):
-    """SPDX Package External Reference for security category and types advisory,fix and url.
-
-    Compliant to the SPDX specification:
-    https://spdx.github.io/spdx-spec/v2.3/package-information/#721-external-reference-field
-    """
-
-    referenceType: Literal["advisory", "fix", "url"]
-
-
-class SPDXPackageExternalRefSecuritySWID(SPDXPackageExternalRefSecurity):
-    """SPDX Package External Reference for security category and types advisory,fix,url and swid.
-
-    Compliant to the SPDX specification:
-    https://spdx.github.io/spdx-spec/v2.3/package-information/#721-external-reference-field
-    """
-
-    referenceType: Literal["swid"]
-
-    @pydantic.validator("referenceLocator")
-    @classmethod
-    def _validate_uri_reference_locator(cls, referenceLocator: str) -> str:
-        parsed = urlparse(referenceLocator)
-        if not parsed.path:
-            raise ValueError("Invalid URI reference locator")
-        return referenceLocator
-
-
-SPDXPackageExternalRefSecurityType = Annotated[
-    Union[
-        SPDXPackageExternalRefSecurityCPE22,
-        SPDXPackageExternalRefSecurityCPE23,
-        SPDXPackageExternalRefSecurityURL,
-        SPDXPackageExternalRefSecuritySWID,
-    ],
-    pydantic.Field(discriminator="referenceType"),
-]
-
-
 class SPDXPackageExternalRefPackageManager(SPDXPackageExternalRef):
     """SPDX Package External Reference for category package-manager.
 
@@ -309,54 +212,6 @@ class SPDXPackageExternalRefPackageManager(SPDXPackageExternalRef):
     """
 
     referenceCategory: Literal["PACKAGE-MANAGER"]
-
-
-class SPDXPackageExternalRefPackageManagerMaven(pydantic.BaseModel):
-    """SPDX Package External Reference for category package-manager and type maven-central.
-
-    Compliant to the SPDX specification:
-    https://spdx.github.io/spdx-spec/v2.3/package-information/#721-external-reference-field
-    """
-
-    referenceCategory: Literal["PACKAGE-MANAGER"]
-    referenceLocator: str = pydantic.Field(pattern=r"[^:]+:[^:]+(:[^:]+)?")
-    referenceType: Literal["maven-central"]
-
-
-class SPDXPackageExternalRefPackageManagerNPM(SPDXPackageExternalRefPackageManager):
-    """SPDX Package External Reference for category package-manager and type npm.
-
-    Compliant to the SPDX specification:
-    https://spdx.github.io/spdx-spec/v2.3/package-information/#721-external-reference-field
-    """
-
-    referenceCategory: Literal["PACKAGE-MANAGER"]
-    referenceLocator: str = pydantic.Field(pattern=r"^[^@]+@[^@]+$")
-    referenceType: Literal["npm"]
-
-
-class SPDXPackageExternalRefPackageManagerNuget(SPDXPackageExternalRefPackageManager):
-    """SPDX Package External Reference for category package-manager and type nuget.
-
-    Compliant to the SPDX specification:
-    https://spdx.github.io/spdx-spec/v2.3/package-information/#721-external-reference-field
-    """
-
-    referenceCategory: Literal["PACKAGE-MANAGER"]
-    referenceLocator: str = pydantic.Field(pattern=r"^[^\/]+\/[^\/]+$")
-    referenceType: Literal["nuget"]
-
-
-class SPDXPackageExternalRefPackageManagerBower(SPDXPackageExternalRefPackageManager):
-    """SPDX Package External Reference for category package-manager and type bower.
-
-    Compliant to the SPDX specification:
-    https://spdx.github.io/spdx-spec/v2.3/package-information/#721-external-reference-field
-    """
-
-    referenceCategory: Literal["PACKAGE-MANAGER"]
-    referenceLocator: str = pydantic.Field(pattern=r"^[^#]+#[^#]+$")
-    referenceType: Literal["bower"]
 
 
 class SPDXPackageExternalRefPackageManagerPURL(
@@ -373,78 +228,13 @@ class SPDXPackageExternalRefPackageManagerPURL(
 
 
 SPDXPackageExternalRefPackageManagerType = Annotated[
-    Union[
-        SPDXPackageExternalRefPackageManagerMaven,
-        SPDXPackageExternalRefPackageManagerNPM,
-        SPDXPackageExternalRefPackageManagerNuget,
-        SPDXPackageExternalRefPackageManagerBower,
-        SPDXPackageExternalRefPackageManagerPURL,
-    ],
+    SPDXPackageExternalRefPackageManagerPURL,
     pydantic.Field(discriminator="referenceType"),
 ]
-
-
-class SPDXPackageExternalRefPersistentId(SPDXPackageExternalRef):
-    """SPDX Package External Reference for category persistent-id.
-
-    Compliant to the SPDX specification:
-    https://spdx.github.io/spdx-spec/v2.3/package-information/#721-external-reference-field
-    """
-
-    referenceCategory: Literal["PERSISTENT-ID"]
-
-
-class SPDXPackageExternalRefPersistentIdSWH(SPDXPackageExternalRefPersistentId):
-    """SPDX Package External Reference for category persistent-id and type swh.
-
-    Compliant to the SPDX specification:
-    https://spdx.github.io/spdx-spec/v2.3/package-information/#721-external-reference-field
-    """
-
-    referenceCategory: Literal["PERSISTENT-ID"]
-    referenceLocator: str = pydantic.Field(pattern=r"^swh:1:(cnt|dir|rev|rel|snp):[a-f0-9]{40}$")
-    referenceType: Literal["swh"]
-
-
-class SPDXPackageExternalRefPersistentIdGitOID(SPDXPackageExternalRefPersistentId):
-    """SPDX Package External Reference for category persistent-id and type gitoid.
-
-    Compliant to the SPDX specification:
-    https://spdx.github.io/spdx-spec/v2.3/package-information/#721-external-reference-field
-    """
-
-    referenceCategory: Literal["PERSISTENT-ID"]
-    referenceLocator: str = pydantic.Field(
-        pattern=r"^gitoid:(blob|tree|commit|tag):(sha1|sha256):([a-f0-9]{40}|[a-f0-9]{64})$"
-    )
-    referenceType: Literal["gitoid"]
-
-
-SPDXPackageExternalRefPersistentIdType = Annotated[
-    Union[SPDXPackageExternalRefPersistentIdSWH, SPDXPackageExternalRefPersistentIdGitOID],
-    pydantic.Field(discriminator="referenceType"),
-]
-
-
-class SPDXPackageExternalRefOther(SPDXPackageExternalRef):
-    """SPDX Package External Reference for category OTHER.
-
-    Compliant to the SPDX specification:
-    https://spdx.github.io/spdx-spec/v2.3/package-information/#721-external-reference-field
-    """
-
-    referenceCategory: Literal["OTHER"]
-    referenceLocator: str = pydantic.Field(pattern=r"^[^ ]*$")
-    referenceType: str
 
 
 SPDXPackageExternalRefType = Annotated[
-    Union[
-        SPDXPackageExternalRefSecurityType,
-        SPDXPackageExternalRefPackageManagerType,
-        SPDXPackageExternalRefPersistentIdType,
-        SPDXPackageExternalRefOther,
-    ],
+    Union[SPDXPackageExternalRefPackageManagerType,],
     pydantic.Field(discriminator="referenceCategory"),
 ]
 

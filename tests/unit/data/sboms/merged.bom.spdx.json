@@ -29,110 +29,6 @@
       "originator": "Person: Antoine Legrand (2t.antoine@gmail.com)",
       "externalRefs": [
         {
-          "referenceCategory": "SECURITY",
-          "referenceLocator": "cpe:2.3:a:antoine_legrand:python-appr:0.7.4:*:*:*:*:*:*:*",
-          "referenceType": "cpe23Type"
-        },
-        {
-          "referenceCategory": "SECURITY",
-          "referenceLocator": "cpe:2.3:a:antoine_legrand:python_appr:0.7.4:*:*:*:*:*:*:*",
-          "referenceType":"cpe23Type"
-        },
-        {
-          "referenceCategory":"SECURITY",
-          "referenceLocator":"cpe:2.3:a:python-appr:python-appr:0.7.4:*:*:*:*:*:*:*",
-          "referenceType":"cpe23Type"
-        },
-        {
-          "referenceCategory":"SECURITY",
-          "referenceLocator":"cpe:2.3:a:python-appr:python_appr:0.7.4:*:*:*:*:*:*:*",
-          "referenceType":"cpe23Type"
-        },
-        {"referenceCategory":"SECURITY",
-          "referenceLocator":"cpe:2.3:a:python_appr:python-appr:0.7.4:*:*:*:*:*:*:*",
-          "referenceType":"cpe23Type"
-        },
-        {
-          "referenceCategory":"SECURITY",
-          "referenceLocator":"cpe:2.3:a:python_appr:python_appr:0.7.4:*:*:*:*:*:*:*",
-          "referenceType":"cpe23Type"
-        },
-        {
-          "referenceCategory":"SECURITY",
-          "referenceLocator":"cpe:2.3:a:2t-antoine:python-appr:0.7.4:*:*:*:*:*:*:*",
-          "referenceType":"cpe23Type"
-        },
-        {
-          "referenceCategory":"SECURITY",
-          "referenceLocator":"cpe:2.3:a:2t-antoine:python_appr:0.7.4:*:*:*:*:*:*:*",
-          "referenceType":"cpe23Type"
-        },
-        {
-          "referenceCategory":"SECURITY",
-          "referenceLocator":"cpe:2.3:a:2t_antoine:python-appr:0.7.4:*:*:*:*:*:*:*",
-          "referenceType":"cpe23Type"
-        },
-        {
-          "referenceCategory":"SECURITY",
-          "referenceLocator":"cpe:2.3:a:2t_antoine:python_appr:0.7.4:*:*:*:*:*:*:*",
-          "referenceType":"cpe23Type"
-        },
-        {
-          "referenceCategory":"SECURITY",
-          "referenceLocator":"cpe:2.3:a:antoine_legrand:appr:0.7.4:*:*:*:*:*:*:*",
-          "referenceType":"cpe23Type"
-        },
-        {
-          "referenceCategory":"SECURITY",
-          "referenceLocator":"cpe:2.3:a:python:python-appr:0.7.4:*:*:*:*:*:*:*",
-          "referenceType":"cpe23Type"
-        },
-        {
-          "referenceCategory":"SECURITY",
-          "referenceLocator":"cpe:2.3:a:python:python_appr:0.7.4:*:*:*:*:*:*:*",
-          "referenceType":"cpe23Type"
-        },
-        {
-          "referenceCategory":"SECURITY",
-          "referenceLocator":"cpe:2.3:a:appr:python-appr:0.7.4:*:*:*:*:*:*:*",
-          "referenceType":"cpe23Type"
-        },
-        {
-          "referenceCategory":"SECURITY",
-          "referenceLocator":"cpe:2.3:a:appr:python_appr:0.7.4:*:*:*:*:*:*:*",
-          "referenceType":"cpe23Type"
-        },
-        {
-          "referenceCategory":"SECURITY",
-          "referenceLocator":"cpe:2.3:a:python-appr:appr:0.7.4:*:*:*:*:*:*:*",
-          "referenceType":"cpe23Type"
-        },
-        {
-          "referenceCategory":"SECURITY",
-          "referenceLocator":"cpe:2.3:a:python_appr:appr:0.7.4:*:*:*:*:*:*:*",
-          "referenceType":"cpe23Type"
-        },
-        {
-          "referenceCategory":"SECURITY",
-          "referenceLocator":"cpe:2.3:a:2t-antoine:appr:0.7.4:*:*:*:*:*:*:*",
-          "referenceType":"cpe23Type"
-        },
-        {
-          "referenceCategory":"SECURITY",
-          "referenceLocator":"cpe:2.3:a:2t_antoine:appr:0.7.4:*:*:*:*:*:*:*",
-          "referenceType":"cpe23Type"
-        },
-        {
-          "referenceCategory":"SECURITY",
-          "referenceLocator":"cpe:2.3:a:python:appr:0.7.4:*:*:*:*:*:*:*",
-          "referenceType":"cpe23Type"
-        },
-        {
-          "referenceCategory":"SECURITY",
-          "referenceLocator":"cpe:2.3:a:appr:appr:0.7.4:*:*:*:*:*:*:*",
-          "referenceType":"cpe23Type"
-        },
-        {
           "referenceCategory":"PACKAGE-MANAGER",
           "referenceLocator":"pkg:pypi/appr@0.7.4",
           "referenceType":"purl"
@@ -153,16 +49,6 @@
       "copyrightText": "NOASSERTION",
       "externalRefs": [
         {
-          "referenceCategory": "SECURITY",
-          "referenceType": "cpe23Type",
-          "referenceLocator": "cpe:2.3:a:redhat:bash:4.4.20-4.el8_6:*:*:*:*:*:*:*"
-        },
-        {
-          "referenceCategory": "SECURITY",
-          "referenceType": "cpe23Type",
-          "referenceLocator": "cpe:2.3:a:bash:bash:4.4.20-4.el8_6:*:*:*:*:*:*:*"
-        },
-        {
           "referenceCategory": "PACKAGE-MANAGER",
           "referenceType": "purl",
           "referenceLocator": "pkg:rpm/rhel/bash@4.4.20-4.el8_6?arch=x86_64&upstream=bash-4.4.20-4.el8_6.src.rpm&distro=rhel-8.7"
@@ -174,66 +60,6 @@
              "copyrightText": "NOASSERTION",
              "downloadLocation": "NOASSERTION",
              "externalRefs": [
-                 {
-                     "referenceCategory": "SECURITY",
-                     "referenceLocator": "cpe:2.3:a:python-cachi2:python-cachi2:0.0.post1\\+gdfd2180.d20230704:*:*:*:*:*:*:*",
-                     "referenceType": "cpe23Type"
-                 },
-                 {
-                     "referenceCategory": "SECURITY",
-                     "referenceLocator": "cpe:2.3:a:python-cachi2:python_cachi2:0.0.post1\\+gdfd2180.d20230704:*:*:*:*:*:*:*",
-                     "referenceType": "cpe23Type"
-                 },
-                 {
-                     "referenceCategory": "SECURITY",
-                     "referenceLocator": "cpe:2.3:a:python_cachi2:python-cachi2:0.0.post1\\+gdfd2180.d20230704:*:*:*:*:*:*:*",
-                     "referenceType": "cpe23Type"
-                 },
-                 {
-                     "referenceCategory": "SECURITY",
-                     "referenceLocator": "cpe:2.3:a:python_cachi2:python_cachi2:0.0.post1\\+gdfd2180.d20230704:*:*:*:*:*:*:*",
-                     "referenceType": "cpe23Type"
-                 },
-                 {
-                     "referenceCategory": "SECURITY",
-                     "referenceLocator": "cpe:2.3:a:cachi2:python-cachi2:0.0.post1\\+gdfd2180.d20230704:*:*:*:*:*:*:*",
-                     "referenceType": "cpe23Type"
-                 },
-                 {
-                     "referenceCategory": "SECURITY",
-                     "referenceLocator": "cpe:2.3:a:cachi2:python_cachi2:0.0.post1\\+gdfd2180.d20230704:*:*:*:*:*:*:*",
-                     "referenceType": "cpe23Type"
-                 },
-                 {
-                     "referenceCategory": "SECURITY",
-                     "referenceLocator": "cpe:2.3:a:python-cachi2:cachi2:0.0.post1\\+gdfd2180.d20230704:*:*:*:*:*:*:*",
-                     "referenceType": "cpe23Type"
-                 },
-                 {
-                     "referenceCategory": "SECURITY",
-                     "referenceLocator": "cpe:2.3:a:python:python-cachi2:0.0.post1\\+gdfd2180.d20230704:*:*:*:*:*:*:*",
-                     "referenceType": "cpe23Type"
-                 },
-                 {
-                     "referenceCategory": "SECURITY",
-                     "referenceLocator": "cpe:2.3:a:python:python_cachi2:0.0.post1\\+gdfd2180.d20230704:*:*:*:*:*:*:*",
-                     "referenceType": "cpe23Type"
-                 },
-                 {
-                     "referenceCategory": "SECURITY",
-                     "referenceLocator": "cpe:2.3:a:python_cachi2:cachi2:0.0.post1\\+gdfd2180.d20230704:*:*:*:*:*:*:*",
-                     "referenceType": "cpe23Type"
-                 },
-                 {
-                     "referenceCategory": "SECURITY",
-                     "referenceLocator": "cpe:2.3:a:cachi2:cachi2:0.0.post1\\+gdfd2180.d20230704:*:*:*:*:*:*:*",
-                     "referenceType": "cpe23Type"
-                 },
-                 {
-                     "referenceCategory": "SECURITY",
-                     "referenceLocator": "cpe:2.3:a:python:cachi2:0.0.post1\\+gdfd2180.d20230704:*:*:*:*:*:*:*",
-                     "referenceType": "cpe23Type"
-                 },
                  {
                      "referenceCategory": "PACKAGE-MANAGER",
                      "referenceLocator": "pkg:pypi/cachi2@0.0.post1+gdfd2180.d20230704",
@@ -254,86 +80,6 @@
              "downloadLocation": "NOASSERTION",
              "externalRefs": [
                  {
-                     "referenceCategory": "SECURITY",
-                     "referenceLocator": "cpe:2.3:a:cachito-npm-without-deps:cachito-npm-without-deps:git\\+https\\:\\/\\/github.com\\/cachito-testing\\/cachito-npm-without-deps.git\\#2f0ce1d7b1f8b35572d919428b965285a69583f6:*:*:*:*:*:*:*",
-                     "referenceType": "cpe23Type"
-                 },
-                 {
-                     "referenceCategory": "SECURITY",
-                     "referenceLocator": "cpe:2.3:a:cachito-npm-without-deps:cachito_npm_without_deps:git\\+https\\:\\/\\/github.com\\/cachito-testing\\/cachito-npm-without-deps.git\\#2f0ce1d7b1f8b35572d919428b965285a69583f6:*:*:*:*:*:*:*",
-                     "referenceType": "cpe23Type"
-                 },
-                 {
-                     "referenceCategory": "SECURITY",
-                     "referenceLocator": "cpe:2.3:a:cachito_npm_without_deps:cachito-npm-without-deps:git\\+https\\:\\/\\/github.com\\/cachito-testing\\/cachito-npm-without-deps.git\\#2f0ce1d7b1f8b35572d919428b965285a69583f6:*:*:*:*:*:*:*",
-                     "referenceType": "cpe23Type"
-                 },
-                 {
-                     "referenceCategory": "SECURITY",
-                     "referenceLocator": "cpe:2.3:a:cachito_npm_without_deps:cachito_npm_without_deps:git\\+https\\:\\/\\/github.com\\/cachito-testing\\/cachito-npm-without-deps.git\\#2f0ce1d7b1f8b35572d919428b965285a69583f6:*:*:*:*:*:*:*",
-                     "referenceType": "cpe23Type"
-                 },
-                 {
-                     "referenceCategory": "SECURITY",
-                     "referenceLocator": "cpe:2.3:a:cachito-npm-without:cachito-npm-without-deps:git\\+https\\:\\/\\/github.com\\/cachito-testing\\/cachito-npm-without-deps.git\\#2f0ce1d7b1f8b35572d919428b965285a69583f6:*:*:*:*:*:*:*",
-                     "referenceType": "cpe23Type"
-                 },
-                 {
-                     "referenceCategory": "SECURITY",
-                     "referenceLocator": "cpe:2.3:a:cachito-npm-without:cachito_npm_without_deps:git\\+https\\:\\/\\/github.com\\/cachito-testing\\/cachito-npm-without-deps.git\\#2f0ce1d7b1f8b35572d919428b965285a69583f6:*:*:*:*:*:*:*",
-                     "referenceType": "cpe23Type"
-                 },
-                 {
-                     "referenceCategory": "SECURITY",
-                     "referenceLocator": "cpe:2.3:a:cachito_npm_without:cachito-npm-without-deps:git\\+https\\:\\/\\/github.com\\/cachito-testing\\/cachito-npm-without-deps.git\\#2f0ce1d7b1f8b35572d919428b965285a69583f6:*:*:*:*:*:*:*",
-                     "referenceType": "cpe23Type"
-                 },
-                 {
-                     "referenceCategory": "SECURITY",
-                     "referenceLocator": "cpe:2.3:a:cachito_npm_without:cachito_npm_without_deps:git\\+https\\:\\/\\/github.com\\/cachito-testing\\/cachito-npm-without-deps.git\\#2f0ce1d7b1f8b35572d919428b965285a69583f6:*:*:*:*:*:*:*",
-                     "referenceType": "cpe23Type"
-                 },
-                 {
-                     "referenceCategory": "SECURITY",
-                     "referenceLocator": "cpe:2.3:a:cachito-npm:cachito-npm-without-deps:git\\+https\\:\\/\\/github.com\\/cachito-testing\\/cachito-npm-without-deps.git\\#2f0ce1d7b1f8b35572d919428b965285a69583f6:*:*:*:*:*:*:*",
-                     "referenceType": "cpe23Type"
-                 },
-                 {
-                     "referenceCategory": "SECURITY",
-                     "referenceLocator": "cpe:2.3:a:cachito-npm:cachito_npm_without_deps:git\\+https\\:\\/\\/github.com\\/cachito-testing\\/cachito-npm-without-deps.git\\#2f0ce1d7b1f8b35572d919428b965285a69583f6:*:*:*:*:*:*:*",
-                     "referenceType": "cpe23Type"
-                 },
-                 {
-                     "referenceCategory": "SECURITY",
-                     "referenceLocator": "cpe:2.3:a:cachito_npm:cachito-npm-without-deps:git\\+https\\:\\/\\/github.com\\/cachito-testing\\/cachito-npm-without-deps.git\\#2f0ce1d7b1f8b35572d919428b965285a69583f6:*:*:*:*:*:*:*",
-                     "referenceType": "cpe23Type"
-                 },
-                 {
-                     "referenceCategory": "SECURITY",
-                     "referenceLocator": "cpe:2.3:a:cachito_npm:cachito_npm_without_deps:git\\+https\\:\\/\\/github.com\\/cachito-testing\\/cachito-npm-without-deps.git\\#2f0ce1d7b1f8b35572d919428b965285a69583f6:*:*:*:*:*:*:*",
-                     "referenceType": "cpe23Type"
-                 },
-                 {
-                     "referenceCategory": "SECURITY",
-                     "referenceLocator": "cpe:2.3:a:cachito:cachito-npm-without-deps:git\\+https\\:\\/\\/github.com\\/cachito-testing\\/cachito-npm-without-deps.git\\#2f0ce1d7b1f8b35572d919428b965285a69583f6:*:*:*:*:*:*:*",
-                     "referenceType": "cpe23Type"
-                 },
-                 {
-                     "referenceCategory": "SECURITY",
-                     "referenceLocator": "cpe:2.3:a:cachito:cachito_npm_without_deps:git\\+https\\:\\/\\/github.com\\/cachito-testing\\/cachito-npm-without-deps.git\\#2f0ce1d7b1f8b35572d919428b965285a69583f6:*:*:*:*:*:*:*",
-                     "referenceType": "cpe23Type"
-                 },
-                 {
-                     "referenceCategory": "SECURITY",
-                     "referenceLocator": "cpe:2.3:a:*:cachito-npm-without-deps:git\\+https\\:\\/\\/github.com\\/cachito-testing\\/cachito-npm-without-deps.git\\#2f0ce1d7b1f8b35572d919428b965285a69583f6:*:*:*:*:*:*:*",
-                     "referenceType": "cpe23Type"
-                 },
-                 {
-                     "referenceCategory": "SECURITY",
-                     "referenceLocator": "cpe:2.3:a:*:cachito_npm_without_deps:git\\+https\\:\\/\\/github.com\\/cachito-testing\\/cachito-npm-without-deps.git\\#2f0ce1d7b1f8b35572d919428b965285a69583f6:*:*:*:*:*:*:*",
-                     "referenceType": "cpe23Type"
-                 },
-                 {
                      "referenceCategory": "PACKAGE-MANAGER",
                      "referenceLocator": "pkg:npm/cachito-npm-without-deps@git+https://github.com/cachito-testing/cachito-npm-without-deps.git%232f0ce1d7b1f8b35572d919428b965285a69583f6",
                      "referenceType": "purl"
@@ -353,16 +99,6 @@
              "downloadLocation": "NOASSERTION",
              "externalRefs": [
                  {
-                     "referenceCategory": "SECURITY",
-                     "referenceLocator": "cpe:2.3:a:fecha:fecha:https\\:\\/\\/github.com\\/taylorhakes\\/fecha\\/archive\\/91680e4db1415fea33eac878cfd889c80a7b55c7.tar.gz:*:*:*:*:*:*:*",
-                     "referenceType": "cpe23Type"
-                 },
-                 {
-                     "referenceCategory": "SECURITY",
-                     "referenceLocator": "cpe:2.3:a:*:fecha:https\\:\\/\\/github.com\\/taylorhakes\\/fecha\\/archive\\/91680e4db1415fea33eac878cfd889c80a7b55c7.tar.gz:*:*:*:*:*:*:*",
-                     "referenceType": "cpe23Type"
-                 },
-                 {
                      "referenceCategory": "PACKAGE-MANAGER",
                      "referenceLocator": "pkg:npm/fecha@https://github.com/taylorhakes/fecha/archive/91680e4db1415fea33eac878cfd889c80a7b55c7.tar.gz",
                      "referenceType": "purl"
@@ -381,36 +117,6 @@
              "copyrightText": "NOASSERTION",
              "downloadLocation": "NOASSERTION",
              "externalRefs": [
-                 {
-                     "referenceCategory": "SECURITY",
-                     "referenceLocator": "cpe:2.3:a:redhat-appstudio:build-service:\\(devel\\):*:*:*:*:*:*:*",
-                     "referenceType": "cpe23Type"
-                 },
-                 {
-                     "referenceCategory": "SECURITY",
-                     "referenceLocator": "cpe:2.3:a:redhat-appstudio:build_service:\\(devel\\):*:*:*:*:*:*:*",
-                     "referenceType": "cpe23Type"
-                 },
-                 {
-                     "referenceCategory": "SECURITY",
-                     "referenceLocator": "cpe:2.3:a:redhat_appstudio:build-service:\\(devel\\):*:*:*:*:*:*:*",
-                     "referenceType": "cpe23Type"
-                 },
-                 {
-                     "referenceCategory": "SECURITY",
-                     "referenceLocator": "cpe:2.3:a:redhat_appstudio:build_service:\\(devel\\):*:*:*:*:*:*:*",
-                     "referenceType": "cpe23Type"
-                 },
-                 {
-                     "referenceCategory": "SECURITY",
-                     "referenceLocator": "cpe:2.3:a:redhat:build-service:\\(devel\\):*:*:*:*:*:*:*",
-                     "referenceType": "cpe23Type"
-                 },
-                 {
-                     "referenceCategory": "SECURITY",
-                     "referenceLocator": "cpe:2.3:a:redhat:build_service:\\(devel\\):*:*:*:*:*:*:*",
-                     "referenceType": "cpe23Type"
-                 },
                  {
                      "referenceCategory": "PACKAGE-MANAGER",
                      "referenceLocator": "pkg:golang/github.com/redhat-appstudio/build-service@(devel)",

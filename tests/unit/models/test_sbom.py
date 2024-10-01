@@ -236,87 +236,53 @@ class TestSPDXPackage:
     @pytest.mark.parametrize(
         "category,type,locator,valid",
         [
-            ("SECURITY", "cpe22Type", "cpe:/o:canonical:ubuntu_linux:10.04:-:lts", True),
+            ("SECURITY", "cpe22Type", "cpe:/o:canonical:ubuntu_linux:10.04:-:lts", False),
             (
                 "SECURITY",
                 "cpe23Type",
                 "cpe:2.3:a:microsoft:internet_explorer:8.0.6001:beta:*:*:*:*:*:*",
-                True,
+                False,
             ),
-            ("SECURITY", "advisory", "https://nvd.nist.gov/vuln/detail/CVE-2020-28498", True),
-            ("SECURITY", "fix", "https://github.com/indutny/elliptic/commit/441b7428", True),
+            ("SECURITY", "advisory", "https://nvd.nist.gov/vuln/detail/CVE-2020-28498", False),
+            ("SECURITY", "fix", "https://github.com/indutny/elliptic/commit/441b7428", False),
             (
                 "SECURITY",
                 "url",
                 "https://github.com/christianlundkvist/blog/blob/master/2020_05_26_secp256k1_twist_attacks/secp256k1_twist_attacks.md",
-                True,
+                False,
             ),
-            ("SECURITY", "swid", "2df9de35-0aff-4a86-ace6-f7dddd1ade4c", True),
-            ("PACKAGE-MANAGER", "maven-central", "org.apache.tomcat:tomcat:9.0.0.M4", True),
-            ("PACKAGE-MANAGER", "npm", "http-server@0.3.0", True),
-            ("PACKAGE-MANAGER", "nuget", "Microsoft.AspNet.MVC/5.0.0", True),
-            ("PACKAGE-MANAGER", "bower", "modernizr#2.6.2", True),
-            ("PERSISTENT-ID", "swh", "swh:1:cnt:94a9ed024d3859793618152ea559a168bbcbb5e2", True),
+            ("SECURITY", "swid", "2df9de35-0aff-4a86-ace6-f7dddd1ade4c", False),
+            ("PACKAGE-MANAGER", "maven-central", "org.apache.tomcat:tomcat:9.0.0.M4", False),
+            ("PACKAGE-MANAGER", "npm", "http-server@0.3.0", False),
+            ("PACKAGE-MANAGER", "nuget", "Microsoft.AspNet.MVC/5.0.0", False),
+            ("PACKAGE-MANAGER", "bower", "modernizr#2.6.2", False),
+            ("PERSISTENT-ID", "swh", "swh:1:cnt:94a9ed024d3859793618152ea559a168bbcbb5e2", False),
             (
                 "PERSISTENT-ID",
                 "gitoid",
                 "gitoid:blob:sha1:261eeb9e9f8b2b4b0d119366dda99c6fd7d35c64",
-                True,
+                False,
             ),
             (
                 "OTHER",
                 "some-id",
                 "anythingcangohere",
-                True,
-            ),
-            ("SECURITY", "cpe22Type", "xpe:/o:canonical:ubuntu_linux:-:lts", False),
-            (
-                "SECURITY",
-                "cpe23Type",
-                "cpe:2.3:a:microsoft:internet_explorer:8.0.6001:*:*:*:*:*",
-                False,
-            ),
-            ("SECURITY", "advisory", "/nvd.nist.gov/vuln/detail/CVE-2020-28498", False),
-            ("SECURITY", "fix", "^github.com/indutny/elliptic/commit/441b7428", False),
-            (
-                "SECURITY",
-                "url",
-                "g^ithub.com/christianlundkvist/blog/blob/master/2020_05_26_secp256k1_twist_attacks/secp256k1_twist_attacks.md",
-                False,
-            ),
-            ("SECURITY", "swid", "", False),
-            ("PACKAGE-MANAGER", "maven-central", "org.apache.tomcat", False),
-            ("PACKAGE-MANAGER", "npm", "http-server#0.3.0", False),
-            ("PACKAGE-MANAGER", "nuget", "Microsoft.AspNet.MVC#5.0.0", False),
-            ("PACKAGE-MANAGER", "bower", "modernizr@2.6.2", False),
-            ("PERSISTENT-ID", "swh", "swh:1:cxt:94a9ed024d3859793618152ea559a168bbcbb5e2", False),
-            (
-                "PERSISTENT-ID",
-                "gitoid",
-                "gitoid:blob:sha1:261eeb9e9f8b2b4b0d119366dda99c6fd7d35",
-                False,
-            ),
-            (
-                "OTHER",
-                "some-id",
-                "no spaces allowed",
                 False,
             ),
         ],
     )
-    def test_package_external_ref_reference_locator(
+    def test_package_unsupported_external_ref(
         self, category: str, type: str, locator: str, valid: str
     ) -> None:
+        """Fails on unsupported category and type combinations.
+
+        Only PACKAGE-MANAGER category with type purl is supported.
+        """
         adapter: pydantic.TypeAdapter = pydantic.TypeAdapter(SPDXPackageExternalRefType)
-        if valid:
+        with pytest.raises(pydantic.ValidationError):
             adapter.validate_python(
                 dict(referenceCategory=category, referenceLocator=locator, referenceType=type)
             )
-        else:
-            with pytest.raises(pydantic.ValidationError):
-                adapter.validate_python(
-                    dict(referenceCategory=category, referenceLocator=locator, referenceType=type)
-                )
 
 
 class TestSbom:
