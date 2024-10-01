@@ -135,12 +135,12 @@ Supported:
 * [pip](#pip)
 * [npm](#npm)
 * [yarn](#yarn)
+* [bundler](#bundler)
 
 Planned:
 
 * dnf
 * cargo
-* bundler
 
 *Based on the [supported package managers](https://github.com/containerbuildsystem/cachito#package-managers) in the
 original Cachito.*
@@ -222,6 +222,20 @@ install](https://v3.yarnpkg.com/getting-started/usage#installing-all-the-depende
 prior to pointing cachi2 to your project.
 
 See [docs/yarn.md](docs/yarn.md) for more details.
+
+### bundler
+
+<https://bundler.io/>
+
+Cachi2 supports bundler by parsing the [Gemfile.lock](https://bundler.io/guides/using_bundler_in_applications.html#gemfilelock)
+file present in the source repository and downloading the declared dependencies.
+
+To generate a lockfile or to make sure the file is up to date, you can use
+for example the `bundle lock` command, which generates the `Gemfile.lock` file based
+on the dependencies specified in the [Gemfile](https://bundler.io/v2.5/man/gemfile.5.html).
+Both files must be present in the source repository so you should check them into your git repository.
+
+See [docs/bundler.md](docs/bundler.md) for more details.
 
 ## Project status
 
