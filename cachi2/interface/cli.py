@@ -48,8 +48,8 @@ class SBOMFormat(str, enum.Enum):
 
 SBOM_TYPE_OPTION = typer.Option(
     SBOMFormat.cyclonedx,
-    "--sbom-type",
-    help=("Format of processed or generated SBOM. Default is CycloneDX"),
+    "--sbom-output-type",
+    help=("Format of generated SBOM. Default is CycloneDX"),
 )
 
 
@@ -432,30 +432,50 @@ def merge_sboms(
 
     first to produce SBOMs to merge.
     """
-    sboms_to_merge: List[Union[Sbom, SPDXSbom]] = []
+    sboms_to_merge: List[Union[SPDXSbom, Sbom]] = []
     for sbom_file in sbom_files_to_merge:
+        sbom_dict = json.loads(sbom_file.read_text())
+        # Remove extra fields which are not in Sbom or SPDXSbom models
+        # Both SBom and SPDXSBom models are only subset of cyclonedx and SPDX specifications
+        # Therefore we need to make sure only fields accepted by the models are present
+        for key in list(sbom_dict.keys()):
+            if key not in Sbom.model_fields and key not in SPDXSbom.model_fields:
+                sbom_dict.pop(key)
         try:
-            if sbom_type == SBOMFormat.cyclonedx:
-                sboms_to_merge.append(Sbom.model_validate_json(sbom_file.read_text()))
-            else:
-                sboms_to_merge.append(SPDXSbom.model_validate_json(sbom_file.read_text()))
+            sboms_to_merge.append(Sbom(**sbom_dict))
         except pydantic.ValidationError:
-            raise UnexpectedFormat(f"{sbom_file} does not appear to be a valid Cachi2 SBOM.")
+            try:
+                sboms_to_merge.append(SPDXSbom(**sbom_dict))
+            except pydantic.ValidationError:
+                raise UnexpectedFormat(f"{sbom_file} does not appear to be a valid Cachi2 SBOM.")
 
     if sbom_type == SBOMFormat.cyclonedx:
+        cyclonedx_sboms_to_merge = []
+        for _sbom in sboms_to_merge:
+            if not isinstance(_sbom, Sbom):
+                cyclonedx_sboms_to_merge.append(_sbom.to_cyclonedx())
+            else:
+                cyclonedx_sboms_to_merge.append(_sbom)
         sbom: Union[Sbom, SPDXSbom] = Sbom(
             components=merge_component_properties(
-                chain.from_iterable(cast(Sbom, s).components for s in sboms_to_merge)
+                chain.from_iterable(cast(Sbom, s).components for s in cyclonedx_sboms_to_merge)
             )
         )
     else:
-        packages = chain.from_iterable(cast(SPDXSbom, s).packages for s in sboms_to_merge)
+        spdx_sboms_to_merge = []
+        for _sbom in sboms_to_merge:
+            if not isinstance(_sbom, SPDXSbom):
+                spdx_sboms_to_merge.append(_sbom.to_spdx())
+            else:
+                spdx_sboms_to_merge.append(_sbom)
+
+        packages = chain.from_iterable(cast(SPDXSbom, s).packages for s in spdx_sboms_to_merge)
         sbom = SPDXSbom(
             spdxVersion="SPDX-2.3",
-            spdxIdentifier="SPDXRef-DOCUMENT",
+            SPDXID="SPDXRef-DOCUMENT",
             dataLicense="CC0-1.0",
-            name=sbom_name or cast(SPDXSbom, sboms_to_merge[0]).name,
-            creationInfo=cast(SPDXSbom, sboms_to_merge[0]).creationInfo,
+            name=sbom_name or cast(SPDXSbom, spdx_sboms_to_merge[0]).name,
+            creationInfo=cast(SPDXSbom, spdx_sboms_to_merge[0]).creationInfo,
             packages=packages,
         )
 

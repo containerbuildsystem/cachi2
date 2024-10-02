@@ -87,6 +87,8 @@ class Sbom(pydantic.BaseModel):
     https://cyclonedx.org/docs/1.4/json
     """
 
+    model_config = pydantic.ConfigDict(extra="forbid")
+
     bom_format: Literal["CycloneDX"] = pydantic.Field(alias="bomFormat", default="CycloneDX")
     components: list[Component] = []
     metadata: Metadata = Metadata()
@@ -170,7 +172,13 @@ class Sbom(pydantic.BaseModel):
             packages=packages,
             relationships=relationships,
             creationInfo=SPDXCreationInfo(
-                creators=[f"{tool.vendor} {tool.name}" for tool in self.metadata.tools]
+                creators=sum(
+                    [
+                        [f"Tool: {tool.name}", f"Organization: {tool.vendor}"]
+                        for tool in self.metadata.tools
+                    ],
+                    [],
+                )
             ),
         )
 
@@ -336,6 +344,8 @@ class SPDXSbom(pydantic.BaseModel):
     https://spdx.github.io/spdx-spec/v2.3
     """
 
+    model_config = pydantic.ConfigDict(extra="forbid")
+
     spdxVersion: Literal["SPDX-2.3"] = "SPDX-2.3"
     SPDXID: Literal["SPDXRef-DOCUMENT"] = "SPDXRef-DOCUMENT"
     dataLicense: Literal["CC0-1.0"] = "CC0-1.0"
@@ -384,3 +394,62 @@ class SPDXSbom(pydantic.BaseModel):
     def _unique_packages(cls, packages: list[SPDXPackage]) -> list[SPDXPackage]:
         """Sort and de-duplicate components."""
         return cls.deduplicate_spdx_packages(packages)
+
+    def to_cyclonedx(self) -> Sbom:
+        """Convert a SPDX SBOM to a CycloneDX SBOM."""
+        components = []
+        for package in self.packages:
+            properties = []
+            for an in package.annotations:
+                an_dict = json.loads(an.comment)
+                properties.append(
+                    Property(
+                        name=an_dict["name"],
+                        value=an_dict["value"],
+                    )
+                )
+            purls = []
+            for ref in package.externalRefs:
+                if ref.referenceType == "purl":
+                    purls.append(ref.referenceLocator)
+
+            # cyclonedx doens't support multiple purls, therefore
+            # new component is created for each purl
+            for purl in purls:
+                components.append(
+                    Component(
+                        name=package.name,
+                        version=package.versionInfo,
+                        purl=purl,
+                        properties=properties,
+                    )
+                )
+            # if there's no purl and no package name or version, it's just wrapping element for
+            # spdx package which is layer bellow SPDXDocument in relationships
+            if not purls and not package.name and not package.versionInfo:
+                continue
+            # if there's no purl, add it as single component
+            elif not purls:
+                components.append(
+                    Component(
+                        name=package.name,
+                        version=package.versionInfo,
+                        properties=properties,
+                        purl="",
+                    )
+                )
+        tools = []
+        name, vendor = None, None
+        for creator in self.creationInfo.creators:
+            if creator.startswith("Organization:"):
+                vendor = creator.replace("Organization:", "").strip()
+            elif creator.startswith("Tool:"):
+                name = creator.replace("Tool:", "").strip()
+            if name and vendor:
+                tools.append(Tool(vendor=vendor, name=name))
+                name, vendor = None, None
+
+        return Sbom(
+            components=components,
+            metadata=Metadata(tools=tools),
+        )

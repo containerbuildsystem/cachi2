@@ -7,6 +7,7 @@ import pytest
 from cachi2.core.models.sbom import (
     FOUND_BY_CACHI2_PROPERTY,
     Component,
+    Metadata,
     Property,
     Sbom,
     SPDXPackage,
@@ -15,6 +16,7 @@ from cachi2.core.models.sbom import (
     SPDXPackageExternalRefType,
     SPDXRelation,
     SPDXSbom,
+    Tool,
 )
 
 
@@ -462,6 +464,34 @@ class TestSbom:
             ),
         ]
 
+    def test_to_cyclonedx_around(self, isodate: datetime.datetime) -> None:
+        sbom = Sbom(
+            components=[
+                {
+                    "name": "spdx-expression-parse",
+                    "version": "v1.0.0",
+                    "purl": "pkg:npm/spdx-expression-parse@1.0.0",
+                },
+                {
+                    "name": "github.com/org/A",
+                    "version": "v1.0.0",
+                    "purl": "pkg:golang/github.com/org/A@v1.0.0",
+                },
+                {
+                    "name": "github.com/org/A",
+                    "version": "v1.1.0",
+                    "purl": "pkg:golang/github.com/org/A@v1.1.0",
+                },
+            ],
+        )
+        sbom.components[0].properties.extend(
+            [
+                Property(name="cdx:npm:package:bundled", value="true"),
+            ]
+        )
+        cyclonedx_sbom = sbom.to_spdx().to_cyclonedx()
+        assert cyclonedx_sbom == sbom
+
 
 class TestSPDXSbom:
     def test_sort_and_dedupe_packages(self) -> None:
@@ -660,6 +690,334 @@ class TestSPDXSbom:
                     referenceType="purl",
                 )
             )
+
+    def test_to_cyclonedx(self) -> None:
+        sbom = SPDXSbom(
+            creationInfo={"creators": ["Tool: cachi2", "Organization: cachi2"]},
+            packages=[
+                {
+                    "name": "github.com/org/B",
+                    "versionInfo": "v1.0.0",
+                    "externalRefs": [
+                        {
+                            "referenceCategory": "PACKAGE-MANAGER",
+                            "referenceLocator": "pkg:golang/github.com/org/B@v1.0.0",
+                            "referenceType": "purl",
+                        }
+                    ],
+                },
+                {
+                    "name": "github.com/org/A",
+                    "versionInfo": "v1.1.0",
+                    "externalRefs": [
+                        {
+                            "referenceCategory": "PACKAGE-MANAGER",
+                            "referenceLocator": "pkg:golang/github.com/org/A@v1.1.0?repository_id=R1",
+                            "referenceType": "purl",
+                        }
+                    ],
+                },
+                {
+                    "name": "github.com/org/A",
+                    "versionInfo": "v1.1.0",
+                    "externalRefs": [
+                        {
+                            "referenceCategory": "PACKAGE-MANAGER",
+                            "referenceLocator": "pkg:golang/github.com/org/A@v1.1.0?repository_id=R2",
+                            "referenceType": "purl",
+                        }
+                    ],
+                },
+                {
+                    "name": "github.com/org/A",
+                    "versionInfo": "v1.0.0",
+                    "externalRefs": [
+                        {
+                            "referenceCategory": "PACKAGE-MANAGER",
+                            "referenceLocator": "pkg:golang/github.com/org/A@v1.0.0",
+                            "referenceType": "purl",
+                        }
+                    ],
+                },
+                {
+                    "name": "github.com/org/A",
+                    "versionInfo": "v1.0.0",
+                    "externalRefs": [
+                        {
+                            "referenceCategory": "PACKAGE-MANAGER",
+                            "referenceLocator": "pkg:golang/github.com/org/A@v1.0.0",
+                            "referenceType": "purl",
+                        }
+                    ],
+                },
+                {
+                    "name": "github.com/org/B",
+                    "versionInfo": "v1.0.0",
+                    "externalRefs": [
+                        {
+                            "referenceCategory": "PACKAGE-MANAGER",
+                            "referenceLocator": "pkg:golang/github.com/org/B@v1.0.0",
+                            "referenceType": "purl",
+                        }
+                    ],
+                },
+                {
+                    "name": "fmt",
+                    "versionInfo": None,
+                    "externalRefs": [
+                        {
+                            "referenceCategory": "PACKAGE-MANAGER",
+                            "referenceLocator": "pkg:golang/fmt",
+                            "referenceType": "purl",
+                        }
+                    ],
+                },
+                {
+                    "name": "bytes",
+                    "versionInfo": None,
+                    "externalRefs": [
+                        {
+                            "referenceCategory": "PACKAGE-MANAGER",
+                            "referenceLocator": "pkg:golang/bytes",
+                            "referenceType": "purl",
+                        }
+                    ],
+                },
+            ],
+        )
+        cyclonedx_sbom = sbom.to_cyclonedx()
+        assert cyclonedx_sbom == Sbom(
+            components=[
+                Component(name="bytes", purl="pkg:golang/bytes", version=None),
+                Component(name="fmt", purl="pkg:golang/fmt", version=None),
+                Component(
+                    name="github.com/org/A",
+                    purl="pkg:golang/github.com/org/A@v1.0.0",
+                    version="v1.0.0",
+                ),
+                Component(
+                    name="github.com/org/A",
+                    purl="pkg:golang/github.com/org/A@v1.1.0?repository_id=R1",
+                    version="v1.1.0",
+                ),
+                Component(
+                    name="github.com/org/A",
+                    purl="pkg:golang/github.com/org/A@v1.1.0?repository_id=R2",
+                    version="v1.1.0",
+                ),
+                Component(
+                    name="github.com/org/B",
+                    purl="pkg:golang/github.com/org/B@v1.0.0",
+                    version="v1.0.0",
+                ),
+            ],
+            metadata=Metadata(
+                tools=[Tool(vendor="cachi2", name="cachi2")],
+            ),
+        )
+
+    def test_to_spdx_around(self, isodate: datetime.datetime) -> None:
+        sbom = SPDXSbom(
+            SPDXID="SPDXRef-DOCUMENT",
+            creationInfo={"creators": ["Tool: cachi2", "Organization: cachi2"]},
+            packages=[
+                {
+                    "SPDXID": "SPDXRef-DocumentRoot-File-",
+                    "name": "",
+                    "versionInfo": "",
+                    "externalRefs": [],
+                    "annotations": [],
+                },
+                {
+                    "name": "github.com/org/B",
+                    "SPDXID": "SPDXID-Package-github.com/org/B-v1.0.0-f75a590094f92d64111235b9ae298c34b9acd126f8fc6263b7924810bfe6470c",
+                    "versionInfo": "v1.0.0",
+                    "externalRefs": [
+                        {
+                            "referenceCategory": "PACKAGE-MANAGER",
+                            "referenceLocator": "pkg:golang/github.com/org/B@v1.0.0",
+                            "referenceType": "purl",
+                        }
+                    ],
+                    "annotations": [
+                        {
+                            "annotator": "cachi2",
+                            "annotationDate": "2021-07-01T00:00:00Z",
+                            "annotationType": "OTHER",
+                            "comment": '{"name": "cachi2:found_by", "value": "cachi2"}',
+                        }
+                    ],
+                },
+                {
+                    "name": "github.com/org/A",
+                    "SPDXID": "SPDXID-Package-github.com/org/A-v1.1.0-e4e45c4dc4bfb505f298188b3156fcee718b13e618a73a270401f5a3b77e49b3",
+                    "versionInfo": "v1.1.0",
+                    "externalRefs": [
+                        {
+                            "referenceCategory": "PACKAGE-MANAGER",
+                            "referenceLocator": "pkg:golang/github.com/org/A@v1.1.0?repository_id=R1",
+                            "referenceType": "purl",
+                        }
+                    ],
+                    "annotations": [
+                        {
+                            "annotator": "cachi2",
+                            "annotationDate": "2021-07-01T00:00:00Z",
+                            "annotationType": "OTHER",
+                            "comment": '{"name": "cachi2:found_by", "value": "cachi2"}',
+                        }
+                    ],
+                },
+                {
+                    "name": "github.com/org/A",
+                    "SPDXID": "SPDXID-Package-github.com/org/A-v1.1.0-f75a590094f92d64111235b9ae298c34b9acd126f8fc6263b7924810bfe6470c",
+                    "versionInfo": "v1.1.0",
+                    "externalRefs": [
+                        {
+                            "referenceCategory": "PACKAGE-MANAGER",
+                            "referenceLocator": "pkg:golang/github.com/org/A@v1.1.0?repository_id=R2",
+                            "referenceType": "purl",
+                        }
+                    ],
+                    "annotations": [
+                        {
+                            "annotator": "cachi2",
+                            "annotationDate": "2021-07-01T00:00:00Z",
+                            "annotationType": "OTHER",
+                            "comment": '{"name": "cachi2:found_by", "value": "cachi2"}',
+                        }
+                    ],
+                },
+                {
+                    "name": "github.com/org/A",
+                    "SPDXID": "SPDXID-Package-github.com/org/A-v1.0.0-8090f86e9eb851549de5f8391948c1df6a2c8976bfa33c3cbd82e917564ac94f",
+                    "versionInfo": "v1.0.0",
+                    "externalRefs": [
+                        {
+                            "referenceCategory": "PACKAGE-MANAGER",
+                            "referenceLocator": "pkg:golang/github.com/org/A@v1.0.0",
+                            "referenceType": "purl",
+                        }
+                    ],
+                    "annotations": [
+                        {
+                            "annotator": "cachi2",
+                            "annotationDate": "2021-07-01T00:00:00Z",
+                            "annotationType": "OTHER",
+                            "comment": '{"name": "cachi2:found_by", "value": "cachi2"}',
+                        }
+                    ],
+                },
+                {
+                    "name": "github.com/org/B",
+                    "SPDXID": "SPDXID-Package-github.com/org/B-v1.0.0-f75a590094f92d64111235b9ae298c34b9acd126f8fc6263b7924810bfe6470c",
+                    "versionInfo": "v1.0.0",
+                    "externalRefs": [
+                        {
+                            "referenceCategory": "PACKAGE-MANAGER",
+                            "referenceLocator": "pkg:golang/github.com/org/B@v1.0.0",
+                            "referenceType": "purl",
+                        }
+                    ],
+                    "annotations": [
+                        {
+                            "annotator": "cachi2",
+                            "annotationDate": "2021-07-01T00:00:00Z",
+                            "annotationType": "OTHER",
+                            "comment": '{"name": "cachi2:found_by", "value": "cachi2"}',
+                        }
+                    ],
+                },
+                {
+                    "name": "fmt",
+                    "SPDXID": "SPDXID-Package-fmt--7e4d2ed76d4ea914ece19cdfb657d52dfe5c22193e31c8141497806571490439",
+                    "versionInfo": "",
+                    "externalRefs": [
+                        {
+                            "referenceCategory": "PACKAGE-MANAGER",
+                            "referenceLocator": "pkg:golang/fmt",
+                            "referenceType": "purl",
+                        }
+                    ],
+                    "annotations": [
+                        {
+                            "annotator": "cachi2",
+                            "annotationDate": "2021-07-01T00:00:00Z",
+                            "annotationType": "OTHER",
+                            "comment": '{"name": "cachi2:found_by", "value": "cachi2"}',
+                        }
+                    ],
+                },
+                {
+                    "name": "bytes",
+                    "SPDXID": "SPDXID-Package-bytes--159a73f12ce40d92d01ba213c0ec5b442a301c842533acb3487aed9454ae17e7",
+                    "versionInfo": "",
+                    "externalRefs": [
+                        {
+                            "referenceCategory": "PACKAGE-MANAGER",
+                            "referenceLocator": "pkg:golang/bytes",
+                            "referenceType": "purl",
+                        }
+                    ],
+                    "annotations": [
+                        {
+                            "annotator": "cachi2",
+                            "annotationDate": "2021-07-01T00:00:00Z",
+                            "annotationType": "OTHER",
+                            "comment": '{"name": "cachi2:found_by", "value": "cachi2"}',
+                        }
+                    ],
+                },
+            ],
+            relationships=[
+                {
+                    "spdxElementId": "SPDXRef-DOCUMENT",
+                    "comment": "",
+                    "relatedSpdxElement": "SPDXRef-DocumentRoot-File-",
+                    "relationshipType": "DESCRIBES",
+                },
+                {
+                    "spdxElementId": "SPDXRef-DocumentRoot-File-",
+                    "comment": "",
+                    "relatedSpdxElement": "SPDXID-Package-bytes--159a73f12ce40d92d01ba213c0ec5b442a301c842533acb3487aed9454ae17e7",
+                    "relationshipType": "CONTAINS",
+                },
+                {
+                    "spdxElementId": "SPDXRef-DocumentRoot-File-",
+                    "comment": "",
+                    "relatedSpdxElement": "SPDXID-Package-fmt--7e4d2ed76d4ea914ece19cdfb657d52dfe5c22193e31c8141497806571490439",
+                    "relationshipType": "CONTAINS",
+                },
+                {
+                    "spdxElementId": "SPDXRef-DocumentRoot-File-",
+                    "comment": "",
+                    "relatedSpdxElement": "SPDXID-Package-github.com/org/A-v1.0.0-8090f86e9eb851549de5f8391948c1df6a2c8976bfa33c3cbd82e917564ac94f",
+                    "relationshipType": "CONTAINS",
+                },
+                {
+                    "spdxElementId": "SPDXRef-DocumentRoot-File-",
+                    "comment": "",
+                    "relatedSpdxElement": "SPDXID-Package-github.com/org/A-v1.1.0-e4e45c4dc4bfb505f298188b3156fcee718b13e618a73a270401f5a3b77e49b3",
+                    "relationshipType": "CONTAINS",
+                },
+                {
+                    "spdxElementId": "SPDXRef-DocumentRoot-File-",
+                    "comment": "",
+                    "relatedSpdxElement": "SPDXID-Package-github.com/org/A-v1.1.0-e92e3a95e71ca3b2ef7bd075547593856dec87255626aa3db90a05dcde1b05ec",
+                    "relationshipType": "CONTAINS",
+                },
+                {
+                    "spdxElementId": "SPDXRef-DocumentRoot-File-",
+                    "comment": "",
+                    "relatedSpdxElement": "SPDXID-Package-github.com/org/B-v1.0.0-f75a590094f92d64111235b9ae298c34b9acd126f8fc6263b7924810bfe6470c",
+                    "relationshipType": "CONTAINS",
+                },
+            ],
+        )
+        spdx_sbom = sbom.to_cyclonedx().to_spdx()
+        assert json.dumps(sbom.model_dump(), sort_keys=True, indent=4) == json.dumps(
+            spdx_sbom.model_dump(), sort_keys=True, indent=4
+        )
 
 
 def test_deduplicate_spdx_packages() -> None:

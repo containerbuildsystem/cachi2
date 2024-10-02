@@ -639,7 +639,7 @@ class TestFetchDeps:
         self, request_output: RequestOutput, tmp_cwd: Path, isodate: datetime.datetime
     ) -> None:
         with mock_fetch_deps(output=request_output):
-            invoke_expecting_sucess(app, ["fetch-deps", "--sbom-type", "spdx", "gomod"])
+            invoke_expecting_sucess(app, ["fetch-deps", "--sbom-output-type", "spdx", "gomod"])
 
         build_config_path = tmp_cwd / DEFAULT_OUTPUT / ".build-config.json"
         sbom_path = tmp_cwd / DEFAULT_OUTPUT / "bom.json"
@@ -985,6 +985,28 @@ class TestMergeSboms:
         with tempfile.NamedTemporaryFile(delete=False) as fp:
             fp.close()
             invoke_expecting_sucess(
-                app, ["merge-sboms", "-o", fp.name, "--sbom-type", "spdx", *sbom_files_to_merge]
+                app,
+                ["merge-sboms", "-o", fp.name, "--sbom-output-type", "spdx", *sbom_files_to_merge],
+            )
+            assert Path(fp.name).lstat().st_size > 0, "SBOM failed to be written to output file!"
+
+    @pytest.mark.parametrize(
+        "sbom_files_to_merge",
+        [
+            [
+                "./tests/unit/data/sboms/cachi2.bom.json",
+                "./tests/unit/data/sboms/syft.bom.spdx.json",
+            ],
+        ],
+    )
+    def test_a_user_can_successfully_save_mixed_sboms_merge_results_to_a_file_in_spdx_format(
+        self,
+        sbom_files_to_merge: list[str],
+    ) -> None:
+        with tempfile.NamedTemporaryFile(delete=False) as fp:
+            fp.close()
+            invoke_expecting_sucess(
+                app,
+                ["merge-sboms", "-o", fp.name, "--sbom-output-type", "spdx", *sbom_files_to_merge],
             )
             assert Path(fp.name).lstat().st_size > 0, "SBOM failed to be written to output file!"
