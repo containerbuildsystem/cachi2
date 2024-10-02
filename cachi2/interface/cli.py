@@ -22,7 +22,7 @@ from cachi2.core.resolver import inject_files_post, resolve_packages, supported_
 from cachi2.core.rooted_path import RootedPath
 from cachi2.interface.logging import LogLevel, setup_logging
 
-app = typer.Typer()
+app = typer.Typer(no_args_is_help=True)
 log = logging.getLogger(__name__)
 
 DEFAULT_SOURCE = "."
