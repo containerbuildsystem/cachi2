@@ -358,7 +358,7 @@ class TestFetchDeps:
                 [
                     "Error: InvalidInput: 1 validation error for user input",
                     "packages -> 0",
-                    "Input tag 'idk' found using 'type' does not match any of the expected tags: 'bundler', 'gomod', 'npm', 'pip', 'rpm', 'yarn-classic', 'yarn'",
+                    "Input tag 'idk' found using 'type' does not match any of the expected tags: 'bundler', 'generic', 'gomod', 'npm', 'pip', 'rpm', 'yarn-classic', 'yarn'",
                 ],
             ),
             (
@@ -366,7 +366,7 @@ class TestFetchDeps:
                 [
                     "Error: InvalidInput: 1 validation error for user input",
                     "packages -> 0",
-                    "Input tag 'idk' found using 'type' does not match any of the expected tags: 'bundler', 'gomod', 'npm', 'pip', 'rpm', 'yarn-classic', 'yarn'",
+                    "Input tag 'idk' found using 'type' does not match any of the expected tags: 'bundler', 'generic', 'gomod', 'npm', 'pip', 'rpm', 'yarn-classic', 'yarn'",
                 ],
             ),
             (
@@ -374,7 +374,7 @@ class TestFetchDeps:
                 [
                     "Error: InvalidInput: 1 validation error for user input",
                     "packages -> 0",
-                    "Input tag 'idk' found using 'type' does not match any of the expected tags: 'bundler', 'gomod', 'npm', 'pip', 'rpm', 'yarn-classic', 'yarn'",
+                    "Input tag 'idk' found using 'type' does not match any of the expected tags: 'bundler', 'generic', 'gomod', 'npm', 'pip', 'rpm', 'yarn-classic', 'yarn'",
                 ],
             ),
             # Missing package type
