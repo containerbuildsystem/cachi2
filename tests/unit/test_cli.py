@@ -83,7 +83,7 @@ class TestTopLevelOpts:
         result = invoke_expecting_sucess(app, ["--version"])
         lines = result.output.splitlines()
         assert lines[0] == f"cachi2 {expect_version}"
-        assert lines[1].startswith("Supported package managers: gomod")
+        assert lines[1].startswith("Supported package managers: bundler")
 
     @pytest.mark.parametrize(
         "file, file_text",
