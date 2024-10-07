@@ -9,6 +9,8 @@ from typing import Iterator
 import pytest
 import requests
 
+from tests.integration.utils import TEST_SERVER_LOCALHOST
+
 from . import utils
 
 log = logging.getLogger(__name__)
@@ -59,7 +61,7 @@ def local_pypiserver() -> Iterator[None]:
         for _ in range(60):
             time.sleep(1)
             try:
-                resp = requests.get(f"http://localhost:{pypiserver_port}")
+                resp = requests.get(f"http://{TEST_SERVER_LOCALHOST}:{pypiserver_port}")
                 resp.raise_for_status()
                 log.debug(resp.text)
                 break

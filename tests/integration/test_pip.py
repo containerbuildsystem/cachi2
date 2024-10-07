@@ -136,7 +136,7 @@ log = logging.getLogger(__name__)
         pytest.param(
             utils.TestParameters(
                 repo="https://github.com/cachito-testing/cachi2-pip-custom-index.git",
-                ref="4d6fe87e62b984cf420e6c8377821a76895b72a8",
+                ref="55376bc13904c2f450aac6ee89969d539c8d9f05",
                 packages=({"path": ".", "type": "pip", "allow_binary": True},),
                 check_vendor_checksums=False,
                 expected_exit_code=0,

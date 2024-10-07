@@ -45,7 +45,7 @@ setup() {
     ls -lA "$WORKDIR/auth"
     tar cf - -C "$WORKDIR/auth" . | podman volume import cachi2-pypiserver-auth -
 
-    echo -e "\n--- Starting pypiserver on http://localhost:${PYPISERVER_PORT:-8080} ---\n"
+    echo -e "\n--- Starting pypiserver on http://127.0.0.1:${PYPISERVER_PORT:-8080} ---\n"
 }
 
 setup >&2

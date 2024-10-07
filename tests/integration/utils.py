@@ -19,6 +19,9 @@ from git import Repo
 
 from cachi2.core import resolver
 
+# force IPv4 localhost as 'localhost' can resolve with IPv6 as well
+TEST_SERVER_LOCALHOST = "127.0.0.1"
+
 # Individual files could be added to the set as well.
 PATHS_TO_CODE = frozenset((Path("cachi2"), Path("tests/integration")))
 SUPPORTED_PMS: frozenset[str] = frozenset(
