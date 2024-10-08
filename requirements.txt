@@ -457,6 +457,14 @@ packaging==24.1 \
     # via
     #   cachi2 (pyproject.toml)
     #   pypi-simple
+ply==3.11 \
+    --hash=sha256:00c7c1aaa88358b9c765b6d3000c6eec0ba42abca5351b095321aef446081da3 \
+    --hash=sha256:096f9b8350b65ebd2fd1346b12452efe5b9607f7482813ffca50c22722a807ce
+    # via pyarn
+pyarn==0.2.0 \
+    --hash=sha256:542ff739af2b81a1200776eff2b4d2566a330846decbd0f815999b196d7b067d \
+    --hash=sha256:d06e8b79bb830f142187b57ee664dc0104f658efdb2b2bae7ed99eaf7746eb1a
+    # via cachi2 (pyproject.toml)
 pydantic==2.9.1 \
     --hash=sha256:1363c7d975c7036df0db2b4a61f2e062fbc0aa5ab5f2772e0ffc7191a4f4bce2 \
     --hash=sha256:7aff4db5fdf3cf573d4b3c30926a510a10e19a0774d38fc4967f78beb6deb612
