@@ -95,20 +95,12 @@ jobs:
     # TODO: Replace this with ubuntu-latest once GH completes the migration of the VM runners to
     # ubuntu 24.04 and respect the YAML tag (revert the commit that added this)
     runs-on: ubuntu-24.04
-    container:
-      image: registry.fedoraproject.org/fedora:40
-      options: --privileged
-      volumes:
-      # https://github.com/containers/buildah/issues/3666
-      - /var/lib/containers:/var/lib/containers
-
     steps:
       - name: Install required packages
         run: |
-          dnf distro-sync -y
-          dnf install -y python3 python3-devel python3-pip gcc git podman
-          pip3 install --upgrade pip
-          pip3 install tox tox-gh-actions
+          python3 -m venv /var/tmp/venv
+          /var/tmp/venv/bin/pip3 install --upgrade pip
+          /var/tmp/venv/bin/pip3 install tox
 
       - name: add checkout action...
         uses: actions/checkout@v4
@@ -130,4 +122,4 @@ jobs:
           CACHI2_TEST_LOCAL_PYPISERVER: 'true'
         run: |
           git config --global --add safe.directory "*"
-          tox -e integration
+          /var/tmp/venv/bin/tox -e integration
