@@ -110,7 +110,11 @@ def local_dnfserver(top_level_test_dir: Path) -> Iterator[None]:
         )
         resp.raise_for_status()
 
-    if os.getenv("CACHI2_TEST_LOCAL_DNF_SERVER") != "true":
+    if (
+        os.getenv("CI")
+        and os.getenv("GITHUB_ACTIONS")
+        or os.getenv("CACHI2_TEST_LOCAL_DNF_SERVER") != "true"
+    ):
         yield
         return
 
