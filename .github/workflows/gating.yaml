@@ -107,6 +107,20 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: PyPI test server start
+        run: |
+          tests/pypiserver/start.sh &
+
+          # Testing basic HTTP request
+          status=$(curl -sSI \
+                        --output /dev/null \
+                        --write-out %{http_code} \
+                        --retry-delay 1 \
+                        --retry 60 \
+                        --retry-all-errors \
+                        http://127.0.0.1:8080)
+          [[ ${status} == "200" ]] || exit 1
+
       - name: Build Cachi2 image
         run: |
           podman build -t cachi2:${{ github.sha }} .
