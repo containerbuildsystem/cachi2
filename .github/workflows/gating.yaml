@@ -91,7 +91,10 @@ jobs:
 
   build-image:
     name: Build Cachi2 image and run integration tests on it
-    runs-on: ubuntu-latest
+
+    # TODO: Replace this with ubuntu-latest once GH completes the migration of the VM runners to
+    # ubuntu 24.04 and respect the YAML tag (revert the commit that added this)
+    runs-on: ubuntu-24.04
     container:
       image: registry.fedoraproject.org/fedora:40
       options: --privileged
