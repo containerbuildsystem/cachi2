@@ -47,7 +47,11 @@ def cachi2_image() -> utils.Cachi2Image:
 # test output.
 @pytest.fixture(autouse=True, scope="session")
 def local_pypiserver() -> Iterator[None]:
-    if os.getenv("CACHI2_TEST_LOCAL_PYPISERVER") != "true":
+    if (
+        os.getenv("CI")
+        and os.getenv("GITHUB_ACTIONS")
+        or os.getenv("CACHI2_TEST_LOCAL_PYPISERVER") != "true"
+    ):
         yield
         return
 
