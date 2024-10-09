@@ -438,9 +438,6 @@ def merge_sboms(
         # Remove extra fields which are not in Sbom or SPDXSbom models
         # Both SBom and SPDXSBom models are only subset of cyclonedx and SPDX specifications
         # Therefore we need to make sure only fields accepted by the models are present
-        for key in list(sbom_dict.keys()):
-            if key not in Sbom.model_fields and key not in SPDXSbom.model_fields:
-                sbom_dict.pop(key)
         try:
             sboms_to_merge.append(Sbom(**sbom_dict))
         except pydantic.ValidationError:
@@ -458,7 +455,7 @@ def merge_sboms(
                 cyclonedx_sboms_to_merge.append(_sbom)
         sbom: Union[Sbom, SPDXSbom] = Sbom(
             components=merge_component_properties(
-                chain.from_iterable(cast(Sbom, s).components for s in cyclonedx_sboms_to_merge)
+                chain.from_iterable(s.components for s in cyclonedx_sboms_to_merge)
             )
         )
     else:

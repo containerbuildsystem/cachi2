@@ -121,7 +121,9 @@ class Sbom(pydantic.BaseModel):
                         annotator="cachi2",
                         annotationDate=datetime.datetime.now().isoformat(),
                         annotationType="OTHER",
-                        comment=json.dumps({"name": f"{prop.name}", "value": f"{prop.value}"}),
+                        comment=json.dumps(
+                            {"name": f"{prop.name}", "value": f"{prop.value}"},
+                        ),
                     )
                 )
             package_hash = SPDXPackage._calculate_package_hash_from_dict(
@@ -399,21 +401,12 @@ class SPDXSbom(pydantic.BaseModel):
         """Convert a SPDX SBOM to a CycloneDX SBOM."""
         components = []
         for package in self.packages:
-            properties = []
-            for an in package.annotations:
-                an_dict = json.loads(an.comment)
-                properties.append(
-                    Property(
-                        name=an_dict["name"],
-                        value=an_dict["value"],
-                    )
-                )
-            purls = []
-            for ref in package.externalRefs:
-                if ref.referenceType == "purl":
-                    purls.append(ref.referenceLocator)
+            properties = [Property(**json.loads(an.comment)) for an in package.annotations]
+            purls = [
+                ref.referenceLocator for ref in package.externalRefs if ref.referenceType == "purl"
+            ]
 
-            # cyclonedx doens't support multiple purls, therefore
+            # cyclonedx doesn't support multiple purls, therefore
             # new component is created for each purl
             for purl in purls:
                 components.append(
@@ -425,8 +418,8 @@ class SPDXSbom(pydantic.BaseModel):
                     )
                 )
             # if there's no purl and no package name or version, it's just wrapping element for
-            # spdx package which is layer bellow SPDXDocument in relationships
-            if not purls and not package.name and not package.versionInfo:
+            # spdx package which is one layer bellow SPDXDocument in relationships
+            if not any((purls, package.name, package.versionInfo)):
                 continue
             # if there's no purl, add it as single component
             elif not purls:
@@ -445,7 +438,7 @@ class SPDXSbom(pydantic.BaseModel):
                 vendor = creator.replace("Organization:", "").strip()
             elif creator.startswith("Tool:"):
                 name = creator.replace("Tool:", "").strip()
-            if name and vendor:
+            if name is not None and vendor is not None:
                 tools.append(Tool(vendor=vendor, name=name))
                 name, vendor = None, None
 

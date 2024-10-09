@@ -464,7 +464,9 @@ class TestSbom:
             ),
         ]
 
-    def test_to_cyclonedx_around(self, isodate: datetime.datetime) -> None:
+    def test_cyclonedx_sbom_can_be_converted_to_spdx_and_back_without_loosing_any_data(
+        self, isodate: datetime.datetime
+    ) -> None:
         sbom = Sbom(
             components=[
                 {
@@ -816,7 +818,9 @@ class TestSPDXSbom:
             ),
         )
 
-    def test_to_spdx_around(self, isodate: datetime.datetime) -> None:
+    def test_spdx_sbom_can_be_converted_to_cyclonedx_and_back_without_loosing_any_data(
+        self, isodate: datetime.datetime
+    ) -> None:
         sbom = SPDXSbom(
             SPDXID="SPDXRef-DOCUMENT",
             creationInfo={"creators": ["Tool: cachi2", "Organization: cachi2"]},

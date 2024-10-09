@@ -3,7 +3,6 @@
   "dataLicense": "CC0-1.0",
   "SPDXID": "SPDXRef-DOCUMENT",
   "name": "unknown",
-  "documentNamespace": "https://anchore.com/cachi2/unknown-source-type/unknown-a0e69f8c-334c-4bde-8e8a-7c2388e0fa62",
   "creationInfo": {
     "licenseListVersion": "3.24",
     "creators": [
@@ -17,13 +16,6 @@
       "name": "PyYAML",
       "SPDXID": "SPDXRef-Package-python-PyYAML-696696f5e92f1b5e",
       "versionInfo": "6.0",
-      "supplier": "NOASSERTION",
-      "downloadLocation": "NOASSERTION",
-      "filesAnalyzed": false,
-      "sourceInfo": "acquired package info from installed python package manifest file: ",
-      "licenseConcluded": "NOASSERTION",
-      "licenseDeclared": "NOASSERTION",
-      "copyrightText": "NOASSERTION",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -36,13 +28,6 @@
       "name": "aiowsgi",
       "SPDXID": "SPDXRef-Package-python-aiowsgi-78716bdabf6daae1",
       "versionInfo": "0.8",
-      "supplier": "NOASSERTION",
-      "downloadLocation": "NOASSERTION",
-      "filesAnalyzed": false,
-      "sourceInfo": "acquired package info from installed python package manifest file: ",
-      "licenseConcluded": "NOASSERTION",
-      "licenseDeclared": "NOASSERTION",
-      "copyrightText": "NOASSERTION",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -54,13 +39,6 @@
     {
       "name": "appr",
       "SPDXID": "SPDXRef-Package-python-appr-d869da81f0adbece",
-      "supplier": "NOASSERTION",
-      "downloadLocation": "NOASSERTION",
-      "filesAnalyzed": false,
-      "sourceInfo": "acquired package info from installed python package manifest file: ",
-      "licenseConcluded": "NOASSERTION",
-      "licenseDeclared": "NOASSERTION",
-      "copyrightText": "NOASSERTION",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -72,13 +50,6 @@
     {
       "name": "archive/tar",
       "SPDXID": "SPDXRef-Package-go-module-archive-tar-1ce4dbb5cf96f1c7",
-      "supplier": "NOASSERTION",
-      "downloadLocation": "NOASSERTION",
-      "filesAnalyzed": false,
-      "sourceInfo": "acquired package info from go module information: ",
-      "licenseConcluded": "NOASSERTION",
-      "licenseDeclared": "NOASSERTION",
-      "copyrightText": "NOASSERTION",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -91,13 +62,6 @@
       "name": "cachi2",
       "SPDXID": "SPDXRef-Package-python-cachi2-865cdb2c6f0ff5c5",
       "versionInfo": "0.0.1",
-      "supplier": "NOASSERTION",
-      "downloadLocation": "NOASSERTION",
-      "filesAnalyzed": false,
-      "sourceInfo": "acquired package info from installed python package manifest file: ",
-      "licenseConcluded": "NOASSERTION",
-      "licenseDeclared": "NOASSERTION",
-      "copyrightText": "NOASSERTION",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -109,13 +73,6 @@
     {
       "name": "cachito-npm-without-deps",
       "SPDXID": "SPDXRef-Package-npm-cachito-npm-without-deps-563e3658e3eb288e",
-      "supplier": "NOASSERTION",
-      "downloadLocation": "NOASSERTION",
-      "filesAnalyzed": false,
-      "sourceInfo": "acquired package info from installed node module manifest file: ",
-      "licenseConcluded": "NOASSERTION",
-      "licenseDeclared": "NOASSERTION",
-      "copyrightText": "NOASSERTION",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -128,13 +85,6 @@
       "name": "code.gitea.io/sdk/gitea",
       "SPDXID": "SPDXRef-Package-go-module-code.gitea.io-sdk-gitea-cdc94d3a9074a69b",
       "versionInfo": "v0.15.1",
-      "supplier": "NOASSERTION",
-      "downloadLocation": "NOASSERTION",
-      "filesAnalyzed": false,
-      "sourceInfo": "acquired package info from go module information: ",
-      "licenseConcluded": "NOASSERTION",
-      "licenseDeclared": "NOASSERTION",
-      "copyrightText": "NOASSERTION",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -146,13 +96,6 @@
     {
       "name": "fecha",
       "SPDXID": "SPDXRef-Package-npm-fecha-874399c7dda48850",
-      "supplier": "NOASSERTION",
-      "downloadLocation": "NOASSERTION",
-      "filesAnalyzed": false,
-      "sourceInfo": "acquired package info from installed node module manifest file: ",
-      "licenseConcluded": "NOASSERTION",
-      "licenseDeclared": "NOASSERTION",
-      "copyrightText": "NOASSERTION",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -165,13 +108,6 @@
       "name": "github.com/cachito-testing/gomod-pandemonium/terminaltor",
       "SPDXID": "SPDXRef-Package-go-module-github.com-cachito-testing-gomod-pandemonium-terminaltor-d85aa69f7b0304e3",
       "versionInfo": "v1.0.0",
-      "supplier": "NOASSERTION",
-      "downloadLocation": "NOASSERTION",
-      "filesAnalyzed": false,
-      "sourceInfo": "acquired package info from go module information: ",
-      "licenseConcluded": "NOASSERTION",
-      "licenseDeclared": "NOASSERTION",
-      "copyrightText": "NOASSERTION",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -184,13 +120,6 @@
       "name": "github.com/docker/cli",
       "SPDXID": "SPDXRef-Package-go-module-github.com-docker-cli-ea403731821a081e",
       "versionInfo": "v23.0.0-rc.3+incompatible",
-      "supplier": "NOASSERTION",
-      "downloadLocation": "NOASSERTION",
-      "filesAnalyzed": false,
-      "sourceInfo": "acquired package info from go module information: ",
-      "licenseConcluded": "NOASSERTION",
-      "licenseDeclared": "NOASSERTION",
-      "copyrightText": "NOASSERTION",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -203,13 +132,6 @@
       "name": "github.com/docker/cli/cli/config",
       "SPDXID": "SPDXRef-Package-go-module-github.com-docker-cli-cli-config-73cc4b7b8f510817",
       "versionInfo": "v23.0.0-rc.3+incompatible",
-      "supplier": "NOASSERTION",
-      "downloadLocation": "NOASSERTION",
-      "filesAnalyzed": false,
-      "sourceInfo": "acquired package info from go module information: ",
-      "licenseConcluded": "NOASSERTION",
-      "licenseDeclared": "NOASSERTION",
-      "copyrightText": "NOASSERTION",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -222,13 +144,6 @@
       "name": "github.com/redhat-appstudio/build-service",
       "SPDXID": "SPDXRef-Package-go-module-github.com-redhat-appstudio-build-service-574d786c89acf613",
       "versionInfo": "v0.0.0-20230503110830-d1a9e858489d",
-      "supplier": "NOASSERTION",
-      "downloadLocation": "NOASSERTION",
-      "filesAnalyzed": false,
-      "sourceInfo": "acquired package info from go module information: ",
-      "licenseConcluded": "NOASSERTION",
-      "licenseDeclared": "NOASSERTION",
-      "copyrightText": "NOASSERTION",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -241,13 +156,6 @@
       "name": "knative.dev/pkg",
       "SPDXID": "SPDXRef-Package-go-module-knative.dev-pkg-0a00bf33a820e7f1",
       "versionInfo": "v0.0.0-20230125083639-408ad0773f47",
-      "supplier": "NOASSERTION",
-      "downloadLocation": "NOASSERTION",
-      "filesAnalyzed": false,
-      "sourceInfo": "acquired package info from go module information: ",
-      "licenseConcluded": "NOASSERTION",
-      "licenseDeclared": "NOASSERTION",
-      "copyrightText": "NOASSERTION",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -260,13 +168,6 @@
       "name": "knative.dev/pkg/metrics",
       "SPDXID": "SPDXRef-Package-go-module-knative.dev-pkg-metrics-c613be23287c5dc4",
       "versionInfo": "v0.0.0-20230125083639-408ad0773f47",
-      "supplier": "NOASSERTION",
-      "downloadLocation": "NOASSERTION",
-      "filesAnalyzed": false,
-      "sourceInfo": "acquired package info from go module information: ",
-      "licenseConcluded": "NOASSERTION",
-      "licenseDeclared": "NOASSERTION",
-      "copyrightText": "NOASSERTION",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -279,13 +180,6 @@
       "name": "test_package_cachi2",
       "SPDXID": "SPDXRef-Package-python-test-package-cachi2-bdec7caf7aac75f3",
       "versionInfo": "1.0.0",
-      "supplier": "NOASSERTION",
-      "downloadLocation": "NOASSERTION",
-      "filesAnalyzed": false,
-      "sourceInfo": "acquired package info from installed python package manifest file: ",
-      "licenseConcluded": "NOASSERTION",
-      "licenseDeclared": "NOASSERTION",
-      "copyrightText": "NOASSERTION",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",

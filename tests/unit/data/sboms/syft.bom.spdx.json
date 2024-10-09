@@ -3,7 +3,6 @@
   "dataLicense": "CC0-1.0",
   "SPDXID": "SPDXRef-DOCUMENT",
   "name": "/var/lib/containers/storage/vfs/dir/517aef0ffe20db360d19aa475dbbfbe03f452f53403881a31f9a475c83af788b",
-  "documentNamespace": "https://anchore.com/syft/file/var/lib/containers/storage/vfs/dir/517aef0ffe20db360d19aa475dbbfbe03f452f53403881a31f9a475c83af788b-fd7936f6-323c-4de7-9be8-0fe2584f97fd",
   "creationInfo": {
     "licenseListVersion": "3.24",
     "creators": [
@@ -16,13 +15,6 @@
     {
       "name": "./terminaltor",
       "SPDXID": "SPDXRef-Package-go-module-.-terminaltor-1b79094a8c283d88",
-      "supplier": "NOASSERTION",
-      "downloadLocation": "NOASSERTION",
-      "filesAnalyzed": false,
-      "sourceInfo": "acquired package info from go module information: opt/app-root/src/go.mod",
-      "licenseConcluded": "NOASSERTION",
-      "licenseDeclared": "NOASSERTION",
-      "copyrightText": "NOASSERTION",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -35,13 +27,6 @@
       "name": "./terminaltor",
       "SPDXID": "SPDXRef-Package-go-module-.-terminaltor-9c8431f4d44b5c65",
       "versionInfo": "(devel)",
-      "supplier": "NOASSERTION",
-      "downloadLocation": "NOASSERTION",
-      "filesAnalyzed": false,
-      "sourceInfo": "acquired package info from go module information: opt/app-root/src/main",
-      "licenseConcluded": "NOASSERTION",
-      "licenseDeclared": "NOASSERTION",
-      "copyrightText": "NOASSERTION",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -54,14 +39,6 @@
       "name": "PyYAML",
       "SPDXID": "SPDXRef-Package-python-PyYAML-0172906cb007d3b6",
       "versionInfo": "6.0",
-      "supplier": "Person: Kirill Simonov (xi@resolvent.net)",
-      "originator": "Person: Kirill Simonov (xi@resolvent.net)",
-      "downloadLocation": "NOASSERTION",
-      "filesAnalyzed": false,
-      "sourceInfo": "acquired package info from installed python package manifest file: usr/local/lib64/python3.11/site-packages/PyYAML-6.0.dist-info/METADATA, usr/local/lib64/python3.11/site-packages/PyYAML-6.0.dist-info/RECORD, usr/local/lib64/python3.11/site-packages/PyYAML-6.0.dist-info/top_level.txt",
-      "licenseConcluded": "NOASSERTION",
-      "licenseDeclared": "MIT",
-      "copyrightText": "NOASSERTION",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -74,14 +51,6 @@
       "name": "aiowsgi",
       "SPDXID": "SPDXRef-Package-python-aiowsgi-b32dee5d93047994",
       "versionInfo": "0.8",
-      "supplier": "Person: Gael Pasgrimaud (gael@gawel.org)",
-      "originator": "Person: Gael Pasgrimaud (gael@gawel.org)",
-      "downloadLocation": "NOASSERTION",
-      "filesAnalyzed": false,
-      "sourceInfo": "acquired package info from installed python package manifest file: opt/app-root/lib/python3.9/site-packages/aiowsgi-0.8.dist-info/METADATA, opt/app-root/lib/python3.9/site-packages/aiowsgi-0.8.dist-info/RECORD, opt/app-root/lib/python3.9/site-packages/aiowsgi-0.8.dist-info/top_level.txt",
-      "licenseConcluded": "NOASSERTION",
-      "licenseDeclared": "MIT",
-      "copyrightText": "NOASSERTION",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -94,14 +63,6 @@
       "name": "appr",
       "SPDXID": "SPDXRef-Package-python-appr-93a64d044490691c",
       "versionInfo": "0.7.4",
-      "supplier": "Person: Antoine Legrand (2t.antoine@gmail.com)",
-      "originator": "Person: Antoine Legrand (2t.antoine@gmail.com)",
-      "downloadLocation": "NOASSERTION",
-      "filesAnalyzed": false,
-      "sourceInfo": "acquired package info from installed python package manifest file: opt/app-root/lib/python3.9/site-packages/appr-0.7.4-py3.9.egg-info/PKG-INFO, opt/app-root/lib/python3.9/site-packages/appr-0.7.4-py3.9.egg-info/top_level.txt",
-      "licenseConcluded": "NOASSERTION",
-      "licenseDeclared": "NOASSERTION",
-      "copyrightText": "NOASSERTION",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -114,14 +75,6 @@
       "name": "bash",
       "SPDXID": "SPDXRef-Package-rpm-bash-1a6619bdab5f8a2d",
       "versionInfo": "4.4.20-4.el8_6",
-      "supplier": "Organization: Red Hat, Inc.",
-      "originator": "Organization: Red Hat, Inc.",
-      "downloadLocation": "NOASSERTION",
-      "filesAnalyzed": false,
-      "sourceInfo": "acquired package info from RPM DB: var/lib/rpm/Packages",
-      "licenseConcluded": "NOASSERTION",
-      "licenseDeclared": "NOASSERTION",
-      "copyrightText": "NOASSERTION",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -134,13 +87,6 @@
       "name": "cachi2",
       "SPDXID": "SPDXRef-Package-python-cachi2-71a99443e114c112",
       "versionInfo": "0.0.post1+gdfd2180.d20230704",
-      "supplier": "NOASSERTION",
-      "downloadLocation": "NOASSERTION",
-      "filesAnalyzed": false,
-      "sourceInfo": "acquired package info from installed python package manifest file: src/cachi2.egg-info/PKG-INFO, src/cachi2.egg-info/top_level.txt",
-      "licenseConcluded": "NOASSERTION",
-      "licenseDeclared": "NOASSERTION",
-      "copyrightText": "NOASSERTION",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -153,13 +99,6 @@
       "name": "cachito-npm-without-deps",
       "SPDXID": "SPDXRef-Package-npm-cachito-npm-without-deps-72138119b55a065d",
       "versionInfo": "git+https://github.com/cachito-testing/cachito-npm-without-deps.git#2f0ce1d7b1f8b35572d919428b965285a69583f6",
-      "supplier": "NOASSERTION",
-      "downloadLocation": "NOASSERTION",
-      "filesAnalyzed": false,
-      "sourceInfo": "acquired package info from installed node module manifest file: opt/app-root/src/package-lock.json",
-      "licenseConcluded": "NOASSERTION",
-      "licenseDeclared": "NOASSERTION",
-      "copyrightText": "NOASSERTION",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -172,19 +111,6 @@
       "name": "code.gitea.io/sdk/gitea",
       "SPDXID": "SPDXRef-Package-go-module-code.gitea.io-sdk-gitea-3172f131171fcbf8",
       "versionInfo": "v0.15.1",
-      "supplier": "NOASSERTION",
-      "downloadLocation": "NOASSERTION",
-      "filesAnalyzed": false,
-      "checksums": [
-        {
-          "algorithm": "SHA256",
-          "checksumValue": "589ade0bb618bb16e7d140da3ee5887bf9ad88d293bcb37c30b91ac3bd72c7f3"
-        }
-      ],
-      "sourceInfo": "acquired package info from go module information: manager",
-      "licenseConcluded": "NOASSERTION",
-      "licenseDeclared": "NOASSERTION",
-      "copyrightText": "NOASSERTION",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -197,13 +123,6 @@
       "name": "fecha",
       "SPDXID": "SPDXRef-Package-npm-fecha-ff4ad17b28d08441",
       "versionInfo": "https://github.com/taylorhakes/fecha/archive/91680e4db1415fea33eac878cfd889c80a7b55c7.tar.gz",
-      "supplier": "NOASSERTION",
-      "downloadLocation": "NOASSERTION",
-      "filesAnalyzed": false,
-      "sourceInfo": "acquired package info from installed node module manifest file: opt/app-root/src/package-lock.json",
-      "licenseConcluded": "NOASSERTION",
-      "licenseDeclared": "NOASSERTION",
-      "copyrightText": "NOASSERTION",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -216,19 +135,6 @@
       "name": "github.com/docker/cli",
       "SPDXID": "SPDXRef-Package-go-module-github.com-docker-cli-1671a7feec4073fe",
       "versionInfo": "v23.0.0-rc.3+incompatible",
-      "supplier": "NOASSERTION",
-      "downloadLocation": "NOASSERTION",
-      "filesAnalyzed": false,
-      "checksums": [
-        {
-          "algorithm": "SHA256",
-          "checksumValue": "38fadc503ae902956b559b19072212b79d73203ec74f45710ca6bfa27bd4ccea"
-        }
-      ],
-      "sourceInfo": "acquired package info from go module information: manager",
-      "licenseConcluded": "NOASSERTION",
-      "licenseDeclared": "NOASSERTION",
-      "copyrightText": "NOASSERTION",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -241,13 +147,6 @@
       "name": "github.com/redhat-appstudio/build-service",
       "SPDXID": "SPDXRef-Package-go-module-github.com-redhat-appstudio-build-service-5719506d15c0a3dd",
       "versionInfo": "(devel)",
-      "supplier": "NOASSERTION",
-      "downloadLocation": "NOASSERTION",
-      "filesAnalyzed": false,
-      "sourceInfo": "acquired package info from go module information: manager",
-      "licenseConcluded": "NOASSERTION",
-      "licenseDeclared": "NOASSERTION",
-      "copyrightText": "NOASSERTION",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -260,19 +159,6 @@
       "name": "knative.dev/pkg",
       "SPDXID": "SPDXRef-Package-go-module-knative.dev-pkg-8ce424e944b2a02f",
       "versionInfo": "v0.0.0-20230125083639-408ad0773f47",
-      "supplier": "NOASSERTION",
-      "downloadLocation": "NOASSERTION",
-      "filesAnalyzed": false,
-      "checksums": [
-        {
-          "algorithm": "SHA256",
-          "checksumValue": "ce544eef05ce1d56202afb02de721a606a9e40694b24bf04214637d11877ec8b"
-        }
-      ],
-      "sourceInfo": "acquired package info from go module information: manager",
-      "licenseConcluded": "NOASSERTION",
-      "licenseDeclared": "NOASSERTION",
-      "copyrightText": "NOASSERTION",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
