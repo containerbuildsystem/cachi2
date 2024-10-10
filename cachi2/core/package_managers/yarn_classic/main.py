@@ -9,6 +9,7 @@ from cachi2.core.package_managers.yarn.utils import (
     run_yarn_cmd,
 )
 from cachi2.core.package_managers.yarn_classic.workspaces import extract_workspace_metadata
+from cachi2.core.package_managers.yarn_classic.project import Project
 from cachi2.core.rooted_path import RootedPath
 
 log = logging.getLogger(__name__)
@@ -89,6 +90,30 @@ def _generate_build_environment_variables() -> list[EnvironmentVariable]:
     }
 
     return [EnvironmentVariable(name=key, value=value) for key, value in env_vars.items()]
+
+
+def _verify_repository(project: Project) -> None:
+    _check_for_pnp(project)
+    _check_lockfile(project)
+
+
+def _resolve_yarn_project(project: Project, output_dir: RootedPath) -> list[Component]:
+    """Process a request for a single yarn source directory.
+
+    :param project: the directory to be processed.
+    :param output_dir: the directory where the prefetched dependencies will be placed.
+    :raises PackageManagerError: if fetching dependencies fails
+    """
+    log.info(f"Fetching the yarn-classic dependencies at the subpath {project.source_dir}")
+
+    _verify_repository(project)
+
+    # Placeholders for implementations in other PRs
+    # _set_yarnrc_configuration(project, output_dir)
+    # packages = resolve_packages(project.source_dir)
+    # _fetch_dependencies(project.source_dir)
+
+    # return create_components(packages, project, output_dir)
 
 
 def _verify_corepack_yarn_version(source_dir: RootedPath, env: dict[str, str]) -> None:

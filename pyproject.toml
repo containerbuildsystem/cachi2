@@ -30,6 +30,7 @@ dependencies = [
   "packaging",
   "pydantic",
   "pypi-simple",
+  "pyarn",
   "pyyaml",
   "requests",
   "semver",
