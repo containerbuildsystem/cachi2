@@ -1,0 +1,25 @@
+FROM docker.io/ruby:3.3
+
+# Test disabled network access
+RUN if curl -IsS www.google.com; then echo "Has network access!"; exit 1; fi
+
+# Print cachi2 env vars file
+RUN cat /tmp/cachi2.env
+
+# Check bundler deps
+RUN ls /tmp/bundler_everything_present-output/deps/bundler
+
+# Check content of source repository folder
+RUN ls /tmp/bundler_everything_present-source/
+
+# This should be a COPY, but the source code and Containerfile are in different directories
+RUN cp -r /tmp/bundler_everything_present-source /src
+
+WORKDIR /src
+# Bundler would try and install whichever version was used to generate Gemfile.lock.
+# This will cause bundler to attempt to download an earlier version even if
+# just microversions diverged. This, in turn, would cause a build to fail.
+# Running 'bundle _<version>_ install' is supposed to attempt to run installation
+# with this specific version. The extra code below ensures that any present
+# version is used:
+RUN . /tmp/cachi2.env && bundle --version | cut -d ' ' -f3- | xargs -I {} bundle _{}_ install
