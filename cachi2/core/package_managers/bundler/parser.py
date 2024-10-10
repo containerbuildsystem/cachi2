@@ -11,7 +11,7 @@ from git import Repo
 from packageurl import PackageURL
 from typing_extensions import Self
 
-from cachi2.core.errors import PackageManagerError, PackageRejected
+from cachi2.core.errors import FetchError, PackageManagerError, PackageRejected
 from cachi2.core.package_managers.general import download_binary_file
 from cachi2.core.rooted_path import PathOutsideRoot, RootedPath
 from cachi2.core.scm import get_repo_id
@@ -78,6 +78,44 @@ class GemDependency(_GemMetadata):
         fs_location = deps_dir.join_within_root(Path(f"{self.name}-{self.version}.gem"))
         log.info("Downloading gem %s", self.name)
         download_binary_file(self.remote_location, fs_location)
+
+
+class GemPlatformSpecificDependency(GemDependency):
+    """
+    Represents a gem dependency built for a specific platform.
+
+    Attributes:
+        platform:     Platform for which the dependency was built.
+    """
+
+    platform: str
+
+    @property
+    def remote_location(self) -> str:
+        """Return remote location to download this gem from."""
+        return f"{self.source}/downloads/{self.name}-{self.version}-{self.platform}.gem"
+
+    def download_to(self, deps_dir: RootedPath) -> None:
+        """Download represented gem to specified file system location."""
+        fs_location = deps_dir.join_within_root(
+            Path(f"{self.name}-{self.version}-{self.platform}.gem")
+        )
+        log.info(
+            "Downloading platform-specific gem %s-%s-%s", self.name, self.version, self.platform
+        )
+        try:
+            download_binary_file(self.remote_location, fs_location)
+        except FetchError:
+            # A combination of Ruby v.3.0.7 and some Bundler dependencies results in
+            # -gnu suffix being dropped from some platforms. This was observed on
+            # sqlite3-aarch-linux-gnu. We cannot control user's Ruby version,
+            # but we could try and guess correct path. If this fails then we should
+            # assume that package is broken.
+            self.platform = self.platform + "-gnu"
+            fs_location = deps_dir.join_within_root(
+                Path(f"{self.name}-{self.version}-{self.platform}.gem")
+            )
+            download_binary_file(self.remote_location, fs_location)
 
 
 class GitDependency(_GemMetadata):
@@ -162,11 +200,13 @@ class PathDependency(_GemMetadata):
         return purl.to_string()
 
 
-BundlerDependency = Union[GemDependency, GitDependency, PathDependency]
+BundlerDependency = Union[
+    GemDependency, GemPlatformSpecificDependency, GitDependency, PathDependency
+]
 ParseResult = list[BundlerDependency]
 
 
-def parse_lockfile(package_dir: RootedPath) -> ParseResult:
+def parse_lockfile(package_dir: RootedPath, allow_binary: bool = False) -> ParseResult:
     """Parse a Gemfile.lock file and return a list of dependencies."""
     lockfile_path = package_dir.join_within_root(GEMFILE_LOCK)
     gemfile_path = package_dir.join_within_root(GEMFILE)
@@ -194,7 +234,24 @@ def parse_lockfile(package_dir: RootedPath) -> ParseResult:
     result: ParseResult = []
     for dep in dependencies:
         if dep["type"] == "rubygems":
-            result.append(GemDependency(**dep))
+            if dep["platform"] != "ruby":
+                full_name = "-".join([dep["name"], dep["version"], dep["platform"]])
+                log.warning("Found a binary dependency %s", full_name)
+                if allow_binary:
+                    log.warning(
+                        "Downloading binary dependency %s because 'allow_binary' is set to True",
+                        full_name,
+                    )
+                    result.append(GemPlatformSpecificDependency(**dep))
+                else:
+                    # No need to force a platform if we skip the packages.
+                    log.warning(
+                        "Skipping binary dependency %s because 'allow_binary' is set to False."
+                        " This will likely result in an unbuildable package.",
+                        full_name,
+                    )
+            else:
+                result.append(GemDependency(**dep))
         elif dep["type"] == "git":
             result.append(GitDependency(**dep))
         elif dep["type"] == "path":
