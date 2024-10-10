@@ -16,10 +16,21 @@ from . import utils
 log = logging.getLogger(__name__)
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def test_data_dir() -> Path:
     """Path to the directory for storing unit test data."""
     return Path(__file__).parent / "test_data"
+
+
+@pytest.fixture(scope="session")
+def top_level_test_dir() -> Path:
+    """Path to the top-level tests directory inside our repository.
+
+    This is useful in tests which have to reference particular test data directories, e.g. the
+    simple PyPI server which may contain other data that have to be mount to either the cachi2
+    image during a test execution or to some other service container we may need for testing.
+    """
+    return Path(__file__).parents[1]
 
 
 @pytest.fixture(scope="session")
@@ -47,7 +58,11 @@ def cachi2_image() -> utils.Cachi2Image:
 # test output.
 @pytest.fixture(autouse=True, scope="session")
 def local_pypiserver() -> Iterator[None]:
-    if os.getenv("CACHI2_TEST_LOCAL_PYPISERVER") != "true":
+    if (
+        os.getenv("CI")
+        and os.getenv("GITHUB_ACTIONS")
+        or os.getenv("CACHI2_TEST_LOCAL_PYPISERVER") != "true"
+    ):
         yield
         return
 
@@ -69,6 +84,56 @@ def local_pypiserver() -> Iterator[None]:
                 log.debug(e)
         else:
             raise RuntimeError("pypiserver didn't start fast enough")
+
+        yield
+
+
+@pytest.fixture(autouse=True, scope="session")
+def local_dnfserver(top_level_test_dir: Path) -> Iterator[None]:
+    def _check_ssl_configuration() -> None:
+        # TLS auth enforced
+        resp = requests.get(
+            f"https://{TEST_SERVER_LOCALHOST}:{ssl_port}",
+            verify=f"{dnfserver_dir}/certificates/CA.crt",
+        )
+        if resp.status_code == requests.codes.ok:
+            raise requests.RequestException("DNF server TLS client authentication misconfigured")
+
+        # TLS auth passes
+        resp = requests.get(
+            f"https://{TEST_SERVER_LOCALHOST}:{ssl_port}",
+            cert=(
+                f"{dnfserver_dir}/certificates/client.crt",
+                f"{dnfserver_dir}/certificates/client.key",
+            ),
+            verify=f"{dnfserver_dir}/certificates/CA.crt",
+        )
+        resp.raise_for_status()
+
+    if (
+        os.getenv("CI")
+        and os.getenv("GITHUB_ACTIONS")
+        or os.getenv("CACHI2_TEST_LOCAL_DNF_SERVER") != "true"
+    ):
+        yield
+        return
+
+    dnfserver_dir = top_level_test_dir / "dnfserver"
+
+    with contextlib.ExitStack() as context:
+        proc = context.enter_context(subprocess.Popen([dnfserver_dir / "start.sh"]))
+        context.callback(proc.terminate)
+
+        ssl_port = os.getenv("DNFSERVER_SSL_PORT", "8443")
+        for _ in range(60):
+            time.sleep(1)
+            try:
+                _check_ssl_configuration()
+                break
+            except requests.RequestException as e:
+                raise RuntimeError(e)
+        else:
+            raise RuntimeError("DNF server didn't start fast enough")
 
         yield
 
