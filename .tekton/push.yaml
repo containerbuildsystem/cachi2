@@ -3,8 +3,6 @@ kind: PipelineRun
 metadata:
   name: cachi2-on-push
   annotations:
-    build.appstudio.redhat.com/commit_sha: "{{revision}}"
-    build.appstudio.redhat.com/target_branch: "{{target_branch}}"
     pipelinesascode.tekton.dev/max-keep-runs: "3"
     pipelinesascode.tekton.dev/on-event: "[push]"
     pipelinesascode.tekton.dev/on-target-branch: "[main]"
@@ -15,7 +13,7 @@ spec:
     - name: revision
       value: "{{revision}}"
     - name: output-image
-      value: "quay.io/redhat-appstudio/cachi2:{{revision}}"
+      value: "quay.io/konflux-ci/cachi2:{{revision}}"
     - name: dockerfile
       value: Containerfile
     - name: slack-webhook-notification-team
