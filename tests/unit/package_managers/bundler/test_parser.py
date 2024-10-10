@@ -2,25 +2,35 @@ import json
 import subprocess
 from copy import deepcopy
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterable
 from unittest import mock
 
 import pydantic
 import pytest
 from git.repo import Repo
 
-from cachi2.core.errors import PackageManagerError, PackageRejected, UnexpectedFormat
+from cachi2.core.errors import FetchError, PackageManagerError, PackageRejected, UnexpectedFormat
 from cachi2.core.package_managers.bundler.parser import (
     GEMFILE,
     GEMFILE_LOCK,
     BundlerDependency,
     GemDependency,
+    GemPlatformSpecificDependency,
     GitDependency,
     PathDependency,
     parse_lockfile,
 )
 from cachi2.core.rooted_path import RootedPath
 from tests.common_utils import GIT_REF
+
+
+def relaxed_in(substring: str, messages: Iterable[str]) -> bool:
+    """Check if substring could be found in any message.
+
+    This produces a bit less coupling between tests and code than
+    checking for a full message.
+    """
+    return any(substring in m for m in messages)
 
 
 @pytest.fixture
@@ -150,6 +160,7 @@ def test_parse_gemlock(
         {
             "type": "rubygems",
             "source": "https://rubygems.org/",
+            "platform": "ruby",
             **base_dep,
         },
     ]
@@ -199,7 +210,7 @@ def test_parse_gemlock_empty(
     ],
 )
 @mock.patch("cachi2.core.package_managers.bundler.parser.download_binary_file")
-def test_dependencies_could_be_downloaded(
+def test_source_gem_dependencies_could_be_downloaded(
     mock_downloader: mock.MagicMock,
     caplog: pytest.LogCaptureFixture,
     source: str,
@@ -213,6 +224,62 @@ def test_dependencies_could_be_downloaded(
 
     assert f"Downloading gem {dependency.name}" in caplog.messages
     mock_downloader.assert_called_once_with(expected_source_url, expected_destination)
+
+
+@mock.patch("cachi2.core.package_managers.bundler.parser.download_binary_file")
+def test_binary_gem_dependencies_could_be_downloaded(
+    mock_downloader: mock.MagicMock,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    base_destination = RootedPath("/tmp/foo")
+    source = "https://rubygems.org"
+    platform = "m6502_wm"
+    dependency = GemPlatformSpecificDependency(
+        name="foo",
+        version="0.0.2",
+        source=source,
+        platform=platform,
+    )
+    expected_source_url = f"{source}/downloads/foo-0.0.2-{platform}.gem"
+    expected_destination = base_destination.join_within_root(Path(f"foo-0.0.2-{platform}.gem"))
+
+    dependency.download_to(base_destination)
+
+    assert relaxed_in("Downloading platform-specific gem", caplog.messages)
+    mock_downloader.assert_called_once_with(expected_source_url, expected_destination)
+
+
+@mock.patch("cachi2.core.package_managers.bundler.parser.download_binary_file")
+def test_binary_gem_dependencies_could_be_downloaded_for_damaged_platforms(
+    mock_downloader: mock.MagicMock,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    base_destination = RootedPath("/tmp/foo")
+    source = "https://rubygems.org"
+    platform = "aarch-linux"
+    dependency = GemPlatformSpecificDependency(
+        name="foo",
+        version="0.0.2",
+        source=source,
+        platform=platform,
+    )
+    expected_source_url = f"{source}/downloads/foo-0.0.2-{platform}.gem"
+    expected_corrected_source_url = f"{source}/downloads/foo-0.0.2-{platform}-gnu.gem"
+    expected_destination = base_destination.join_within_root(Path(f"foo-0.0.2-{platform}.gem"))
+    expected_corrected_destination = base_destination.join_within_root(
+        Path(f"foo-0.0.2-{platform}-gnu.gem")
+    )
+    expected_calls = [
+        mock.call(expected_source_url, expected_destination),
+        mock.call(expected_corrected_source_url, expected_corrected_destination),
+    ]
+
+    mock_downloader.side_effect = [FetchError(reason="testing"), "ok"]
+
+    dependency.download_to(base_destination)
+
+    assert relaxed_in("Downloading platform-specific gem", caplog.messages)
+    mock_downloader.assert_has_calls(expected_calls)
 
 
 @mock.patch("cachi2.core.package_managers.bundler.parser.Repo.clone_from")
@@ -302,3 +369,67 @@ def test_purls(rooted_tmp_path_repo: RootedPath) -> None:
 
     for dep, expected_purl in deps:
         assert dep.purl == expected_purl
+
+
+@mock.patch("cachi2.core.package_managers.bundler.parser.run_cmd")
+def test_parse_gemlock_detects_binaries_and_adds_to_parse_result_when_allowed_to(
+    mock_run_cmd: mock.MagicMock,
+    empty_bundler_files: tuple[RootedPath, RootedPath],
+    sample_parser_output: dict[str, Any],
+    rooted_tmp_path: RootedPath,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    base_dep: dict[str, str] = sample_parser_output["dependencies"][0]
+    sample_parser_output["dependencies"] = [
+        {
+            "type": "rubygems",
+            "source": "https://rubygems.org/",
+            "platform": "i8080_cpm",
+            **base_dep,
+        },
+    ]
+
+    mock_run_cmd.return_value = json.dumps(sample_parser_output)
+    result = parse_lockfile(rooted_tmp_path, allow_binary=True)
+
+    expected_deps = [
+        GemPlatformSpecificDependency(
+            name="example",
+            version="0.1.0",
+            source="https://rubygems.org/",
+            platform="i8080_cpm",
+        ),
+    ]
+
+    assert relaxed_in("Found a binary dependency", caplog.messages)
+    assert relaxed_in("Downloading binary dependency", caplog.messages)
+    assert result == expected_deps
+
+
+@mock.patch("cachi2.core.package_managers.bundler.parser.run_cmd")
+def test_parse_gemlock_detects_binaries_and_skips_then_when_instructed_to_skip(
+    mock_run_cmd: mock.MagicMock,
+    empty_bundler_files: tuple[RootedPath, RootedPath],
+    sample_parser_output: dict[str, Any],
+    rooted_tmp_path: RootedPath,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    base_dep: dict[str, str] = sample_parser_output["dependencies"][0]
+    sample_parser_output["dependencies"] = [
+        {
+            "type": "rubygems",
+            "source": "https://rubygems.org/",
+            "platform": "i8080_cpm",
+            **base_dep,
+        },
+    ]
+
+    mock_run_cmd.return_value = json.dumps(sample_parser_output)
+    result = parse_lockfile(rooted_tmp_path, allow_binary=False)
+
+    expected_deps: list = []  # mypy demanded this annotation and is content with it.
+
+    assert relaxed_in("Found a binary dependency", caplog.messages)
+    assert relaxed_in("Skipping binary dependency", caplog.messages)
+
+    assert result == expected_deps
