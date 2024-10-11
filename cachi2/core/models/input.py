@@ -118,7 +118,7 @@ class PipPackageInput(_PackageInputBase):
         return paths
 
 
-class _ExtraOptions(pydantic.BaseModel, extra="forbid"):
+class ExtraOptions(pydantic.BaseModel, extra="forbid"):
     """Global package manager extra options model.
 
     This model takes care of carrying and parsing various kind of extra options that need to be
@@ -173,7 +173,7 @@ class RpmPackageInput(_PackageInputBase):
     """Accepted input for a rpm package."""
 
     type: Literal["rpm"]
-    options: Optional[_ExtraOptions] = None
+    options: Optional[ExtraOptions] = None
 
 
 class YarnPackageInput(_PackageInputBase):
