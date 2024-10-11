@@ -8,7 +8,7 @@ import yaml
 from _pytest.logging import LogCaptureFixture
 
 from cachi2.core.errors import PackageManagerError, PackageRejected
-from cachi2.core.models.input import RpmPackageInput, _ExtraOptions
+from cachi2.core.models.input import ExtraOptions, RpmPackageInput
 from cachi2.core.models.sbom import Component, Property
 from cachi2.core.package_managers.rpm import fetch_rpm_source, inject_files_post
 from cachi2.core.package_managers.rpm.main import (
@@ -56,7 +56,7 @@ arches:
         pytest.param(
             RpmPackageInput.model_construct(
                 type="rpm",
-                options=_ExtraOptions.model_construct(dnf={"foorepo": {"foo": 1, "bar": False}}),
+                options=ExtraOptions.model_construct(dnf={"foorepo": {"foo": 1, "bar": False}}),
             ),
             {"rpm": {"dnf": {"foorepo": {"foo": 1, "bar": False}}}},
             id="fetch_with_dnf_options",
@@ -65,13 +65,11 @@ arches:
             [
                 RpmPackageInput.model_construct(
                     type="rpm",
-                    options=_ExtraOptions.model_construct(
-                        dnf={"foorepo": {"foo": 1, "bar": False}}
-                    ),
+                    options=ExtraOptions.model_construct(dnf={"foorepo": {"foo": 1, "bar": False}}),
                 ),
                 RpmPackageInput.model_construct(
                     type="rpm",
-                    options=_ExtraOptions.model_construct(dnf={"bazrepo": {"baz": 0}}),
+                    options=ExtraOptions.model_construct(dnf={"bazrepo": {"baz": 0}}),
                 ),
             ],
             {"rpm": {"dnf": {"bazrepo": {"baz": 0}}}},
