@@ -56,6 +56,20 @@ log = logging.getLogger(__name__)
         pytest.param(
             utils.TestParameters(
                 repo="https://github.com/cachito-testing/cachi2-yarn.git",
+                ref="invalid_frozen_lockfile_add_dependency",
+                packages=({"path": ".", "type": "yarn-classic"},),
+                flags=["--dev-package-managers"],
+                check_output=False,
+                check_deps_checksums=False,
+                check_vendor_checksums=False,
+                expected_exit_code=1,
+                expected_output="Your lockfile needs to be updated, but yarn was run with `--frozen-lockfile`.",
+            ),
+            id="yarn_invalid_frozen_lockfile_add_dependency",
+        ),
+        pytest.param(
+            utils.TestParameters(
+                repo="https://github.com/cachito-testing/cachi2-yarn.git",
                 ref="200cc9423b1df173c12b61f951e463d8a18d9e19",
                 packages=({"path": ".", "type": "yarn-classic"},),
                 flags=["--dev-package-managers"],
