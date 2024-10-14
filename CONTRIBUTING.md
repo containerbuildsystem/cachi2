@@ -216,7 +216,7 @@ Note: while developing, you can run the PyPI server with `tests/pypiserver/start
 To run integration-tests with custom image, specify the CACHI2\_IMAGE environment variable. Examples:
 
 ```shell
-CACHI2_IMAGE=quay.io/redhat-appstudio/cachi2:{tag} tox -e integration
+CACHI2_IMAGE=quay.io/konflux-ci/cachi2:{tag} tox -e integration
 CACHI2_IMAGE=localhost/cachi2:latest tox -e integration
 ```
 
@@ -269,10 +269,6 @@ tag follows the expected format: `$major.$minor.$patch`, without a `v` prefix).
 *You apply a release tag to a specific commit. The [.tekton/push.yaml](.tekton/push.yaml) pipeline
 should have built the image for that commit already. This is the "corresponding image" that receives
 the new version tag. If the image for the tagged commit does not exist, the release pipeline will fail.*
-
-You can watch the release pipeline in the [OpenShift console][ocp-cachi2-pipelines] in case it fails
-(the pipeline is not visible anywhere in GitHub UI). For intermittent failures, retrying should be
-possible from the OpenShift UI or by deleting and re-pushing the version tag.
 
 *⚠ The release pipeline runs as soon as you push a tag into the repository. Do not push the new version
 tag until you are ready to publish the release. You can use GitHub's ability to auto-create the tag
