@@ -9,8 +9,14 @@ from packageurl import PackageURL
 from cachi2.core.errors import PackageRejected, UnsupportedFeature
 from cachi2.core.models.input import Request
 from cachi2.core.models.output import EnvironmentVariable, ProjectFile, RequestOutput
+from cachi2.core.models.property_semantics import PropertySet
 from cachi2.core.models.sbom import Component
-from cachi2.core.package_managers.bundler.parser import ParseResult, PathDependency, parse_lockfile
+from cachi2.core.package_managers.bundler.parser import (
+    GemPlatformSpecificDependency,
+    ParseResult,
+    PathDependency,
+    parse_lockfile,
+)
 from cachi2.core.rooted_path import RootedPath
 from cachi2.core.scm import get_repo_id
 
@@ -33,6 +39,7 @@ def fetch_bundler_source(request: Request) -> RequestOutput:
             _resolve_bundler_package(
                 package_dir=path_within_root,
                 output_dir=request.output_dir,
+                allow_binary=package.allow_binary,
             )
         )
         project_files.append(_prepare_for_hermetic_build(request.source_dir, request.output_dir))
@@ -68,6 +75,8 @@ def _resolve_bundler_package(
     for dep in dependencies:
         dep.download_to(deps_dir)
         c = Component(name=dep.name, version=dep.version, purl=dep.purl)
+        if isinstance(dep, GemPlatformSpecificDependency):
+            c.properties = PropertySet(bundler_package_binary=True).to_properties()
         components.append(c)
 
     return components
