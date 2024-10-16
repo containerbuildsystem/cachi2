@@ -18,6 +18,7 @@ lockfile_parser.specs.each do |spec|
     when Bundler::Source::Rubygems
       parsed_spec[:type] = 'rubygems'
       parsed_spec[:source] = spec.source.remotes.map(&:to_s).first
+      parsed_spec[:platform] = spec.platform
     when Bundler::Source::Git
       parsed_spec[:type] = 'git'
       parsed_spec[:url] = spec.source.uri
