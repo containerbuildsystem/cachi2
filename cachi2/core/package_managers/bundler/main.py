@@ -27,10 +27,13 @@ def fetch_bundler_source(request: Request) -> RequestOutput:
     )
     project_files: list[ProjectFile] = []
 
-    for package in request.packages:
+    for package in request.bundler_packages:
         path_within_root = request.source_dir.join_within_root(package.path)
         components.extend(
-            _resolve_bundler_package(package_dir=path_within_root, output_dir=request.output_dir)
+            _resolve_bundler_package(
+                package_dir=path_within_root,
+                output_dir=request.output_dir,
+            )
         )
         project_files.append(_prepare_for_hermetic_build(request.source_dir, request.output_dir))
 
@@ -41,11 +44,15 @@ def fetch_bundler_source(request: Request) -> RequestOutput:
     )
 
 
-def _resolve_bundler_package(package_dir: RootedPath, output_dir: RootedPath) -> list[Component]:
+def _resolve_bundler_package(
+    package_dir: RootedPath,
+    output_dir: RootedPath,
+    allow_binary: bool = False,
+) -> list[Component]:
     """Process a request for a single bundler package."""
     deps_dir = output_dir.join_within_root("deps", "bundler")
     deps_dir.path.mkdir(parents=True, exist_ok=True)
-    dependencies = parse_lockfile(package_dir)
+    dependencies = parse_lockfile(package_dir, allow_binary)
 
     name, version = _get_main_package_name_and_version(package_dir, dependencies)
     vcs_url = get_repo_id(package_dir.root).as_vcs_url_qualifier()
@@ -60,7 +67,8 @@ def _resolve_bundler_package(package_dir: RootedPath, output_dir: RootedPath) ->
     components = [Component(name=name, version=version, purl=main_package_purl.to_string())]
     for dep in dependencies:
         dep.download_to(deps_dir)
-        components.append(Component(name=dep.name, version=dep.version, purl=dep.purl))
+        c = Component(name=dep.name, version=dep.version, purl=dep.purl)
+        components.append(c)
 
     return components
 

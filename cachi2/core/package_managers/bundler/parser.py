@@ -198,7 +198,7 @@ BundlerDependency = Union[
 ParseResult = list[BundlerDependency]
 
 
-def parse_lockfile(package_dir: RootedPath) -> ParseResult:
+def parse_lockfile(package_dir: RootedPath, allow_binary: bool = False) -> ParseResult:
     """Parse a Gemfile.lock file and return a list of dependencies."""
     lockfile_path = package_dir.join_within_root(GEMFILE_LOCK)
     gemfile_path = package_dir.join_within_root(GEMFILE)
@@ -226,7 +226,24 @@ def parse_lockfile(package_dir: RootedPath) -> ParseResult:
     result: ParseResult = []
     for dep in dependencies:
         if dep["type"] == "rubygems":
-            result.append(GemDependency(**dep))
+            if dep["platform"] == "ruby":
+                result.append(GemDependency(**dep))
+            else:
+                full_name = "-".join([dep["name"], dep["version"], dep["platform"]])
+                log.info("Found a binary dependency %s", full_name)
+                if allow_binary:
+                    log.warning(
+                        "Will download binary dependency %s because 'allow_binary' is set to True",
+                        full_name,
+                    )
+                    result.append(GemPlatformSpecificDependency(**dep))
+                else:
+                    # No need to force a platform if we skip the packages.
+                    log.warning(
+                        "Skipping binary dependency %s because 'allow_binary' is set to False."
+                        " This will likely result in an unbuildable package.",
+                        full_name,
+                    )
         elif dep["type"] == "git":
             result.append(GitDependency(**dep))
         elif dep["type"] == "path":
