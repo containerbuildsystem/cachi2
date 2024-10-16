@@ -1,19 +1,21 @@
+from pathlib import Path
 from typing import Type
 from unittest import mock
 
 import pytest
+from pydantic_core import Url
 
 from cachi2.core.errors import Cachi2Error, PackageRejected
 from cachi2.core.models.input import GenericPackageInput
 from cachi2.core.models.sbom import Component
 from cachi2.core.package_managers.generic.main import (
+    DEFAULT_DEPS_DIR,
     DEFAULT_LOCKFILE_NAME,
     _load_lockfile,
     _resolve_generic_lockfile,
     fetch_generic_source,
 )
-from cachi2.core.package_managers.generic.models import GenericLockfileV1
-from cachi2.core.rooted_path import RootedPath
+from cachi2.core.rooted_path import PathOutsideRoot, RootedPath
 
 LOCKFILE_WRONG_VERSION = """
 metadata:
@@ -44,8 +46,59 @@ metadata:
     version: '1.0'
 artifacts:
     - download_url: https://example.com/artifact
+      target: archive.zip
       checksums:
         md5: 3a18656e1cea70504b905836dee14db0
+    - download_url: https://example.com/more/complex/path/file.tar.gz?foo=bar#fragment
+      checksums:
+        md5: 32112bed1914cfe3799600f962750b1d
+"""
+
+LOCKFILE_INVALID_TARGET = """
+metadata:
+    version: '1.0'
+artifacts:
+    - download_url: https://example.com/artifact
+      target: ./../../../archive.zip
+      checksums:
+        md5: 3a18656e1cea70504b905836dee14db0
+"""
+
+LOCKFILE_TARGET_OVERLAP = """
+metadata:
+    version: '1.0'
+artifacts:
+    - download_url: https://example.com/artifact
+      target: archive.zip
+      checksums:
+        md5: 3a18656e1cea70504b905836dee14db0
+    - download_url: https://example.com/artifact2
+      target: archive.zip
+      checksums:
+        md5: 3a18656e1cea70504b905836dee14db0
+"""
+
+LOCKFILE_URL_OVERLAP = """
+metadata:
+    version: '1.0'
+artifacts:
+    - download_url: https://example.com/artifact
+      checksums:
+        md5: 3a18656e1cea70504b905836dee14db0
+    - download_url: https://example.com/artifact
+      target: archive.zip
+      checksums:
+        md5: 3a18656e1cea70504b905836dee14db0
+"""
+
+LOCKFILE_WRONG_CHECKSUM = """
+metadata:
+    version: '1.0'
+artifacts:
+    - download_url: https://example.com/artifact
+      target: archive.zip
+      checksums:
+        md5: 32112bed1914cfe3799600f962750b1d
 """
 
 
@@ -102,9 +155,37 @@ def test_resolve_generic_no_lockfile(mock_load: mock.Mock, rooted_tmp_path: Root
             "At least one checksum must be provided",
             id="checksum_empty",
         ),
+        pytest.param(
+            LOCKFILE_INVALID_TARGET,
+            PathOutsideRoot,
+            "target is outside",
+            id="invalid_target",
+        ),
+        pytest.param(
+            LOCKFILE_TARGET_OVERLAP,
+            PackageRejected,
+            "Duplicate targets",
+            id="conflicting_targets",
+        ),
+        pytest.param(
+            LOCKFILE_URL_OVERLAP,
+            PackageRejected,
+            "Duplicate download_urls",
+            id="conflicting_urls",
+        ),
+        pytest.param(
+            LOCKFILE_WRONG_CHECKSUM,
+            PackageRejected,
+            "Failed to verify archive.zip against any of the provided checksums.",
+            id="wrong_checksum",
+        ),
     ],
 )
+@mock.patch("cachi2.core.package_managers.generic.main.asyncio.run")
+@mock.patch("cachi2.core.package_managers.generic.main.async_download_files")
 def test_resolve_generic_lockfile_invalid(
+    mock_download: mock.Mock,
+    mock_asyncio_run: mock.Mock,
     lockfile: str,
     expected_exception: Type[Cachi2Error],
     expected_err: str,
@@ -114,40 +195,44 @@ def test_resolve_generic_lockfile_invalid(
     with open(rooted_tmp_path.join_within_root(DEFAULT_LOCKFILE_NAME), "w") as f:
         f.write(lockfile)
 
+    # setup testing downloaded dependency
+    deps_path = rooted_tmp_path.join_within_root(DEFAULT_DEPS_DIR)
+    Path.mkdir(deps_path.path, parents=True, exist_ok=True)
+    with open(deps_path.join_within_root("archive.zip"), "w") as f:
+        f.write("Testfile")
+
     with pytest.raises(expected_exception) as exc_info:
         _resolve_generic_lockfile(rooted_tmp_path, rooted_tmp_path)
 
     assert expected_err in str(exc_info.value)
 
 
-@pytest.mark.parametrize(
-    ["lockfile", "expected_lockfile"],
-    [
-        pytest.param(
-            LOCKFILE_VALID,
-            GenericLockfileV1.model_validate(
-                {
-                    "metadata": {"version": "1.0"},
-                    "artifacts": [
-                        {
-                            "download_url": "https://example.com/artifact",
-                            "checksums": {"md5": "3a18656e1cea70504b905836dee14db0"},
-                        }
-                    ],
-                }
-            ),
-        ),
-    ],
-)
-def test_resolve_generic_lockfile_valid(
-    lockfile: str,
-    expected_lockfile: GenericLockfileV1,
-    rooted_tmp_path: RootedPath,
-) -> None:
+def test_load_generic_lockfile_valid(rooted_tmp_path: RootedPath) -> None:
+    expected_lockfile = {
+        "metadata": {"version": "1.0"},
+        "artifacts": [
+            {
+                "download_url": Url("https://example.com/artifact"),
+                "target": str(rooted_tmp_path.join_within_root("archive.zip")),
+                "checksums": {"md5": "3a18656e1cea70504b905836dee14db0"},
+            },
+            {
+                "checksums": {"md5": "32112bed1914cfe3799600f962750b1d"},
+                "download_url": Url(
+                    "https://example.com/more/complex/path/file.tar.gz?foo=bar#fragment"
+                ),
+                "target": str(rooted_tmp_path.join_within_root("file.tar.gz")),
+            },
+        ],
+    }
+
     # setup lockfile
     with open(rooted_tmp_path.join_within_root(DEFAULT_LOCKFILE_NAME), "w") as f:
-        f.write(lockfile)
+        f.write(LOCKFILE_VALID)
 
     assert (
-        _load_lockfile(rooted_tmp_path.join_within_root(DEFAULT_LOCKFILE_NAME)) == expected_lockfile
+        _load_lockfile(
+            rooted_tmp_path.join_within_root(DEFAULT_LOCKFILE_NAME), rooted_tmp_path
+        ).model_dump()
+        == expected_lockfile
     )
