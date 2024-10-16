@@ -1,6 +1,9 @@
-from typing import Literal, Optional
+import os
+from typing import List, Literal, Optional
 
 from pydantic import BaseModel, field_validator
+
+from cachi2.core.checksum import ChecksumInfo
 
 
 class LockfileMetadata(BaseModel):
@@ -10,7 +13,11 @@ class LockfileMetadata(BaseModel):
 
 
 class LockfileArtifact(BaseModel):
-    """Defines format of a single artifact in the lockfile."""
+    """
+    Defines format of a single artifact in the lockfile.
+
+    Only used for validation of the format of the lockfile.
+    """
 
     download_url: str
     target: Optional[str] = None
@@ -35,3 +42,44 @@ class GenericLockfileV1(BaseModel):
 
     metadata: LockfileMetadata
     artifacts: list[LockfileArtifact]
+
+
+class GenericArtifact(BaseModel):
+    """Lockfile-version-independent representation of an artifact."""
+
+    download_url: str
+    target: Optional[str] = None
+    checksums: dict[str, str]
+    resolved_path: Optional[os.PathLike[str]] = None
+
+    @classmethod
+    def from_lockfile_artifact(cls, artifact: LockfileArtifact) -> "GenericArtifact":
+        """
+        Create a GenericArtifact from a LockfileArtifact.
+
+        :param artifact: the LockfileArtifact to convert
+        :return: the new GenericArtifact
+        """
+        return cls(
+            download_url=artifact.download_url,
+            target=artifact.target,
+            checksums=artifact.checksums,
+        )
+
+    @property
+    def formatted_checksums(self) -> List[ChecksumInfo]:
+        """Return the checksums as a list of ChecksumInfo objects."""
+        return [ChecksumInfo(algo, digest) for algo, digest in self.checksums.items()]
+
+    @property
+    def resolved_target(self) -> str:
+        """Return the computed target file of the artifact, either set, or taken from the download URL."""
+        return self.target if self.target else os.path.basename(self.download_url)
+
+    def has_same_resolved_path(self, resolved_path: os.PathLike[str]) -> bool:
+        """Compare the resolved paths of two artifacts, if they are set."""
+        # if the path hasn't been set yet, we're unable to compare
+        if self.resolved_path is None or resolved_path is None:
+            return False
+
+        return os.path.realpath(self.resolved_path) == os.path.realpath(resolved_path)
