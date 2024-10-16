@@ -80,6 +80,36 @@ class GemDependency(_GemMetadata):
         download_binary_file(self.remote_location, fs_location)
 
 
+class GemPlatformSpecificDependency(GemDependency):
+    """
+    Represents a gem dependency built for a specific platform.
+
+    Attributes:
+        platform:     Platform for which the dependency was built.
+    """
+
+    platform: str
+
+    @property
+    def remote_location(self) -> str:
+        """Return remote location to download this gem from."""
+        return f"{self.source}downloads/{self.name}-{self.version}-{self.platform}.gem"
+
+    def download_to(self, deps_dir: RootedPath) -> None:
+        """Download represented gem to specified file system location."""
+        fs_location = deps_dir.join_within_root(
+            Path(f"{self.name}-{self.version}-{self.platform}.gem")
+        )
+        log.info(
+            "Downloading platform-specific gem %s-%s-%s", self.name, self.version, self.platform
+        )
+        # A combination of Ruby v.3.0.7 and some Bundler dependencies results in
+        # -gnu suffix being dropped from some platforms. This was observed on
+        # sqlite3-aarch-linux-gnu. We discourage using outdated platforms
+        # for building dependencies and cnsider this to be a limitation of Ruby.
+        download_binary_file(self.remote_location, fs_location)
+
+
 class GitDependency(_GemMetadata):
     """
     Represents a git dependency.
@@ -162,7 +192,9 @@ class PathDependency(_GemMetadata):
         return purl.to_string()
 
 
-BundlerDependency = Union[GemDependency, GitDependency, PathDependency]
+BundlerDependency = Union[
+    GemDependency, GemPlatformSpecificDependency, GitDependency, PathDependency
+]
 ParseResult = list[BundlerDependency]
 
 
