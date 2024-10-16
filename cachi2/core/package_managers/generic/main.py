@@ -1,12 +1,19 @@
+import asyncio
 import logging
+import os
+from pathlib import Path
+from typing import Union
 
 import yaml
 from pydantic import ValidationError
 
+from cachi2.core.checksum import must_match_any_checksum
+from cachi2.core.config import get_config
 from cachi2.core.errors import PackageRejected
 from cachi2.core.models.input import Request
 from cachi2.core.models.output import RequestOutput
 from cachi2.core.models.sbom import Component
+from cachi2.core.package_managers.general import async_download_files
 from cachi2.core.package_managers.generic.models import GenericLockfileV1
 from cachi2.core.rooted_path import RootedPath
 
@@ -45,18 +52,32 @@ def _resolve_generic_lockfile(source_dir: RootedPath, output_dir: RootedPath) ->
             ),
         )
 
+    # output_dir is now the root and cannot be escaped
+    output_dir = output_dir.re_root(DEFAULT_DEPS_DIR)
+
     log.info(f"Reading generic lockfile: {lockfile_path}")
-    lockfile = _load_lockfile(lockfile_path)
+    lockfile = _load_lockfile(lockfile_path, output_dir)
+    to_download: dict[str, Union[str, os.PathLike[str]]] = {}
+
     for artifact in lockfile.artifacts:
-        log.debug(f"Resolving artifact: {artifact.download_url}")
+        # create the parent directory for the artifact
+        Path.mkdir(Path(artifact.target).parent, parents=True, exist_ok=True)
+        to_download[str(artifact.download_url)] = artifact.target
+
+    asyncio.run(async_download_files(to_download, get_config().concurrency_limit))
+
+    # verify checksums
+    for artifact in lockfile.artifacts:
+        must_match_any_checksum(artifact.target, artifact.formatted_checksums)
     return []
 
 
-def _load_lockfile(lockfile_path: RootedPath) -> GenericLockfileV1:
+def _load_lockfile(lockfile_path: RootedPath, output_dir: RootedPath) -> GenericLockfileV1:
     """
     Load the cachi2 generic lockfile from the given path.
 
     :param lockfile_path: the path to the lockfile
+    :param output_dir: path to output directory
     """
     with open(lockfile_path, "r") as f:
         try:
@@ -68,7 +89,9 @@ def _load_lockfile(lockfile_path: RootedPath) -> GenericLockfileV1:
             )
 
         try:
-            lockfile = GenericLockfileV1.model_validate(lockfile_data)
+            lockfile = GenericLockfileV1.model_validate(
+                lockfile_data, context={"output_dir": output_dir}
+            )
         except ValidationError as e:
             loc = e.errors()[0]["loc"]
             msg = e.errors()[0]["msg"]
