@@ -39,6 +39,7 @@ def fetch_bundler_source(request: Request) -> RequestOutput:
             _resolve_bundler_package(
                 package_dir=path_within_root,
                 output_dir=request.output_dir,
+                allow_binary=package.allow_binary,
             )
         )
         project_files.append(_prepare_for_hermetic_build(request.source_dir, request.output_dir))
