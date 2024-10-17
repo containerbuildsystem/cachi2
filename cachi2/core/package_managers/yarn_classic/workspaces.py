@@ -76,7 +76,14 @@ def _extract_workspaces_globs(
     package: dict[str, Any],
 ) -> list[str]:
     """Extract globs from workspaces entry in package dict."""
+    # This could be an Array or an Array nested in an Object.
+    # Official docs mentioning the former:
+    #   https://classic.yarnpkg.com/lang/en/docs/workspaces/
+    # Official blog containing a hint about the latter:
+    #   https://classic.yarnpkg.com/lang/en/docs/workspaces/
     workspaces_globs = package.get("workspaces", [])
+    if isinstance(workspaces_globs, dict):
+        workspaces_globs = workspaces_globs.get("packages", [])
     return workspaces_globs
 
 
