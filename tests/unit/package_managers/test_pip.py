@@ -135,7 +135,7 @@ def test_get_pip_metadata(
         )
         with pytest.raises(PackageRejected) as exc_info:
             pip._get_pip_metadata(PKG_DIR_SUBPATH)
-        assert str(exc_info.value) == "Could not take name from the repository origin url"
+        assert str(exc_info.value) == "Unable to infer package name from origin URL"
         return
 
     assert pyproject_toml.get_name.called == toml_exists
