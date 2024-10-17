@@ -28,9 +28,7 @@ def fetch_yarn_source(request: Request) -> RequestOutput:
     for package in request.yarn_classic_packages:
         package_path = request.source_dir.join_within_root(package.path)
         _ensure_mirror_dir_exists(request.output_dir)
-        prefetch_env = _get_prefetch_environment_variables(request.output_dir)
-        _verify_corepack_yarn_version(package_path, prefetch_env)
-        _fetch_dependencies(package_path, prefetch_env)
+        _resolve_yarn_project(Project.from_source_dir(package_path), request.output_dir)
         # Workspaces metadata is not used at the moment, but will
         # eventualy be converted into components. Using a noop assertion
         # to prevent linters from complaining.
@@ -40,6 +38,15 @@ def fetch_yarn_source(request: Request) -> RequestOutput:
     return RequestOutput.from_obj_list(
         components, _generate_build_environment_variables(), project_files=[]
     )
+
+
+def _resolve_yarn_project(project: Project, output_dir: RootedPath) -> None:
+    """Process a request for a single yarn source directory."""
+    log.info(f"Fetching the yarn dependencies at the subpath {project.source_dir}")
+
+    prefetch_env = _get_prefetch_environment_variables(output_dir)
+    _verify_corepack_yarn_version(project.source_dir, prefetch_env)
+    _fetch_dependencies(project.source_dir, prefetch_env)
 
 
 def _fetch_dependencies(source_dir: RootedPath, env: dict[str, str]) -> None:
