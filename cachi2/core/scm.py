@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import NamedTuple, Union
 from urllib.parse import ParseResult, SplitResult, urlparse, urlsplit
 
+from git.exc import InvalidGitRepositoryError, NoSuchPathError
 from git.repo import Repo
 
 from cachi2.core.errors import FetchError, UnsupportedFeature
@@ -42,7 +43,15 @@ def get_repo_id(repo: Union[str, PathLike[str], Repo]) -> RepoID:
     See `man git-clone` (GIT URLS) for some of the url formats that git supports.
     """
     if isinstance(repo, (str, PathLike)):
-        repo = Repo(repo, search_parent_directories=True)
+        try:
+            repo = Repo(repo, search_parent_directories=True)
+        except (InvalidGitRepositoryError, NoSuchPathError):
+            raise UnsupportedFeature(
+                "Cachi2 cannot process provided path as a git repository",
+                solution=(
+                    "Please ensure that the path is correct and that it is a valid git repository."
+                ),
+            )
 
     try:
         origin = repo.remote("origin")
