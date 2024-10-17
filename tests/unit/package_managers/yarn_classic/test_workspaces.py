@@ -56,10 +56,26 @@ def test_workspaces_could_be_parsed(
     assert result == expected_result
 
 
-def test_extracting_workspace_globs_works_with_globs_deined_in_list() -> None:
-    package = {"workspaces": ["foo"]}
+@pytest.mark.parametrize(
+    "package, expected",
+    [
+        pytest.param(
+            {"workspaces": ["foo"]},
+            ["foo"],
+            id="workspaces_defined_in_an_array",
+        ),
+        pytest.param(
+            {"workspaces": {"packages": ["foo"]}},
+            ["foo"],
+            id="workspaces_defined_in_an_array_within_an_object",
+        ),
+    ],
+)
+def test_extracting_workspace_globs_works_for_all_types_of_workspaces(
+    package: dict,
+    expected: list,
+) -> None:
 
-    expected = ["foo"]
     result = _extract_workspaces_globs(package)
 
     assert expected == result
