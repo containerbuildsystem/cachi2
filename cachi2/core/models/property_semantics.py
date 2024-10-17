@@ -33,6 +33,7 @@ class PropertySet:
     npm_bundled: bool = False
     npm_development: bool = False
     pip_package_binary: bool = False
+    bundler_package_binary: bool = False
 
     @classmethod
     def from_properties(cls, props: Iterable[Property]) -> "Self":
@@ -42,6 +43,7 @@ class PropertySet:
         npm_bundled = False
         npm_development = False
         pip_package_binary = False
+        bundler_package_binary = False
 
         for prop in props:
             if prop.name == "cachi2:found_by":
@@ -54,6 +56,8 @@ class PropertySet:
                 npm_development = True
             elif prop.name == "cachi2:pip:package:binary":
                 pip_package_binary = True
+            elif prop.name == "cachi2:bundler:package:binary":
+                bundler_package_binary = True
             else:
                 assert_never(prop.name)
 
@@ -63,6 +67,7 @@ class PropertySet:
             npm_bundled,
             npm_development,
             pip_package_binary,
+            bundler_package_binary,
         )
 
     def to_properties(self) -> list[Property]:
@@ -80,6 +85,8 @@ class PropertySet:
             props.append(Property(name="cdx:npm:package:development", value="true"))
         if self.pip_package_binary:
             props.append(Property(name="cachi2:pip:package:binary", value="true"))
+        if self.bundler_package_binary:
+            props.append(Property(name="cachi2:bundler:package:binary", value="true"))
 
         return sorted(props, key=lambda p: (p.name, p.value))
 
@@ -92,4 +99,5 @@ class PropertySet:
             npm_bundled=self.npm_bundled and other.npm_bundled,
             npm_development=self.npm_development and other.npm_development,
             pip_package_binary=self.pip_package_binary or other.pip_package_binary,
+            bundler_package_binary=self.bundler_package_binary or other.bundler_package_binary,
         )
