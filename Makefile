@@ -14,7 +14,7 @@ clean:
 venv:
 	/usr/bin/env $(PYTHON_VERSION_VENV) -m venv venv
 	venv/bin/pip install --upgrade pip
-	venv/bin/pip install -r requirements.txt -r requirements-extras.txt
+	venv/bin/pip install -r requirements-extras.txt
 	venv/bin/pip install tox
 	venv/bin/pip install -e .
 
