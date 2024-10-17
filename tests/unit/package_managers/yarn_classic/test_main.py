@@ -11,6 +11,7 @@ from cachi2.core.package_managers.yarn_classic.main import (
     _fetch_dependencies,
     _generate_build_environment_variables,
     _get_prefetch_environment_variables,
+    _resolve_yarn_project,
     _verify_corepack_yarn_version,
     fetch_yarn_source,
 )
@@ -50,15 +51,11 @@ def test_generate_build_environment_variables(
     ],
     indirect=["input_request"],
 )
-@mock.patch("cachi2.core.package_managers.yarn_classic.main._verify_corepack_yarn_version")
-@mock.patch("cachi2.core.package_managers.yarn_classic.main._get_prefetch_environment_variables")
-@mock.patch("cachi2.core.package_managers.yarn_classic.main._fetch_dependencies")
+@mock.patch("cachi2.core.package_managers.yarn_classic.main._resolve_yarn_project")
 @mock.patch("cachi2.core.package_managers.yarn_classic.main.extract_workspace_metadata")
 def test_fetch_yarn_source(
     mock_extract_metadata: mock.Mock,
-    mock_fetch_dependencies: mock.Mock,
-    mock_prefetch_env_vars: mock.Mock,
-    mock_verify_yarn_version: mock.Mock,
+    mock_resolve_yarn: mock.Mock,
     input_request: Request,
     yarn_classic_env_variables: list[EnvironmentVariable],
     components: list[Component],
@@ -70,19 +67,37 @@ def test_fetch_yarn_source(
 
     output = fetch_yarn_source(input_request)
 
-    mock_prefetch_env_vars.assert_has_calls(
-        [mock.call(input_request.output_dir) for _ in input_request.packages]
-    )
-
     calls = []
     for package in input_request.packages:
         package_path = input_request.source_dir.join_within_root(package.path)
-        calls.append(mock.call(package_path, mock_prefetch_env_vars(input_request.output_dir)))
-    mock_verify_yarn_version.assert_has_calls(calls)
-    mock_fetch_dependencies.assert_has_calls(calls)
+        calls.append(mock.call(package_path, input_request.output_dir))
+    mock_resolve_yarn.assert_has_calls(calls)
 
     assert input_request.output_dir.join_within_root("deps/yarn-classic").path.exists()
     assert output == expected_output
+
+
+@mock.patch("cachi2.core.package_managers.yarn_classic.main._verify_corepack_yarn_version")
+@mock.patch("cachi2.core.package_managers.yarn_classic.main._get_prefetch_environment_variables")
+@mock.patch("cachi2.core.package_managers.yarn_classic.main._fetch_dependencies")
+def test_resolve_yarn_project(
+    mock_fetch_dependencies: mock.Mock,
+    mock_prefetch_env_vars: mock.Mock,
+    mock_verify_yarn_version: mock.Mock,
+    rooted_tmp_path: RootedPath,
+) -> None:
+    package_path = rooted_tmp_path
+    output_dir = rooted_tmp_path.join_within_root("output")
+
+    _resolve_yarn_project(package_path, output_dir)
+
+    mock_prefetch_env_vars.assert_called_once_with(output_dir)
+    mock_verify_yarn_version.assert_called_once_with(
+        package_path, mock_prefetch_env_vars.return_value
+    )
+    mock_fetch_dependencies.assert_called_once_with(
+        package_path, mock_prefetch_env_vars.return_value
+    )
 
 
 @mock.patch("cachi2.core.package_managers.yarn_classic.main.run_yarn_cmd")
