@@ -53,7 +53,9 @@ def test_generate_build_environment_variables(
 @mock.patch("cachi2.core.package_managers.yarn_classic.main._verify_corepack_yarn_version")
 @mock.patch("cachi2.core.package_managers.yarn_classic.main._get_prefetch_environment_variables")
 @mock.patch("cachi2.core.package_managers.yarn_classic.main._fetch_dependencies")
+@mock.patch("cachi2.core.package_managers.yarn_classic.main.extract_workspace_metadata")
 def test_fetch_yarn_source(
+    mock_extract_metadata: mock.Mock,
     mock_fetch_dependencies: mock.Mock,
     mock_prefetch_env_vars: mock.Mock,
     mock_verify_yarn_version: mock.Mock,
