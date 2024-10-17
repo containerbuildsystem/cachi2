@@ -273,6 +273,24 @@ def _generate_purl_dependency(package: dict[str, Any]) -> str:
     return purl.to_string()
 
 
+def _infer_package_name_from_origin_url(package_dir: RootedPath) -> str:
+    try:
+        repo_id = get_repo_id(package_dir.root)
+    except UnsupportedFeature:
+        raise PackageRejected(
+            reason="Unable to infer package name from origin URL",
+            solution=(
+                "Provide valid metadata in the package files or ensure"
+                "the git repository has an 'origin' remote with a valid URL."
+            ),
+            docs=PIP_METADATA_DOC,
+        )
+
+    repo_name = Path(repo_id.parsed_origin_url.path).stem
+    resolved_name = Path(repo_name).joinpath(package_dir.subpath_from_root)
+    return canonicalize_name(str(resolved_name).replace("/", "-")).strip("-.")
+
+
 def _get_pip_metadata(package_dir: RootedPath) -> tuple[str, Optional[str]]:
     """
     Attempt to get the name and version of a Pip package.
@@ -312,27 +330,7 @@ def _get_pip_metadata(package_dir: RootedPath) -> tuple[str, Optional[str]]:
 
     if not name:
         log.info("Processing metadata from git repository")
-        try:
-            repo_path = get_repo_id(package_dir.root).parsed_origin_url.path.removesuffix(".git")
-            repo_name = Path(repo_path).name
-            package_subpath = package_dir.subpath_from_root
-
-            resolved_path = Path(repo_name).joinpath(package_subpath)
-            normalized_path = canonicalize_name(str(resolved_path).replace("/", "-"))
-            name = normalized_path.strip("-.")
-        except UnsupportedFeature:
-            raise PackageRejected(
-                reason="Could not take name from the repository origin url",
-                solution=(
-                    "Please specify package metadata in a way that Cachi2 understands"
-                    " (see the docs)\n"
-                    "or make sure that the directory Cachi2 is processing is a git"
-                    " repository with\n"
-                    "an 'origin' remote in which case Cachi2 will infer the package name from"
-                    " the remote url."
-                ),
-                docs=PIP_METADATA_DOC,
-            )
+        name = _infer_package_name_from_origin_url(package_dir)
 
     log.info("Resolved package name: %r", name)
     if version:
