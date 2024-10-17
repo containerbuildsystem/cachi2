@@ -62,6 +62,13 @@ class TestRepoID:
         ):
             get_repo_id(golang_repo_path)
 
+    def test_get_repo_id_invalid_path(self, tmp_path: Path) -> None:
+        with pytest.raises(
+            UnsupportedFeature,
+            match="Cachi2 cannot process provided path as a git repository",
+        ):
+            get_repo_id(tmp_path)
+
     def test_as_vcs_url_qualifier(self) -> None:
         origin_url = "ssh://git@github.com/foo/bar.git"
         commit_id = "abcdef1234"
