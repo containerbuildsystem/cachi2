@@ -459,6 +459,13 @@ packaging==24.1 \
     # via
     #   cachi2 (pyproject.toml)
     #   pypi-simple
+ply==3.11 \
+    --hash=sha256:00c7c1aaa88358b9c765b6d3000c6eec0ba42abca5351b095321aef446081da3 \
+    --hash=sha256:096f9b8350b65ebd2fd1346b12452efe5b9607f7482813ffca50c22722a807ce
+    # via pyarn
+pyarn @ https://github.com/taylormadore/pyarn/archive/refs/heads/add-alternate-file-dep-style.tar.gz \
+    --hash=sha256:892141cd8debc453dcb958f4f38514e65ff0079f8cedd521149c89c603fb1c2b
+    # via cachi2 (pyproject.toml)
 pydantic==2.9.1 \
     --hash=sha256:1363c7d975c7036df0db2b4a61f2e062fbc0aa5ab5f2772e0ffc7191a4f4bce2 \
     --hash=sha256:7aff4db5fdf3cf573d4b3c30926a510a10e19a0774d38fc4967f78beb6deb612
@@ -657,8 +664,10 @@ typing-extensions==4.12.2 \
     --hash=sha256:04e5ca0351e0f3f85c6853954072df659d0d13fac324d0072316b67d7794700d \
     --hash=sha256:1a7ead55c7e559dd4dee8856e3a88b41225abfe1ce8df57b7c13915fe121ffb8
     # via
+    #   multidict
     #   pydantic
     #   pydantic-core
+    #   rich
     #   typer
 urllib3==2.2.3 \
     --hash=sha256:ca899ca043dcb1bafa3e262d73aa25c465bfb49e0bd9dd5d59f1d0acba2f8fac \

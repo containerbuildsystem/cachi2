@@ -6,6 +6,7 @@ from cachi2.core.errors import PackageManagerError
 from cachi2.core.models.input import Request
 from cachi2.core.models.output import Component, EnvironmentVariable, RequestOutput
 from cachi2.core.package_managers.yarn.utils import run_yarn_cmd
+from cachi2.core.package_managers.yarn_classic.resolver import resolve_packages
 from cachi2.core.package_managers.yarn_classic.workspaces import extract_workspace_metadata
 from cachi2.core.rooted_path import RootedPath
 
@@ -44,6 +45,7 @@ def _resolve_yarn_project(package_path: RootedPath, output_dir: RootedPath) -> N
     prefetch_env = _get_prefetch_environment_variables(output_dir)
     _verify_corepack_yarn_version(package_path, prefetch_env)
     _fetch_dependencies(package_path, prefetch_env)
+    resolve_packages(package_path)
 
 
 def _fetch_dependencies(source_dir: RootedPath, env: dict[str, str]) -> None:
