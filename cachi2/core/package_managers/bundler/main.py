@@ -159,6 +159,7 @@ def _prepare_for_hermetic_build(source_dir: RootedPath, output_dir: RootedPath) 
         BUNDLE_CACHE_PATH: "${output_dir}/deps/bundler"
         BUNDLE_DEPLOYMENT: "true"
         BUNDLE_NO_PRUNE: "true"
+        BUNDLE_VERSION: "system"
     """
     )
     if potential_bundle_config.is_file():
