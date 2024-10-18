@@ -1,9 +1,4 @@
 PYTHON_VERSION_VENV ?= python3
-TOX_ENVLIST ?= py3
-TOX_ARGS ?=
-GENERATE_TEST_DATA = false
-TEST_LOCAL_PYPISERVER = false
-TEST_LOCAL_DNF_SERVER = false
 
 .PHONY: clean pip-compile
 all: venv
@@ -14,7 +9,7 @@ clean:
 venv:
 	/usr/bin/env $(PYTHON_VERSION_VENV) -m venv venv
 	venv/bin/pip install --upgrade pip
-	venv/bin/pip install -r requirements.txt -r requirements-extras.txt
+	venv/bin/pip install -r requirements-extras.txt
 	venv/bin/pip install tox
 	venv/bin/pip install -e .
 
@@ -22,13 +17,10 @@ test: venv
 	venv/bin/tox
 
 test-unit: venv
-	venv/bin/tox -e $(TOX_ENVLIST) -- $(TOX_ARGS)
+	venv/bin/tox -e py3
 
 test-integration: venv
-	CACHI2_GENERATE_TEST_DATA=$(GENERATE_TEST_DATA) \
-	CACHI2_TEST_LOCAL_PYPISERVER=$(TEST_LOCAL_PYPISERVER) \
-		venv/bin/tox -e integration -- $(TOX_ARGS)
-	CACHI2_TEST_LOCAL_DNF_SERVER=$(TEST_LOCAL_DNF_SERVER)
+	venv/bin/tox -e integration
 
 mock-unittest-data:
 	hack/mock-unittest-data/gomod.sh
