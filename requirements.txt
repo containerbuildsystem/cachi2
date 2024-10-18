@@ -593,9 +593,9 @@ propcache==0.2.0 \
     --hash=sha256:fc2db02409338bf36590aa985a461b2c96fce91f8e7e0f14c50c5fcc4f229016 \
     --hash=sha256:ffcad6c564fe6b9b8916c1aefbb37a362deebf9394bd2974e9d84232e3e08504
     # via yarl
-pyarn==0.2.0 \
-    --hash=sha256:542ff739af2b81a1200776eff2b4d2566a330846decbd0f815999b196d7b067d \
-    --hash=sha256:d06e8b79bb830f142187b57ee664dc0104f658efdb2b2bae7ed99eaf7746eb1a
+pyarn==0.3.0 \
+    --hash=sha256:8f799d94a9b2fd4bd54185149d8745187c7ededcde98576ff70bf0823fd8a710 \
+    --hash=sha256:e8eaed3ae80c1891a8ea7f6b7538c049a79dd7e7d3b4279f275699b3477b38c2
     # via cachi2 (pyproject.toml)
 pydantic==2.9.1 \
     --hash=sha256:1363c7d975c7036df0db2b4a61f2e062fbc0aa5ab5f2772e0ffc7191a4f4bce2 \
