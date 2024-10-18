@@ -28,6 +28,11 @@ Alternatively, submit a pull request with one of the following
 * A proof-of-concept implementation.
 * In case the change is trivial, you can start with a draft or even provide a PR with the final implementation.
 
+When working on a pull request please make sure that you have followed [pull
+request guidelines](#pull-request-guidelines). Please consult
+[Development](#development) section, it contains a lot of helpful information
+which will make contributing fast and pleasant process.
+
 ### How we deal with larger features
 
 Implementing a larger feature (such as adding a new package manager) is usually a very long and detailed effort. This type of work does not fit well into a single pull request; after several comment threads it becomes almost unmanageable (for you) and very hard to review (for us). For that reason, we request that larger features be split into a series of pull requests. Once approved, these pull requests will be merged into "main", but the new feature will be marked as experimental, and will retain this mark until it meets code quality standards and all necessary changes are merged.
@@ -144,6 +149,10 @@ Observe the following guidelines when submitting a pull request for review
 * Ensure that every single commit passes CI — this is mandatory
 * Feel free to use Github comments to clarify implementation points and consider adding the same comments to the code
 * Feel free to use diagrams, sample code, or links to specific parts of external documentation — they are highly encouraged
+* Please respond to inline comments made in pull requests: it makes it easier to track what has been done and
+  what has not and speeds up review process. "Done" is often enough to indicate that you have reacted to
+  a comment
+* For trivial reviewers' requests it is ok to implement it, respond with "Done" and resolve the thread.
 
 ### Error message guidelines
 
