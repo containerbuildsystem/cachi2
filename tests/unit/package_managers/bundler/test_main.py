@@ -64,7 +64,7 @@ def test_resolve_bundler_package(
 
     components = _resolve_bundler_package(package_dir=package_dir, output_dir=output_dir)
 
-    mock_parse_lockfile.assert_called_once_with(package_dir)
+    mock_parse_lockfile.assert_called_once_with(package_dir, False)
     mock_get_main_package_name_and_version.assert_called_once_with(package_dir, deps)
     mock_gem_dep_download_to.assert_called_with(deps_dir)
     mock_git_dep_download_to.assert_called_with(deps_dir)
@@ -127,6 +127,7 @@ def test__prepare_for_hermetic_build_injects_necessary_variable_into_empty_confi
         BUNDLE_CACHE_PATH: "${output_dir}/deps/bundler"
         BUNDLE_DEPLOYMENT: "true"
         BUNDLE_NO_PRUNE: "true"
+        BUNDLE_VERSION: "system"
         """
     )
 
@@ -146,6 +147,7 @@ def test__prepare_for_hermetic_build_injects_necessary_variable_into_existing_co
         BUNDLE_CACHE_PATH: "${output_dir}/deps/bundler"
         BUNDLE_DEPLOYMENT: "true"
         BUNDLE_NO_PRUNE: "true"
+        BUNDLE_VERSION: "system"
         """
     )
     existing_preamble = dedent(
@@ -175,6 +177,7 @@ def test__prepare_for_hermetic_build_injects_necessary_variable_into_existing_al
         BUNDLE_CACHE_PATH: "${output_dir}/deps/bundler"
         BUNDLE_DEPLOYMENT: "true"
         BUNDLE_NO_PRUNE: "true"
+        BUNDLE_VERSION: "system"
         """
     )
     existing_preamble = dedent(
@@ -209,6 +212,7 @@ def test__prepare_for_hermetic_build_ignores_a_directory_in_place_of_config(
         BUNDLE_CACHE_PATH: "${output_dir}/deps/bundler"
         BUNDLE_DEPLOYMENT: "true"
         BUNDLE_NO_PRUNE: "true"
+        BUNDLE_VERSION: "system"
         """
     )
 

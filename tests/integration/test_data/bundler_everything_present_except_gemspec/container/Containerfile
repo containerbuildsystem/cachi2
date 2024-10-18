@@ -1,0 +1,19 @@
+FROM docker.io/ruby:3.3
+
+# Test disabled network access
+RUN if curl -IsS www.google.com; then echo "Has network access!"; exit 1; fi
+
+# Print cachi2 env vars file
+RUN cat /tmp/cachi2.env
+
+# Check bundler deps
+RUN ls /tmp/bundler_everything_present_except_gemspec-output/deps/bundler
+
+# Check content of source repository folder
+RUN ls /tmp/bundler_everything_present_except_gemspec-source/
+
+# This should be a COPY, but the source code and Containerfile are in different directories
+RUN cp -r /tmp/bundler_everything_present_except_gemspec-source /src
+
+WORKDIR /src
+RUN . /tmp/cachi2.env && bundle install

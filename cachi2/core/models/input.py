@@ -115,6 +115,7 @@ class BundlerPackageInput(_PackageInputBase):
     """Accepted input for a bundler package."""
 
     type: Literal["bundler"]
+    allow_binary: bool = False
 
 
 class GenericPackageInput(_PackageInputBase):
