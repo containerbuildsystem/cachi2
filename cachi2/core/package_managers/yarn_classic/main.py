@@ -9,6 +9,7 @@ from cachi2.core.package_managers.yarn.utils import (
     run_yarn_cmd,
 )
 from cachi2.core.package_managers.yarn_classic.project import Project
+from cachi2.core.package_managers.yarn_classic.resolver import resolve_packages
 from cachi2.core.package_managers.yarn_classic.workspaces import extract_workspace_metadata
 from cachi2.core.rooted_path import RootedPath
 
@@ -47,6 +48,7 @@ def _resolve_yarn_project(project: Project, output_dir: RootedPath) -> None:
     prefetch_env = _get_prefetch_environment_variables(output_dir)
     _verify_corepack_yarn_version(project.source_dir, prefetch_env)
     _fetch_dependencies(project.source_dir, prefetch_env)
+    resolve_packages(project)
 
 
 def _fetch_dependencies(source_dir: RootedPath, env: dict[str, str]) -> None:
