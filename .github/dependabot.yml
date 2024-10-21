@@ -24,15 +24,8 @@ updates:
         update-types:
           - "minor"
           - "patch"
-        exclude-patterns:
-          - "pydantic*"
-
-      # pydantic is a known violator of version updates where they don't release the core backend
-      # with the API library at the same time which holds up other legitimate updates, so group
-      # pydantic deps together
-      pydantic:
-        update-types:
-          - "minor"
-          - "patch"
-        patterns:
-          - "pydantic*"
+    ignore:
+      # pydantic is designed to be used with a single version of pydantic-core [1] which follows a
+      # different release cycle and is our nr.1 violator of version updates blocking other
+      # dependency version updates to be accepted
+      - dependency-name: "pydantic-core"
