@@ -3,7 +3,7 @@ from unittest import mock
 
 import pytest
 
-from cachi2.core.errors import Cachi2Error, PackageManagerError, PackageRejected
+from cachi2.core.errors import Cachi2Error, PackageRejected
 from cachi2.core.models.input import GenericPackageInput
 from cachi2.core.models.sbom import Component
 from cachi2.core.package_managers.generic.main import (
@@ -91,14 +91,14 @@ def test_resolve_generic_no_lockfile(mock_load: mock.Mock, rooted_tmp_path: Root
     [
         pytest.param("{", PackageRejected, "yaml format is not correct", id="invalid_yaml"),
         pytest.param(
-            LOCKFILE_WRONG_VERSION, PackageManagerError, "Input should be '1.0'", id="wrong_version"
+            LOCKFILE_WRONG_VERSION, PackageRejected, "Input should be '1.0'", id="wrong_version"
         ),
         pytest.param(
-            LOCKFILE_CHECKSUM_MISSING, PackageManagerError, "Field required", id="checksum_missing"
+            LOCKFILE_CHECKSUM_MISSING, PackageRejected, "Field required", id="checksum_missing"
         ),
         pytest.param(
             LOCKFILE_CHECKSUM_EMPTY,
-            PackageManagerError,
+            PackageRejected,
             "At least one checksum must be provided",
             id="checksum_empty",
         ),
