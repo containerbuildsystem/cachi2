@@ -3,7 +3,7 @@ import logging
 import yaml
 from pydantic import ValidationError
 
-from cachi2.core.errors import PackageManagerError, PackageRejected
+from cachi2.core.errors import PackageRejected
 from cachi2.core.models.input import Request
 from cachi2.core.models.output import RequestOutput
 from cachi2.core.models.sbom import Component
@@ -72,7 +72,7 @@ def _load_lockfile(lockfile_path: RootedPath) -> GenericLockfileV1:
         except ValidationError as e:
             loc = e.errors()[0]["loc"]
             msg = e.errors()[0]["msg"]
-            raise PackageManagerError(
+            raise PackageRejected(
                 f"Cachi2 lockfile '{lockfile_path}' format is not valid: '{loc}: {msg}'",
                 solution=(
                     "Check the correct format and whether any keys are missing in the lockfile."
