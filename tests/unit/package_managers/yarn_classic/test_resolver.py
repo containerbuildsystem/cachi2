@@ -6,14 +6,17 @@ import pytest
 from pyarn.lockfile import Package as PYarnPackage
 
 from cachi2.core.errors import PackageRejected, UnexpectedFormat
+from cachi2.core.package_managers.yarn.project import PackageJson
 from cachi2.core.package_managers.yarn_classic.resolver import (
     FilePackage,
     GitPackage,
     LinkPackage,
     RegistryPackage,
     UrlPackage,
+    WorkspacePackage,
     YarnClassicPackage,
     _classify_pyarn_package,
+    _get_main_package,
     _get_packages_from_lockfile,
     _is_from_npm_registry,
     _is_git_url,
@@ -244,12 +247,53 @@ def test__get_packages_from_lockfile(
 
 
 @mock.patch("cachi2.core.package_managers.yarn_classic.resolver._get_packages_from_lockfile")
-def test_resolve_packages(mock_get_packages: mock.Mock, rooted_tmp_path: RootedPath) -> None:
-    mock_package_1 = mock.Mock()
-    mock_package_2 = mock.Mock()
-    expected_output = [mock_package_1, mock_package_2]
-    mock_get_packages.return_value = expected_output
+@mock.patch("cachi2.core.package_managers.yarn_classic.resolver._get_main_package")
+def test_resolve_packages(
+    mock_get_main_package: mock.Mock,
+    mock_get_lockfile_packages: mock.Mock,
+    rooted_tmp_path: RootedPath,
+) -> None:
+    main_package = mock.Mock()
+    lockfile_packages = [mock.Mock(), mock.Mock()]
+    expected_output = [main_package, *lockfile_packages]
+
+    mock_get_main_package.return_value = main_package
+    mock_get_lockfile_packages.return_value = lockfile_packages
 
     output = resolve_packages(rooted_tmp_path)
-    mock_get_packages.assert_called_once_with(rooted_tmp_path)
+    mock_get_main_package.assert_called_once_with(rooted_tmp_path)
+    mock_get_lockfile_packages.assert_called_once_with(rooted_tmp_path)
     assert output == expected_output
+
+
+@mock.patch("cachi2.core.package_managers.yarn_classic.resolver.PackageJson")
+def test__get_main_package(mock_package_json: mock.Mock, rooted_tmp_path: RootedPath) -> None:
+    mock_package_json.from_file.return_value = PackageJson(
+        path=rooted_tmp_path.join_within_root("package.json"),
+        data={"name": "foo", "version": "1.0.0"},
+    )
+    expected_output = WorkspacePackage(
+        name="foo",
+        version="1.0.0",
+        relpath=rooted_tmp_path.subpath_from_root,
+    )
+
+    output = _get_main_package(rooted_tmp_path)
+    assert output == expected_output
+
+
+@mock.patch("cachi2.core.package_managers.yarn_classic.resolver.PackageJson")
+def test__get_main_package_no_name(
+    mock_package_json: mock.Mock, rooted_tmp_path: RootedPath
+) -> None:
+    package_json = PackageJson(
+        path=rooted_tmp_path.join_within_root("package.json"),
+        data={},
+    )
+    mock_package_json.from_file.return_value = package_json
+    error_msg = (
+        f"The package.json file located at {package_json._path.path} is missing the name field"
+    )
+
+    with pytest.raises(PackageRejected, match=error_msg):
+        _get_main_package(rooted_tmp_path)
