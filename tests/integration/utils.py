@@ -23,7 +23,9 @@ from cachi2.core import resolver
 TEST_SERVER_LOCALHOST = "127.0.0.1"
 
 # Individual files could be added to the set as well.
-PATHS_TO_CODE = frozenset((Path("cachi2"), Path("tests/integration")))
+PATHS_TO_CODE = frozenset(
+    (Path("cachi2"), Path("tests/integration"), Path("Dockerfile"), Path("Containerfile"))
+)
 SUPPORTED_PMS: frozenset[str] = frozenset(
     list(resolver._package_managers) + list(resolver._dev_package_managers)
 )
@@ -584,6 +586,10 @@ def is_testable_code(c: Path) -> bool:
     False
     >>> is_testable_code(Path('reqruiements.txt'))
     False
+    >>> is_testable_code(Path('Dockerfile'))
+    True
+    >>> is_testable_code(Path('Containerfile'))
+    True
     """
     return any(c.is_relative_to(p) for p in PATHS_TO_CODE)
 
