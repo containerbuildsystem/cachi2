@@ -18,11 +18,13 @@ from cachi2.core.package_managers.yarn_classic.resolver import (
     _classify_pyarn_package,
     _get_main_package,
     _get_packages_from_lockfile,
+    _get_workspace_packages,
     _is_from_npm_registry,
     _is_git_url,
     _is_tarball_url,
     resolve_packages,
 )
+from cachi2.core.package_managers.yarn_classic.workspaces import Workspace
 from cachi2.core.rooted_path import PathOutsideRoot, RootedPath
 
 VALID_GIT_URLS = [
@@ -246,23 +248,34 @@ def test__get_packages_from_lockfile(
     assert output == [mock_package_1, mock_package_2]
 
 
+@mock.patch("cachi2.core.package_managers.yarn_classic.resolver._get_workspace_packages")
+@mock.patch("cachi2.core.package_managers.yarn_classic.resolver.extract_workspace_metadata")
 @mock.patch("cachi2.core.package_managers.yarn_classic.resolver._get_packages_from_lockfile")
 @mock.patch("cachi2.core.package_managers.yarn_classic.resolver._get_main_package")
 def test_resolve_packages(
     mock_get_main_package: mock.Mock,
     mock_get_lockfile_packages: mock.Mock,
+    mock_extract_workspaces: mock.Mock,
+    mock_get_workspace_packages: mock.Mock,
     rooted_tmp_path: RootedPath,
 ) -> None:
     main_package = mock.Mock()
+    workspace_packages = [mock.Mock()]
     lockfile_packages = [mock.Mock(), mock.Mock()]
-    expected_output = [main_package, *lockfile_packages]
+    expected_output = [main_package, *workspace_packages, *lockfile_packages]
 
     mock_get_main_package.return_value = main_package
     mock_get_lockfile_packages.return_value = lockfile_packages
+    mock_get_workspace_packages.return_value = workspace_packages
 
     output = resolve_packages(rooted_tmp_path)
+    mock_extract_workspaces.assert_called_once_with(rooted_tmp_path)
     mock_get_main_package.assert_called_once_with(rooted_tmp_path)
+    mock_get_workspace_packages.assert_called_once_with(
+        rooted_tmp_path, mock_extract_workspaces.return_value
+    )
     mock_get_lockfile_packages.assert_called_once_with(rooted_tmp_path)
+
     assert output == expected_output
 
 
@@ -297,3 +310,21 @@ def test__get_main_package_no_name(
 
     with pytest.raises(PackageRejected, match=error_msg):
         _get_main_package(rooted_tmp_path)
+
+
+def test__get_workspace_packages(rooted_tmp_path: RootedPath) -> None:
+    workspace_path = rooted_tmp_path.join_within_root("foo").path
+    workspace = Workspace(
+        path=workspace_path,
+        package_contents={"name": "foo", "version": "1.0.0"},
+    )
+    expected = [
+        WorkspacePackage(
+            name="foo",
+            version="1.0.0",
+            relpath=workspace_path.relative_to(rooted_tmp_path.path),
+        )
+    ]
+
+    output = _get_workspace_packages(rooted_tmp_path, [workspace])
+    assert output == expected

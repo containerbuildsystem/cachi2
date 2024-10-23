@@ -10,6 +10,10 @@ from pydantic import BaseModel
 from cachi2.core.errors import PackageRejected, UnexpectedFormat
 from cachi2.core.package_managers.npm import NPM_REGISTRY_CNAMES
 from cachi2.core.package_managers.yarn.project import PackageJson
+from cachi2.core.package_managers.yarn_classic.workspaces import (
+    Workspace,
+    extract_workspace_metadata,
+)
 from cachi2.core.rooted_path import RootedPath
 
 GIT_HOSTS = frozenset(("github.com", "gitlab.com", "bitbucket.com", "bitbucket.org"))
@@ -203,6 +207,25 @@ def _get_main_package(source_dir: RootedPath) -> WorkspacePackage:
     )
 
 
+def _get_workspace_packages(
+    source_dir: RootedPath, workspaces: list[Workspace]
+) -> list[WorkspacePackage]:
+    """Return a WorkspacePackage for each Workspace."""
+    return [
+        WorkspacePackage(
+            name=ws.package_contents["name"],
+            version=ws.package_contents.get("version"),
+            relpath=ws.path.relative_to(source_dir.path),
+        )
+        for ws in workspaces
+    ]
+
+
 def resolve_packages(source_dir: RootedPath) -> list[YarnClassicPackage]:
     """Return a list of Packages corresponding to all project dependencies."""
-    return [_get_main_package(source_dir)] + _get_packages_from_lockfile(source_dir)
+    workspaces = extract_workspace_metadata(source_dir)
+    return (
+        [_get_main_package(source_dir)]
+        + _get_workspace_packages(source_dir, workspaces)
+        + _get_packages_from_lockfile(source_dir)
+    )

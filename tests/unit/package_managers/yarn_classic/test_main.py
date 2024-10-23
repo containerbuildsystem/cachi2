@@ -52,9 +52,7 @@ def test_generate_build_environment_variables(
     indirect=["input_request"],
 )
 @mock.patch("cachi2.core.package_managers.yarn_classic.main._resolve_yarn_project")
-@mock.patch("cachi2.core.package_managers.yarn_classic.main.extract_workspace_metadata")
 def test_fetch_yarn_source(
-    mock_extract_metadata: mock.Mock,
     mock_resolve_yarn: mock.Mock,
     input_request: Request,
     yarn_classic_env_variables: list[EnvironmentVariable],
