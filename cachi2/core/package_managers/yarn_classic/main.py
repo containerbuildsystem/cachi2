@@ -26,15 +26,15 @@ def fetch_yarn_source(request: Request) -> RequestOutput:
         output_dir.join_within_root(MIRROR_DIR).path.mkdir(parents=True, exist_ok=True)
 
     for package in request.yarn_classic_packages:
-        path = request.source_dir.join_within_root(package.path)
+        package_path = request.source_dir.join_within_root(package.path)
         _ensure_mirror_dir_exists(request.output_dir)
         prefetch_env = _get_prefetch_environment_variables(request.output_dir)
-        _verify_corepack_yarn_version(path, prefetch_env)
-        _fetch_dependencies(path, prefetch_env)
+        _verify_corepack_yarn_version(package_path, prefetch_env)
+        _fetch_dependencies(package_path, prefetch_env)
         # Workspaces metadata is not used at the moment, but will
         # eventualy be converted into components. Using a noop assertion
         # to prevent linters from complaining.
-        workspaces = extract_workspace_metadata(package, request.source_dir)
+        workspaces = extract_workspace_metadata(package_path)
         assert workspaces is not None  # nosec -- see comment above
 
     return RequestOutput.from_obj_list(
