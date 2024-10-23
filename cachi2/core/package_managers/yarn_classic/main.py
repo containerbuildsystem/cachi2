@@ -31,7 +31,7 @@ def fetch_yarn_source(request: Request) -> RequestOutput:
         # Workspaces metadata is not used at the moment, but will
         # eventualy be converted into components. Using a noop assertion
         # to prevent linters from complaining.
-        workspaces = extract_workspace_metadata(package, request.source_dir)
+        workspaces = extract_workspace_metadata(package_path)
         assert workspaces is not None  # nosec -- see comment above
 
     return RequestOutput.from_obj_list(
