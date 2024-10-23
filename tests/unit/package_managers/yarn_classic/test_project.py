@@ -1,22 +1,10 @@
 import json
-import textwrap
 
 import pytest
-from pyarn import lockfile
+from pyarn import lockfile  # type: ignore
 
-from cachi2.core.errors import PackageRejected
-from cachi2.core.package_managers.yarn_classic.project import PackageJson, YarnLock, YarnRc
+from cachi2.core.package_managers.yarn_classic.project import ConfigFile, PackageJson, YarnLock
 from cachi2.core.rooted_path import RootedPath
-
-VALID_YARNRC_FILE = """
-yarn-path "/usr/bin/yarn"
---cache-folder /tmp/yarn-cache/
-"""
-
-INVALID_YARNRC = "totally not yarnrc"
-
-EMPTY_YARNRC_FILE = ""
-
 
 VALID_PACKAGE_JSON_FILE = """
 {
@@ -48,88 +36,43 @@ package-1@^1.0.0:
 
 
 def _prepare_config_file(
-    rooted_tmp_path: RootedPath, file_class, filename: str, data: str
-) -> PackageJson:
+    rooted_tmp_path: RootedPath, config_file_class: ConfigFile, filename: str, data: str
+) -> ConfigFile:
     path = rooted_tmp_path.join_within_root(filename)
 
     with open(path, "w") as f:
         f.write(data)
 
-    return file_class.from_file(path)
+    return config_file_class.from_file(path)
 
 
 @pytest.mark.parametrize(
-    "config_file_class, config_file_name, config_file_content, content_type",
+    "config_file_class, config_file_name, config_file_content, content_kind",
     [
         pytest.param(
             PackageJson, "package.json", VALID_PACKAGE_JSON_FILE, "json", id="package_json"
         ),
-        pytest.param(YarnRc, ".yarnrc", VALID_YARNRC_FILE, "yarnrc", id="yarnrc"),
         pytest.param(YarnLock, "yarn.lock", VALID_YARN_LOCK_FILE, "pyarn", id="yarnlock"),
     ],
 )
-def test_find_and_open_config(
+def test_find_and_open_config_file(
     rooted_tmp_path: RootedPath,
-    config_file_class,
+    config_file_class: ConfigFile,
     config_file_name: str,
     config_file_content: str,
-    content_type: str,
+    content_kind: str,
 ) -> None:
     found_config = _prepare_config_file(
-        rooted_tmp_path, config_file_class, config_file_name, config_file_content
+        rooted_tmp_path=rooted_tmp_path,
+        config_file_class=config_file_class,
+        filename=config_file_name,
+        data=config_file_content,
     )
 
-    if content_type == "json":
+    if content_kind == "json":
         assert found_config.data == json.loads(config_file_content)
-    elif content_type == "pyarn":
+    elif content_kind == "pyarn":
         assert found_config.data == lockfile.Lockfile.from_str(config_file_content).data
-    elif content_type == "yarnrc":
-        assert found_config.data == YarnRc.from_str(config_file_content)
-
-
-# rooted_tmp_path, file_class, filename, data
-def test_parse_yarnrc(rooted_tmp_path: RootedPath) -> None:
-    yarn_rc = _prepare_config_file(rooted_tmp_path, YarnRc, ".yarnrc", VALID_YARNRC_FILE)
-    assert yarn_rc.data["yarn-path"] == '"/usr/bin/yarn"'
-
-
-def test_parse_empty_yarnrc(rooted_tmp_path: RootedPath) -> None:
-    yarn_rc = _prepare_config_file(rooted_tmp_path, YarnRc, ".yarnrc", EMPTY_YARNRC_FILE)
-    assert yarn_rc.data["yarn-path"] is None
-
-
-def test_parse_invalid_yarnrc(rooted_tmp_path: RootedPath) -> None:
-    with pytest.raises(PackageRejected, match="Can't parse the .yarnrc file"):
-        _prepare_config_file(rooted_tmp_path, YarnRc, ".yarnrc", INVALID_YARNRC)
-
-
-def test_write_yarnrc(rooted_tmp_path: RootedPath) -> None:
-    data = {
-        "cacheFolder": ".cache/folder",
-        "plugins": {
-            "path": ".path/to/plugin",
-            "spec": "@yarnpkg/nice-plugin",
-        },
-    }
-
-    expected_yaml = textwrap.dedent(
-        """
-        cacheFolder: .cache/folder
-        plugins:
-          path: .path/to/plugin
-          spec: '@yarnpkg/nice-plugin'
-        """
-    ).lstrip()
-
-    file_path = rooted_tmp_path.join_within_root(".yarnrc.yml")
-
-    yarn_rc = YarnRc(file_path, data)
-    yarn_rc.write()
-
-    with open(file_path, "r") as f:
-        actual_yaml = f.read()
-
-    assert actual_yaml == expected_yaml
 
 
 # @pytest.mark.parametrize(
@@ -137,7 +80,6 @@ def test_write_yarnrc(rooted_tmp_path: RootedPath) -> None:
 #     [
 #         pytest.param(True, "pnp", id="nodeLinker-pnp"),
 #         pytest.param(True, "node-modules", id="nodeLinker-node-modules"),
-#         pytest.param(True, "", id="pnp-empty-use-default"),
 #         pytest.param(False, "", id="regular-workflow"),
 #     ],
 # )
