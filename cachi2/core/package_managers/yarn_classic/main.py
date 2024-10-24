@@ -1,13 +1,12 @@
 import logging
 
-from cachi2.core.errors import PackageManagerError
+import semver
+
+from cachi2.core.errors import PackageManagerError, PackageRejected
 from cachi2.core.models.input import Request
 from cachi2.core.models.output import Component, EnvironmentVariable, RequestOutput
-from cachi2.core.package_managers.yarn.utils import (
-    VersionsRange,
-    extract_yarn_version_from_env,
-    run_yarn_cmd,
-)
+from cachi2.core.package_managers.yarn.utils import extract_yarn_version_from_env, run_yarn_cmd
+from cachi2.core.package_managers.yarn_classic.project import Project
 from cachi2.core.package_managers.yarn_classic.workspaces import extract_workspace_metadata
 from cachi2.core.rooted_path import RootedPath
 
@@ -91,11 +90,55 @@ def _generate_build_environment_variables() -> list[EnvironmentVariable]:
     return [EnvironmentVariable(name=key, value=value) for key, value in env_vars.items()]
 
 
+def _check_pnp_installs(project: Project) -> None:
+    if project.is_pnp_install:
+        raise PackageRejected(
+            reason=("Yarn zero install detected, PnP zero installs are unsupported by cachi2"),
+            solution=(
+                "Please convert your project to a regular install-based one.\n"
+                "Depending on whether you use Yarn's PnP or a different node linker Yarn setting "
+                "make sure to remove '.yarn/cache' or 'node_modules' directories respectively."
+            ),
+        )
+
+
+def _verify_repository(project: Project) -> None:
+    _check_pnp_installs(project)
+    # _check_lockfile(project)
+
+    return None
+
+
+def _resolve_yarn_project(project: Project, output_dir: RootedPath) -> list[Component]:  # type: ignore
+    # Temporary type ignore
+    """Process a request for a single yarn source directory.
+
+    :param project: the directory to be processed.
+    :param output_dir: the directory where the prefetched dependencies will be placed.
+    :raises PackageManagerError: if fetching dependencies fails
+    """
+    log.info(f"Fetching the yarn-classic dependencies at the subpath {project.source_dir}")
+
+    _verify_repository(project)
+
+    # Placeholders for implementations in other PRs
+    # _set_yarnrc_configuration(project, output_dir)
+    # packages = resolve_packages(project.source_dir)
+    # _fetch_dependencies(project.source_dir)
+
+    # return create_components(packages, project, output_dir)
+
+
 def _verify_corepack_yarn_version(source_dir: RootedPath, env: dict[str, str]) -> None:
     """Verify that corepack installed the correct version of yarn by checking `yarn --version`."""
     installed_yarn_version = extract_yarn_version_from_env(source_dir, env)
 
-    if installed_yarn_version not in VersionsRange("1.22.0", "2.0.0"):
+    min_version_inclusive = semver.version.Version(1, 22, 0)
+    max_version_exclusive = semver.version.Version(2, 0, 0)
+    if (
+        installed_yarn_version < min_version_inclusive
+        or installed_yarn_version >= max_version_exclusive
+    ):
         raise PackageManagerError(
             "Cachi2 expected corepack to install yarn >=1.22.0,<2.0.0, but instead "
             f"found yarn@{installed_yarn_version}."
