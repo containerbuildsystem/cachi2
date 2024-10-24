@@ -273,72 +273,79 @@ def _generate_purl_dependency(package: dict[str, Any]) -> str:
     return purl.to_string()
 
 
-def _get_pip_metadata(package_dir: RootedPath) -> tuple[str, Optional[str]]:
+def _infer_package_name_from_origin_url(package_dir: RootedPath) -> str:
+    try:
+        repo_id = get_repo_id(package_dir.root)
+    except UnsupportedFeature:
+        raise PackageRejected(
+            reason="Unable to infer package name from origin URL",
+            solution=(
+                "Provide valid metadata in the package files or ensure"
+                "the git repository has an 'origin' remote with a valid URL."
+            ),
+            docs=PIP_METADATA_DOC,
+        )
+
+    repo_name = Path(repo_id.parsed_origin_url.path).stem
+    resolved_name = Path(repo_name).joinpath(package_dir.subpath_from_root)
+    return canonicalize_name(str(resolved_name).replace("/", "-")).strip("-.")
+
+
+def _extract_metadata_from_config_files(
+    package_dir: RootedPath,
+) -> tuple[Optional[str], Optional[str]]:
     """
-    Attempt to get the name and version of a Pip package.
+    Extract package name and version in the following order.
 
-    First, try to parse the setup.py script (if present) and extract name and version
-    from keyword arguments to the setuptools.setup() call. If either name or version
-    could not be resolved and there is a setup.cfg file, try to fill in the missing
-    values from metadata.name and metadata.version in the .cfg file.
+    1. pyproject.toml
+    2. setup.cfg
+    3. setup.py
 
-    :param package_dir: Path to the root directory of a Pip package
-    :return: Tuple of strings (name, version)
+    Note: version is optional in the SBOM, but name is required.
     """
-    name = None
-    version = None
-
     pyproject_toml = PyProjectTOML(package_dir)
-    setup_py = SetupPY(package_dir)
-    setup_cfg = SetupCFG(package_dir)
-
     if pyproject_toml.exists():
-        log.info("Extracting metadata from pyproject.toml")
-        if pyproject_toml.check_dynamic_version():
-            log.warning("Parsing dynamic metadata from pyproject.toml is not supported")
-
+        log.debug("Checking pyproject.toml for metadata")
         name = pyproject_toml.get_name()
         version = pyproject_toml.get_version()
 
-    if None in (name, version) and setup_py.exists():
-        log.info("Filling in missing metadata from setup.py")
-        name = name or setup_py.get_name()
-        version = version or setup_py.get_version()
+        if name:
+            return name, version
 
-    if None in (name, version) and setup_cfg.exists():
-        log.info("Filling in missing metadata from setup.cfg")
-        name = name or setup_cfg.get_name()
-        version = version or setup_cfg.get_version()
+    setup_py = SetupPY(package_dir)
+    if setup_py.exists():
+        log.debug("Checking setup.py for metadata")
+        name = setup_py.get_name()
+        version = setup_py.get_version()
+
+        if name:
+            return name, version
+
+    setup_cfg = SetupCFG(package_dir)
+    if setup_cfg.exists():
+        log.debug("Checking setup.cfg for metadata")
+        name = setup_cfg.get_name()
+        version = setup_cfg.get_version()
+
+        if name:
+            return name, version
+
+    return None, None
+
+
+def _get_pip_metadata(package_dir: RootedPath) -> tuple[str, Optional[str]]:
+    """Attempt to retrieve name and version of a pip package."""
+    name, version = _extract_metadata_from_config_files(package_dir)
 
     if not name:
-        log.info("Processing metadata from git repository")
-        try:
-            repo_path = get_repo_id(package_dir.root).parsed_origin_url.path.removesuffix(".git")
-            repo_name = Path(repo_path).name
-            package_subpath = package_dir.subpath_from_root
+        # version is None too
+        name = _infer_package_name_from_origin_url(package_dir)
 
-            resolved_path = Path(repo_name).joinpath(package_subpath)
-            normalized_path = canonicalize_name(str(resolved_path).replace("/", "-"))
-            name = normalized_path.strip("-.")
-        except UnsupportedFeature:
-            raise PackageRejected(
-                reason="Could not take name from the repository origin url",
-                solution=(
-                    "Please specify package metadata in a way that Cachi2 understands"
-                    " (see the docs)\n"
-                    "or make sure that the directory Cachi2 is processing is a git"
-                    " repository with\n"
-                    "an 'origin' remote in which case Cachi2 will infer the package name from"
-                    " the remote url."
-                ),
-                docs=PIP_METADATA_DOC,
-            )
-
-    log.info("Resolved package name: %r", name)
+    log.info("Resolved name %s for package at %s", name, package_dir)
     if version:
-        log.info("Resolved package version: %r", version)
+        log.info("Resolved version %s for package at %s", version, package_dir)
     else:
-        log.warning("Could not resolve package version")
+        log.warning("Could not resolve version for package at %s", package_dir)
 
     return name, version
 
@@ -452,14 +459,6 @@ class PyProjectTOML(SetupFile):
         except KeyError:
             log.warning("No project.version in pyproject.toml")
             return None
-
-    def check_dynamic_version(self) -> bool:
-        """Check if project version is set dynamically."""
-        try:
-            dynamic_properties = self._parsed_toml["project"]["dynamic"]
-            return "version" in dynamic_properties
-        except KeyError:
-            return False
 
     @functools.cached_property
     def _parsed_toml(self) -> dict[str, Any]:
