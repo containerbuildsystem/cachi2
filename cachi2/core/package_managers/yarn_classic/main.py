@@ -1,11 +1,13 @@
 import logging
 
-import semver
-
 from cachi2.core.errors import PackageManagerError
 from cachi2.core.models.input import Request
 from cachi2.core.models.output import Component, EnvironmentVariable, RequestOutput
-from cachi2.core.package_managers.yarn.utils import extract_yarn_version_from_env, run_yarn_cmd
+from cachi2.core.package_managers.yarn.utils import (
+    VersionsRange,
+    extract_yarn_version_from_env,
+    run_yarn_cmd,
+)
 from cachi2.core.package_managers.yarn_classic.workspaces import extract_workspace_metadata
 from cachi2.core.rooted_path import RootedPath
 
@@ -93,12 +95,7 @@ def _verify_corepack_yarn_version(source_dir: RootedPath, env: dict[str, str]) -
     """Verify that corepack installed the correct version of yarn by checking `yarn --version`."""
     installed_yarn_version = extract_yarn_version_from_env(source_dir, env)
 
-    min_version_inclusive = semver.version.Version(1, 22, 0)
-    max_version_exclusive = semver.version.Version(2, 0, 0)
-    if (
-        installed_yarn_version < min_version_inclusive
-        or installed_yarn_version >= max_version_exclusive
-    ):
+    if installed_yarn_version not in VersionsRange("1.22.0", "2.0.0"):
         raise PackageManagerError(
             "Cachi2 expected corepack to install yarn >=1.22.0,<2.0.0, but instead "
             f"found yarn@{installed_yarn_version}."
