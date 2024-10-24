@@ -2,6 +2,8 @@ import os
 import subprocess
 from typing import Optional
 
+from semver import Version
+
 from cachi2.core.errors import PackageManagerError
 from cachi2.core.rooted_path import RootedPath
 from cachi2.core.utils import run_cmd
@@ -27,3 +29,17 @@ def run_yarn_cmd(
     except subprocess.CalledProcessError as e:
         # the yarn command writes the errors to stdout
         raise PackageManagerError(f"Yarn command failed: {' '.join(cmd)}", stderr=e.stdout)
+
+
+def extract_yarn_version_from_env(source_dir: RootedPath, env: Optional[dict] = None) -> Version:
+    """Extract yarn version from environment."""
+    env = {"COREPACK_ENABLE_DOWNLOAD_PROMPT": "0"} if env is None else env
+    yarn_version_output = run_yarn_cmd(["--version"], source_dir, env=env).strip()
+
+    try:
+        installed_yarn_version = Version.parse(yarn_version_output)
+    except ValueError as e:
+        raise PackageManagerError(
+            "The command `yarn --version` did not return a valid semver."
+        ) from e
+    return installed_yarn_version
