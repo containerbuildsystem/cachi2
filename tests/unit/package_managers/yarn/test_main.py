@@ -122,7 +122,7 @@ def test_configure_yarn_version(
         pytest.param("1.0.0\n", id="yarn_versions_match_with_whitespace"),
     ],
 )
-@mock.patch("cachi2.core.package_managers.yarn.main.run_yarn_cmd")
+@mock.patch("cachi2.core.package_managers.yarn.utils.run_yarn_cmd")
 def test_corepack_installed_correct_yarn_version(
     mock_run_yarn_cmd: mock.Mock,
     corepack_yarn_version: str,
@@ -144,7 +144,7 @@ def test_corepack_installed_correct_yarn_version(
         pytest.param("2", id="invalid_semver"),
     ],
 )
-@mock.patch("cachi2.core.package_managers.yarn.main.run_yarn_cmd")
+@mock.patch("cachi2.core.package_managers.yarn.utils.run_yarn_cmd")
 def test_corepack_installed_correct_yarn_version_fail(
     mock_run_yarn_cmd: mock.Mock,
     corepack_yarn_version: str,
