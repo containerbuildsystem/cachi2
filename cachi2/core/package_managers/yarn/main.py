@@ -13,7 +13,11 @@ from cachi2.core.package_managers.yarn.project import (
     get_semver_from_yarn_path,
 )
 from cachi2.core.package_managers.yarn.resolver import create_components, resolve_packages
-from cachi2.core.package_managers.yarn.utils import extract_yarn_version_from_env, run_yarn_cmd
+from cachi2.core.package_managers.yarn.utils import (
+    VersionsRange,
+    extract_yarn_version_from_env,
+    run_yarn_cmd,
+)
 from cachi2.core.rooted_path import RootedPath
 
 log = logging.getLogger(__name__)
@@ -127,9 +131,9 @@ def _configure_yarn_version(project: Project) -> None:
             ),
         )
 
-    # Note (mypy): version cannot be None anymore after the next statement
     version = yarn_path_version if yarn_path_version else package_manager_version
-    if version.compare("3.0.0") < 0 or version.major == 4:  # type: ignore
+    # By this point version is not Optional anymore, but mypy does not think so.
+    if version not in VersionsRange("3.0.0", "4.0.0"):  # type: ignore
         raise PackageRejected(
             f"Unsupported Yarn version '{version}' detected",
             solution="Please pick a different version of Yarn (3.0.0<= Yarn version <4.0.0)",
