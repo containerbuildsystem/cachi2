@@ -130,7 +130,7 @@ def test_get_prefetch_environment_variables(tmp_path: Path) -> None:
         pytest.param("1.22.0\n", id="valid_version_with_whitespace"),
     ],
 )
-@mock.patch("cachi2.core.package_managers.yarn_classic.main.run_yarn_cmd")
+@mock.patch("cachi2.core.package_managers.yarn.utils.run_yarn_cmd")
 def test_verify_corepack_yarn_version(
     mock_run_yarn_cmd: mock.Mock, yarn_version_output: str, tmp_path: Path
 ) -> None:
@@ -149,7 +149,7 @@ def test_verify_corepack_yarn_version(
         pytest.param("2.0.0", id="version_too_high"),
     ],
 )
-@mock.patch("cachi2.core.package_managers.yarn_classic.main.run_yarn_cmd")
+@mock.patch("cachi2.core.package_managers.yarn.utils.run_yarn_cmd")
 def test_verify_corepack_yarn_version_disallowed_version(
     mock_run_yarn_cmd: mock.Mock, yarn_version_output: str, tmp_path: Path
 ) -> None:
@@ -163,7 +163,7 @@ def test_verify_corepack_yarn_version_disallowed_version(
         _verify_corepack_yarn_version(RootedPath(tmp_path), env={"foo": "bar"})
 
 
-@mock.patch("cachi2.core.package_managers.yarn_classic.main.run_yarn_cmd")
+@mock.patch("cachi2.core.package_managers.yarn.utils.run_yarn_cmd")
 def test_verify_corepack_yarn_version_invalid_version(
     mock_run_yarn_cmd: mock.Mock, tmp_path: Path
 ) -> None:
