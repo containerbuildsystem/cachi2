@@ -228,19 +228,27 @@ def _generate_environment_variables() -> list[EnvironmentVariable]:
 
 def _verify_corepack_yarn_version(expected_version: semver.Version, source_dir: RootedPath) -> None:
     """Verify that corepack installed the correct version of yarn by checking `yarn --version`."""
-    installed_yarn_version = run_yarn_cmd(
-        ["--version"], source_dir, env={"COREPACK_ENABLE_DOWNLOAD_PROMPT": "0"}
-    ).strip()
-    try:
-        if installed_yarn_version != expected_version:
-            raise PackageManagerError(
-                f"Cachi2 expected corepack to install yarn@{expected_version} but instead "
-                f"found yarn@{installed_yarn_version}."
-            )
-    except ValueError as exc:
+    installed_yarn_version = extract_yarn_version_from_env(
+        source_dir,
+        env={"COREPACK_ENABLE_DOWNLOAD_PROMPT": "0"},
+    )
+    if installed_yarn_version != expected_version:
         raise PackageManagerError(
-            f"Cachi2 expected corepack to install yarn@{expected_version}, but "
-            "the command `yarn --version` did not return a valid semver."
-        ) from exc
+            f"Cachi2 expected corepack to install yarn@{expected_version} but instead "
+            f"found yarn@{installed_yarn_version}."
+        )
 
     log.info("Processing the request using yarn@%s", installed_yarn_version)
+
+
+def extract_yarn_version_from_env(source_dir: RootedPath, env: dict) -> semver.Version:
+    """Extract yarn version from environment."""
+    yarn_version_output = run_yarn_cmd(["--version"], source_dir, env=env).strip()
+
+    try:
+        installed_yarn_version = semver.Version.parse(yarn_version_output)
+    except ValueError as e:
+        raise PackageManagerError(
+            "The command `yarn --version` did not return a valid semver."
+        ) from e
+    return installed_yarn_version
