@@ -3,13 +3,28 @@ import json
 import pytest
 from pyarn import lockfile  # type: ignore
 
-from cachi2.core.package_managers.yarn_classic.project import ConfigFile, PackageJson, YarnLock
+from cachi2.core.package_managers.yarn_classic.project import (
+    ConfigFile,
+    PackageJson,
+    Project,
+    YarnLock,
+)
 from cachi2.core.rooted_path import RootedPath
 
 VALID_PACKAGE_JSON_FILE = """
 {
   "name": "camelot",
   "packageManager": "yarn@3.6.1"
+}
+"""
+
+PNP_PACKAGE_JSON_FILE = """
+{
+  "name": "camelot",
+  "packageManager": "yarn@3.6.1",
+  "installConfig": {
+    "pnp": true
+  }
 }
 """
 
@@ -36,14 +51,21 @@ package-1@^1.0.0:
 
 
 def _prepare_config_file(
-    rooted_tmp_path: RootedPath, config_file_class: ConfigFile, filename: str, data: str
+    rooted_tmp_path: RootedPath, config_file_class: ConfigFile, filename: str, content: str
 ) -> ConfigFile:
     path = rooted_tmp_path.join_within_root(filename)
 
     with open(path, "w") as f:
-        f.write(data)
+        f.write(content)
 
     return config_file_class.from_file(path)
+
+
+def _setup_pnp_installs(rooted_tmp_path: RootedPath, pnp_kind: str) -> None:
+    if pnp_kind == "node":
+        rooted_tmp_path.join_within_root("node_modules").path.mkdir()
+    if pnp_kind == "pnp_cjs":
+        rooted_tmp_path.join_within_root("foo.pnp.cjs").path.touch()
 
 
 @pytest.mark.parametrize(
@@ -63,10 +85,10 @@ def test_find_and_open_config_file(
     content_kind: str,
 ) -> None:
     found_config = _prepare_config_file(
-        rooted_tmp_path=rooted_tmp_path,
-        config_file_class=config_file_class,
-        filename=config_file_name,
-        data=config_file_content,
+        rooted_tmp_path,
+        config_file_class,
+        config_file_name,
+        config_file_content,
     )
 
     if content_kind == "json":
@@ -75,20 +97,40 @@ def test_find_and_open_config_file(
         assert found_config.data == lockfile.Lockfile.from_str(config_file_content).data
 
 
-# @pytest.mark.parametrize(
-#     "is_pnp_install, nodeLinker",
-#     [
-#         pytest.param(True, "pnp", id="nodeLinker-pnp"),
-#         pytest.param(True, "node-modules", id="nodeLinker-node-modules"),
-#         pytest.param(False, "", id="regular-workflow"),
-#     ],
-# )
-# def test_pnp_installs_detection(
-#     rooted_tmp_path: RootedPath, is_pnp_install: bool, nodeLinker: str
-# ) -> None:
-#     _prepare_package_json_file(rooted_tmp_path, VALID_PACKAGE_JSON_FILE)
-#     project = Project.from_source_dir(rooted_tmp_path)
+@pytest.mark.parametrize(
+    "is_pnp_install, config_file_class, config_file_name, config_file_content, pnp_kind",
+    [
+        pytest.param(
+            True,
+            PackageJson,
+            "package.json",
+            PNP_PACKAGE_JSON_FILE,
+            "install_config",
+            id="installConfig",
+        ),
+        pytest.param(True, PackageJson, "package.json", VALID_PACKAGE_JSON_FILE, "node", id="node"),
+        pytest.param(
+            True, PackageJson, "package.json", VALID_PACKAGE_JSON_FILE, "pnp_cjs", id="pnp_cjs"
+        ),
+    ],
+)
+def test_pnp_installs_detection(
+    rooted_tmp_path: RootedPath,
+    is_pnp_install: bool,
+    config_file_class: ConfigFile,
+    config_file_name: str,
+    config_file_content: str,
+    pnp_kind: str,
+) -> None:
+    _prepare_config_file(
+        rooted_tmp_path,
+        config_file_class,
+        config_file_name,
+        config_file_content,
+    )
 
-#     if is_pnp_install:
-#         _check_pnp_installs(nodeLinker, rooted_tmp_path)
-#     assert project.is_pnp_install is is_pnp_install
+    project = Project.from_source_dir(rooted_tmp_path)
+
+    if is_pnp_install:
+        _setup_pnp_installs(rooted_tmp_path, pnp_kind)
+    assert project.is_pnp_install is is_pnp_install

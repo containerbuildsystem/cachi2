@@ -9,6 +9,7 @@ import json
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from pathlib import PurePath
 from typing import Any, Literal, NamedTuple, Optional, Union
 
 from pyarn import lockfile  # type: ignore
@@ -51,12 +52,6 @@ class _CommonConfigFile(ABC):
     def from_file(cls, path: RootedPath) -> "_CommonConfigFile":
         """Construct a ConfigFile instance."""
         pass
-
-    def write(self) -> None:
-        """Write the data to the config file."""
-        with self.path.path.open("w") as f:
-            repr(self.data)
-            f.write("\n")
 
 
 class PackageJson(_CommonConfigFile):
@@ -154,10 +149,6 @@ class YarnLock(_CommonConfigFile):
 
         return cls(path, yarn_lockfile.data)
 
-    def write(self) -> None:
-        """Write the data to the yarn.lock file."""
-        self.yarn_lockfile.to_file(self.path)
-
 
 ConfigFile = Union[PackageJson, YarnLock]
 
@@ -178,7 +169,14 @@ class Project(NamedTuple):
         - the presence of an expanded node_modules directory
         For more details on PnP, see: https://classic.yarnpkg.com/en/docs/pnp
         """
-        return False
+        is_pnp = False
+        if (
+            self.package_json.data.get("installConfig", {}).get("pnp", False) is True
+            or any(PurePath(file).match("*.pnp.cjs") for file in self.source_dir.path.iterdir())
+            or self.source_dir.join_within_root("node_modules").path.exists()
+        ):
+            is_pnp = True
+        return is_pnp
 
     @classmethod
     def from_source_dir(cls, source_dir: RootedPath) -> "Project":

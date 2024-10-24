@@ -1,13 +1,11 @@
 import logging
 
-from cachi2.core.errors import PackageManagerError
+import semver
+
+from cachi2.core.errors import PackageManagerError, PackageRejected
 from cachi2.core.models.input import Request
 from cachi2.core.models.output import Component, EnvironmentVariable, RequestOutput
-from cachi2.core.package_managers.yarn.utils import (
-    VersionsRange,
-    extract_yarn_version_from_env,
-    run_yarn_cmd,
-)
+from cachi2.core.package_managers.yarn.utils import extract_yarn_version_from_env, run_yarn_cmd
 from cachi2.core.package_managers.yarn_classic.project import Project
 from cachi2.core.package_managers.yarn_classic.workspaces import extract_workspace_metadata
 from cachi2.core.rooted_path import RootedPath
@@ -92,10 +90,22 @@ def _generate_build_environment_variables() -> list[EnvironmentVariable]:
     return [EnvironmentVariable(name=key, value=value) for key, value in env_vars.items()]
 
 
+def _check_pnp_installs(project: Project) -> None:
+    if project.is_pnp_install:
+        raise PackageRejected(
+            reason=("Yarn zero install detected, PnP zero installs are unsupported by cachi2"),
+            solution=(
+                "Please convert your project to a regular install-based one.\n"
+                "Depending on whether you use Yarn's PnP or a different node linker Yarn setting "
+                "make sure to remove '.yarn/cache' or 'node_modules' directories respectively."
+            ),
+        )
+
+
 def _verify_repository(project: Project) -> None:
-    # _check_for_pnp(project)
+    _check_pnp_installs(project)
     # _check_lockfile(project)
-    pass
+
     return None
 
 
@@ -123,7 +133,12 @@ def _verify_corepack_yarn_version(source_dir: RootedPath, env: dict[str, str]) -
     """Verify that corepack installed the correct version of yarn by checking `yarn --version`."""
     installed_yarn_version = extract_yarn_version_from_env(source_dir, env)
 
-    if installed_yarn_version not in VersionsRange("1.22.0", "2.0.0"):
+    min_version_inclusive = semver.version.Version(1, 22, 0)
+    max_version_exclusive = semver.version.Version(2, 0, 0)
+    if (
+        installed_yarn_version < min_version_inclusive
+        or installed_yarn_version >= max_version_exclusive
+    ):
         raise PackageManagerError(
             "Cachi2 expected corepack to install yarn >=1.22.0,<2.0.0, but instead "
             f"found yarn@{installed_yarn_version}."
