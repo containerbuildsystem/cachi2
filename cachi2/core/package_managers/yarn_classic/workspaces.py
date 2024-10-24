@@ -6,7 +6,6 @@ from typing import Any, Generator, Iterable
 import pydantic
 
 from cachi2.core.errors import PackageRejected
-from cachi2.core.models.input import YarnClassicPackageInput
 from cachi2.core.rooted_path import PathOutsideRoot, RootedPath
 
 
@@ -93,21 +92,20 @@ def _read_package_from(path: RootedPath) -> dict[str, Any]:
 
 
 def extract_workspace_metadata(
-    package: YarnClassicPackageInput,
-    source_dir: RootedPath,
+    package_path: RootedPath,
 ) -> list[Workspace]:
     """Extract workspace metadata from a package."""
-    processed_package = _read_package_from(source_dir.join_within_root(package.path))
+    processed_package = _read_package_from(package_path)
     workspaces_globs = _extract_workspaces_globs(processed_package)
-    workspaces_paths = _get_workspace_paths(workspaces_globs, source_dir)
-    ensure_no_path_leads_out(workspaces_paths, source_dir)
+    workspaces_paths = _get_workspace_paths(workspaces_globs, package_path)
+    ensure_no_path_leads_out(workspaces_paths, package_path)
     _ensure_workspaces_are_well_formed(workspaces_paths)
     parsed_workspaces = []
     for wp in workspaces_paths:
         parsed_workspaces.append(
             Workspace(
                 path=wp,
-                package_contents=_read_package_from(source_dir.join_within_root(wp)),
+                package_contents=_read_package_from(package_path.join_within_root(wp)),
             )
         )
     return parsed_workspaces

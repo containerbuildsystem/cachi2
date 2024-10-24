@@ -6,7 +6,7 @@ from cachi2.core.errors import PackageManagerError
 from cachi2.core.models.input import Request
 from cachi2.core.models.output import Component, EnvironmentVariable, RequestOutput
 from cachi2.core.package_managers.yarn.utils import run_yarn_cmd
-from cachi2.core.package_managers.yarn_classic.workspaces import extract_workspace_metadata
+from cachi2.core.package_managers.yarn_classic.resolver import resolve_packages
 from cachi2.core.rooted_path import RootedPath
 
 log = logging.getLogger(__name__)
@@ -23,20 +23,23 @@ def fetch_yarn_source(request: Request) -> RequestOutput:
         output_dir.join_within_root(MIRROR_DIR).path.mkdir(parents=True, exist_ok=True)
 
     for package in request.yarn_classic_packages:
-        path = request.source_dir.join_within_root(package.path)
+        package_path = request.source_dir.join_within_root(package.path)
         _ensure_mirror_dir_exists(request.output_dir)
-        prefetch_env = _get_prefetch_environment_variables(request.output_dir)
-        _verify_corepack_yarn_version(path, prefetch_env)
-        _fetch_dependencies(path, prefetch_env)
-        # Workspaces metadata is not used at the moment, but will
-        # eventualy be converted into components. Using a noop assertion
-        # to prevent linters from complaining.
-        workspaces = extract_workspace_metadata(package, request.source_dir)
-        assert workspaces is not None  # nosec -- see comment above
+        _resolve_yarn_project(package_path, request.output_dir)
 
     return RequestOutput.from_obj_list(
         components, _generate_build_environment_variables(), project_files=[]
     )
+
+
+def _resolve_yarn_project(package_path: RootedPath, output_dir: RootedPath) -> None:
+    """Process a request for a single yarn source directory."""
+    log.info(f"Fetching the yarn dependencies at the subpath {package_path}")
+
+    prefetch_env = _get_prefetch_environment_variables(output_dir)
+    _verify_corepack_yarn_version(package_path, prefetch_env)
+    _fetch_dependencies(package_path, prefetch_env)
+    resolve_packages(package_path)
 
 
 def _fetch_dependencies(source_dir: RootedPath, env: dict[str, str]) -> None:

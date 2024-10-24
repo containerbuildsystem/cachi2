@@ -28,6 +28,7 @@ dependencies = [
   "gitpython",
   "packageurl-python",
   "packaging",
+  "pyarn@https://github.com/taylormadore/pyarn/archive/refs/heads/add-alternate-file-dep-style.tar.gz",
   "pydantic",
   "pypi-simple",
   "pyyaml",
@@ -79,6 +80,11 @@ plugins = ["pydantic.mypy"]
 disallow_untyped_defs = true
 disallow_incomplete_defs = true
 disallow_untyped_decorators = true
+
+# TODO: pyarn does not currently have type annotations
+[[tool.mypy.overrides]]
+module = "pyarn.*"
+ignore_missing_imports = true
 
 [tool.coverage.report]
 skip_covered = true
