@@ -122,7 +122,7 @@ def _configure_yarn_version(project: Project) -> None:
     yarn_path_version = get_semver_from_yarn_path(project.yarn_rc.yarn_path)
     package_manager_version = get_semver_from_package_manager(project.package_json.package_manager)
 
-    if not yarn_path_version and not package_manager_version:
+    if yarn_path_version is None and package_manager_version is None:
         raise PackageRejected(
             "Unable to determine the yarn version to use to process the request",
             solution=(
