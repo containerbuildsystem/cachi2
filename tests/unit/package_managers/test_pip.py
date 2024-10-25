@@ -188,39 +188,6 @@ class TestPyprojectTOML:
             assert log.format(tmpdir=tmpdir) in caplog.text
 
     @pytest.mark.parametrize(
-        "toml_content, expect_logs",
-        [
-            (
-                dedent(
-                    """\
-                [project]
-                name = "my-package"
-                dynamic = ["version", "readme"]
-                description = "A short description of the package."
-                license = "MIT"
-                """
-                ),
-                [
-                    "Parsing pyproject.toml at '{tmpdir}/pyproject.toml'",
-                ],
-            )
-        ],
-    )
-    def test_check_dynamic_version(
-        self,
-        toml_content: str,
-        expect_logs: list[str],
-        rooted_tmp_path: RootedPath,
-        caplog: pytest.LogCaptureFixture,
-    ) -> None:
-        """Test check_dynamic_version() method."""
-        pyproject_toml = rooted_tmp_path.join_within_root("pyproject.toml")
-        pyproject_toml.path.write_text(toml_content)
-
-        assert pip.PyProjectTOML(rooted_tmp_path).check_dynamic_version()
-        self._assert_has_logs(expect_logs, rooted_tmp_path.path, caplog)
-
-    @pytest.mark.parametrize(
         "toml_content, expect_name, expect_logs",
         [
             (
