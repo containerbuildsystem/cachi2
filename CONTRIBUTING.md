@@ -289,5 +289,8 @@ upon publishment.*
 
 ## Release schedule
 
-This project follows a two-week release cycle. Note that a release might be skipped if there's no
-significant changes to release.
+This project follows a weekly release schedule, with planned releases every Tuesday. If there is no
+significant content to ship on a given release day, we may skip it. Urgent bug and security fixes
+are released promptly as needed at the team’s discretion.
+Should we encounter any CI issues on the day of a release, we either release immediately after the
+issue is resolved or skip the release based on the nature of the changes (urgent vs regular).
