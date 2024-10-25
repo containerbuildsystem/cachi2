@@ -1025,7 +1025,6 @@ def _resolve_gomod(
         modules_in_go_sum = _parse_go_sum(app_dir.join_within_root("go.sum"))
 
     # Vendor dependencies if the gomod-vendor flag is set
-    flags = request.flags
     if should_vendor:
         downloaded_modules = _vendor_deps(go, app_dir, bool(go_work), run_params)
     else:
@@ -1034,9 +1033,6 @@ def _resolve_gomod(
             ParsedModule.model_validate(obj)
             for obj in load_json_stream(go(["mod", "download", "-json"], run_params, retry=True))
         )
-
-    if "force-gomod-tidy" in flags:
-        go(["mod", "tidy"], run_params)
 
     main_module, workspace_modules = _parse_local_modules(
         go_work, go, run_params, app_dir, version_resolver

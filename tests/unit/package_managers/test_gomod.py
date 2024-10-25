@@ -141,13 +141,11 @@ def _parse_go_list_deps_data(data_dir: Path, file_path: str) -> list[ParsedPacka
 
 
 @pytest.mark.parametrize(
-    "cgo_disable, force_gomod_tidy, has_workspaces",
+    "cgo_disable, has_workspaces",
     (
-        pytest.param(False, False, False, id="cgo_disabled__dont_force_tidy"),
-        pytest.param(True, False, False, id="cgo_enabled__dont_force_tidy"),
-        pytest.param(False, True, False, id="cgo_disabled__force_tidy"),
-        pytest.param(True, True, False, id="cgo_enabled__force_tidy"),
-        pytest.param(False, False, True, id="has_workspaces"),
+        pytest.param(False, False, id="cgo_disabled"),
+        pytest.param(True, False, id="cgo_enabled"),
+        pytest.param(False, True, id="has_workspaces"),
     ),
 )
 @mock.patch("cachi2.core.package_managers.gomod._go_list_deps")
@@ -172,7 +170,6 @@ def test_resolve_gomod(
     mock_parse_packages: mock.Mock,
     mock_go_list_deps: mock.Mock,
     cgo_disable: bool,
-    force_gomod_tidy: bool,
     has_workspaces: bool,
     tmp_path: Path,
     data_dir: Path,
@@ -197,9 +194,6 @@ def test_resolve_gomod(
             stdout=get_mocked_data(data_dir, f"{mocked_data_folder}/go_mod_download.json"),
         )
     )
-
-    if force_gomod_tidy:
-        run_side_effects.append(proc_mock("go mod tidy", returncode=0, stdout=None))
 
     run_side_effects.append(
         proc_mock(
@@ -252,8 +246,6 @@ def test_resolve_gomod(
     flags: list[Flag] = []
     if cgo_disable:
         flags.append("cgo-disable")
-    if force_gomod_tidy:
-        flags.append("force-gomod-tidy")
 
     gomod_request.flags = frozenset(flags)
 
@@ -265,9 +257,6 @@ def test_resolve_gomod(
     resolve_result = _resolve_gomod(
         module_dir, gomod_request, tmp_path, mock_version_resolver, go_work
     )
-
-    if force_gomod_tidy:
-        assert mock_run.call_args_list[1][0][0] == [GO_CMD_PATH, "mod", "tidy"]
 
     assert mock_run.call_args_list[0][1]["env"]["GOMODCACHE"] == f"{tmp_path}/pkg/mod"
 
@@ -303,7 +292,6 @@ def test_resolve_gomod(
     )
 
 
-@pytest.mark.parametrize("force_gomod_tidy", [False, True])
 @mock.patch("cachi2.core.package_managers.gomod._disable_telemetry")
 @mock.patch("cachi2.core.package_managers.gomod.Go.release", new_callable=mock.PropertyMock)
 @mock.patch("cachi2.core.package_managers.gomod._get_gomod_version")
@@ -319,7 +307,6 @@ def test_resolve_gomod_vendor_dependencies(
     mock_get_gomod_version: mock.Mock,
     mock_go_release: mock.PropertyMock,
     mock_disable_telemetry: mock.Mock,
-    force_gomod_tidy: bool,
     tmp_path: Path,
     data_dir: Path,
     gomod_request: Request,
@@ -333,8 +320,6 @@ def test_resolve_gomod_vendor_dependencies(
     # Mock the "subprocess.run" calls
     run_side_effects = []
     run_side_effects.append(proc_mock("go mod vendor", returncode=0, stdout=None))
-    if force_gomod_tidy:
-        run_side_effects.append(proc_mock("go mod tidy", returncode=0, stdout=None))
     run_side_effects.append(
         proc_mock(
             "go list -e -m -json",
@@ -364,12 +349,6 @@ def test_resolve_gomod_vendor_dependencies(
     mock_go_release.return_value = "go0.1.0"
     mock_get_gomod_version.return_value = ("0.1.1", "0.1.2")
     mock_vendor_changed.return_value = False
-
-    flags: list[Flag] = []
-    if force_gomod_tidy:
-        flags.append("force-gomod-tidy")
-
-    gomod_request.flags = frozenset(flags)
 
     module_dir.join_within_root("vendor").path.mkdir(parents=True)
     module_dir.join_within_root("vendor/modules.txt").path.write_text(
@@ -402,7 +381,6 @@ def test_resolve_gomod_vendor_dependencies(
     assert resolve_result.modules_in_go_sum == expect_result.modules_in_go_sum
 
 
-@pytest.mark.parametrize("force_gomod_tidy", [False, True])
 @mock.patch("cachi2.core.package_managers.gomod._disable_telemetry")
 @mock.patch("cachi2.core.package_managers.gomod.Go.release", new_callable=mock.PropertyMock)
 @mock.patch("cachi2.core.package_managers.gomod.Go._install")
@@ -418,7 +396,6 @@ def test_resolve_gomod_no_deps(
     mock_go_install: mock.Mock,
     mock_go_release: mock.PropertyMock,
     mock_disable_telemetry: mock.Mock,
-    force_gomod_tidy: bool,
     tmp_path: Path,
     gomod_request: Request,
 ) -> None:
@@ -455,8 +432,6 @@ def test_resolve_gomod_no_deps(
     # Mock the "subprocess.run" calls
     run_side_effects = []
     run_side_effects.append(proc_mock("go mod download -json", returncode=0, stdout=""))
-    if force_gomod_tidy:
-        run_side_effects.append(proc_mock("go mod tidy", returncode=0, stdout=None))
     run_side_effects.append(
         proc_mock(
             "go list -e -m",
@@ -476,9 +451,6 @@ def test_resolve_gomod_no_deps(
     mock_go_release.return_value = "go1.21.0"
     mock_go_install.return_value = "/usr/bin/go"
     mock_get_gomod_version.return_value = ("1.21.4", None)
-
-    if force_gomod_tidy:
-        gomod_request.flags = frozenset({"force-gomod-tidy"})
 
     main_module, modules, packages, _ = _resolve_gomod(
         module_path, gomod_request, tmp_path, mock_version_resolver, mocked_go_work
