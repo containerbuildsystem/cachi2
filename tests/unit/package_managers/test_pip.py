@@ -10,6 +10,7 @@ from urllib.parse import urlparse
 import pypi_simple
 import pytest
 from _pytest.logging import LogCaptureFixture
+from git import Repo
 
 from cachi2.core.checksum import ChecksumInfo
 from cachi2.core.errors import (
@@ -24,13 +25,8 @@ from cachi2.core.models.output import ProjectFile
 from cachi2.core.models.sbom import Component, Property
 from cachi2.core.package_managers import pip
 from cachi2.core.rooted_path import PathOutsideRoot, RootedPath
-from cachi2.core.scm import RepoID
 from tests.common_utils import GIT_REF, Symlink, write_file_tree
 
-THIS_MODULE_DIR = Path(__file__).resolve().parent
-PKG_DIR = RootedPath("/foo/package_dir")
-PKG_DIR_SUBPATH = PKG_DIR.join_within_root("subpath")
-MOCK_REPO_ID = RepoID("https://github.com/foolish/bar.git", "abcdef1234")
 CUSTOM_PYPI_ENDPOINT = "https://my-pypi.org/simple/"
 
 
@@ -58,114 +54,167 @@ def make_dpi(
     )
 
 
-@pytest.mark.parametrize("toml_exists", [True, False])
-@pytest.mark.parametrize("toml_name", ["name_in_pyproject_toml", None])
-@pytest.mark.parametrize("toml_version", ["version_in_pyproject_toml", None])
-@pytest.mark.parametrize("py_exists", [True, False])
-@pytest.mark.parametrize("py_name", ["name_in_setup_py", None])
-@pytest.mark.parametrize("py_version", ["version_in_setup_py", None])
-@pytest.mark.parametrize("cfg_exists", [True, False])
-@pytest.mark.parametrize("cfg_name", ["name_in_setup_cfg", None])
-@pytest.mark.parametrize("cfg_version", ["version_in_setup_cfg", None])
-@pytest.mark.parametrize("repo_name_with_subpath", ["bar-subpath", None])
+@mock.patch("cachi2.core.package_managers.pip.PyProjectTOML")
+def test_get_pip_metadata_from_pyproject_toml(
+    mock_pyproject_toml: mock.Mock,
+    rooted_tmp_path: RootedPath,
+    caplog: LogCaptureFixture,
+) -> None:
+    pyproject_toml = mock_pyproject_toml.return_value
+    pyproject_toml.exists.return_value = True
+    pyproject_toml.get_name.return_value = "foo"
+    pyproject_toml.get_version.return_value = "0.1.0"
+
+    name, version = pip._get_pip_metadata(rooted_tmp_path)
+    assert name == "foo"
+    assert version == "0.1.0"
+    assert "Checking pyproject.toml for metadata" in caplog.messages
+
+    # check logs
+    assert f"Resolved name {name} for package at {rooted_tmp_path}" in caplog.messages
+    assert f"Resolved version {version} for package at {rooted_tmp_path}" in caplog.messages
+
+
+@mock.patch("cachi2.core.package_managers.pip.SetupPY")
+def test_get_pip_metadata_from_setup_py(
+    mock_setup_py: mock.Mock,
+    rooted_tmp_path: RootedPath,
+    caplog: LogCaptureFixture,
+) -> None:
+    setup_py = mock_setup_py.return_value
+    setup_py.exists.return_value = True
+    setup_py.get_name.return_value = "foo"
+    setup_py.get_version.return_value = "0.1.0"
+
+    name, version = pip._get_pip_metadata(rooted_tmp_path)
+    assert name == "foo"
+    assert version == "0.1.0"
+
+    # check logs
+    assert "Checking setup.py for metadata" in caplog.messages
+    assert f"Resolved name {name} for package at {rooted_tmp_path}" in caplog.messages
+    assert f"Resolved version {version} for package at {rooted_tmp_path}" in caplog.messages
+
+
+@mock.patch("cachi2.core.package_managers.pip.SetupCFG")
+def test_get_pip_metadata_from_setup_cfg(
+    mock_setup_cfg: mock.Mock,
+    rooted_tmp_path: RootedPath,
+    caplog: LogCaptureFixture,
+) -> None:
+    setup_cfg = mock_setup_cfg.return_value
+    setup_cfg.exists.return_value = True
+    setup_cfg.get_name.return_value = "foo"
+    setup_cfg.get_version.return_value = "0.1.0"
+
+    name, version = pip._get_pip_metadata(rooted_tmp_path)
+    assert name == "foo"
+    assert version == "0.1.0"
+
+    # check logs
+    assert "Checking setup.cfg for metadata" in caplog.messages
+    assert f"Resolved name {name} for package at {rooted_tmp_path}" in caplog.messages
+    assert f"Resolved version {version} for package at {rooted_tmp_path}" in caplog.messages
+
+
+@mock.patch("cachi2.core.package_managers.pip.PyProjectTOML")
 @mock.patch("cachi2.core.package_managers.pip.SetupCFG")
 @mock.patch("cachi2.core.package_managers.pip.SetupPY")
-@mock.patch("cachi2.core.package_managers.pip.PyProjectTOML")
-@mock.patch("cachi2.core.package_managers.pip.get_repo_id")
-def test_get_pip_metadata(
-    mock_get_repo_id: mock.Mock,
-    mock_pyproject_toml: mock.Mock,
+def test_extract_metadata_from_config_files_with_fallbacks(
     mock_setup_py: mock.Mock,
     mock_setup_cfg: mock.Mock,
-    toml_exists: bool,
-    toml_name: Optional[str],
-    toml_version: Optional[str],
-    py_exists: bool,
-    py_name: Optional[str],
-    py_version: Optional[str],
-    cfg_exists: bool,
-    cfg_name: Optional[str],
-    cfg_version: Optional[str],
-    repo_name_with_subpath: Optional[str],
-    caplog: pytest.LogCaptureFixture,
+    mock_pyproject_toml: mock.Mock,
+    rooted_tmp_path: RootedPath,
+    caplog: LogCaptureFixture,
 ) -> None:
-    """
-    Test get_pip_metadata() function.
-
-    More thorough tests of pyproject.toml, setup.py and setup.cfg handling are in their respective classes.
-    """
-    if not toml_exists:
-        toml_name = None
-        toml_version = None
-    if not py_exists:
-        py_name = None
-        py_version = None
-    if not cfg_exists:
-        cfg_name = None
-        cfg_version = None
-
+    # Case 1: Only pyproject.toml exists with name but no version
     pyproject_toml = mock_pyproject_toml.return_value
-    pyproject_toml.exists.return_value = toml_exists
-    pyproject_toml.get_name.return_value = toml_name
-    pyproject_toml.get_version.return_value = toml_version
-
-    setup_py = mock_setup_py.return_value
-    setup_py.exists.return_value = py_exists
-    setup_py.get_name.return_value = py_name
-    setup_py.get_version.return_value = py_version
+    pyproject_toml.exists.return_value = True
+    pyproject_toml.get_name.return_value = "name_from_pyproject_toml"
+    pyproject_toml.get_version.return_value = None
 
     setup_cfg = mock_setup_cfg.return_value
-    setup_cfg.exists.return_value = cfg_exists
-    setup_cfg.get_name.return_value = cfg_name
-    setup_cfg.get_version.return_value = cfg_version
+    setup_cfg.exists.return_value = False
 
-    mock_get_repo_id.return_value = MOCK_REPO_ID
+    setup_py = mock_setup_py.return_value
+    setup_py.exists.return_value = False
 
-    expect_name = toml_name or py_name or cfg_name or repo_name_with_subpath
-    expect_version = toml_version or py_version or cfg_version
+    name, version = pip._extract_metadata_from_config_files(rooted_tmp_path)
+    assert name == "name_from_pyproject_toml"
+    assert version is None
+    assert "Checking pyproject.toml for metadata" in caplog.messages
 
-    if expect_name:
-        name, version = pip._get_pip_metadata(PKG_DIR_SUBPATH)
+    # Case 2: pyproject.toml exists but without a name; fallback to setup.py with name and version
+    pyproject_toml.get_name.return_value = None
 
-        assert name == expect_name
-        assert version == expect_version
+    setup_py.exists.return_value = True
+    setup_py.get_name.return_value = "name_from_setup_py"
+    setup_py.get_version.return_value = "0.1.0"
+
+    name, version = pip._extract_metadata_from_config_files(rooted_tmp_path)
+    assert name == "name_from_setup_py"
+    assert version == "0.1.0"
+    assert "Checking setup.py for metadata" in caplog.messages
+
+    # Case 3: Both pyproject.toml and setup.py lack names; fallback to setup.cfg with complete metadata
+    setup_py.get_name.return_value = None
+
+    setup_cfg.exists.return_value = True
+    setup_cfg.get_name.return_value = "name_from_setup_cfg"
+    setup_cfg.get_version.return_value = "0.2.0"
+
+    name, version = pip._extract_metadata_from_config_files(rooted_tmp_path)
+    assert name == "name_from_setup_cfg"
+    assert version == "0.2.0"
+    assert "Checking setup.cfg for metadata" in caplog.messages
+
+    # Case 4: None of the config files have names, resulting in None, None
+    setup_cfg.get_name.return_value = None
+
+    name, version = pip._extract_metadata_from_config_files(rooted_tmp_path)
+    assert name is None
+    assert version is None
+
+
+@pytest.mark.parametrize(
+    "origin_exists",
+    [True, False],
+)
+@mock.patch("cachi2.core.package_managers.pip.PyProjectTOML")
+@mock.patch("cachi2.core.package_managers.pip.SetupPY")
+@mock.patch("cachi2.core.package_managers.pip.SetupCFG")
+def test_get_pip_metadata_from_remote_origin(
+    mock_setup_cfg: mock.Mock,
+    mock_setup_py: mock.Mock,
+    mock_pyproject_toml: mock.Mock,
+    origin_exists: bool,
+    rooted_tmp_path_repo: RootedPath,
+    caplog: LogCaptureFixture,
+) -> None:
+    pyproject_toml = mock_pyproject_toml.return_value
+    pyproject_toml.exists.return_value = False
+
+    setup_py = mock_setup_py.return_value
+    setup_py.exists.return_value = False
+
+    setup_cfg = mock_setup_cfg.return_value
+    setup_cfg.exists.return_value = False
+
+    if origin_exists:
+        repo = Repo(rooted_tmp_path_repo)
+        repo.create_remote("origin", "git@github.com:user/repo.git")
+
+        name, version = pip._get_pip_metadata(rooted_tmp_path_repo)
+        assert name == "repo"
+        assert version is None
+
+        assert f"Resolved name repo for package at {rooted_tmp_path_repo}" in caplog.messages
+        assert f"Could not resolve version for package at {rooted_tmp_path_repo}" in caplog.messages
     else:
-        mock_get_repo_id.side_effect = UnsupportedFeature(
-            "Cachi2 cannot process repositories that don't have an 'origin' remote"
-        )
         with pytest.raises(PackageRejected) as exc_info:
-            pip._get_pip_metadata(PKG_DIR_SUBPATH)
+            pip._get_pip_metadata(rooted_tmp_path_repo)
+
         assert str(exc_info.value) == "Unable to infer package name from origin URL"
-        return
-
-    assert pyproject_toml.get_name.called == toml_exists
-    assert pyproject_toml.get_version.called == toml_exists
-
-    find_name_in_setup_py = toml_name is None and py_exists
-    find_version_in_setup_py = toml_version is None and py_exists
-    find_name_in_setup_cfg = toml_name is None and py_name is None and cfg_exists
-    find_version_in_setup_cfg = toml_version is None and py_version is None and cfg_exists
-
-    assert setup_py.get_name.called == find_name_in_setup_py
-    assert setup_py.get_version.called == find_version_in_setup_py
-
-    assert setup_cfg.get_name.called == find_name_in_setup_cfg
-    assert setup_cfg.get_version.called == find_version_in_setup_cfg
-
-    if toml_exists:
-        assert "Checking pyproject.toml for metadata" in caplog.text
-
-    if find_name_in_setup_py or find_version_in_setup_py:
-        assert "Checking setup.py for metadata" in caplog.text
-
-    if find_name_in_setup_cfg or find_version_in_setup_cfg:
-        assert "Checking setup.cfg for metadata" in caplog.text
-
-    if expect_name:
-        assert f"Resolved name {expect_name} for package at {PKG_DIR_SUBPATH}" in caplog.text
-
-    if expect_version:
-        assert f"Resolved version {expect_version} for package at {PKG_DIR_SUBPATH}" in caplog.text
 
 
 class TestPyprojectTOML:
