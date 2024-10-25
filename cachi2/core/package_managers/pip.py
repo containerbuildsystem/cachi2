@@ -300,30 +300,37 @@ def _extract_metadata_from_config_files(
     1. pyproject.toml
     2. setup.py
     3. setup.cfg
+
+    Note: version is optional in the SBOM, but name is required
     """
-    name = None
-    version = None
-
     pyproject_toml = PyProjectTOML(package_dir)
-    setup_py = SetupPY(package_dir)
-    setup_cfg = SetupCFG(package_dir)
-
     if pyproject_toml.exists():
         log.debug("Checking pyproject.toml for metadata")
         name = pyproject_toml.get_name()
         version = pyproject_toml.get_version()
 
-    if None in (name, version) and setup_py.exists():
+        if name:
+            return name, version
+
+    setup_py = SetupPY(package_dir)
+    if setup_py.exists():
         log.debug("Checking setup.py for metadata")
-        name = name or setup_py.get_name()
-        version = version or setup_py.get_version()
+        name = setup_py.get_name()
+        version = setup_py.get_version()
 
-    if None in (name, version) and setup_cfg.exists():
+        if name:
+            return name, version
+
+    setup_cfg = SetupCFG(package_dir)
+    if setup_cfg.exists():
         log.debug("Checking setup.cfg for metadata")
-        name = name or setup_cfg.get_name()
-        version = version or setup_cfg.get_version()
+        name = setup_cfg.get_name()
+        version = setup_cfg.get_version()
 
-    return name, version
+        if name:
+            return name, version
+
+    return None, None
 
 
 def _get_pip_metadata(package_dir: RootedPath) -> tuple[str, Optional[str]]:
