@@ -94,10 +94,11 @@ The `cachi2 fetch-deps` command accepts the following gomod-related flags:
 
 ### Deprecated flags
 
-* `--gomod-vendor`
-* `--gomod-vendor-check`
+* `--gomod-vendor` (deprecated in _v0.11.0_)
+* `--gomod-vendor-check` (deprecated in _v0.11.0_)
 
-Both are deprecated and will have no effect when set. They are only kept for backwards compatibility reasons.
+All of them are deprecated and will have no effect when set. They are only kept for backwards
+compatibility reasons and will be removed in future releases.
 
 ### --cgo-disable
 
