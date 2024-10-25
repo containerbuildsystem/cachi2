@@ -90,12 +90,12 @@ by Cachi2 anyway.
 The `cachi2 fetch-deps` command accepts the following gomod-related flags:
 
 * [--cgo-disable](#--cgo-disable)
-* [--force-gomod-tidy](#--force-gomod-tidy)
 
 ### Deprecated flags
 
 * `--gomod-vendor` (deprecated in _v0.11.0_)
 * `--gomod-vendor-check` (deprecated in _v0.11.0_)
+* `--force-gomod-tidy` (deprecated in _v0.13.0_)
 
 All of them are deprecated and will have no effect when set. They are only kept for backwards
 compatibility reasons and will be removed in future releases.
@@ -108,12 +108,6 @@ disable cgo in your build (nor should you disable it yourself if you rely on C).
 
 Disabling cgo should not prevent Cachi2 from fetching your Go dependencies as usual. Note that Cachi2 will not make any
 attempts to fetch missing C libraries. If required, you would need to get them through other means.
-
-### --force-gomod-tidy
-
-Makes Cachi2 run `go mod tidy` after downloading dependencies.
-
-⚠ This flag is questionable and may be removed in the future.
 
 ## Vendoring
 
