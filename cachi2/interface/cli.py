@@ -160,7 +160,10 @@ def fetch_deps(
     force_gomod_tidy: bool = typer.Option(
         False,
         "--force-gomod-tidy",
-        help="Run 'go mod tidy' after downloading go dependencies.",
+        help=(
+            "DEPRECATED (no longer has any effect when set). "
+            "Run 'go mod tidy' after downloading go dependencies."
+        ),
     ),
     gomod_vendor: bool = typer.Option(
         False,
