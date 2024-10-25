@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Type
+from typing import Any, Type
 from unittest import mock
 
 import pytest
@@ -205,6 +205,61 @@ def test_resolve_generic_lockfile_invalid(
         _resolve_generic_lockfile(rooted_tmp_path, rooted_tmp_path)
 
     assert expected_err in str(exc_info.value)
+
+
+@pytest.mark.parametrize(
+    ["lockfile_content", "expected_components"],
+    [
+        pytest.param(
+            LOCKFILE_VALID,
+            [
+                {
+                    "external_references": [
+                        {"type": "distribution", "url": "https://example.com/artifact"}
+                    ],
+                    "name": "archive.zip",
+                    "properties": [{"name": "cachi2:found_by", "value": "cachi2"}],
+                    "purl": "pkg:generic/archive.zip?checksums=md5:3a18656e1cea70504b905836dee14db0&download_url=https://example.com/artifact",
+                    "type": "file",
+                    "version": None,
+                },
+                {
+                    "external_references": [
+                        {
+                            "type": "distribution",
+                            "url": "https://example.com/more/complex/path/file.tar.gz?foo=bar#fragment",
+                        }
+                    ],
+                    "name": "file.tar.gz",
+                    "properties": [{"name": "cachi2:found_by", "value": "cachi2"}],
+                    "purl": "pkg:generic/file.tar.gz?checksums=md5:32112bed1914cfe3799600f962750b1d&download_url=https://example.com/more/complex/path/file.tar.gz%3Ffoo%3Dbar%23fragment",
+                    "type": "file",
+                    "version": None,
+                },
+            ],
+            id="valid_lockfile",
+        ),
+    ],
+)
+@mock.patch("cachi2.core.package_managers.generic.main.asyncio.run")
+@mock.patch("cachi2.core.package_managers.generic.main.async_download_files")
+@mock.patch("cachi2.core.package_managers.generic.main.must_match_any_checksum")
+def test_resolve_generic_lockfile_valid(
+    mock_checksums: mock.Mock,
+    mock_download: mock.Mock,
+    mock_asyncio_run: mock.Mock,
+    lockfile_content: str,
+    expected_components: list[dict[str, Any]],
+    rooted_tmp_path: RootedPath,
+) -> None:
+    # setup lockfile
+    with open(rooted_tmp_path.join_within_root(DEFAULT_LOCKFILE_NAME), "w") as f:
+        f.write(lockfile_content)
+
+    assert [
+        c.model_dump() for c in _resolve_generic_lockfile(rooted_tmp_path, rooted_tmp_path)
+    ] == expected_components
+    mock_checksums.assert_called()
 
 
 def test_load_generic_lockfile_valid(rooted_tmp_path: RootedPath) -> None:
