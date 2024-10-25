@@ -311,29 +311,28 @@ def _get_pip_metadata(package_dir: RootedPath) -> tuple[str, Optional[str]]:
     setup_cfg = SetupCFG(package_dir)
 
     if pyproject_toml.exists():
-        log.info("Extracting metadata from pyproject.toml")
+        log.debug("Checking pyproject.toml for metadata")
         name = pyproject_toml.get_name()
         version = pyproject_toml.get_version()
 
     if None in (name, version) and setup_py.exists():
-        log.info("Filling in missing metadata from setup.py")
+        log.debug("Checking setup.py for metadata")
         name = name or setup_py.get_name()
         version = version or setup_py.get_version()
 
     if None in (name, version) and setup_cfg.exists():
-        log.info("Filling in missing metadata from setup.cfg")
+        log.debug("Checking setup.cfg for metadata")
         name = name or setup_cfg.get_name()
         version = version or setup_cfg.get_version()
 
     if not name:
-        log.info("Processing metadata from git repository")
         name = _infer_package_name_from_origin_url(package_dir)
 
-    log.info("Resolved package name: %r", name)
+    log.info("Resolved name %s for package at %s", name, package_dir)
     if version:
-        log.info("Resolved package version: %r", version)
+        log.info("Resolved version %s for package at %s", version, package_dir)
     else:
-        log.warning("Could not resolve package version")
+        log.warning("Could not resolve version for package at %s", package_dir)
 
     return name, version
 
