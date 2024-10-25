@@ -153,21 +153,19 @@ def test_get_pip_metadata(
     assert setup_cfg.get_version.called == find_version_in_setup_cfg
 
     if toml_exists:
-        assert "Extracting metadata from pyproject.toml" in caplog.text
+        assert "Checking pyproject.toml for metadata" in caplog.text
 
     if find_name_in_setup_py or find_version_in_setup_py:
-        assert "Filling in missing metadata from setup.py" in caplog.text
+        assert "Checking setup.py for metadata" in caplog.text
 
     if find_name_in_setup_cfg or find_version_in_setup_cfg:
-        assert "Filling in missing metadata from setup.cfg" in caplog.text
-
-    if not (toml_exists or py_exists or cfg_exists):
-        assert "Processing metadata from git repository" in caplog.text
+        assert "Checking setup.cfg for metadata" in caplog.text
 
     if expect_name:
-        assert f"Resolved package name: '{expect_name}'" in caplog.text
+        assert f"Resolved name {expect_name} for package at {PKG_DIR_SUBPATH}" in caplog.text
+
     if expect_version:
-        assert f"Resolved package version: '{expect_version}'" in caplog.text
+        assert f"Resolved version {expect_version} for package at {PKG_DIR_SUBPATH}" in caplog.text
 
 
 class TestPyprojectTOML:
