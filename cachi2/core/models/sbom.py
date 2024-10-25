@@ -21,6 +21,13 @@ class Property(pydantic.BaseModel):
     value: str
 
 
+class ExternalReference(pydantic.BaseModel):
+    """An ExternalReference inside an SBOM component."""
+
+    url: str
+    type: Literal["distribution"] = "distribution"
+
+
 FOUND_BY_CACHI2_PROPERTY: Property = Property(name="cachi2:found_by", value="cachi2")
 
 
@@ -35,7 +42,10 @@ class Component(pydantic.BaseModel):
     purl: str
     version: Optional[str] = None
     properties: list[Property] = pydantic.Field(default_factory=list, validate_default=True)
-    type: Literal["library"] = "library"
+    type: Literal["library", "file"] = "library"
+    external_references: Optional[list[ExternalReference]] = pydantic.Field(
+        serialization_alias="externalReferences", default=None
+    )
 
     def key(self) -> str:
         """Uniquely identifies a package.
