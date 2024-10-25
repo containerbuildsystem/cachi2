@@ -91,8 +91,6 @@ The `cachi2 fetch-deps` command accepts the following gomod-related flags:
 
 * [--cgo-disable](#--cgo-disable)
 * [--force-gomod-tidy](#--force-gomod-tidy)
-* --gomod-vendor - see [vendoring](#vendoring)
-* --gomod-vendor-check - see [vendoring](#vendoring)
 
 ### --cgo-disable
 
