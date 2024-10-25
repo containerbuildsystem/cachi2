@@ -291,17 +291,15 @@ def _infer_package_name_from_origin_url(package_dir: RootedPath) -> str:
     return canonicalize_name(str(resolved_name).replace("/", "-")).strip("-.")
 
 
-def _get_pip_metadata(package_dir: RootedPath) -> tuple[str, Optional[str]]:
+def _extract_metadata_from_config_files(
+    package_dir: RootedPath,
+) -> tuple[Optional[str], Optional[str]]:
     """
-    Attempt to get the name and version of a Pip package.
+    Extract package name and version in the following order.
 
-    First, try to parse the setup.py script (if present) and extract name and version
-    from keyword arguments to the setuptools.setup() call. If either name or version
-    could not be resolved and there is a setup.cfg file, try to fill in the missing
-    values from metadata.name and metadata.version in the .cfg file.
-
-    :param package_dir: Path to the root directory of a Pip package
-    :return: Tuple of strings (name, version)
+    1. pyproject.toml
+    2. setup.py
+    3. setup.cfg
     """
     name = None
     version = None
@@ -324,6 +322,13 @@ def _get_pip_metadata(package_dir: RootedPath) -> tuple[str, Optional[str]]:
         log.debug("Checking setup.cfg for metadata")
         name = name or setup_cfg.get_name()
         version = version or setup_cfg.get_version()
+
+    return name, version
+
+
+def _get_pip_metadata(package_dir: RootedPath) -> tuple[str, Optional[str]]:
+    """Attempt to retrieve name and version of a pip package."""
+    name, version = _extract_metadata_from_config_files(package_dir)
 
     if not name:
         name = _infer_package_name_from_origin_url(package_dir)
