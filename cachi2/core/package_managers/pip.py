@@ -312,9 +312,6 @@ def _get_pip_metadata(package_dir: RootedPath) -> tuple[str, Optional[str]]:
 
     if pyproject_toml.exists():
         log.info("Extracting metadata from pyproject.toml")
-        if pyproject_toml.check_dynamic_version():
-            log.warning("Parsing dynamic metadata from pyproject.toml is not supported")
-
         name = pyproject_toml.get_name()
         version = pyproject_toml.get_version()
 
