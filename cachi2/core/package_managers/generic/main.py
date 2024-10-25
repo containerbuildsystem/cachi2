@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Union
 
 import yaml
+from packageurl import PackageURL
 from pydantic import ValidationError
 
 from cachi2.core.checksum import must_match_any_checksum
@@ -12,7 +13,7 @@ from cachi2.core.config import get_config
 from cachi2.core.errors import PackageRejected
 from cachi2.core.models.input import Request
 from cachi2.core.models.output import RequestOutput
-from cachi2.core.models.sbom import Component
+from cachi2.core.models.sbom import Component, ExternalReference
 from cachi2.core.package_managers.general import async_download_files
 from cachi2.core.package_managers.generic.models import GenericLockfileV1
 from cachi2.core.rooted_path import RootedPath
@@ -69,7 +70,7 @@ def _resolve_generic_lockfile(source_dir: RootedPath, output_dir: RootedPath) ->
     # verify checksums
     for artifact in lockfile.artifacts:
         must_match_any_checksum(artifact.target, artifact.formatted_checksums)
-    return []
+    return _generate_sbom_components(lockfile)
 
 
 def _load_lockfile(lockfile_path: RootedPath, output_dir: RootedPath) -> GenericLockfileV1:
@@ -102,3 +103,29 @@ def _load_lockfile(lockfile_path: RootedPath, output_dir: RootedPath) -> Generic
                 ),
             )
     return lockfile
+
+
+def _generate_sbom_components(lockfile: GenericLockfileV1) -> list[Component]:
+    """Generate a list of SBOM components for a given lockfile."""
+    components: list[Component] = []
+
+    for artifact in lockfile.artifacts:
+        name = Path(artifact.target).name
+        url = str(artifact.download_url)
+        checksums = ",".join([f"{algo}:{digest}" for algo, digest in artifact.checksums.items()])
+        component = Component(
+            name=name,
+            purl=PackageURL(
+                type="generic",
+                name=name,
+                qualifiers={
+                    "download_url": url,
+                    "checksums": checksums,
+                },
+            ).to_string(),
+            type="file",
+            external_references=[ExternalReference(url=url, type="distribution")],
+        )
+        components.append(component)
+
+    return components
