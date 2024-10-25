@@ -448,14 +448,6 @@ class PyProjectTOML(SetupFile):
             log.warning("No project.version in pyproject.toml")
             return None
 
-    def check_dynamic_version(self) -> bool:
-        """Check if project version is set dynamically."""
-        try:
-            dynamic_properties = self._parsed_toml["project"]["dynamic"]
-            return "version" in dynamic_properties
-        except KeyError:
-            return False
-
     @functools.cached_property
     def _parsed_toml(self) -> dict[str, Any]:
         try:
