@@ -358,8 +358,7 @@ class _Purlifier:
         else:  # dep_type == "https"
             qualifiers = {"download_url": resolved_url}
             if integrity:
-                algorithm, digest = ChecksumInfo.from_sri(integrity)
-                qualifiers["checksum"] = f"{algorithm}:{digest}"
+                qualifiers["checksum"] = str(ChecksumInfo.from_sri(integrity))
 
         return PackageURL(
             type="npm",
