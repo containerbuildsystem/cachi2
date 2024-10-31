@@ -910,10 +910,6 @@ def _resolve_gomod(
         go(["mod", "tidy"], run_params)
 
     go_list = ["list", "-e"]
-    if not should_vendor:
-        # Make Go ignore the vendor dir even if there is one
-        go_list.extend(["-mod", "readonly"])
-
     main_module, workspace_modules = _parse_local_modules(
         go, go_list, run_params, app_dir, version_resolver
     )
