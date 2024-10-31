@@ -939,6 +939,18 @@ def _go_list_deps(
     )
 
 
+def _parse_packages(go: Go, run_params: dict[str, Any]) -> Iterator[ParsedPackage]:
+    """Return all Go packages for the project.
+
+    Query the packages from the root of the project.
+
+    :param go: Go executable wrapper instance
+    :param run_params: Additional run cmd params
+    :return: ParsedPackage iterator
+    """
+    return iter(_go_list_deps(go, "./...", run_params))
+
+
 def _resolve_gomod(
     app_dir: RootedPath,
     request: Request,
@@ -1033,7 +1045,7 @@ def _resolve_gomod(
     _validate_local_replacements(all_modules, app_dir)
 
     log.info("Retrieving the list of packages")
-    all_packages = list(_go_list_deps(go, "./...", run_params))
+    all_packages = _parse_packages(go, run_params)
 
     return ResolvedGoModule(main_module, all_modules, all_packages, modules_in_go_sum)
 

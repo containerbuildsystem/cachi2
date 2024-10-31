@@ -40,6 +40,7 @@ from cachi2.core.package_managers.gomod import (
     _go_list_deps,
     _parse_go_sum,
     _parse_local_modules,
+    _parse_packages,
     _parse_vendor,
     _parse_workspace_module,
     _process_modules_json_stream,
@@ -150,6 +151,7 @@ def _parse_go_list_deps_data(data_dir: Path, file_path: str) -> list[ParsedPacka
     ),
 )
 @mock.patch("cachi2.core.package_managers.gomod._go_list_deps")
+@mock.patch("cachi2.core.package_managers.gomod._parse_packages")
 @mock.patch("cachi2.core.package_managers.gomod.GoWork._get_go_work")
 @mock.patch("cachi2.core.package_managers.gomod.GoWork._get_go_work_path")
 @mock.patch("cachi2.core.package_managers.gomod._disable_telemetry")
@@ -167,6 +169,7 @@ def test_resolve_gomod(
     mock_disable_telemetry: mock.Mock,
     mock_get_go_work_path: mock.Mock,
     mock_get_go_work: mock.Mock,
+    mock_parse_packages: mock.Mock,
     mock_go_list_deps: mock.Mock,
     cgo_disable: bool,
     force_gomod_tidy: bool,
@@ -215,6 +218,9 @@ def test_resolve_gomod(
     mock_go_release.return_value = "go0.1.0"
     mock_get_gomod_version.return_value = ("0.1.1", "0.1.2")
 
+    parse_packages_mocked_data: list[ParsedPackage] = []
+    mock_parse_packages.return_value = parse_packages_mocked_data
+
     if has_workspaces:
         go_work_path = module_dir.join_within_root("workspace_root")
         go_work_path.path.mkdir(parents=True, exist_ok=True)
@@ -252,10 +258,13 @@ def test_resolve_gomod(
 
     assert mock_run.call_args_list[0][1]["env"]["GOMODCACHE"] == f"{tmp_path}/pkg/mod"
 
-    # Assert that the module-parsing _go_list_deps call was called with the 'all' pattern.
-    mock_go_list_deps.call_count == 2
-    assert "all" in mock_go_list_deps.call_args_list[0].args
-    assert "./..." in mock_go_list_deps.call_args_list[1].args
+    # Assert that _parse_packages was called exactly once.
+    # Assert that the module-parsing _go_list_deps call was called with the 'all' pattern. The
+    # other _go_list_deps invocations from resolve_gomod are wrapped by _parse_packages and tested
+    # in test_parse_packages.
+    mock_parse_packages.assert_called_once()
+    mock_go_list_deps.assert_called_once()
+    assert "all" in mock_go_list_deps.call_args[0]
 
     for call in mock_run.call_args_list:
         env = call.kwargs["env"]
@@ -273,7 +282,7 @@ def test_resolve_gomod(
 
     assert resolve_result.parsed_main_module == expect_result.parsed_main_module
     assert list(resolve_result.parsed_modules) == expect_result.parsed_modules
-    assert list(resolve_result.parsed_packages) == expect_result.parsed_packages
+    # skip comparing parsed packages, these are tested using the same data in test_parse_packages
     assert resolve_result.modules_in_go_sum == expect_result.modules_in_go_sum
 
     mock_validate_local_replacements.assert_called_once_with(
@@ -2061,6 +2070,28 @@ def test_disable_telemetry(
     else:
         assert mock_run_cmd.call_count == 2
         mock_run_cmd.assert_called_with(cmd, params)
+
+
+def test_parse_packages(data_dir: Path) -> None:
+    """Test parsing of packages into ParsedPackage structures with real-like data.
+
+    Calls into _go_list_deps. Low level go command interaction testing was already done in
+    test_go_list_deps.
+    """
+    mocked_indata = get_mocked_data(data_dir, "non-vendored/go_list_deps_threedot.json")
+    mocked_outdata = json.loads(get_mocked_data(data_dir, "expected-results/resolve_gomod.json"))
+    expected = [ParsedPackage(**package) for package in mocked_outdata["packages"]]
+
+    go = mock.MagicMock()
+    go.return_value = mocked_indata
+    pkgs = _parse_packages(go, {})
+
+    calls = go.call_args_list
+    go.assert_called_once()
+
+    # _parse_packages calls _go_list_deps always with the './...' pattern
+    assert all("./..." in call.args[0] for call in calls)
+    assert list(pkgs) == expected
 
 
 class TestGo:
