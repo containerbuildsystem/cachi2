@@ -589,7 +589,6 @@ def test_parse_local_modules(mock_workspace_paths: mock.Mock, version_resolver: 
     app_dir = RootedPath("/path/to/project")
     version_resolver.get_golang_version.return_value = "1.0.0"
     mock_workspace_paths.return_value = [app_dir.join_within_root("workspace/foo")]
-
     go = mock.Mock()
     go.return_value = go_list_m_json
 
@@ -597,7 +596,7 @@ def test_parse_local_modules(mock_workspace_paths: mock.Mock, version_resolver: 
     go_work.workspace_paths = mock_workspace_paths
 
     main_module, workspace_modules = _parse_local_modules(
-        go_work, go, [], {}, app_dir, version_resolver
+        go_work, go, {}, app_dir, version_resolver
     )
 
     assert main_module == ParsedModule(
