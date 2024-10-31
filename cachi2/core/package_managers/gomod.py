@@ -922,6 +922,23 @@ def _disable_telemetry(go: Go, run_params: dict[str, Any]) -> None:
         go(["telemetry", "off"], run_params)
 
 
+def _go_list_deps(
+    go: Go, pattern: Literal["./...", "all"], run_params: Optional[dict[str, Any]] = None
+) -> Iterator[ParsedPackage]:
+    """Run go list -deps -json and return the parsed list of packages.
+
+    The "./..." pattern returns the list of packages compiled into the final binary.
+
+    The "all" pattern includes dependencies needed only for tests. Use it to get a more
+    complete module list (roughly matching the list of downloaded modules).
+    """
+    cmd = ["list", "-e", "-deps", "-json=ImportPath,Module,Standard,Deps", pattern]
+    return map(
+        ParsedPackage.model_validate,
+        load_json_stream(go(cmd, run_params)),
+    )
+
+
 def _resolve_gomod(
     app_dir: RootedPath,
     request: Request,
@@ -1010,26 +1027,14 @@ def _resolve_gomod(
         go_work, go, go_list, run_params, app_dir, version_resolver
     )
 
-    def go_list_deps(pattern: Literal["./...", "all"]) -> Iterator[ParsedPackage]:
-        """Run go list -deps -json and return the parsed list of packages.
-
-        The "./..." pattern returns the list of packages compiled into the final binary.
-
-        The "all" pattern includes dependencies needed only for tests. Use it to get a more
-        complete module list (roughly matching the list of downloaded modules).
-        """
-        cmd = [*go_list, "-deps", "-json=ImportPath,Module,Standard,Deps", pattern]
-        return map(ParsedPackage.model_validate, load_json_stream(go(cmd, run_params)))
-
-    package_modules = [
-        module for pkg in go_list_deps("all") if (module := pkg.module) and not module.main
-    ]
+    deps = _go_list_deps(go, "all", run_params)
+    package_modules = [pkg.module for pkg in deps if pkg.module and not pkg.module.main]
     package_modules.extend(workspace_modules)
     all_modules = _deduplicate_resolved_modules(package_modules, downloaded_modules)
     _validate_local_replacements(all_modules, app_dir)
 
     log.info("Retrieving the list of packages")
-    all_packages = list(go_list_deps("./..."))
+    all_packages = list(_go_list_deps(go, "./...", run_params))
 
     return ResolvedGoModule(main_module, all_modules, all_packages, modules_in_go_sum)
 
