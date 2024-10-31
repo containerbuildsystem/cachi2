@@ -192,7 +192,7 @@ def test_resolve_gomod(
 
     run_side_effects.append(
         proc_mock(
-            "go list -e -mod readonly -m",
+            "go list -e -m",
             returncode=0,
             stdout=get_mocked_data(data_dir, f"{mocked_data_folder}/go_list_modules.json").replace(
                 "{repo_dir}", str(module_dir)
@@ -201,14 +201,14 @@ def test_resolve_gomod(
     )
     run_side_effects.append(
         proc_mock(
-            "go list -e -mod readonly -deps -json all",
+            "go list -e -deps -json all",
             returncode=0,
             stdout=get_mocked_data(data_dir, f"{mocked_data_folder}/go_list_deps_all.json"),
         )
     )
     run_side_effects.append(
         proc_mock(
-            "go list -e -mod readonly -deps -json ./...",
+            "go list -e -deps -json ./...",
             returncode=0,
             stdout=get_mocked_data(data_dir, f"{mocked_data_folder}/go_list_deps_threedot.json"),
         )
@@ -252,13 +252,10 @@ def test_resolve_gomod(
 
     assert mock_run.call_args_list[0][1]["env"]["GOMODCACHE"] == f"{tmp_path}/pkg/mod"
 
-    # when not vendoring, go list should be called with -mod readonly
     listdeps_cmd = [
         GO_CMD_PATH,
         "list",
         "-e",
-        "-mod",
-        "readonly",
         "-deps",
         "-json=ImportPath,Module,Standard,Deps",
     ]
@@ -366,7 +363,6 @@ def test_resolve_gomod_vendor_dependencies(
 
     assert mock_run.call_args_list[0][0][0] == [GO_CMD_PATH, "mod", "vendor"]
     assert mock_run.call_args_list[0][1]["env"]["GOMODCACHE"] == f"{tmp_path}/vendor-cache"
-    # when vendoring, go list should be called without -mod readonly
     assert mock_run.call_args_list[-2][0][0] == [
         GO_CMD_PATH,
         "list",
@@ -438,20 +434,16 @@ def test_resolve_gomod_no_deps(
         run_side_effects.append(proc_mock("go mod tidy", returncode=0, stdout=None))
     run_side_effects.append(
         proc_mock(
-            "go list -e -mod readonly -m",
+            "go list -e -m",
             returncode=0,
             stdout=mock_go_list_modules,
         )
     )
     run_side_effects.append(
-        proc_mock(
-            "go list -e -mod readonly -deps -json all", returncode=0, stdout=mock_pkg_deps_no_deps
-        )
+        proc_mock("go list -e -deps -json all", returncode=0, stdout=mock_pkg_deps_no_deps)
     )
     run_side_effects.append(
-        proc_mock(
-            "go list -e -mod readonly -deps -json ./...", returncode=0, stdout=mock_pkg_deps_no_deps
-        )
+        proc_mock("go list -e -deps -json ./...", returncode=0, stdout=mock_pkg_deps_no_deps)
     )
     mock_run.side_effect = run_side_effects
 
@@ -1133,7 +1125,7 @@ def test_go_list_cmd_failure(
     mock_run.side_effect = [
         proc_mock("go mod download", returncode=go_mod_rc, stdout=""),
         proc_mock(
-            "go list -e -mod readonly -m",
+            "go list -e -m",
             returncode=go_list_rc,
             stdout="",
         ),
@@ -1141,7 +1133,7 @@ def test_go_list_cmd_failure(
 
     expect_error = "Go execution failed: "
     if go_mod_rc == 0:
-        expect_error += "`go list -e -mod readonly -m -json` failed with rc=1"
+        expect_error += "`go list -e -m -json` failed with rc=1"
     else:
         expect_error += "Cachi2 re-tried running `go mod download -json` command 1 times."
 
