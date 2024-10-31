@@ -933,11 +933,10 @@ def _resolve_gomod(
     ]
     package_modules.extend(workspace_modules)
     all_modules = _deduplicate_resolved_modules(package_modules, downloaded_modules)
+    _validate_local_replacements(all_modules, app_dir)
 
     log.info("Retrieving the list of packages")
     all_packages = list(go_list_deps("./..."))
-
-    _validate_local_replacements(all_modules, app_dir)
 
     return ResolvedGoModule(main_module, all_modules, all_packages, modules_in_go_sum)
 
