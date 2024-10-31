@@ -6,7 +6,7 @@ import subprocess
 import textwrap
 from pathlib import Path
 from string import Template
-from typing import Any, Iterator, Optional, Tuple, Union
+from typing import Any, Iterator, Literal, Optional, Tuple, Union
 from unittest import mock
 
 import git
@@ -37,6 +37,7 @@ from cachi2.core.package_managers.gomod import (
     _get_go_sum_files,
     _get_gomod_version,
     _get_repository_name,
+    _go_list_deps,
     _parse_go_sum,
     _parse_local_modules,
     _parse_vendor,
@@ -50,6 +51,7 @@ from cachi2.core.package_managers.gomod import (
     fetch_gomod_source,
 )
 from cachi2.core.rooted_path import PathOutsideRoot, RootedPath
+from cachi2.core.utils import load_json_stream
 from tests.common_utils import GIT_REF, write_file_tree
 
 GO_CMD_PATH = "/usr/bin/go"
@@ -132,6 +134,11 @@ def _parse_mocked_data(data_dir: Path, file_path: str) -> ResolvedGoModule:
     return ResolvedGoModule(main_module, modules, packages, modules_in_go_sum)
 
 
+def _parse_go_list_deps_data(data_dir: Path, file_path: str) -> list[ParsedPackage]:
+    mocked_data = load_json_stream(get_mocked_data(data_dir, file_path))
+    return [ParsedPackage.model_validate(pkg) for pkg in mocked_data]
+
+
 @pytest.mark.parametrize(
     "cgo_disable, force_gomod_tidy, has_workspaces",
     (
@@ -142,6 +149,7 @@ def _parse_mocked_data(data_dir: Path, file_path: str) -> ResolvedGoModule:
         pytest.param(False, False, True, id="has_workspaces"),
     ),
 )
+@mock.patch("cachi2.core.package_managers.gomod._go_list_deps")
 @mock.patch("cachi2.core.package_managers.gomod.GoWork._get_go_work")
 @mock.patch("cachi2.core.package_managers.gomod.GoWork._get_go_work_path")
 @mock.patch("cachi2.core.package_managers.gomod._disable_telemetry")
@@ -159,6 +167,7 @@ def test_resolve_gomod(
     mock_disable_telemetry: mock.Mock,
     mock_get_go_work_path: mock.Mock,
     mock_get_go_work: mock.Mock,
+    mock_go_list_deps: mock.Mock,
     cgo_disable: bool,
     force_gomod_tidy: bool,
     has_workspaces: bool,
@@ -175,13 +184,6 @@ def test_resolve_gomod(
 
     # Mock the "subprocess.run" calls
     run_side_effects = []
-
-    if has_workspaces:
-        go_work_path = module_dir.join_within_root("workspace_root")
-        go_work_path.path.mkdir(parents=True, exist_ok=True)
-        go_work_path.join_within_root("go.sum").path.write_text(
-            get_mocked_data(data_dir, "workspaces/go.sum")
-        )
 
     run_side_effects.append(
         proc_mock(
@@ -203,25 +205,30 @@ def test_resolve_gomod(
             ),
         )
     )
-    run_side_effects.append(
-        proc_mock(
-            "go list -e -deps -json all",
-            returncode=0,
-            stdout=get_mocked_data(data_dir, f"{mocked_data_folder}/go_list_deps_all.json"),
-        )
-    )
-    run_side_effects.append(
-        proc_mock(
-            "go list -e -deps -json ./...",
-            returncode=0,
-            stdout=get_mocked_data(data_dir, f"{mocked_data_folder}/go_list_deps_threedot.json"),
-        )
-    )
     mock_run.side_effect = run_side_effects
+    mock_go_list_deps.side_effect = [
+        _parse_go_list_deps_data(data_dir, f"{mocked_data_folder}/go_list_deps_all.json"),
+        _parse_go_list_deps_data(data_dir, f"{mocked_data_folder}/go_list_deps_threedot.json"),
+    ]
 
     mock_version_resolver.get_golang_version.return_value = "v0.1.0"
     mock_go_release.return_value = "go0.1.0"
     mock_get_gomod_version.return_value = ("0.1.1", "0.1.2")
+
+    if has_workspaces:
+        go_work_path = module_dir.join_within_root("workspace_root")
+        go_work_path.path.mkdir(parents=True, exist_ok=True)
+        go_work_path.join_within_root("go.sum").path.write_text(
+            get_mocked_data(data_dir, "workspaces/go.sum")
+        )
+
+    run_side_effects.append(
+        proc_mock(
+            "go mod download -json",
+            returncode=0,
+            stdout=get_mocked_data(data_dir, f"{mocked_data_folder}/go_mod_download.json"),
+        )
+    )
 
     flags: list[Flag] = []
     if cgo_disable:
@@ -245,15 +252,10 @@ def test_resolve_gomod(
 
     assert mock_run.call_args_list[0][1]["env"]["GOMODCACHE"] == f"{tmp_path}/pkg/mod"
 
-    listdeps_cmd = [
-        GO_CMD_PATH,
-        "list",
-        "-e",
-        "-deps",
-        "-json=ImportPath,Module,Standard,Deps",
-    ]
-    assert mock_run.call_args_list[-2][0][0] == [*listdeps_cmd, "all"]
-    assert mock_run.call_args_list[-1][0][0] == [*listdeps_cmd, "./..."]
+    # Assert that the module-parsing _go_list_deps call was called with the 'all' pattern.
+    mock_go_list_deps.call_count == 2
+    assert "all" in mock_go_list_deps.call_args_list[0].args
+    assert "./..." in mock_go_list_deps.call_args_list[1].args
 
     for call in mock_run.call_args_list:
         env = call.kwargs["env"]
@@ -1173,51 +1175,61 @@ def test_package_to_component(package: Package, expected_component: Component) -
     assert package.to_component() == expected_component
 
 
-@pytest.mark.parametrize(("go_mod_rc", "go_list_rc"), ((0, 1), (1, 0)))
-@mock.patch("cachi2.core.package_managers.gomod._disable_telemetry")
-@mock.patch("cachi2.core.package_managers.gomod.Go.release", new_callable=mock.PropertyMock)
-@mock.patch("cachi2.core.package_managers.gomod._get_gomod_version")
-@mock.patch("cachi2.core.package_managers.gomod.get_config")
-@mock.patch("subprocess.run")
-def test_go_list_cmd_failure(
-    mock_run: mock.Mock,
-    mock_config: mock.Mock,
-    mock_get_gomod_version: mock.Mock,
-    mock_go_release: mock.PropertyMock,
-    mock_disable_telemetry: mock.Mock,
-    tmp_path: Path,
-    go_mod_rc: int,
-    go_list_rc: int,
-    gomod_request: Request,
-) -> None:
-    module_path = gomod_request.source_dir.join_within_root("path/to/module")
-    version_resolver = mock.Mock()
-    go_work = mock.MagicMock()
-    go_work.__bool__.return_value = False
+@pytest.mark.parametrize("pattern", ["./...", "all"])
+@mock.patch("cachi2.core.package_managers.gomod.run_cmd")
+def test_go_list_deps(mock_run_cmd: mock.Mock, pattern: Literal["all", "./..."]) -> None:
+    go_list_deps_json = """
+        {
+            "ImportPath": "time",
+            "Standard": true,
+            "Deps": [
+                "errors",
+                "internal/abi"
+            ]
+        }
+        {
+            "ImportPath": "github.com/foo",
+            "Module": {
+                "Path": "github.com/foo",
+                "Main": true
+            },
+            "Deps": [
+                "internal/bisect",
+                "internal/bytealg"
+            ]
+        }
+    """
 
-    mock_config.return_value.gomod_download_max_tries = 1
-    mock_go_release.return_value = "go0.1.0"
-    mock_get_gomod_version.return_value = ("0.1.1", "0.1.2")
-    mock_disable_telemetry.return_value = None
-
-    # Mock the "subprocess.run" calls
-    mock_run.side_effect = [
-        proc_mock("go mod download", returncode=go_mod_rc, stdout=""),
-        proc_mock(
-            "go list -e -m",
-            returncode=go_list_rc,
-            stdout="",
+    parsed_packages = [
+        ParsedPackage(
+            import_path="time",
+            standard=True,
+        ),
+        ParsedPackage(
+            import_path="github.com/foo",
+            module=ParsedModule(
+                path="github.com/foo",
+                main=True,
+            ),
         ),
     ]
 
-    expect_error = "Go execution failed: "
-    if go_mod_rc == 0:
-        expect_error += "`go list -e -m -json` failed with rc=1"
-    else:
-        expect_error += "Cachi2 re-tried running `go mod download -json` command 1 times."
+    mock_run_cmd.return_value = go_list_deps_json
+    call_args = ["go", "list", "-e", "-deps", "-json=ImportPath,Module,Standard,Deps", pattern]
+    assert list(_go_list_deps(Go(), pattern, {})) == parsed_packages
+    mock_run_cmd.assert_called_once_with(call_args, {})
 
-    with pytest.raises(PackageManagerError, match=expect_error):
-        _resolve_gomod(module_path, gomod_request, tmp_path, version_resolver, go_work)
+
+@mock.patch("cachi2.core.package_managers.gomod.run_cmd")
+def test_go_list_deps_fail(
+    mock_run_cmd: mock.Mock,
+) -> None:
+    mock_run_cmd.side_effect = subprocess.CalledProcessError(1, cmd="foo")
+    expect_error = "Go execution failed: `go list -e -m -json` failed"
+
+    with pytest.raises(PackageManagerError) as ex:
+        _go_list_deps(Go(), "./...", {})
+        expect_error in str(ex)
 
 
 def test_deduplicate_resolved_modules() -> None:
