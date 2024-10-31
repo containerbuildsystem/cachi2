@@ -1,12 +1,15 @@
 import re
+from abc import ABC, abstractmethod
 from itertools import chain
 from pathlib import Path
 from typing import Iterable, Optional, Union
 from urllib.parse import urlparse
 
+from packageurl import PackageURL
 from pyarn.lockfile import Package as PYarnPackage
 from pydantic import BaseModel
 
+from cachi2.core.checksum import ChecksumInfo
 from cachi2.core.errors import PackageRejected, UnexpectedFormat
 from cachi2.core.package_managers.npm import NPM_REGISTRY_CNAMES
 from cachi2.core.package_managers.yarn_classic.project import PackageJson, Project, YarnLock
@@ -16,6 +19,7 @@ from cachi2.core.package_managers.yarn_classic.workspaces import (
     extract_workspace_metadata,
 )
 from cachi2.core.rooted_path import RootedPath
+from cachi2.core.scm import RepoID
 
 # https://github.com/yarnpkg/yarn/blob/7cafa512a777048ce0b666080a24e80aae3d66a9/src/resolvers/exotics/git-resolver.js#L15-L17
 GIT_HOSTS = frozenset(("github.com", "gitlab.com", "bitbucket.com", "bitbucket.org"))
@@ -27,14 +31,21 @@ GIT_PATTERN_MATCHERS = (
     re.compile(r"^https?:.+\.git#.+"),
 )
 
+YARN_REGISTRY_URL = "https://registry.yarnpkg.com"
 
-class _BasePackage(BaseModel):
+
+class _BasePackage(BaseModel, ABC):
     """A base Yarn 1.x package."""
 
     name: str
     version: Optional[str] = None
     integrity: Optional[str] = None
     dev: bool = False
+
+    @property
+    @abstractmethod
+    def purl(self) -> str:
+        """Return the package URL."""
 
 
 class _UrlMixin(BaseModel):
@@ -48,25 +59,97 @@ class _RelpathMixin(BaseModel):
 class RegistryPackage(_BasePackage, _UrlMixin):
     """A Yarn 1.x package from the registry."""
 
+    @property
+    def purl(self) -> str:
+        """Return package URL."""
+        qualifiers = {}
+
+        if YARN_REGISTRY_URL in self.url:
+            qualifiers = {"repository_url": YARN_REGISTRY_URL}
+
+        if self.integrity:
+            qualifiers["checksum"] = str(ChecksumInfo.from_sri(self.integrity))
+
+        return PackageURL(
+            type="npm",
+            name=self.name,
+            version=self.version,
+            qualifiers=qualifiers,
+        ).to_string()
+
 
 class GitPackage(_BasePackage, _UrlMixin):
     """A Yarn 1.x package from a git repo."""
+
+    @property
+    def purl(self) -> str:
+        """Return package URL."""
+        parsed_url = urlparse(self.url)
+        repo_id = RepoID(origin_url=self.url, commit_id=parsed_url.fragment)
+        qualifiers = {"vcs_url": repo_id.as_vcs_url_qualifier()}
+        return PackageURL(
+            type="npm",
+            name=self.name,
+            version=self.version,
+            qualifiers=qualifiers,
+        ).to_string()
 
 
 class UrlPackage(_BasePackage, _UrlMixin):
     """A Yarn 1.x package from a http/https URL."""
 
+    @property
+    def purl(self) -> str:
+        """Return package URL."""
+        qualifiers = {"download_url": self.url}
+        return PackageURL(
+            type="npm",
+            name=self.name,
+            version=self.version,
+            qualifiers=qualifiers,
+        ).to_string()
+
 
 class FilePackage(_BasePackage, _RelpathMixin):
     """A Yarn 1.x package from a local file path."""
+
+    @property
+    def purl(self) -> str:
+        """Return package URL."""
+        return PackageURL(
+            type="npm",
+            name=self.name,
+            version=self.version,
+            subpath=str(self.relpath),
+        ).to_string()
 
 
 class WorkspacePackage(_BasePackage, _RelpathMixin):
     """A Yarn 1.x local workspace package."""
 
+    @property
+    def purl(self) -> str:
+        """Return package URL."""
+        return PackageURL(
+            type="npm",
+            name=self.name,
+            version=self.version,
+            subpath=str(self.relpath),
+        ).to_string()
+
 
 class LinkPackage(_BasePackage, _RelpathMixin):
     """A Yarn 1.x local link package."""
+
+    @property
+    def purl(self) -> str:
+        """Return package URL."""
+        return PackageURL(
+            type="npm",
+            name=self.name,
+            version=self.version,
+            subpath=str(self.relpath),
+        ).to_string()
 
 
 YarnClassicPackage = Union[
