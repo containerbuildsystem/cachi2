@@ -1022,9 +1022,8 @@ def _resolve_gomod(
     if "force-gomod-tidy" in flags:
         go(["mod", "tidy"], run_params)
 
-    go_list = ["list", "-e"]
     main_module, workspace_modules = _parse_local_modules(
-        go_work, go, go_list, run_params, app_dir, version_resolver
+        go_work, go, run_params, app_dir, version_resolver
     )
 
     deps = _go_list_deps(go, "all", run_params)
@@ -1042,7 +1041,6 @@ def _resolve_gomod(
 def _parse_local_modules(
     go_work: GoWork,
     go: Go,
-    go_list: list[str],
     run_params: dict[str, Any],
     app_dir: RootedPath,
     version_resolver: "ModuleVersionResolver",
@@ -1052,7 +1050,7 @@ def _parse_local_modules(
 
     :return: A tuple containing the main module and a list of workspaces
     """
-    modules_json_stream = go([*go_list, "-m", "-json"], run_params).rstrip()
+    modules_json_stream = go(["list", "-e", "-m", "-json"], run_params).rstrip()
     main_module_dict, workspace_dict_list = _process_modules_json_stream(
         app_dir, modules_json_stream
     )
