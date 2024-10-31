@@ -1,9 +1,12 @@
 import re
 from unittest import mock
+from urllib.parse import quote
 
+import git
 import pytest
 from pyarn.lockfile import Package as PYarnPackage
 
+from cachi2.core.checksum import ChecksumInfo
 from cachi2.core.errors import PackageRejected, UnexpectedFormat
 from cachi2.core.package_managers.yarn_classic.project import PackageJson
 from cachi2.core.package_managers.yarn_classic.resolver import (
@@ -25,6 +28,7 @@ from cachi2.core.package_managers.yarn_classic.resolver import (
 )
 from cachi2.core.package_managers.yarn_classic.workspaces import Workspace
 from cachi2.core.rooted_path import PathOutsideRoot, RootedPath
+from cachi2.core.scm import get_repo_id
 
 VALID_GIT_URLS = [
     "git://git.host.com/some/path",
@@ -352,3 +356,79 @@ def test__get_workspace_packages(rooted_tmp_path: RootedPath) -> None:
 
     output = _get_workspace_packages(rooted_tmp_path, [workspace])
     assert output == expected
+
+
+def test_package_purl(rooted_tmp_path_repo: RootedPath) -> None:
+    repo = git.Repo(rooted_tmp_path_repo)
+    repo.create_remote("origin", "https://github.com/org/repo.git")
+
+    example_repo_id = get_repo_id(repo)
+    example_vcs_url = example_repo_id.as_vcs_url_qualifier()
+    purl_vcs_url = quote(example_vcs_url, safe=":/")
+
+    example_sri_integrity = "sha512-GRaAEriuT4zp9N4p1i8BDBYmEyfo+xQ3yHjJU4eiK5NDa1RmUZG+unZABUTK4/Ox/M+GaHwb6Ow8rUITrtjszA=="
+    example_checksum = ChecksumInfo.from_sri(example_sri_integrity)
+
+    yarn_classic_packages: list[tuple[YarnClassicPackage, str]] = [
+        (
+            RegistryPackage(
+                name="npm-registry-pkg",
+                version="1.0.0",
+                integrity=example_sri_integrity,
+                url="https://registry.npmjs.org",
+            ),
+            f"pkg:npm/npm-registry-pkg@1.0.0?checksum={str(example_checksum)}",
+        ),
+        (
+            RegistryPackage(
+                name="yarn-registry-pkg",
+                version="2.0.0",
+                integrity=example_sri_integrity,
+                url="https://registry.yarnpkg.com",
+            ),
+            f"pkg:npm/yarn-registry-pkg@2.0.0?checksum={str(example_checksum)}&repository_url=https://registry.yarnpkg.com",
+        ),
+        (
+            GitPackage(
+                name="git-pkg",
+                version="3.0.0",
+                url=f"https://github.com/org/repo.git#{repo.head.commit.hexsha}",
+            ),
+            f"pkg:npm/git-pkg@3.0.0?vcs_url={purl_vcs_url}",
+        ),
+        (
+            UrlPackage(
+                name="url-pkg",
+                version="4.0.0",
+                url="https://example.com/package.tar.gz",
+            ),
+            "pkg:npm/url-pkg@4.0.0?download_url=https://example.com/package.tar.gz",
+        ),
+        (
+            FilePackage(
+                name="file-pkg",
+                version="5.0.0",
+                path=rooted_tmp_path_repo.join_within_root("path/to/package"),
+            ),
+            f"pkg:npm/file-pkg@5.0.0?vcs_url={purl_vcs_url}#path/to/package",
+        ),
+        (
+            WorkspacePackage(
+                name="workspace-pkg",
+                version="6.0.0",
+                path=rooted_tmp_path_repo.join_within_root("workspace/package"),
+            ),
+            f"pkg:npm/workspace-pkg@6.0.0?vcs_url={purl_vcs_url}#workspace/package",
+        ),
+        (
+            LinkPackage(
+                name="link-pkg",
+                version="7.0.0",
+                path=rooted_tmp_path_repo.join_within_root("link/to/package"),
+            ),
+            f"pkg:npm/link-pkg@7.0.0?vcs_url={purl_vcs_url}#link/to/package",
+        ),
+    ]
+
+    for package, expected_purl in yarn_classic_packages:
+        assert package.purl == expected_purl
