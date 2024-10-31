@@ -31,6 +31,9 @@ class ChecksumInfo(NamedTuple):
         base64_sha = base64.b64encode(bytes_sha).decode("utf-8")
         return f"{self.algorithm}-{base64_sha}"
 
+    def __str__(self) -> str:
+        return f"{self.algorithm}:{self.hexdigest}"
+
     @classmethod
     def from_sri(cls, sri: str) -> "ChecksumInfo":
         """Convert the input Subresource Integrity value to ChecksumInfo."""
