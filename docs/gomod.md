@@ -130,8 +130,7 @@ Both are deprecated and will have no effect when set. They are only kept for bac
 
 ## Understanding reported dependencies
 
-Cachi2 reports two (arguably three) different types of dependencies in the [metadata](metadata.md) generated for your
-Go modules:
+Cachi2 reports two (arguably three) different types of dependencies in the generated SBOM for your Go modules:
 
 * **gomod** dependencies (Go modules)
 * **go-package** dependencies (Go packages)
