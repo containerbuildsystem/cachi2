@@ -74,9 +74,12 @@ def _resolve_bundler_package(
     components = [Component(name=name, version=version, purl=main_package_purl.to_string())]
     for dep in dependencies:
         dep.download_to(deps_dir)
-        c = Component(name=dep.name, version=dep.version, purl=dep.purl)
         if isinstance(dep, GemPlatformSpecificDependency):
-            c.properties = PropertySet(bundler_package_binary=True).to_properties()
+            properties = PropertySet(bundler_package_binary=True).to_properties()
+        else:
+            properties = []
+
+        c = Component(name=dep.name, version=dep.version, purl=dep.purl, properties=properties)
         components.append(c)
 
     return components
