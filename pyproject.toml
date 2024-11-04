@@ -1,13 +1,10 @@
 [build-system]
 build-backend = "setuptools.build_meta"
-requires = [
-  "setuptools",
-  "setuptools-scm",
-]
+requires = ["setuptools", "setuptools-scm"]
 
 [project]
 name = "cachi2"
-license = {text = "GPLv3+"}
+license = { text = "GPLv3+" }
 requires-python = ">=3.9"
 classifiers = [
   "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
@@ -17,9 +14,7 @@ classifiers = [
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
 ]
-dynamic = [
-  "version",
-]
+dynamic = ["version"]
 dependencies = [
   "aiohttp",
   "aiohttp-retry",
@@ -46,6 +41,7 @@ dev = [
   "click",
   "flake8",
   "flake8-docstrings",
+  "flake8-pyproject",
   "isort[colors]",
   "mypy",
   "typing-extensions",
@@ -108,3 +104,17 @@ skips = [
 log_cli_level = "DEBUG"
 log_format = "%(asctime)s %(levelname)s %(message)s"
 log_date_format = "%Y-%m-%d %H:%M:%S"
+
+[tool.flake8]
+show_source = true
+ignore = [
+  "D100", # missing docstring in public module
+  "D104", # missing docstring in public package
+  "D105", # missing docstring in magic method
+  "W503", # line break before binary operator
+  "E203", # whitespace before ':'
+  "E501", # line too long
+]
+per-file-ignores = [
+  "tests/*:D101,D102,D103", # missing docstring in public class, method, function
+]
