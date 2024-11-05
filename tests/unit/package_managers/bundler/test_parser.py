@@ -221,7 +221,7 @@ def test_source_gem_dependencies_could_be_downloaded(
 ) -> None:
     base_destination = RootedPath("/tmp/foo")
     dependency = GemDependency(name="foo", version="0.0.2", source=source)
-    expected_source_url = f"{source}/gems/foo-0.0.2.gem"
+    expected_source_url = f"{source}/downloads/foo-0.0.2.gem"
     expected_destination = base_destination.join_within_root(Path("foo-0.0.2.gem"))
 
     dependency.download_to(base_destination)
