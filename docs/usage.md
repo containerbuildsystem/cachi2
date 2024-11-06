@@ -17,6 +17,7 @@ The second section goes through each of these steps for the supported package ma
   * [Example with pip](#example-pip)
   * [Example with npm](#example-npm)
   * [Example with yarn](#example-yarn)
+  * [Example with generic fetcher](#example-generic-fetcher)
 
 ## General Process
 
@@ -597,4 +598,66 @@ podman build . \
   --volume "$(realpath ./cachi2.env)":/tmp/cachi2.env:Z \
   --network none \
   --tag sample-nodejs-app
+```
+
+
+### Example: generic fetcher
+
+Generic fetcher is a package manager that can fetch arbitrary files. Let's build a sample container image that would be
+inconvenient to build hermetically otherwise. This image will provide [OWASP Dependency check](https://github.com/jeremylong/DependencyCheck)
+tool, which is available to install from GitHub releases page. Get the repo if you want to try for yourself:
+
+```
+git clone -b sample-app https://github.com/cachito-testing/cachi2-generic.git
+```
+
+#### Pre-fetch dependencies (generic fetcher)
+In order to retrieve the archive with the tool, a `generic_lockfile.yaml` needs to be in the repository. You can find a
+sample lockfile below. It is identical to one found in the [sample repository](https://github.com/cachito-testing/cachi2-generic/tree/sample-app).
+A lockfile for the generic fetcher must contain a `metadata` header and a list of artifacts, where each artifact is
+represented as a pair of URL and a map containing one or more items in the shape of `"hashing algorithm": "checksum"`:
+
+```
+---
+metadata:
+  version: "1.0"
+artifacts:
+  - download_url: "https://github.com/jeremylong/DependencyCheck/releases/download/v11.1.0/dependency-check-11.1.0-release.zip"
+    checksums:
+      sha256: "c5b5b9e592682b700e17c28f489fe50644ef54370edeb2c53d18b70824de1e22"
+
+```
+
+As with other examples, the command to fetch dependencies is very similar. The default path
+is assumed to be `.`. Since generic fetcher is still an experimental feature, it needs to be
+enabled with the `--dev-package-managers` flag.
+
+```
+cachi2 fetch-deps --source ./cachi2-generic --output ./cachi2-output generic --dev-package-managers
+```
+
+#### Build the application image (generic fetcher)
+We'll use the `ibmjava:11-jdk` as base image because it already has java pre-installed.
+During the build, the downloaded release will be extracted and modified to have execute rights.
+
+```Containerfile
+FROM ibmjava:11-jdk
+
+WORKDIR /tmp
+
+# use jar to unzip file in order to avoid having to install more depependencies
+RUN jar -xvf cachi2-output/deps/generic/dependency-check-11.1.0-release.zip
+
+RUN chmod +x dependency-check/bin/dependency-check.sh
+
+ENTRYPOINT ["/tmp/dependency-check/bin/dependency-check.sh", "--version"]
+```
+
+We can then build the image as before while mounting the required Cachi2 data.
+
+```
+podman build . \
+  --volume "$(realpath ./cachi2-output)":/tmp/cachi2-output:Z \
+  --network none \
+  --tag sample-generic-app
 ```
