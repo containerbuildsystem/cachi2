@@ -92,3 +92,32 @@ class PackageJson(_CommonConfigFile):
 
 
 ConfigFile = Union[PackageJson]
+
+
+@dataclass(frozen=True)
+class Project:
+    """Minimally, a directory containing yarn sources and parsed package.json."""
+
+    source_dir: RootedPath
+    package_json: PackageJson
+
+    @property
+    def is_pnp_install(self) -> bool:
+        """Is the project is using Plug'n'Play (PnP) workflow or not.
+
+        This is determined by
+        - `installConfig.pnp: true` in 'package.json'
+        - the existence of file(s) with glob name '*.pnp.cjs'
+        - the presence of an expanded node_modules directory
+        For more details on PnP, see: https://classic.yarnpkg.com/en/docs/pnp
+        """
+        install_config_pnp_enabled = self.package_json.install_config.get("pnp", False)
+        pnp_cjs_exists = any(self.source_dir.path.glob("*.pnp.cjs"))
+        node_modules_exists = self.source_dir.join_within_root("node_modules").path.exists()
+        return install_config_pnp_enabled or pnp_cjs_exists or node_modules_exists
+
+    @classmethod
+    def from_source_dir(cls, source_dir: RootedPath) -> "Project":
+        """Create a Project from a sources directory path."""
+        package_json = PackageJson.from_file(source_dir.join_within_root("package.json"))
+        return cls(source_dir, package_json)

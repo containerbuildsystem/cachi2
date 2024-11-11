@@ -1,6 +1,6 @@
 import logging
 
-from cachi2.core.errors import PackageManagerError
+from cachi2.core.errors import PackageManagerError, PackageRejected
 from cachi2.core.models.input import Request
 from cachi2.core.models.output import Component, EnvironmentVariable, RequestOutput
 from cachi2.core.package_managers.yarn.utils import (
@@ -8,6 +8,7 @@ from cachi2.core.package_managers.yarn.utils import (
     extract_yarn_version_from_env,
     run_yarn_cmd,
 )
+from cachi2.core.package_managers.yarn_classic.project import Project
 from cachi2.core.package_managers.yarn_classic.workspaces import extract_workspace_metadata
 from cachi2.core.rooted_path import RootedPath
 
@@ -89,6 +90,24 @@ def _generate_build_environment_variables() -> list[EnvironmentVariable]:
     }
 
     return [EnvironmentVariable(name=key, value=value) for key, value in env_vars.items()]
+
+
+def _reject_if_pnp_install(project: Project) -> None:
+    if project.is_pnp_install:
+        raise PackageRejected(
+            reason=("Yarn PnP install detected; PnP installs are unsupported by cachi2"),
+            solution=(
+                "Please convert your project to a regular install-based one.\n"
+                "If you use Yarn's PnP, please remove `installConfig.pnp: true`"
+                " from 'package.json', any file(s) with glob name '*.pnp.cjs',"
+                " and any 'node_modules' directories."
+            ),
+        )
+
+
+def _verify_repository(project: Project) -> None:
+    _reject_if_pnp_install(project)
+    # _check_lockfile(project)
 
 
 def _verify_corepack_yarn_version(source_dir: RootedPath, env: dict[str, str]) -> None:
