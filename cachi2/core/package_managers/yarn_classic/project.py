@@ -11,6 +11,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any, Literal, Union
 
+from pyarn import lockfile  # type: ignore
+
 from cachi2.core.errors import PackageRejected
 from cachi2.core.rooted_path import RootedPath
 
@@ -91,7 +93,48 @@ class PackageJson(_CommonConfigFile):
         return cls(path, package_json_data)
 
 
-ConfigFile = Union[PackageJson]
+class YarnLock(_CommonConfigFile):
+    """A yarn.lock file.
+
+    This class abstracts the underlying attributes.
+    """
+
+    yarn_lockfile: lockfile.Lockfile
+
+    @property
+    def config_kind(self) -> ConfigKind:
+        """Return kind of this ConfigFile."""
+        return "yarnlock"
+
+    @classmethod
+    def from_file(cls, path: RootedPath) -> "YarnLock":
+        """Parse the content of a yarn.lock file."""
+        try:
+            yarn_lockfile = lockfile.Lockfile.from_file(path)
+        except FileNotFoundError:
+            raise PackageRejected(
+                reason="The yarn.lock file must be present for the yarn package manager",
+                solution=(
+                    "Please double-check that you have specified the correct path "
+                    "to the package directory containing this file"
+                ),
+            )
+        except ValueError:
+            raise PackageRejected(
+                reason=f"Can't parse the {path} file.\n",
+                solution="The yarn.lock file must be valid.",
+            )
+
+        if not yarn_lockfile:
+            raise PackageRejected(
+                reason="The yarn.lock file must not be empty",
+                solution="Please verify the content of the file.",
+            )
+
+        return cls(path, yarn_lockfile.data)
+
+
+ConfigFile = Union[PackageJson, YarnLock]
 
 
 @dataclass(frozen=True)
