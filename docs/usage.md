@@ -615,7 +615,7 @@ git clone -b sample-app https://github.com/cachito-testing/cachi2-generic.git
 In order to retrieve the archive with the tool, a `generic_lockfile.yaml` needs to be in the repository. You can find a
 sample lockfile below. It is identical to one found in the [sample repository](https://github.com/cachito-testing/cachi2-generic/tree/sample-app).
 A lockfile for the generic fetcher must contain a `metadata` header and a list of artifacts, where each artifact is
-represented as a pair of URL and a map containing one or more items in the shape of `"hashing algorithm": "checksum"`:
+represented as a pair of URL and a checksum string in the format of `"algorithm:checksum"`:
 
 ```
 ---
@@ -623,9 +623,7 @@ metadata:
   version: "1.0"
 artifacts:
   - download_url: "https://github.com/jeremylong/DependencyCheck/releases/download/v11.1.0/dependency-check-11.1.0-release.zip"
-    checksums:
-      sha256: "c5b5b9e592682b700e17c28f489fe50644ef54370edeb2c53d18b70824de1e22"
-
+    checksum: "sha256:c5b5b9e592682b700e17c28f489fe50644ef54370edeb2c53d18b70824de1e22"
 ```
 
 As with other examples, the command to fetch dependencies is very similar. The default path

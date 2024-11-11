@@ -22,8 +22,7 @@ metadata:
     version: '0.42'
 artifacts:
     - download_url: https://example.com/artifact
-      checksums:
-        md5: 3a18656e1cea70504b905836dee14db0
+      checksum: md5:3a18656e1cea70504b905836dee14db0
 """
 
 LOCKFILE_CHECKSUM_MISSING = """
@@ -33,25 +32,15 @@ artifacts:
     - download_url: https://example.com/artifact
 """
 
-LOCKFILE_CHECKSUM_EMPTY = """
-metadata:
-    version: '1.0'
-artifacts:
-    - download_url: https://example.com/artifact
-      checksums: {}
-"""
-
 LOCKFILE_VALID = """
 metadata:
     version: '1.0'
 artifacts:
     - download_url: https://example.com/artifact
       filename: archive.zip
-      checksums:
-        md5: 3a18656e1cea70504b905836dee14db0
+      checksum: md5:3a18656e1cea70504b905836dee14db0
     - download_url: https://example.com/more/complex/path/file.tar.gz?foo=bar#fragment
-      checksums:
-        md5: 32112bed1914cfe3799600f962750b1d
+      checksum: md5:32112bed1914cfe3799600f962750b1d
 """
 
 LOCKFILE_INVALID_FILENAME = """
@@ -60,8 +49,7 @@ metadata:
 artifacts:
     - download_url: https://example.com/artifact
       filename: ./../../../archive.zip
-      checksums:
-        md5: 3a18656e1cea70504b905836dee14db0
+      checksum: md5:3a18656e1cea70504b905836dee14db0
 """
 
 LOCKFILE_FILENAME_OVERLAP = """
@@ -70,12 +58,10 @@ metadata:
 artifacts:
     - download_url: https://example.com/artifact
       filename: archive.zip
-      checksums:
-        md5: 3a18656e1cea70504b905836dee14db0
+      checksum: md5:3a18656e1cea70504b905836dee14db0
     - download_url: https://example.com/artifact2
       filename: archive.zip
-      checksums:
-        md5: 3a18656e1cea70504b905836dee14db0
+      checksum: md5:3a18656e1cea70504b905836dee14db0
 """
 
 LOCKFILE_URL_OVERLAP = """
@@ -83,12 +69,10 @@ metadata:
     version: '1.0'
 artifacts:
     - download_url: https://example.com/artifact
-      checksums:
-        md5: 3a18656e1cea70504b905836dee14db0
+      checksum: md5:3a18656e1cea70504b905836dee14db0
     - download_url: https://example.com/artifact
       filename: archive.zip
-      checksums:
-        md5: 3a18656e1cea70504b905836dee14db0
+      checksum: md5:3a18656e1cea70504b905836dee14db0
 """
 
 LOCKFILE_WRONG_CHECKSUM = """
@@ -97,8 +81,7 @@ metadata:
 artifacts:
     - download_url: https://example.com/artifact
       filename: archive.zip
-      checksums:
-        md5: 32112bed1914cfe3799600f962750b1d
+      checksum: md5:32112bed1914cfe3799600f962750b1d
 """
 
 
@@ -148,12 +131,6 @@ def test_resolve_generic_no_lockfile(mock_load: mock.Mock, rooted_tmp_path: Root
         ),
         pytest.param(
             LOCKFILE_CHECKSUM_MISSING, PackageRejected, "Field required", id="checksum_missing"
-        ),
-        pytest.param(
-            LOCKFILE_CHECKSUM_EMPTY,
-            PackageRejected,
-            "At least one checksum must be provided",
-            id="checksum_empty",
         ),
         pytest.param(
             LOCKFILE_INVALID_FILENAME,
@@ -219,7 +196,7 @@ def test_resolve_generic_lockfile_invalid(
                     ],
                     "name": "archive.zip",
                     "properties": [{"name": "cachi2:found_by", "value": "cachi2"}],
-                    "purl": "pkg:generic/archive.zip?checksums=md5:3a18656e1cea70504b905836dee14db0&download_url=https://example.com/artifact",
+                    "purl": "pkg:generic/archive.zip?checksum=md5:3a18656e1cea70504b905836dee14db0&download_url=https://example.com/artifact",
                     "type": "file",
                     "version": None,
                 },
@@ -232,7 +209,7 @@ def test_resolve_generic_lockfile_invalid(
                     ],
                     "name": "file.tar.gz",
                     "properties": [{"name": "cachi2:found_by", "value": "cachi2"}],
-                    "purl": "pkg:generic/file.tar.gz?checksums=md5:32112bed1914cfe3799600f962750b1d&download_url=https://example.com/more/complex/path/file.tar.gz%3Ffoo%3Dbar%23fragment",
+                    "purl": "pkg:generic/file.tar.gz?checksum=md5:32112bed1914cfe3799600f962750b1d&download_url=https://example.com/more/complex/path/file.tar.gz%3Ffoo%3Dbar%23fragment",
                     "type": "file",
                     "version": None,
                 },
@@ -269,10 +246,10 @@ def test_load_generic_lockfile_valid(rooted_tmp_path: RootedPath) -> None:
             {
                 "download_url": Url("https://example.com/artifact"),
                 "filename": str(rooted_tmp_path.join_within_root("archive.zip")),
-                "checksums": {"md5": "3a18656e1cea70504b905836dee14db0"},
+                "checksum": "md5:3a18656e1cea70504b905836dee14db0",
             },
             {
-                "checksums": {"md5": "32112bed1914cfe3799600f962750b1d"},
+                "checksum": "md5:32112bed1914cfe3799600f962750b1d",
                 "download_url": Url(
                     "https://example.com/more/complex/path/file.tar.gz?foo=bar#fragment"
                 ),

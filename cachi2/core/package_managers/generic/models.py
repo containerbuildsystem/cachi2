@@ -1,6 +1,7 @@
+import re
 from collections import Counter
 from pathlib import Path
-from typing import List, Literal
+from typing import Literal
 from urllib.parse import urlparse
 
 from pydantic import AnyUrl, BaseModel, field_validator, model_validator
@@ -9,6 +10,8 @@ from pydantic_core.core_schema import ValidationInfo
 from cachi2.core.checksum import ChecksumInfo
 from cachi2.core.errors import PackageManagerError
 from cachi2.core.rooted_path import RootedPath
+
+CHECKSUM_FORMAT = re.compile(r"^[a-zA-Z0-9]+:[a-zA-Z0-9]+$")
 
 
 class LockfileMetadata(BaseModel):
@@ -23,24 +26,24 @@ class LockfileArtifact(BaseModel):
 
     :param download_url: The URL to download the artifact from.
     :param filename: The target path to save the artifact to. Subpath of the deps/generic folder.
-    :param checksums: Map that represents checksums for the artifact where keys are hashing algs and values are hashes.
+    :param checksum: Checksum of the artifact in the format "algorithm:hash"
     """
 
     download_url: AnyUrl
     filename: str = ""
-    checksums: dict[str, str]
+    checksum: str
 
-    @field_validator("checksums")
+    @field_validator("checksum")
     @classmethod
-    def no_empty_checksums(cls, value: dict[str, str]) -> dict[str, str]:
+    def checksum_format(cls, value: str) -> str:
         """
-        Validate that at least one checksum is present for an artifact.
+        Validate that the provided checksum string is in the format "algorithm:hash".
 
         :param value: the checksums dict to validate
         :return: the validated checksum dict
         """
-        if len(value) == 0:
-            raise ValueError("At least one checksum must be provided.")
+        if not CHECKSUM_FORMAT.match(value):
+            raise ValueError("Checksum must be in the format 'algorithm:hash'")
         return value
 
     @model_validator(mode="after")
@@ -62,9 +65,10 @@ class LockfileArtifact(BaseModel):
         return self
 
     @property
-    def formatted_checksums(self) -> List[ChecksumInfo]:
-        """Return the checksums as a list of ChecksumInfo objects."""
-        return [ChecksumInfo(algo, digest) for algo, digest in self.checksums.items()]
+    def formatted_checksum(self) -> ChecksumInfo:
+        """Return the checksum as a ChecksumInfo object."""
+        algorithm, digest = self.checksum.split(":", 1)
+        return ChecksumInfo(algorithm, digest)
 
 
 class GenericLockfileV1(BaseModel):
