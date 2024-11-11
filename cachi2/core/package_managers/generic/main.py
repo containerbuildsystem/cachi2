@@ -69,7 +69,7 @@ def _resolve_generic_lockfile(source_dir: RootedPath, output_dir: RootedPath) ->
 
     # verify checksums
     for artifact in lockfile.artifacts:
-        must_match_any_checksum(artifact.filename, artifact.formatted_checksums)
+        must_match_any_checksum(artifact.filename, [artifact.formatted_checksum])
     return _generate_sbom_components(lockfile)
 
 
@@ -112,7 +112,6 @@ def _generate_sbom_components(lockfile: GenericLockfileV1) -> list[Component]:
     for artifact in lockfile.artifacts:
         name = Path(artifact.filename).name
         url = str(artifact.download_url)
-        checksums = ",".join([f"{algo}:{digest}" for algo, digest in artifact.checksums.items()])
         component = Component(
             name=name,
             purl=PackageURL(
@@ -120,7 +119,7 @@ def _generate_sbom_components(lockfile: GenericLockfileV1) -> list[Component]:
                 name=name,
                 qualifiers={
                     "download_url": url,
-                    "checksums": checksums,
+                    "checksum": artifact.checksum,
                 },
             ).to_string(),
             type="file",
