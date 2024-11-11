@@ -62,14 +62,14 @@ def _resolve_generic_lockfile(source_dir: RootedPath, output_dir: RootedPath) ->
 
     for artifact in lockfile.artifacts:
         # create the parent directory for the artifact
-        Path.mkdir(Path(artifact.target).parent, parents=True, exist_ok=True)
-        to_download[str(artifact.download_url)] = artifact.target
+        Path.mkdir(Path(artifact.filename).parent, parents=True, exist_ok=True)
+        to_download[str(artifact.download_url)] = artifact.filename
 
     asyncio.run(async_download_files(to_download, get_config().concurrency_limit))
 
     # verify checksums
     for artifact in lockfile.artifacts:
-        must_match_any_checksum(artifact.target, artifact.formatted_checksums)
+        must_match_any_checksum(artifact.filename, artifact.formatted_checksums)
     return _generate_sbom_components(lockfile)
 
 
@@ -110,7 +110,7 @@ def _generate_sbom_components(lockfile: GenericLockfileV1) -> list[Component]:
     components: list[Component] = []
 
     for artifact in lockfile.artifacts:
-        name = Path(artifact.target).name
+        name = Path(artifact.filename).name
         url = str(artifact.download_url)
         checksums = ",".join([f"{algo}:{digest}" for algo, digest in artifact.checksums.items()])
         component = Component(
