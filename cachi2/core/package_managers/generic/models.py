@@ -22,12 +22,12 @@ class LockfileArtifact(BaseModel):
     Defines format of a single artifact in the lockfile.
 
     :param download_url: The URL to download the artifact from.
-    :param target: The target path to save the artifact to. Subpath of the deps/generic folder.
+    :param filename: The target path to save the artifact to. Subpath of the deps/generic folder.
     :param checksums: Map that represents checksums for the artifact where keys are hashing algs and values are hashes.
     """
 
     download_url: AnyUrl
-    target: str = ""
+    filename: str = ""
     checksums: dict[str, str]
 
     @field_validator("checksums")
@@ -44,11 +44,11 @@ class LockfileArtifact(BaseModel):
         return value
 
     @model_validator(mode="after")
-    def set_target(self, info: ValidationInfo) -> "LockfileArtifact":
+    def set_filename(self, info: ValidationInfo) -> "LockfileArtifact":
         """Set the target path if not provided and resolve it into an absolute path."""
-        if not self.target:
+        if not self.filename:
             url_path = urlparse(str(self.download_url)).path
-            self.target = Path(url_path).name
+            self.filename = Path(url_path).name
 
         # needs to have output_dir context in order to be able to resolve the target path
         # and so that it can be used to check for conflicts with other artifacts
@@ -57,7 +57,7 @@ class LockfileArtifact(BaseModel):
                 "The `LockfileArtifact` class needs to be called with `output_dir` in the context"
             )
         output_dir: RootedPath = info.context["output_dir"]
-        self.target = str(output_dir.join_within_root(self.target).path.resolve())
+        self.filename = str(output_dir.join_within_root(self.filename).path.resolve())
 
         return self
 
@@ -75,15 +75,15 @@ class GenericLockfileV1(BaseModel):
 
     @model_validator(mode="after")
     def no_artifact_conflicts(self) -> "GenericLockfileV1":
-        """Validate that all artifacts have unique targets and download_urls."""
+        """Validate that all artifacts have unique filenames and download_urls."""
         urls = Counter(a.download_url for a in self.artifacts)
-        targets = Counter(a.target for a in self.artifacts)
+        filenames = Counter(a.filename for a in self.artifacts)
         duplicate_urls = [str(u) for u, count in urls.most_common() if count > 1]
-        duplicate_targets = [t for t, count in targets.most_common() if count > 1]
-        if duplicate_urls or duplicate_targets:
+        duplicate_filenames = [t for t, count in filenames.most_common() if count > 1]
+        if duplicate_urls or duplicate_filenames:
             raise ValueError(
                 (f"Duplicate download_urls: {duplicate_urls}\n" if duplicate_urls else "")
-                + (f"Duplicate targets: {duplicate_targets}" if duplicate_targets else "")
+                + (f"Duplicate filenames: {duplicate_filenames}" if duplicate_filenames else "")
             )
 
         return self

@@ -46,7 +46,7 @@ metadata:
     version: '1.0'
 artifacts:
     - download_url: https://example.com/artifact
-      target: archive.zip
+      filename: archive.zip
       checksums:
         md5: 3a18656e1cea70504b905836dee14db0
     - download_url: https://example.com/more/complex/path/file.tar.gz?foo=bar#fragment
@@ -54,26 +54,26 @@ artifacts:
         md5: 32112bed1914cfe3799600f962750b1d
 """
 
-LOCKFILE_INVALID_TARGET = """
+LOCKFILE_INVALID_FILENAME = """
 metadata:
     version: '1.0'
 artifacts:
     - download_url: https://example.com/artifact
-      target: ./../../../archive.zip
+      filename: ./../../../archive.zip
       checksums:
         md5: 3a18656e1cea70504b905836dee14db0
 """
 
-LOCKFILE_TARGET_OVERLAP = """
+LOCKFILE_FILENAME_OVERLAP = """
 metadata:
     version: '1.0'
 artifacts:
     - download_url: https://example.com/artifact
-      target: archive.zip
+      filename: archive.zip
       checksums:
         md5: 3a18656e1cea70504b905836dee14db0
     - download_url: https://example.com/artifact2
-      target: archive.zip
+      filename: archive.zip
       checksums:
         md5: 3a18656e1cea70504b905836dee14db0
 """
@@ -86,7 +86,7 @@ artifacts:
       checksums:
         md5: 3a18656e1cea70504b905836dee14db0
     - download_url: https://example.com/artifact
-      target: archive.zip
+      filename: archive.zip
       checksums:
         md5: 3a18656e1cea70504b905836dee14db0
 """
@@ -96,7 +96,7 @@ metadata:
     version: '1.0'
 artifacts:
     - download_url: https://example.com/artifact
-      target: archive.zip
+      filename: archive.zip
       checksums:
         md5: 32112bed1914cfe3799600f962750b1d
 """
@@ -156,16 +156,16 @@ def test_resolve_generic_no_lockfile(mock_load: mock.Mock, rooted_tmp_path: Root
             id="checksum_empty",
         ),
         pytest.param(
-            LOCKFILE_INVALID_TARGET,
+            LOCKFILE_INVALID_FILENAME,
             PathOutsideRoot,
             "target is outside",
-            id="invalid_target",
+            id="invalid_filename",
         ),
         pytest.param(
-            LOCKFILE_TARGET_OVERLAP,
+            LOCKFILE_FILENAME_OVERLAP,
             PackageRejected,
-            "Duplicate targets",
-            id="conflicting_targets",
+            "Duplicate filenames",
+            id="conflicting_filenames",
         ),
         pytest.param(
             LOCKFILE_URL_OVERLAP,
@@ -268,7 +268,7 @@ def test_load_generic_lockfile_valid(rooted_tmp_path: RootedPath) -> None:
         "artifacts": [
             {
                 "download_url": Url("https://example.com/artifact"),
-                "target": str(rooted_tmp_path.join_within_root("archive.zip")),
+                "filename": str(rooted_tmp_path.join_within_root("archive.zip")),
                 "checksums": {"md5": "3a18656e1cea70504b905836dee14db0"},
             },
             {
@@ -276,7 +276,7 @@ def test_load_generic_lockfile_valid(rooted_tmp_path: RootedPath) -> None:
                 "download_url": Url(
                     "https://example.com/more/complex/path/file.tar.gz?foo=bar#fragment"
                 ),
-                "target": str(rooted_tmp_path.join_within_root("file.tar.gz")),
+                "filename": str(rooted_tmp_path.join_within_root("file.tar.gz")),
             },
         ],
     }
