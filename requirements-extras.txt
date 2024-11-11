@@ -351,9 +351,6 @@ coverage[toml]==7.6.4 \
     --hash=sha256:f8fe4984b431f8621ca53d9380901f62bfb54ff759a1348cd140490ada7b693c \
     --hash=sha256:fe439416eb6380de434886b00c859304338f8b19f6f54811984f3420a2e03858
     # via pytest-cov
-exceptiongroup==1.2.2 \
-    --hash=sha256:3111b9d131c238bec2f8f516e123e14ba243563fb135d3fe885990585aa7795b \
-    --hash=sha256:47c2edf7c6738fafb49fd34290706d1a1a2f4d1c6df275526b62cbb4aa5393cc
 createrepo-c==1.1.4 \
     --hash=sha256:0bdca28b4ce0b300e0caa2119e9eccb0fe22502d65bd4499efaec9415a1438bf \
     --hash=sha256:5826daf92f994d48351c0d9dcf1fb6b09499687babb9b16dfcf17984af619d29 \
@@ -364,6 +361,10 @@ createrepo-c==1.1.4 \
     --hash=sha256:9930b8ddac9cc808de06453cc7d4712940898140e415d23fe90a76cd53899b33 \
     --hash=sha256:d8130f05be23feaa2028871c44474706203ca716a55df582d7e0e860430a24ea \
     --hash=sha256:f547f7ea4748cee93e8b7033fe27e1a69ed922606a7fbd162acdcbdbe3af0715
+    # via cachi2 (pyproject.toml)
+exceptiongroup==1.2.2 \
+    --hash=sha256:3111b9d131c238bec2f8f516e123e14ba243563fb135d3fe885990585aa7795b \
+    --hash=sha256:47c2edf7c6738fafb49fd34290706d1a1a2f4d1c6df275526b62cbb4aa5393cc
     # via pytest
 flake8==7.1.1 \
     --hash=sha256:049d058491e228e03e67b390f311bbf88fce2dbaa8fa673e7aea87b7198b8d38 \
@@ -681,6 +682,10 @@ pluggy==1.5.0 \
     --hash=sha256:2cffa88e94fdc978c4c574f15f9e59b7f4201d439195c3715ca9e2486f1d0cf1 \
     --hash=sha256:44e1ad92c8ca002de6377e165f3e0f1be63266ab4d554740532335b9d75ea669
     # via pytest
+ply==3.11 \
+    --hash=sha256:00c7c1aaa88358b9c765b6d3000c6eec0ba42abca5351b095321aef446081da3 \
+    --hash=sha256:096f9b8350b65ebd2fd1346b12452efe5b9607f7482813ffca50c22722a807ce
+    # via pyarn
 propcache==0.2.0 \
     --hash=sha256:00181262b17e517df2cd85656fcd6b4e70946fe62cd625b9d74ac9977b64d8d9 \
     --hash=sha256:0e53cb83fdd61cbd67202735e6a6687a7b491c8742dfc39c9e01e80354956763 \
@@ -781,6 +786,10 @@ propcache==0.2.0 \
     --hash=sha256:fc2db02409338bf36590aa985a461b2c96fce91f8e7e0f14c50c5fcc4f229016 \
     --hash=sha256:ffcad6c564fe6b9b8916c1aefbb37a362deebf9394bd2974e9d84232e3e08504
     # via yarl
+pyarn==0.2.0 \
+    --hash=sha256:542ff739af2b81a1200776eff2b4d2566a330846decbd0f815999b196d7b067d \
+    --hash=sha256:d06e8b79bb830f142187b57ee664dc0104f658efdb2b2bae7ed99eaf7746eb1a
+    # via cachi2 (pyproject.toml)
 pycodestyle==2.12.1 \
     --hash=sha256:46f0fb92069a7c28ab7bb558f05bfc0110dac69a0cd23c61ea0040283a9d78b3 \
     --hash=sha256:6838eae08bbce4f6accd5d5572075c63626a15ee3e6f842df996bf62f6d73521
@@ -1144,9 +1153,11 @@ typing-extensions==4.12.2 \
     # via
     #   black
     #   cachi2 (pyproject.toml)
+    #   multidict
     #   mypy
     #   pydantic
     #   pydantic-core
+    #   rich
     #   typer
 urllib3==2.2.3 \
     --hash=sha256:ca899ca043dcb1bafa3e262d73aa25c465bfb49e0bd9dd5d59f1d0acba2f8fac \
