@@ -122,6 +122,7 @@ class GenericPackageInput(_PackageInputBase):
     """Accepted input for generic package."""
 
     type: Literal["generic"]
+    lockfile: Optional[Path] = None
 
 
 class GomodPackageInput(_PackageInputBase):

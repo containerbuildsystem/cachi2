@@ -612,8 +612,9 @@ git clone -b sample-app https://github.com/cachito-testing/cachi2-generic.git
 ```
 
 #### Pre-fetch dependencies (generic fetcher)
-In order to retrieve the archive with the tool, a `artifacts.lock.yaml` needs to be in the repository. You can find a
-sample lockfile below. It is identical to one found in the [sample repository](https://github.com/cachito-testing/cachi2-generic/tree/sample-app).
+In order to retrieve the archive with the tool, either a `artifacts.lock.yaml` needs to be in the repository, or an absolute
+path needs to be supplied in the JSON input, pointing to a lockfile. You can find a sample lockfile below. It is identical
+to the one found in the [sample repository](https://github.com/cachito-testing/cachi2-generic/tree/sample-app).
 A lockfile for the generic fetcher must contain a `metadata` header and a list of artifacts, where each artifact is
 represented as a pair of URL and a checksum string in the format of `"algorithm:checksum"`:
 

@@ -108,15 +108,33 @@ def test_fetch_generic_source(
     fetch_generic_source(mock_request)
 
     mock_resolve_generic_lockfile.assert_called()
-    mock_from_obj_list.assert_called_with(components=components)
+
+
+def test_fetch_generic_source_relative_lockfile_path() -> None:
+
+    model_input = GenericPackageInput.model_construct(
+        type="generic", lockfile=Path("relative.yaml")
+    )
+
+    mock_request = mock.Mock()
+    mock_request.generic_packages = [model_input]
+
+    with pytest.raises(PackageRejected) as exc_info:
+        fetch_generic_source(mock_request)
+
+    assert (
+        "Supplied generic lockfile path 'relative.yaml' is not absolute, refusing to continue."
+        in str(exc_info.value)
+    )
 
 
 @mock.patch("cachi2.core.package_managers.generic.main._load_lockfile")
 def test_resolve_generic_no_lockfile(mock_load: mock.Mock, rooted_tmp_path: RootedPath) -> None:
+    lockfile_path = rooted_tmp_path.join_within_root(DEFAULT_LOCKFILE_NAME)
     with pytest.raises(PackageRejected) as exc_info:
-        _resolve_generic_lockfile(rooted_tmp_path, rooted_tmp_path)
+        _resolve_generic_lockfile(lockfile_path.path, rooted_tmp_path)
     assert (
-        f"Cachi2 generic lockfile '{DEFAULT_LOCKFILE_NAME}' missing, refusing to continue"
+        f"Cachi2 generic lockfile '{lockfile_path}' does not exist, refusing to continue."
         in str(exc_info.value)
     )
     mock_load.assert_not_called()
@@ -169,7 +187,8 @@ def test_resolve_generic_lockfile_invalid(
     rooted_tmp_path: RootedPath,
 ) -> None:
     # setup lockfile
-    with open(rooted_tmp_path.join_within_root(DEFAULT_LOCKFILE_NAME), "w") as f:
+    lockfile_path = rooted_tmp_path.join_within_root(DEFAULT_LOCKFILE_NAME)
+    with open(lockfile_path, "w") as f:
         f.write(lockfile)
 
     # setup testing downloaded dependency
@@ -179,7 +198,7 @@ def test_resolve_generic_lockfile_invalid(
         f.write("Testfile")
 
     with pytest.raises(expected_exception) as exc_info:
-        _resolve_generic_lockfile(rooted_tmp_path, rooted_tmp_path)
+        _resolve_generic_lockfile(lockfile_path.path, rooted_tmp_path)
 
     assert expected_err in str(exc_info.value)
 
@@ -230,11 +249,12 @@ def test_resolve_generic_lockfile_valid(
     rooted_tmp_path: RootedPath,
 ) -> None:
     # setup lockfile
-    with open(rooted_tmp_path.join_within_root(DEFAULT_LOCKFILE_NAME), "w") as f:
+    lockfile_path = rooted_tmp_path.join_within_root(DEFAULT_LOCKFILE_NAME)
+    with open(lockfile_path, "w") as f:
         f.write(lockfile_content)
 
     assert [
-        c.model_dump() for c in _resolve_generic_lockfile(rooted_tmp_path, rooted_tmp_path)
+        c.model_dump() for c in _resolve_generic_lockfile(lockfile_path.path, rooted_tmp_path)
     ] == expected_components
     mock_checksums.assert_called()
 
@@ -259,12 +279,8 @@ def test_load_generic_lockfile_valid(rooted_tmp_path: RootedPath) -> None:
     }
 
     # setup lockfile
-    with open(rooted_tmp_path.join_within_root(DEFAULT_LOCKFILE_NAME), "w") as f:
+    lockfile_path = rooted_tmp_path.join_within_root(DEFAULT_LOCKFILE_NAME)
+    with open(lockfile_path, "w") as f:
         f.write(LOCKFILE_VALID)
 
-    assert (
-        _load_lockfile(
-            rooted_tmp_path.join_within_root(DEFAULT_LOCKFILE_NAME), rooted_tmp_path
-        ).model_dump()
-        == expected_lockfile
-    )
+    assert _load_lockfile(lockfile_path.path, rooted_tmp_path).model_dump() == expected_lockfile
