@@ -47,7 +47,6 @@ dev = [
   "typing-extensions",
 ]
 test = [
-  "GitPython",
   "jsonschema",
   "pytest",
   "pytest-asyncio",
