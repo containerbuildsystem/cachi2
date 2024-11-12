@@ -32,24 +32,29 @@ def fetch_generic_source(request: Request) -> RequestOutput:
     components = []
     for package in request.generic_packages:
         path = request.source_dir.join_within_root(package.path)
-        components.extend(_resolve_generic_lockfile(path, request.output_dir))
+        lockfile = package.lockfile or path.join_within_root(DEFAULT_LOCKFILE_NAME).path
+        if not lockfile.is_absolute():
+            raise PackageRejected(
+                f"Supplied generic lockfile path '{lockfile}' is not absolute, refusing to continue.",
+                solution="Make sure the supplied path to the generic lockfile is absolute.",
+            )
+        components.extend(_resolve_generic_lockfile(lockfile, request.output_dir))
     return RequestOutput.from_obj_list(components=components)
 
 
-def _resolve_generic_lockfile(source_dir: RootedPath, output_dir: RootedPath) -> list[Component]:
+def _resolve_generic_lockfile(lockfile_path: Path, output_dir: RootedPath) -> list[Component]:
     """
     Resolve the generic lockfile and pre-fetch the dependencies.
 
-    :param source_dir: the source directory to resolve the lockfile from
+    :param lockfile_path: absolute path to the lockfile
     :param output_dir: the output directory to store the dependencies
     """
-    lockfile_path = source_dir.join_within_root(DEFAULT_LOCKFILE_NAME)
-    if not lockfile_path.path.exists():
+    if not lockfile_path.exists():
         raise PackageRejected(
-            f"Cachi2 generic lockfile '{DEFAULT_LOCKFILE_NAME}' missing, refusing to continue.",
+            f"Cachi2 generic lockfile '{lockfile_path}' does not exist, refusing to continue.",
             solution=(
-                f"Make sure your repository has cachi2 generic lockfile '{DEFAULT_LOCKFILE_NAME}' checked in "
-                "to the repository."
+                f"Make sure your repository has cachi2 generic lockfile '{DEFAULT_LOCKFILE_NAME}' "
+                f"checked in to the repository, or the supplied lockfile path is correct."
             ),
         )
 
@@ -73,7 +78,7 @@ def _resolve_generic_lockfile(source_dir: RootedPath, output_dir: RootedPath) ->
     return _generate_sbom_components(lockfile)
 
 
-def _load_lockfile(lockfile_path: RootedPath, output_dir: RootedPath) -> GenericLockfileV1:
+def _load_lockfile(lockfile_path: Path, output_dir: RootedPath) -> GenericLockfileV1:
     """
     Load the cachi2 generic lockfile from the given path.
 
