@@ -19,7 +19,7 @@ from cachi2.core.package_managers.generic.models import GenericLockfileV1
 from cachi2.core.rooted_path import RootedPath
 
 log = logging.getLogger(__name__)
-DEFAULT_LOCKFILE_NAME = "generic_lockfile.yaml"
+DEFAULT_LOCKFILE_NAME = "artifacts.lock.yaml"
 DEFAULT_DEPS_DIR = "deps/generic"
 
 
