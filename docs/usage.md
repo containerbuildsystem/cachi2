@@ -616,7 +616,8 @@ In order to retrieve the archive with the tool, either a `artifacts.lock.yaml` n
 path needs to be supplied in the JSON input, pointing to a lockfile. You can find a sample lockfile below. It is identical
 to the one found in the [sample repository](https://github.com/cachito-testing/cachi2-generic/tree/sample-app).
 A lockfile for the generic fetcher must contain a `metadata` header and a list of artifacts, where each artifact is
-represented as a pair of URL and a checksum string in the format of `"algorithm:checksum"`:
+represented as a pair of URL and a checksum string in the format of `"algorithm:checksum"`. Optionally, you can also specify
+an output `filename` for the artifact. If not specified, it will be derived from the url. 
 
 ```
 ---
@@ -625,6 +626,7 @@ metadata:
 artifacts:
   - download_url: "https://github.com/jeremylong/DependencyCheck/releases/download/v11.1.0/dependency-check-11.1.0-release.zip"
     checksum: "sha256:c5b5b9e592682b700e17c28f489fe50644ef54370edeb2c53d18b70824de1e22"
+    filename: "dependency-check.zip"
 ```
 
 As with other examples, the command to fetch dependencies is very similar. The default path
@@ -645,7 +647,7 @@ FROM ibmjava:11-jdk
 WORKDIR /tmp
 
 # use jar to unzip file in order to avoid having to install more depependencies
-RUN jar -xvf cachi2-output/deps/generic/dependency-check-11.1.0-release.zip
+RUN jar -xvf cachi2-output/deps/generic/dependency-check.zip
 
 RUN chmod +x dependency-check/bin/dependency-check.sh
 
