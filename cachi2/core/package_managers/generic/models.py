@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Literal
 from urllib.parse import urlparse
 
-from pydantic import AnyUrl, BaseModel, field_validator, model_validator
+from pydantic import AnyUrl, BaseModel, ConfigDict, field_validator, model_validator
 from pydantic_core.core_schema import ValidationInfo
 
 from cachi2.core.checksum import ChecksumInfo
@@ -18,6 +18,7 @@ class LockfileMetadata(BaseModel):
     """Defines format of the metadata section in the lockfile."""
 
     version: Literal["1.0"]
+    model_config = ConfigDict(extra="forbid")
 
 
 class LockfileArtifact(BaseModel):
@@ -32,6 +33,7 @@ class LockfileArtifact(BaseModel):
     download_url: AnyUrl
     filename: str = ""
     checksum: str
+    model_config = ConfigDict(extra="forbid")
 
     @field_validator("checksum")
     @classmethod
@@ -76,6 +78,7 @@ class GenericLockfileV1(BaseModel):
 
     metadata: LockfileMetadata
     artifacts: list[LockfileArtifact]
+    model_config = ConfigDict(extra="forbid")
 
     @model_validator(mode="after")
     def no_artifact_conflicts(self) -> "GenericLockfileV1":
