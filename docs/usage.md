@@ -634,7 +634,7 @@ is assumed to be `.`. Since generic fetcher is still an experimental feature, it
 enabled with the `--dev-package-managers` flag.
 
 ```
-cachi2 fetch-deps --source ./cachi2-generic --output ./cachi2-output generic --dev-package-managers
+cachi2 fetch-deps --source ./cachi2-generic --output ./cachi2-output generic
 ```
 
 #### Build the application image (generic fetcher)

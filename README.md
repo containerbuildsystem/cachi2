@@ -136,9 +136,6 @@ Supported:
 * [npm](#npm)
 * [yarn](#yarn)
 * [bundler](#bundler)
-
-Experimental:
-
 * [generic fetcher](#generic-fetcher)
 
 Planned:
@@ -248,8 +245,7 @@ With the generic fetcher, you can easily fetch those files with Cachi2 along wit
 satisfy the hermetic build condition and have them recorded in the SBOM.
 
 Cachi2 uses a simple custom lockfile named `generic_lockfile.yaml` that is expected to be present in the repository. The
-lockfile describes the urls, checksums and target locations for the downloaded files. The generic fetcher is currently an
-experimental feature, so cachi2 has to be run with `--dev-package-managers` flag. 
+lockfile describes the urls, checksums and target locations for the downloaded files.
 
 See [docs/usage.md](docs/usage.md#pre-fetch-dependencies-generic-fetcher) for more details.
 

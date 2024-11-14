@@ -14,7 +14,6 @@ from . import utils
                 repo="https://github.com/cachito-testing/cachi2-generic",
                 ref="test-file-not-reachable",
                 packages=({"path": ".", "type": "generic"},),
-                flags=["--dev-package-managers"],
                 check_output=False,
                 check_deps_checksums=False,
                 check_vendor_checksums=False,
