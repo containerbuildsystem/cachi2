@@ -18,6 +18,7 @@ _package_managers: dict[PackageManagerType, Handler] = {
     "npm": npm.fetch_npm_source,
     "pip": pip.fetch_pip_source,
     "yarn": yarn.fetch_yarn_source,
+    "generic": generic.fetch_generic_source,
 }
 
 # This is where we put package managers currently under development in order to
@@ -25,7 +26,6 @@ _package_managers: dict[PackageManagerType, Handler] = {
 _dev_package_managers: dict[PackageManagerType, Handler] = {
     "rpm": rpm.fetch_rpm_source,
     "yarn-classic": yarn_classic.fetch_yarn_source,
-    "generic": generic.fetch_generic_source,
 }
 
 # This is *only* used to provide a list for `cachi2 --version`
