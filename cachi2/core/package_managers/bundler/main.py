@@ -13,6 +13,7 @@ from cachi2.core.models.property_semantics import PropertySet
 from cachi2.core.models.sbom import Component
 from cachi2.core.package_managers.bundler.parser import (
     GemPlatformSpecificDependency,
+    GitDependency,
     ParseResult,
     PathDependency,
     parse_lockfile,
@@ -32,17 +33,20 @@ def fetch_bundler_source(request: Request) -> RequestOutput:
         _prepare_environment_variables_for_hermetic_build()
     )
     project_files: list[ProjectFile] = []
+    git_paths = []
 
     for package in request.bundler_packages:
         path_within_root = request.source_dir.join_within_root(package.path)
-        components.extend(
-            _resolve_bundler_package(
-                package_dir=path_within_root,
-                output_dir=request.output_dir,
-                allow_binary=package.allow_binary,
-            )
+        _comps, _git_paths = _resolve_bundler_package(
+            package_dir=path_within_root,
+            output_dir=request.output_dir,
+            allow_binary=package.allow_binary,
         )
-        project_files.append(_prepare_for_hermetic_build(request.source_dir, request.output_dir))
+        components.extend(_comps)
+        git_paths.extend(_git_paths)
+    project_files.append(
+        _prepare_for_hermetic_build(request.source_dir, request.output_dir, git_paths)
+    )
 
     return RequestOutput.from_obj_list(
         components=components,
@@ -51,11 +55,17 @@ def fetch_bundler_source(request: Request) -> RequestOutput:
     )
 
 
+# Aliases for git dependency name and git dependency name as
+# it is written to file system:
+DepName = str
+FSDepName = str
+
+
 def _resolve_bundler_package(
     package_dir: RootedPath,
     output_dir: RootedPath,
     allow_binary: bool = False,
-) -> list[Component]:
+) -> tuple[list[Component], list[tuple[DepName, FSDepName]]]:
     """Process a request for a single bundler package."""
     deps_dir = output_dir.join_within_root("deps", "bundler")
     deps_dir.path.mkdir(parents=True, exist_ok=True)
@@ -72,17 +82,20 @@ def _resolve_bundler_package(
     )
 
     components = [Component(name=name, version=version, purl=main_package_purl.to_string())]
+    git_paths = []
     for dep in dependencies:
         dep.download_to(deps_dir)
         if isinstance(dep, GemPlatformSpecificDependency):
             properties = PropertySet(bundler_package_binary=True).to_properties()
         else:
             properties = []
+        if isinstance(dep, GitDependency):
+            git_paths.append((dep.name, dep.name + "-" + dep.ref[:12]))
 
         c = Component(name=dep.name, version=dep.version, purl=dep.purl, properties=properties)
         components.append(c)
 
-    return components
+    return components, git_paths
 
 
 def _get_main_package_name_and_version(
@@ -154,7 +167,9 @@ def _prepare_environment_variables_for_hermetic_build() -> list[EnvironmentVaria
     ]
 
 
-def _prepare_for_hermetic_build(source_dir: RootedPath, output_dir: RootedPath) -> ProjectFile:
+def _prepare_for_hermetic_build(
+    source_dir: RootedPath, output_dir: RootedPath, git_paths: Optional[list] = None
+) -> ProjectFile:
     """Prepare a package for hermetic build by injecting necessary config."""
     potential_bundle_config = source_dir.join_within_root(".bundle/config").path
     hermetic_config = dedent(
@@ -165,6 +180,30 @@ def _prepare_for_hermetic_build(source_dir: RootedPath, output_dir: RootedPath) 
         BUNDLE_VERSION: "system"
     """
     )
+    # Note: if a package depends on a git revision then the following variables
+    # are necessary for a hermetic build:
+    #  BUNDLE_DISABLE_LOCAL_BRANCH_CHECK
+    #  BUNDLE_DISABLE_LOCAL_REVISION_CHECK
+    # because otherwise some (potentially all, depending on exact set of
+    # ecosystem components versions, environment variables and celestial
+    # alignment) Bundler versions will try to fetch the latest changes of the
+    # remotes which may be present even when instructed not to with --local
+    # flag.
+    # See https://bundler.io/guides/git.html#local-git-repos for details.
+    # (or https://github.com/rubygems/bundler-site/blob/
+    #             9ff3b76e9866524ecefe165633ffb547f0004a99/source/guides/git.html.md
+    # if the link above ceases to exist).
+    if git_paths is not None:
+        hermetic_config += 'BUNDLE_DISABLE_LOCAL_BRANCH_CHECK: "true"\n'
+        hermetic_config += 'BUNDLE_DISABLE_LOCAL_REVISION_CHECK: "true"\n'
+        for packname, dirname in git_paths:
+            # "-" in variable names is deprecated in Bundler and now generates
+            # a warning and a suggestion to replace all dashes with triple
+            # underscores. Package names sometimes contain dashes:
+            varname = "BUNDLE_LOCAL." + packname.upper().replace("-", "___")
+            location = "${output_dir}/deps/bundler/" + dirname
+            config_entry = varname + f': "{location}"'
+            hermetic_config += f"{config_entry}\n"
     if potential_bundle_config.is_file():
         config_data = potential_bundle_config.read_text()
         config_data += hermetic_config
