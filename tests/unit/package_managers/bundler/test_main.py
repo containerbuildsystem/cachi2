@@ -62,7 +62,7 @@ def test_resolve_bundler_package(
     mock_parse_lockfile.return_value = deps
     mock_get_main_package_name_and_version.return_value = ("name", None)
 
-    components = _resolve_bundler_package(package_dir=package_dir, output_dir=output_dir)
+    components, git_paths = _resolve_bundler_package(package_dir=package_dir, output_dir=output_dir)
 
     mock_parse_lockfile.assert_called_once_with(package_dir, False)
     mock_get_main_package_name_and_version.assert_called_once_with(package_dir, deps)
@@ -71,6 +71,7 @@ def test_resolve_bundler_package(
     mock_path_dep_download_to.assert_called_with(deps_dir)
 
     assert len(components) == len(deps) + 1  # + 1 for the "main" package
+    assert len(git_paths) == 1  # since there is exactly one git dependency
     assert deps_dir.path.exists()
 
 
