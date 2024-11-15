@@ -177,6 +177,8 @@ def _prepare_for_hermetic_build(
         BUNDLE_CACHE_PATH: "${output_dir}/deps/bundler"
         BUNDLE_DEPLOYMENT: "true"
         BUNDLE_NO_PRUNE: "true"
+        BUNDLE_ALLOW_OFFLINE_INSTALL: "true"
+        BUNDLE_DISABLE_VERSION_CHECK: "true"
         BUNDLE_VERSION: "system"
     """
     )

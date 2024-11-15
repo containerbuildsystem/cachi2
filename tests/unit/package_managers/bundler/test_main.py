@@ -128,6 +128,8 @@ def test__prepare_for_hermetic_build_injects_necessary_variable_into_empty_confi
         BUNDLE_CACHE_PATH: "${output_dir}/deps/bundler"
         BUNDLE_DEPLOYMENT: "true"
         BUNDLE_NO_PRUNE: "true"
+        BUNDLE_ALLOW_OFFLINE_INSTALL: "true"
+        BUNDLE_DISABLE_VERSION_CHECK: "true"
         BUNDLE_VERSION: "system"
         """
     )
@@ -148,6 +150,8 @@ def test__prepare_for_hermetic_build_injects_necessary_variable_into_existing_co
         BUNDLE_CACHE_PATH: "${output_dir}/deps/bundler"
         BUNDLE_DEPLOYMENT: "true"
         BUNDLE_NO_PRUNE: "true"
+        BUNDLE_ALLOW_OFFLINE_INSTALL: "true"
+        BUNDLE_DISABLE_VERSION_CHECK: "true"
         BUNDLE_VERSION: "system"
         """
     )
@@ -178,6 +182,8 @@ def test__prepare_for_hermetic_build_injects_necessary_variable_into_existing_al
         BUNDLE_CACHE_PATH: "${output_dir}/deps/bundler"
         BUNDLE_DEPLOYMENT: "true"
         BUNDLE_NO_PRUNE: "true"
+        BUNDLE_ALLOW_OFFLINE_INSTALL: "true"
+        BUNDLE_DISABLE_VERSION_CHECK: "true"
         BUNDLE_VERSION: "system"
         """
     )
@@ -213,6 +219,8 @@ def test__prepare_for_hermetic_build_ignores_a_directory_in_place_of_config(
         BUNDLE_CACHE_PATH: "${output_dir}/deps/bundler"
         BUNDLE_DEPLOYMENT: "true"
         BUNDLE_NO_PRUNE: "true"
+        BUNDLE_ALLOW_OFFLINE_INSTALL: "true"
+        BUNDLE_DISABLE_VERSION_CHECK: "true"
         BUNDLE_VERSION: "system"
         """
     )
