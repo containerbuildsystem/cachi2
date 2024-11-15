@@ -132,6 +132,8 @@ def test_bundler_packages(
         ),
     ],
 )
+# FIXME: Re-enable the test once we have a proper fix or at least a workaround in place
+@pytest.mark.skip(reason="E2E tests currently broken due to bundler refusing to work offline")
 def test_e2e_bundler(
     test_params: utils.TestParameters,
     check_cmd: list[str],
