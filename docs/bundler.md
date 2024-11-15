@@ -71,6 +71,9 @@ works correctly:
 - BUNDLE_DEPLOYMENT: "true"
 - BUNDLE_NO_PRUNE: "true"
 - BUNDLE_VERSION: "system"
+- BUNDLE_ALLOW_OFFLINE_INSTALL: "true"
+- BUNDLE_DISABLE_VERSION_CHECK: "true"
+
 
 ### BUNDLE_CACHE_PATH
 
@@ -88,6 +91,14 @@ Leave outdated gems unpruned.
 ### BUNDLE_VERSION
 
 The version of Bundler to use when running under the Bundler environment.
+
+### BUNDLE_ALLOW_OFFLINE_INSTALL
+
+Allow Bundler to use cached data when installing without network access.
+
+### BUNDLE_DISABLE_VERSION_CHECK
+
+Stop Bundler from checking if a newer Bundler version is available on rubygems.org.
 
 **Note**: _A prefetch could fail when Bundler versions differ between the build
 system and lockfile and when the former is outdated. Therefore we do not recommend
