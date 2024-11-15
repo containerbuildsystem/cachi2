@@ -244,8 +244,8 @@ Generic fetcher is a way for Cachi2 to support prefetching arbitrary files that 
 With the generic fetcher, you can easily fetch those files with Cachi2 along with your other language-specific dependencies,
 satisfy the hermetic build condition and have them recorded in the SBOM.
 
-Cachi2 uses a simple custom lockfile named `generic_lockfile.yaml` that is expected to be present in the repository. The
-lockfile describes the urls, checksums and target locations for the downloaded files.
+Cachi2 uses a simple custom lockfile named `artifacts.lock.yaml` that is expected to be present in the repository, or
+supplied in JSON input. The lockfile describes the urls, checksums and output filenames for the downloaded files.
 
 See [docs/usage.md](docs/usage.md#pre-fetch-dependencies-generic-fetcher) for more details.
 
