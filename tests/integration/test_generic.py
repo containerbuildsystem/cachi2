@@ -61,7 +61,6 @@ def test_generic_fetcher(
                 repo="https://github.com/cachito-testing/cachi2-generic",
                 ref="test-e2e",
                 packages=({"path": ".", "type": "generic"},),
-                flags=["--dev-package-managers"],
                 check_output=True,
                 check_deps_checksums=True,
                 check_vendor_checksums=False,
@@ -70,6 +69,20 @@ def test_generic_fetcher(
             ["ls", "/deps"],
             ["archive.zip\nv1.0.0.zip\n"],
             id="generic_e2e",
+        ),
+        pytest.param(
+            utils.TestParameters(
+                repo="https://github.com/cachito-testing/cachi2-generic",
+                ref="test-e2e-maven",
+                packages=({"path": ".", "type": "generic"},),
+                check_output=True,
+                check_deps_checksums=True,
+                check_vendor_checksums=False,
+                expected_exit_code=0,
+            ),
+            [],
+            ["Apache Ant(TM) version 1.10.14"],
+            id="generic_maven_e2e",
         ),
     ],
 )
