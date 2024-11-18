@@ -5,11 +5,8 @@ GENERATE_TEST_DATA = false
 TEST_LOCAL_PYPISERVER = false
 TEST_LOCAL_DNF_SERVER = false
 
-.PHONY: clean pip-compile
+.PHONY: pip-compile
 all: venv
-
-clean:
-	rm -rf dist venv .tox *.egg-info *.log*
 
 venv:
 	/usr/bin/env $(PYTHON_VERSION_VENV) -m venv venv
@@ -29,17 +26,6 @@ test-integration: venv
 	CACHI2_TEST_LOCAL_PYPISERVER=$(TEST_LOCAL_PYPISERVER) \
 		venv/bin/tox -e integration -- $(TOX_ARGS)
 	CACHI2_TEST_LOCAL_DNF_SERVER=$(TEST_LOCAL_DNF_SERVER)
-
-mock-unittest-data:
-	hack/mock-unittest-data/gomod.sh
-
-build-image:
-	podman build -t localhost/cachi2:latest .
-
-# If you're worried that your local image may be outdated
-# (old base image, old rpms cached in the microdnf install layer)
-build-pristine-image:
-	podman build --pull-always --no-cache -t localhost/cachi2:latest .
 
 # we need git installed in the image due to setuptools-scm which has it as a direct dependency
 pip-compile:
