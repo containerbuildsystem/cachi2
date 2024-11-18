@@ -5,7 +5,6 @@ from pathlib import Path
 from typing import Union
 
 import yaml
-from packageurl import PackageURL
 from pydantic import ValidationError
 
 from cachi2.core.checksum import must_match_any_checksum
@@ -13,7 +12,7 @@ from cachi2.core.config import get_config
 from cachi2.core.errors import PackageRejected
 from cachi2.core.models.input import Request
 from cachi2.core.models.output import RequestOutput
-from cachi2.core.models.sbom import Component, ExternalReference
+from cachi2.core.models.sbom import Component
 from cachi2.core.package_managers.general import async_download_files
 from cachi2.core.package_managers.generic.models import GenericLockfileV1
 from cachi2.core.rooted_path import RootedPath
@@ -75,7 +74,7 @@ def _resolve_generic_lockfile(lockfile_path: Path, output_dir: RootedPath) -> li
     # verify checksums
     for artifact in lockfile.artifacts:
         must_match_any_checksum(artifact.filename, [artifact.formatted_checksum])
-    return _generate_sbom_components(lockfile)
+    return [artifact.get_sbom_component() for artifact in lockfile.artifacts]
 
 
 def _load_lockfile(lockfile_path: Path, output_dir: RootedPath) -> GenericLockfileV1:
@@ -108,28 +107,3 @@ def _load_lockfile(lockfile_path: Path, output_dir: RootedPath) -> GenericLockfi
                 ),
             )
     return lockfile
-
-
-def _generate_sbom_components(lockfile: GenericLockfileV1) -> list[Component]:
-    """Generate a list of SBOM components for a given lockfile."""
-    components: list[Component] = []
-
-    for artifact in lockfile.artifacts:
-        name = Path(artifact.filename).name
-        url = str(artifact.download_url)
-        component = Component(
-            name=name,
-            purl=PackageURL(
-                type="generic",
-                name=name,
-                qualifiers={
-                    "download_url": url,
-                    "checksum": artifact.checksum,
-                },
-            ).to_string(),
-            type="file",
-            external_references=[ExternalReference(url=url, type="distribution")],
-        )
-        components.append(component)
-
-    return components

@@ -32,6 +32,15 @@ artifacts:
     - download_url: https://example.com/artifact
 """
 
+LOCKFILE_WRONG_CHECKSUM_FORMAT = """
+metadata:
+    version: '1.0'
+artifacts:
+    - download_url: https://example.com/artifact
+      filename: archive.zip
+      checksum: 32112bed1914cfe3799600f962750b1d
+"""
+
 LOCKFILE_VALID = """
 metadata:
     version: '1.0'
@@ -41,6 +50,30 @@ artifacts:
       checksum: md5:3a18656e1cea70504b905836dee14db0
     - download_url: https://example.com/more/complex/path/file.tar.gz?foo=bar#fragment
       checksum: md5:32112bed1914cfe3799600f962750b1d
+"""
+
+LOCKFILE_VALID_MAVEN = """
+metadata:
+    version: '1.0'
+artifacts:
+    - type: "maven"
+      attributes:
+        repository_url: "https://repo.spring.io/release"
+        group_id: "org.springframework.boot"
+        artifact_id: "spring-boot-starter"
+        version: "3.1.5"
+        type: "jar"
+        classifier: ""
+      checksum: "sha256:c3c5e397008ba2d3d0d6e10f7f343b68d2e16c5a3fbe6a6daa7dd4d6a30197a5"
+    - type: "maven"
+      attributes:
+        repository_url: "https://repo1.maven.org/maven2"
+        group_id: "io.netty"
+        artifact_id: "netty-transport-native-epoll"
+        version: "4.1.100.Final"
+        type: "jar"
+        classifier: "sources"
+      checksum: "sha256:c3c5e397008ba2d3d0d6e10f7f343b68d2e16c5a3fbe6a6daa7dd4d6a30197a5"
 """
 
 LOCKFILE_INVALID_FILENAME = """
@@ -174,6 +207,12 @@ def test_resolve_generic_no_lockfile(mock_load: mock.Mock, rooted_tmp_path: Root
             "Failed to verify archive.zip against any of the provided checksums.",
             id="wrong_checksum",
         ),
+        pytest.param(
+            LOCKFILE_WRONG_CHECKSUM_FORMAT,
+            PackageRejected,
+            "Checksum must be in the format 'algorithm:hash'",
+            id="wrong_checksum",
+        ),
     ],
 )
 @mock.patch("cachi2.core.package_managers.generic.main.asyncio.run")
@@ -234,6 +273,38 @@ def test_resolve_generic_lockfile_invalid(
                 },
             ],
             id="valid_lockfile",
+        ),
+        pytest.param(
+            LOCKFILE_VALID_MAVEN,
+            [
+                {
+                    "external_references": [
+                        {
+                            "type": "distribution",
+                            "url": "https://repo.spring.io/release/org/springframework/boot/spring-boot-starter/3.1.5/spring-boot-starter-3.1.5.jar",
+                        }
+                    ],
+                    "name": "spring-boot-starter",
+                    "properties": [{"name": "cachi2:found_by", "value": "cachi2"}],
+                    "purl": "pkg:maven/org.springframework.boot/spring-boot-starter@3.1.5?checksum=sha256:c3c5e397008ba2d3d0d6e10f7f343b68d2e16c5a3fbe6a6daa7dd4d6a30197a5&repository_url=https://repo.spring.io/release&type=jar",
+                    "type": "library",
+                    "version": "3.1.5",
+                },
+                {
+                    "external_references": [
+                        {
+                            "type": "distribution",
+                            "url": "https://repo1.maven.org/maven2/io/netty/netty-transport-native-epoll/4.1.100.Final/netty-transport-native-epoll-4.1.100.Final-sources.jar",
+                        }
+                    ],
+                    "name": "netty-transport-native-epoll",
+                    "properties": [{"name": "cachi2:found_by", "value": "cachi2"}],
+                    "purl": "pkg:maven/io.netty/netty-transport-native-epoll@4.1.100.Final?checksum=sha256:c3c5e397008ba2d3d0d6e10f7f343b68d2e16c5a3fbe6a6daa7dd4d6a30197a5&classifier=sources&repository_url=https://repo1.maven.org/maven2&type=jar",
+                    "type": "library",
+                    "version": "4.1.100.Final",
+                },
+            ],
+            id="valid_lockfile_maven",
         ),
     ],
 )
