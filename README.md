@@ -247,7 +247,11 @@ satisfy the hermetic build condition and have them recorded in the SBOM.
 Cachi2 uses a simple custom lockfile named `artifacts.lock.yaml` that is expected to be present in the repository, or
 supplied in JSON input. The lockfile describes the urls, checksums and output filenames for the downloaded files.
 
-See [docs/usage.md](docs/usage.md#pre-fetch-dependencies-generic-fetcher) for more details.
+Currently supported types of artifacts:
+- Arbitrary files
+- Maven artifacts
+
+See [docs/generic.md](docs/generic.md) for more details.
 
 ## Project status
 
