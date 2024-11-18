@@ -93,6 +93,7 @@ class PackageJson(_CommonConfigFile):
         return cls(path, package_json_data)
 
 
+@dataclass
 class YarnLock(_CommonConfigFile):
     """A yarn.lock file.
 
@@ -131,7 +132,7 @@ class YarnLock(_CommonConfigFile):
                 solution="Please verify the content of the file.",
             )
 
-        return cls(path, yarn_lockfile.data)
+        return cls(path, yarn_lockfile.data, yarn_lockfile)
 
 
 ConfigFile = Union[PackageJson, YarnLock]
