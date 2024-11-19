@@ -383,13 +383,13 @@ class TestSbom:
                 ],
                 annotations=[
                     SPDXPackageAnnotation(
-                        annotator="cachi2",
+                        annotator="cachi2:jsonencoded",
                         annotationDate="2021-07-01T00:00:00Z",
                         annotationType="OTHER",
                         comment=json.dumps({"name": "cachi2:found_by", "value": "cachi2"}),
                     ),
                     SPDXPackageAnnotation(
-                        annotator="cachi2",
+                        annotator="cachi2:jsonencoded",
                         annotationDate="2021-07-01T00:00:00Z",
                         annotationType="OTHER",
                         comment=json.dumps({"name": "cdx:npm:package:bundled", "value": "true"}),
@@ -409,7 +409,7 @@ class TestSbom:
                 ],
                 annotations=[
                     SPDXPackageAnnotation(
-                        annotator="cachi2",
+                        annotator="cachi2:jsonencoded",
                         annotationDate="2021-07-01T00:00:00Z",
                         annotationType="OTHER",
                         comment=json.dumps({"name": "cachi2:found_by", "value": "cachi2"}),
@@ -429,7 +429,7 @@ class TestSbom:
                 ],
                 annotations=[
                     SPDXPackageAnnotation(
-                        annotator="cachi2",
+                        annotator="cachi2:jsonencoded",
                         annotationDate="2021-07-01T00:00:00Z",
                         annotationType="OTHER",
                         comment=json.dumps({"name": "cachi2:found_by", "value": "cachi2"}),
@@ -845,7 +845,7 @@ class TestSPDXSbom:
                     ],
                     "annotations": [
                         {
-                            "annotator": "cachi2",
+                            "annotator": "cachi2:jsonencoded",
                             "annotationDate": "2021-07-01T00:00:00Z",
                             "annotationType": "OTHER",
                             "comment": '{"name": "cachi2:found_by", "value": "cachi2"}',
@@ -865,7 +865,7 @@ class TestSPDXSbom:
                     ],
                     "annotations": [
                         {
-                            "annotator": "cachi2",
+                            "annotator": "cachi2:jsonencoded",
                             "annotationDate": "2021-07-01T00:00:00Z",
                             "annotationType": "OTHER",
                             "comment": '{"name": "cachi2:found_by", "value": "cachi2"}',
@@ -885,7 +885,7 @@ class TestSPDXSbom:
                     ],
                     "annotations": [
                         {
-                            "annotator": "cachi2",
+                            "annotator": "cachi2:jsonencoded",
                             "annotationDate": "2021-07-01T00:00:00Z",
                             "annotationType": "OTHER",
                             "comment": '{"name": "cachi2:found_by", "value": "cachi2"}',
@@ -905,7 +905,7 @@ class TestSPDXSbom:
                     ],
                     "annotations": [
                         {
-                            "annotator": "cachi2",
+                            "annotator": "cachi2:jsonencoded",
                             "annotationDate": "2021-07-01T00:00:00Z",
                             "annotationType": "OTHER",
                             "comment": '{"name": "cachi2:found_by", "value": "cachi2"}',
@@ -925,7 +925,7 @@ class TestSPDXSbom:
                     ],
                     "annotations": [
                         {
-                            "annotator": "cachi2",
+                            "annotator": "cachi2:jsonencoded",
                             "annotationDate": "2021-07-01T00:00:00Z",
                             "annotationType": "OTHER",
                             "comment": '{"name": "cachi2:found_by", "value": "cachi2"}',
@@ -945,7 +945,7 @@ class TestSPDXSbom:
                     ],
                     "annotations": [
                         {
-                            "annotator": "cachi2",
+                            "annotator": "cachi2:jsonencoded",
                             "annotationDate": "2021-07-01T00:00:00Z",
                             "annotationType": "OTHER",
                             "comment": '{"name": "cachi2:found_by", "value": "cachi2"}',
@@ -965,7 +965,7 @@ class TestSPDXSbom:
                     ],
                     "annotations": [
                         {
-                            "annotator": "cachi2",
+                            "annotator": "cachi2:jsonencoded",
                             "annotationDate": "2021-07-01T00:00:00Z",
                             "annotationType": "OTHER",
                             "comment": '{"name": "cachi2:found_by", "value": "cachi2"}',

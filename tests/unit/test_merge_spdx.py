@@ -35,15 +35,6 @@ def test_merge_spdx_relationships(
             sboms_to_merge.append(SPDXSbom.model_validate_json(sbom_json))
 
     packages = list(chain.from_iterable(s.packages for s in sboms_to_merge))
-    sbom = SPDXSbom(
-        spdxVersion="SPDX-2.3",
-        SPDXID="SPDXRef-DOCUMENT",
-        dataLicense="CC0-1.0",
-        name=sboms_to_merge[0].name,
-        creationInfo=sboms_to_merge[0].creationInfo,
-        packages=[],
-    )
-    sbom.packages = packages
 
     doc_ids = cast(list[str], [s.SPDXID for s in sboms_to_merge])
     relationships_to_merge = [s.relationships for s in sboms_to_merge]
@@ -59,6 +50,12 @@ def test_merge_spdx_relationships(
             spdxElementId="SPDXRef-DocumentRoot-File-",
             comment=None,
             relatedSpdxElement="SPDXRef-Package-go-module-.-terminaltor-1b79094a8c283d88",
+            relationshipType="CONTAINS",
+        ),
+        SPDXRelation(
+            spdxElementId="SPDXRef-DocumentRoot-File-",
+            comment=None,
+            relatedSpdxElement="SPDXRef-Package-go-module-.-terminaltor-9c8431f4d44b5c65",
             relationshipType="CONTAINS",
         ),
         SPDXRelation(
@@ -139,7 +136,14 @@ def test_merge_spdx_relationships(
                     referenceLocator="pkg:golang/./terminaltor",
                     referenceType="purl",
                     referenceCategory="PACKAGE-MANAGER",
-                ),
+                )
+            ],
+        ),
+        SPDXPackage(
+            SPDXID="SPDXRef-Package-go-module-.-terminaltor-9c8431f4d44b5c65",
+            name="./terminaltor",
+            versionInfo="(devel)",
+            externalRefs=[
                 SPDXPackageExternalRefPackageManagerPURL(
                     referenceLocator="pkg:golang/./terminaltor@(devel)",
                     referenceType="purl",

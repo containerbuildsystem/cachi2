@@ -5,6 +5,7 @@ from typing import Annotated, Any, Dict, Iterable, Literal, Optional, Union
 from urllib.parse import urlparse
 
 import pydantic
+from packageurl import PackageURL
 
 from cachi2.core.models.validators import unique_sorted
 
@@ -129,7 +130,7 @@ class Sbom(pydantic.BaseModel):
             for prop in component.properties:
                 annotations.append(
                     SPDXPackageAnnotation(
-                        annotator="cachi2",
+                        annotator="cachi2:jsonencoded",
                         annotationDate=datetime.datetime.now().isoformat(),
                         annotationType="OTHER",
                         comment=json.dumps(
@@ -296,6 +297,21 @@ class SPDXPackage(pydantic.BaseModel):
     def _calculate_package_hash_from_dict(package_dict: Dict[str, Any]) -> str:
         return hashlib.sha256(json.dumps(package_dict, sort_keys=True).encode()).hexdigest()
 
+    @pydantic.field_validator("externalRefs")
+    def _purls_validation(
+        cls, refs: list[SPDXPackageExternalRefType]
+    ) -> list[SPDXPackageExternalRefType]:
+        """Validate that SPDXPackage includes only one purl with the same type, name, version."""
+        purls = [ref.referenceLocator for ref in refs if ref.referenceType == "purl"]
+        parsed_purls = [PackageURL.from_string(purl) for purl in purls if purl]
+        unique_purls_parts = set([(p.type, p.name, p.version) for p in parsed_purls])
+        if len(unique_purls_parts) > 1:
+            raise ValueError(
+                "SPDXPackage includes multiple purls with different (type,name,version): "
+                + f"{unique_purls_parts}"
+            )
+        return refs
+
     @classmethod
     def from_package_dict(cls, package: dict[str, Any]) -> "SPDXPackage":
         """Create a SPDXPackage from a Cachi2 package dictionary."""
@@ -380,22 +396,24 @@ class SPDXSbom(pydantic.BaseModel):
         """
         unique_items = {}
         for item in items:
-            key1 = (item.name, item.versionInfo)
-            key2 = (item.name, None)
-            key3 = (item.name, "")
-            if key1 not in unique_items and key2 not in unique_items and key3 not in unique_items:
-                unique_items[key1] = SPDXPackage(
+            purls = [
+                ref.referenceLocator for ref in item.externalRefs if ref.referenceType == "purl"
+            ]
+            if purls:
+                keys = [PackageURL.from_string(purl) for purl in purls if purl]
+                purl_tnv = [(p.type, p.name, p.version) for p in keys][0]
+            else:
+                purl_tnv = ("", item.name, item.versionInfo or "")
+
+            if purl_tnv not in unique_items:
+                unique_items[purl_tnv] = SPDXPackage(
                     SPDXID=item.SPDXID, name=item.name, versionInfo=item.versionInfo
                 )
-                unique_items[key1].externalRefs = item.externalRefs[:]
-                unique_items[key1].annotations = item.annotations[:]
+                unique_items[purl_tnv].externalRefs = item.externalRefs[:]
+                unique_items[purl_tnv].annotations = item.annotations[:]
             else:
-                existing_key = (
-                    key1 if key1 in unique_items else key2 if key2 in unique_items else key3
-                )
-
-                unique_items[existing_key].externalRefs.extend(item.externalRefs)
-                unique_items[existing_key].annotations.extend(item.annotations)
+                unique_items[purl_tnv].externalRefs.extend(item.externalRefs)
+                unique_items[purl_tnv].annotations.extend(item.annotations)
 
         for item in unique_items.values():
             item.externalRefs = sorted(
@@ -421,7 +439,14 @@ class SPDXSbom(pydantic.BaseModel):
         """Convert a SPDX SBOM to a CycloneDX SBOM."""
         components = []
         for package in self.packages:
-            properties = [Property(**json.loads(an.comment)) for an in package.annotations]
+            properties = [
+                (
+                    Property(**json.loads(an.comment))
+                    if an.annotator.endswith(":jsonencoded")
+                    else Property(name=an.annotator, value=an.comment)
+                )
+                for an in package.annotations
+            ]
             purls = [
                 ref.referenceLocator for ref in package.externalRefs if ref.referenceType == "purl"
             ]
