@@ -82,6 +82,14 @@ disallow_untyped_decorators = true
 module = "pyarn.*"
 ignore_missing_imports = true
 
+[[tool.mypy.overrides]]
+module = "nox.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "noxfile"
+disallow_untyped_decorators = false
+
 [tool.coverage.report]
 skip_covered = true
 show_missing = true
