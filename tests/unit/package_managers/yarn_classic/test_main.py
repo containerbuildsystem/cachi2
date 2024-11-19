@@ -94,7 +94,9 @@ def test_fetch_yarn_source(
 @mock.patch("cachi2.core.package_managers.yarn_classic.main._verify_corepack_yarn_version")
 @mock.patch("cachi2.core.package_managers.yarn_classic.main._get_prefetch_environment_variables")
 @mock.patch("cachi2.core.package_managers.yarn_classic.main._fetch_dependencies")
+@mock.patch("cachi2.core.package_managers.yarn_classic.main._verify_repository")
 def test_resolve_yarn_project(
+    mock_verify_repository: mock.Mock,
     mock_fetch_dependencies: mock.Mock,
     mock_prefetch_env_vars: mock.Mock,
     mock_verify_yarn_version: mock.Mock,
@@ -106,6 +108,7 @@ def test_resolve_yarn_project(
 
     _resolve_yarn_project(project, output_dir)
 
+    mock_verify_repository.assert_called_once_with(project)
     mock_prefetch_env_vars.assert_called_once_with(output_dir)
     mock_verify_yarn_version.assert_called_once_with(
         project.source_dir, mock_prefetch_env_vars.return_value
