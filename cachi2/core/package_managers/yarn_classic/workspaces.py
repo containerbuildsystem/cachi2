@@ -68,15 +68,19 @@ def _get_workspace_paths(workspaces_globs: list[str], source_dir: RootedPath) ->
     return list(chain.from_iterable(map(all_paths_matching, workspaces_globs)))
 
 
-def _extract_workspaces_globs(
-    package: dict[str, Any],
-) -> list[str]:
-    """Extract globs from workspaces entry in package dict."""
-    # This could be an Array or an Array nested in an Object.
-    # Official docs mentioning the former:
-    #   https://classic.yarnpkg.com/lang/en/docs/workspaces/
-    # Official blog containing a hint about the latter:
-    #   https://classic.yarnpkg.com/lang/en/docs/workspaces/
+def _extract_workspaces_globs(package: dict[str, Any]) -> list[str]:
+    """Extract globs from workspaces entry in package dict.
+
+    The 'workspaces' entry can either be:
+    - an array of strings
+      (e.g., "workspaces": ["workspace-a", "workspace-b"])
+    - an object with a 'packages' key containing an array of strings
+      (e.g., "workspaces": {"packages": ["workspace-a", "workspace-b"]})
+
+    See:
+    https://classic.yarnpkg.com/en/docs/workspaces/#toc-how-to-use-it
+    https://classic.yarnpkg.com/blog/2018/02/15/nohoist/#how-to-use-it
+    """
     workspaces_globs = package.get("workspaces", [])
     if isinstance(workspaces_globs, dict):
         workspaces_globs = workspaces_globs.get("packages", [])
