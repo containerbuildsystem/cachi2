@@ -230,6 +230,15 @@ def test_pnp_installs_false(
         config_file_name,
         config_file_content,
     )
+    # A yarn v1 project needs a valid yarn lock to be accepted.
+    _prepare_config_file(
+        rooted_tmp_path,
+        # Ignoring type checking because of
+        #   incompatible type "type[YarnLock]"; expected "Union[PackageJson, YarnLock]"
+        YarnLock,  # type: ignore
+        "yarn.lock",
+        VALID_YARN_LOCK_FILE,
+    )
 
     project = Project.from_source_dir(rooted_tmp_path)
 

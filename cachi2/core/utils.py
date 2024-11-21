@@ -8,10 +8,11 @@ import subprocess
 import sys
 from functools import cache
 from pathlib import Path
-from typing import Callable, Iterator, Optional, Sequence
+from typing import Callable, Iterable, Iterator, Optional, Sequence
 
 from cachi2.core.config import get_config
 from cachi2.core.errors import Cachi2Error
+from cachi2.core.models.output import RequestOutput
 
 log = logging.getLogger(__name__)
 
@@ -195,3 +196,22 @@ def get_cache_dir() -> Path:
     except KeyError:
         cache_dir = Path.home().joinpath(".cache")
     return cache_dir.joinpath("cachi2")
+
+
+def merge_outputs(outputs: Iterable[RequestOutput]) -> RequestOutput:
+    """Merge RequestOutput instances."""
+    components = []
+    env_vars = []
+    project_files = []
+
+    for output in outputs:
+        components.extend(output.components)
+        env_vars.extend(output.build_config.environment_variables)
+        project_files.extend(output.build_config.project_files)
+
+    return RequestOutput.from_obj_list(
+        components=components,
+        environment_variables=env_vars,
+        project_files=project_files,
+        options=output.build_config.options if output.build_config.options else None,
+    )

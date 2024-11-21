@@ -15,7 +15,7 @@ log = logging.getLogger(__name__)
             utils.TestParameters(
                 repo="https://github.com/cachito-testing/cachi2-yarn.git",
                 ref="corepack_packagemanager_ignored",
-                packages=({"path": ".", "type": "yarn-classic"},),
+                packages=({"path": ".", "type": "yarn"},),
                 flags=["--dev-package-managers"],
                 check_output=False,
                 check_deps_checksums=False,
@@ -29,7 +29,7 @@ log = logging.getLogger(__name__)
             utils.TestParameters(
                 repo="https://github.com/cachito-testing/cachi2-yarn.git",
                 ref="yarnpath_ignored",
-                packages=({"path": ".", "type": "yarn-classic"},),
+                packages=({"path": ".", "type": "yarn"},),
                 flags=["--dev-package-managers"],
                 check_output=False,
                 check_deps_checksums=False,
@@ -43,7 +43,7 @@ log = logging.getLogger(__name__)
             utils.TestParameters(
                 repo="https://github.com/cachito-testing/cachi2-yarn.git",
                 ref="invalid_checksum",
-                packages=({"path": ".", "type": "yarn-classic"},),
+                packages=({"path": ".", "type": "yarn"},),
                 flags=["--dev-package-managers"],
                 check_output=False,
                 check_deps_checksums=False,
@@ -57,7 +57,7 @@ log = logging.getLogger(__name__)
             utils.TestParameters(
                 repo="https://github.com/cachito-testing/cachi2-yarn.git",
                 ref="invalid_frozen_lockfile_add_dependency",
-                packages=({"path": ".", "type": "yarn-classic"},),
+                packages=({"path": ".", "type": "yarn"},),
                 flags=["--dev-package-managers"],
                 check_output=False,
                 check_deps_checksums=False,
@@ -71,7 +71,7 @@ log = logging.getLogger(__name__)
             utils.TestParameters(
                 repo="https://github.com/cachito-testing/cachi2-yarn.git",
                 ref="lifecycle_scripts",
-                packages=({"path": ".", "type": "yarn-classic"},),
+                packages=({"path": ".", "type": "yarn"},),
                 flags=["--dev-package-managers"],
                 check_output=False,
                 check_deps_checksums=False,
@@ -85,7 +85,7 @@ log = logging.getLogger(__name__)
             utils.TestParameters(
                 repo="https://github.com/cachito-testing/cachi2-yarn.git",
                 ref="offline-mirror-collision",
-                packages=({"path": ".", "type": "yarn-classic"},),
+                packages=({"path": ".", "type": "yarn"},),
                 flags=["--dev-package-managers"],
                 check_output=False,
                 check_deps_checksums=False,
@@ -128,8 +128,7 @@ def test_yarn_classic_packages(
             utils.TestParameters(
                 repo="https://github.com/cachito-testing/cachi2-yarn.git",
                 ref="valid_yarn_all_dependency_types",
-                packages=({"path": ".", "type": "yarn-classic"},),
-                flags=["--dev-package-managers"],
+                packages=({"path": ".", "type": "yarn"},),
                 check_vendor_checksums=False,
                 expected_exit_code=0,
                 expected_output="All dependencies fetched successfully",
@@ -143,10 +142,9 @@ def test_yarn_classic_packages(
                 repo="https://github.com/cachito-testing/cachi2-yarn.git",
                 ref="valid_multiple_packages",
                 packages=(
-                    {"path": "first-pkg", "type": "yarn-classic"},
-                    {"path": "second-pkg", "type": "yarn-classic"},
+                    {"path": "first-pkg", "type": "yarn"},
+                    {"path": "second-pkg", "type": "yarn"},
                 ),
-                flags=["--dev-package-managers"],
                 check_vendor_checksums=False,
                 expected_exit_code=0,
                 expected_output="All dependencies fetched successfully",

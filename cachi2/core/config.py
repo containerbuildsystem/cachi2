@@ -25,6 +25,8 @@ class Config(BaseModel, extra="forbid"):
     requests_timeout: int = 300
     concurrency_limit: int = 5
 
+    allow_yarnberry_processing: bool = True
+
     @model_validator(mode="before")
     @classmethod
     def _print_deprecation_warning(cls, data: Any) -> Any:
