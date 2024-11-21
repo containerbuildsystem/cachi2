@@ -410,6 +410,9 @@ install won't prune any cached dependencies that are unrelated to it.
 installs. Note this setting on its own is not enough to **force** bundler to make use of the
 package cache.
 
+- **BUNDLE_DISABLE_VERSION_CHECK**: Stop Bundler from checking if a newer Bundler version is
+available on rubygems.org.
+
 For more information, see Bundler's [documentation](https://bundler.io/v2.5/man/bundle-config.1.html).
 
 
