@@ -392,6 +392,7 @@ repository scenario (since we would need to keep multiple configuration files).
 BUNDLE_CACHE_PATH=${output_dir}/deps/rubygems
 BUNDLE_DEPLOYMENT=true
 BUNDLE_NO_PRUNE=true
+BUNDLE_ALLOW_OFFLINE_INSTALL=true
 ```
 
 - **BUNDLE_CACHE_PATH**: The directory that Bundler will place cached gems in when running bundle package, and that
@@ -405,12 +406,13 @@ users to add the `--local` flag to the `bundler install` command.
 a single cache folder for multiple Gems ("input packages" in Cachi2's terms), we need to make sure that the first
 install won't prune any cached dependencies that are unrelated to it.
 
+- **BUNDLE_ALLOW_OFFLINE_INSTALL**: Explicitly allow bundler to use cached packages during offline
+installs. Note this setting on its own is not enough to **force** bundler to make use of the
+package cache.
+
 For more information, see Bundler's [documentation](https://bundler.io/v2.5/man/bundle-config.1.html).
 
-##### Other configuration that was considered
 
-- `BUNDLE_ALLOW_OFFLINE_INSTALL` is not working either with `bundle install` for some reason, which could be probably
-the most logical solution in this case.
 
 ### Generating the SBOM
 
