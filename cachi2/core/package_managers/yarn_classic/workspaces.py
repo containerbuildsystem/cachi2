@@ -59,16 +59,13 @@ def _ensure_workspaces_are_well_formed(
             )
 
 
-def _get_workspace_paths(
-    workspaces_globs: list[str],
-    source_dir: RootedPath,
-) -> Iterable[Path]:
+def _get_workspace_paths(workspaces_globs: list[str], source_dir: RootedPath) -> list[Path]:
     """Resolve globs within source directory."""
 
     def all_paths_matching(glob: str) -> Generator[Path, None, None]:
-        return (pth.resolve() for pth in source_dir.path.glob(glob))
+        return (path.resolve() for path in source_dir.path.glob(glob))
 
-    return chain.from_iterable(map(all_paths_matching, workspaces_globs))
+    return list(chain.from_iterable(map(all_paths_matching, workspaces_globs)))
 
 
 def _extract_workspaces_globs(
