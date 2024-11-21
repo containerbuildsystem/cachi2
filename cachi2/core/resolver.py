@@ -1,4 +1,3 @@
-from collections.abc import Iterable
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any, Callable
@@ -6,9 +5,9 @@ from typing import Any, Callable
 from cachi2.core.errors import UnsupportedFeature
 from cachi2.core.models.input import PackageManagerType, Request
 from cachi2.core.models.output import RequestOutput
-from cachi2.core.package_managers import bundler, generic, gomod, npm, pip, rpm, yarn, yarn_classic
+from cachi2.core.package_managers import bundler, generic, gomod, metayarn, npm, pip, rpm
 from cachi2.core.rooted_path import RootedPath
-from cachi2.core.utils import copy_directory
+from cachi2.core.utils import copy_directory, merge_outputs
 
 Handler = Callable[[Request], RequestOutput]
 
@@ -17,7 +16,7 @@ _package_managers: dict[PackageManagerType, Handler] = {
     "gomod": gomod.fetch_gomod_source,
     "npm": npm.fetch_npm_source,
     "pip": pip.fetch_pip_source,
-    "yarn": yarn.fetch_yarn_source,
+    "yarn": metayarn.fetch_yarn_source,
     "generic": generic.fetch_generic_source,
 }
 
@@ -25,7 +24,6 @@ _package_managers: dict[PackageManagerType, Handler] = {
 # invoke them via CLI
 _dev_package_managers: dict[PackageManagerType, Handler] = {
     "rpm": rpm.fetch_rpm_source,
-    "yarn-classic": yarn_classic.fetch_yarn_source,
 }
 
 # This is *only* used to provide a list for `cachi2 --version`
@@ -68,26 +66,7 @@ def _resolve_packages(request: Request) -> RequestOutput:
             solution="But the good news is that we're already working on it!",
         )
     pkg_managers = [_supported_package_managers[type_] for type_ in sorted(requested_types)]
-    return _merge_outputs(pkg_manager(request) for pkg_manager in pkg_managers)
-
-
-def _merge_outputs(outputs: Iterable[RequestOutput]) -> RequestOutput:
-    """Merge RequestOutput instances."""
-    components = []
-    env_vars = []
-    project_files = []
-
-    for output in outputs:
-        components.extend(output.components)
-        env_vars.extend(output.build_config.environment_variables)
-        project_files.extend(output.build_config.project_files)
-
-    return RequestOutput.from_obj_list(
-        components=components,
-        environment_variables=env_vars,
-        project_files=project_files,
-        options=output.build_config.options if output.build_config.options else None,
-    )
+    return merge_outputs(pkg_manager(request) for pkg_manager in pkg_managers)
 
 
 def inject_files_post(from_output_dir: Path, for_output_dir: Path, **kwargs: Any) -> None:

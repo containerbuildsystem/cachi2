@@ -2,7 +2,7 @@ import logging
 import re
 from collections import Counter
 from pathlib import Path
-from typing import Iterable
+from typing import Any, Iterable
 from urllib.parse import urlparse
 
 from cachi2.core.errors import PackageManagerError, PackageRejected
@@ -27,6 +27,26 @@ log = logging.getLogger(__name__)
 
 
 MIRROR_DIR = "deps/yarn-classic"
+_yarn_classic_pattern = "yarn lockfile v1"  # See [yarn_classic_trait].
+
+
+class MissingLockfile(PackageRejected):
+    """Indicate that a lock file is missing."""
+
+    def __init__(self) -> None:
+        """Initialize a Missing Lockfile error."""
+        reason = "Yarn lockfile 'yarn.lock' missing, refusing to continue"
+        solution = "Make sure your repository has a Yarn lockfile (i.e. yarn.lock) checked in"
+        super().__init__(reason, solution=solution)
+
+
+class NotV1Lockfile(PackageRejected):
+    """Indicate that a lockfile is of wrong tyrpoe."""
+
+    def __init__(self, package_path: Any) -> None:
+        """Initialize a Missing Lockfile error."""
+        reason = f"{package_path} not a Yarn v1"
+        super().__init__(reason, solution=None)
 
 
 def fetch_yarn_source(request: Request) -> RequestOutput:
@@ -36,7 +56,7 @@ def fetch_yarn_source(request: Request) -> RequestOutput:
     def _ensure_mirror_dir_exists(output_dir: RootedPath) -> None:
         output_dir.join_within_root(MIRROR_DIR).path.mkdir(parents=True, exist_ok=True)
 
-    for package in request.yarn_classic_packages:
+    for package in request.yarn_packages:
         package_path = request.source_dir.join_within_root(package.path)
         _ensure_mirror_dir_exists(request.output_dir)
         _resolve_yarn_project(Project.from_source_dir(package_path), request.output_dir)
@@ -121,9 +141,27 @@ def _reject_if_pnp_install(project: Project) -> None:
         )
 
 
+def _get_path_to_yarn_lock(project: Project) -> Path:
+    return project.source_dir.join_within_root("yarn.lock").path
+
+
+def _reject_if_wrong_lockfile_version(project: Project) -> None:
+    yarnlock_path = _get_path_to_yarn_lock(project)
+    text = yarnlock_path.read_text()
+    if _yarn_classic_pattern not in text:
+        raise NotV1Lockfile(project.source_dir)
+
+
+def _reject_if_lockfile_is_missing(project: Project) -> None:
+    yarnlock_path = _get_path_to_yarn_lock(project)
+    if not yarnlock_path.exists():
+        raise MissingLockfile()
+
+
 def _verify_repository(project: Project) -> None:
+    _reject_if_lockfile_is_missing(project)
+    _reject_if_wrong_lockfile_version(project)
     _reject_if_pnp_install(project)
-    # _check_lockfile(project)
 
 
 def _verify_corepack_yarn_version(source_dir: RootedPath, env: dict[str, str]) -> None:
@@ -194,3 +232,7 @@ def _get_git_tarball_mirror_name(url: str) -> str:
         package_filename = package_filename[1:]
 
     return package_filename
+
+
+# References
+# [yarn_classic_trait]:  https://github.com/yarnpkg/berry/blob/13d5b3041794c33171808fdce635461ff4ab5c4e/packages/yarnpkg-core/sources/Project.ts#L434

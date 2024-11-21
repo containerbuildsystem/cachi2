@@ -56,12 +56,12 @@ def test_generate_build_environment_variables(
     "input_request, components",
     [
         pytest.param(
-            [{"type": "yarn-classic", "path": "."}],
+            [{"type": "yarn", "path": "."}],
             [],
             id="single_input_package",
         ),
         pytest.param(
-            [{"type": "yarn-classic", "path": "."}, {"type": "yarn-classic", "path": "./path"}],
+            [{"type": "yarn", "path": "."}, {"type": "yarn", "path": "./path"}],
             [],
             id="multiple_input_packages",
         ),
