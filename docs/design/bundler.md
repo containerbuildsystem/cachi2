@@ -306,19 +306,11 @@ GIT
       nokogiri (~> 1, >= 1.10.8)
 ```
 
-### Out of scope
-
-#### Plugins
-Bundler has support for using [plugins](https://bundler.io/guides/bundler_plugins.html), which allows users to extend
-Bundler's functionality in any way that they seem fit. Since this can open the possibility for security issues, plugins
-will not be supported by Cachi2.
-
-Since we're not proposing the direct usage of Bundler to fetch the dependencies, no other actions are needed in the
-prefetch phase, existing plugin definitions will be ignored.
-
-#### Pre-compiled binaries
-For the initial implementation, we're aiming to provide support only for plain Ruby gems (which are idenfied as `ruby`
-in the `PLATFORMS` section of the `Gemfile.lock`). Platforms that relate to specific architectures will contain
+#### Platform (i.e. pre-compiled) gems
+By default, binary gems are ignored for similar reasons as with [pip
+wheels](https://github.com/containerbuildsystem/cachi2/blob/main/docs/pip.md#distribution-formats),
+i.e. lacking sources which report in the SBOM.
+Platforms that relate to specific architectures will contain
 binaries that were pre-compiled for that architecture (see [Platforms](#platforms)).
 
 The URL schema in the default rubygems registry seems to follow this format:
@@ -331,15 +323,18 @@ The URL schema in the default rubygems registry seems to follow this format:
 "https://rubygems.org/gems/#{name}-#{version}-#{platform}.gem"
 ```
 
-This means that we can easily just download the plain Ruby Gems, and skip all platform-specific Gems altogether. From
-the testing I did, this did not seem to affect the ability to perform a hermetic build in any way, Bundler just
-compiled everything from source.
+In order to support platform gems we'll add the `allow_binary` input JSON CLI option with almost
+identical behaviour as with our pip backend.
 
-To avoid confusing users if a corner case shows up, we can add a `WARNING` log in case extra platforms are detected,
-and also document it properly.
+### Out of scope
 
-Proper support for pre-compiled binaries should be probably left as a follow-up feature, similarly to what was done
-with [pip wheels](https://github.com/containerbuildsystem/cachi2/blob/main/docs/pip.md#distribution-formats).
+#### Plugins
+Bundler has support for using [plugins](https://bundler.io/guides/bundler_plugins.html), which allows users to extend
+Bundler's functionality in any way that they seem fit. Since this can open the possibility for security issues, plugins
+will not be supported by Cachi2.
+
+Since we're not proposing the direct usage of Bundler to fetch the dependencies, no other actions are needed in the
+prefetch phase, existing plugin definitions will be ignored.
 
 #### Checksum verification
 Since checksums in the `Gemfile.lock` is still a feature in development (see [checksums](#dependency-checksums)), we
