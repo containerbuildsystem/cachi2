@@ -112,8 +112,13 @@ class Sbom(pydantic.BaseModel):
         """Sort and de-duplicate components."""
         return unique_sorted(components, by=lambda component: component.key())
 
-    def to_spdx(self) -> "SPDXSbom":
-        """Convert a CycloneDX SBOM to an SPDX SBOM."""
+    def to_spdx(self, doc_namespace: str) -> "SPDXSbom":
+        """Convert a CycloneDX SBOM to an SPDX SBOM.
+
+        Args:
+            doc_namespace: SPDX document namespace. Namespace is URI of indicating
+
+        """
         packages = []
         relationships = []
 
@@ -130,8 +135,8 @@ class Sbom(pydantic.BaseModel):
             for prop in component.properties:
                 annotations.append(
                     SPDXPackageAnnotation(
-                        annotator="cachi2:jsonencoded",
-                        annotationDate=datetime.datetime.now().isoformat(),
+                        annotator="Tool:cachi2:jsonencoded",
+                        annotationDate=datetime.datetime.now().isoformat()[:-7] + "Z",
                         annotationType="OTHER",
                         comment=json.dumps(
                             {"name": f"{prop.name}", "value": f"{prop.value}"},
@@ -148,7 +153,7 @@ class Sbom(pydantic.BaseModel):
 
             packages.append(
                 SPDXPackage(
-                    SPDXID=f"SPDXID-Package-{component.name}-{component.version}-{package_hash}",
+                    SPDXID=f"SPDXRef-Package-{component.name}-{component.version}-{package_hash}",
                     name=component.name,
                     versionInfo=component.version,
                     externalRefs=[
@@ -185,6 +190,7 @@ class Sbom(pydantic.BaseModel):
         return SPDXSbom(
             packages=packages,
             relationships=relationships,
+            documentNamespace=doc_namespace,
             creationInfo=SPDXCreationInfo(
                 creators=sum(
                     [
@@ -192,7 +198,8 @@ class Sbom(pydantic.BaseModel):
                         for tool in self.metadata.tools
                     ],
                     [],
-                )
+                ),
+                created=datetime.datetime.now().isoformat()[:-7] + "Z",
             ),
         )
 
@@ -289,6 +296,7 @@ class SPDXPackage(pydantic.BaseModel):
     versionInfo: Optional[str] = None
     externalRefs: list[SPDXPackageExternalRefType] = []
     annotations: list[SPDXPackageAnnotation] = []
+    downloadLocation: str = "NOASSERTION"
 
     def __lt__(self, other: "SPDXPackage") -> bool:
         return (self.SPDXID or "") < (other.SPDXID or "")
@@ -354,6 +362,7 @@ class SPDXCreationInfo(pydantic.BaseModel):
     """
 
     creators: list[str] = []
+    created: str
 
 
 class SPDXRelation(pydantic.BaseModel):
@@ -382,6 +391,7 @@ class SPDXSbom(pydantic.BaseModel):
     SPDXID: Literal["SPDXRef-DOCUMENT"] = "SPDXRef-DOCUMENT"
     dataLicense: Literal["CC0-1.0"] = "CC0-1.0"
     name: str = ""
+    documentNamespace: str
 
     creationInfo: SPDXCreationInfo
     packages: list[SPDXPackage] = []

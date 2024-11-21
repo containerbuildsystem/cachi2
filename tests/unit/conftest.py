@@ -64,5 +64,5 @@ def input_request(tmp_path: Path, request: pytest.FixtureRequest) -> Request:
 @pytest.fixture
 def isodate() -> Generator:
     with mock.patch("datetime.datetime") as mock_datetime:
-        mock_datetime.now.return_value.isoformat.return_value = "2021-07-01T00:00:00Z"
+        mock_datetime.now.return_value.isoformat.return_value = "2021-07-01T00:00:00.000000"
         yield mock_datetime

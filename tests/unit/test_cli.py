@@ -649,7 +649,7 @@ class TestFetchDeps:
         written_sbom = SPDXSbom.model_validate_json(sbom_text)
 
         assert written_build_config == request_output.build_config
-        assert written_sbom == request_output.generate_sbom().to_spdx()
+        assert written_sbom == request_output.generate_sbom().to_spdx("NOASSERTION")
 
     def test_delete_existing_deps_dir(self, tmp_cwd: Path) -> None:
         ouput_dir = tmp_cwd / DEFAULT_OUTPUT

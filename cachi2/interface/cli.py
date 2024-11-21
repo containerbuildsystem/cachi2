@@ -1,3 +1,4 @@
+import datetime
 import enum
 import functools
 import importlib.metadata
@@ -304,7 +305,7 @@ def fetch_deps(
     if sbom_type == SBOMFormat.cyclonedx:
         sbom: Union[Sbom, SPDXSbom] = request_output.generate_sbom()
     else:
-        sbom = request_output.generate_sbom().to_spdx()
+        sbom = request_output.generate_sbom().to_spdx(doc_namespace="NOASSERTION")
     request.output_dir.join_within_root("bom.json").path.write_text(
         # the Sbom model has camelCase aliases in some fields
         sbom.model_dump_json(indent=2, by_alias=True, exclude_none=True)
@@ -462,7 +463,7 @@ def merge_sboms(
         spdx_sboms_to_merge = []
         for _sbom in sboms_to_merge:
             if not isinstance(_sbom, SPDXSbom):
-                spdx_sboms_to_merge.append(_sbom.to_spdx())
+                spdx_sboms_to_merge.append(_sbom.to_spdx(doc_namespace="NOASSERTION"))
             else:
                 spdx_sboms_to_merge.append(_sbom)
 
@@ -472,9 +473,12 @@ def merge_sboms(
             SPDXID="SPDXRef-DOCUMENT",
             dataLicense="CC0-1.0",
             name=sbom_name or cast(SPDXSbom, spdx_sboms_to_merge[0]).name,
+            documentNamespace="NOASSERTION",
             creationInfo=cast(SPDXSbom, spdx_sboms_to_merge[0]).creationInfo,
             packages=packages,
         )
+        sbom.creationInfo.created = datetime.datetime.now().isoformat()[:-7] + "Z"
+
         root_ids: List[str] = [s.SPDXID for s in spdx_sboms_to_merge]
         sbom.relationships, sbom.packages = merge_relationships(
             [s.relationships for s in spdx_sboms_to_merge], root_ids, sbom.packages

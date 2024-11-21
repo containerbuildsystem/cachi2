@@ -3,6 +3,7 @@
   "dataLicense": "CC0-1.0",
   "SPDXID": "SPDXRef-DOCUMENT",
   "name": "/var/lib/containers/storage/vfs/dir/517aef0ffe20db360d19aa475dbbfbe03f452f53403881a31f9a475c83af788b",
+  "documentNamespace": "NOASSERTION",
   "creationInfo": {
     "licenseListVersion": "3.24",
     "creators": [

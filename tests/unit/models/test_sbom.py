@@ -360,7 +360,7 @@ class TestSbom:
                 Property(name="cdx:npm:package:bundled", value="true"),
             ]
         )
-        spdx_sbom = sbom.to_spdx()
+        spdx_sbom = sbom.to_spdx("NOASSERTION")
 
         assert spdx_sbom.packages == [
             SPDXPackage(
@@ -371,7 +371,7 @@ class TestSbom:
                 annotations=[],
             ),
             SPDXPackage(
-                SPDXID="SPDXID-Package-github.com/org/A-v1.0.0-8090f86e9eb851549de5f8391948c1df6a2c8976bfa33c3cbd82e917564ac94f",
+                SPDXID="SPDXRef-Package-github.com/org/A-v1.0.0-8090f86e9eb851549de5f8391948c1df6a2c8976bfa33c3cbd82e917564ac94f",
                 name="github.com/org/A",
                 versionInfo="v1.0.0",
                 externalRefs=[
@@ -383,13 +383,13 @@ class TestSbom:
                 ],
                 annotations=[
                     SPDXPackageAnnotation(
-                        annotator="cachi2:jsonencoded",
+                        annotator="Tool:cachi2:jsonencoded",
                         annotationDate="2021-07-01T00:00:00Z",
                         annotationType="OTHER",
                         comment=json.dumps({"name": "cachi2:found_by", "value": "cachi2"}),
                     ),
                     SPDXPackageAnnotation(
-                        annotator="cachi2:jsonencoded",
+                        annotator="Tool:cachi2:jsonencoded",
                         annotationDate="2021-07-01T00:00:00Z",
                         annotationType="OTHER",
                         comment=json.dumps({"name": "cdx:npm:package:bundled", "value": "true"}),
@@ -397,7 +397,7 @@ class TestSbom:
                 ],
             ),
             SPDXPackage(
-                SPDXID="SPDXID-Package-github.com/org/A-v1.1.0-898f4d436d82296d12247741855acc48a1f80639d2418e556268f30ae2336303",
+                SPDXID="SPDXRef-Package-github.com/org/A-v1.1.0-898f4d436d82296d12247741855acc48a1f80639d2418e556268f30ae2336303",
                 name="github.com/org/A",
                 versionInfo="v1.1.0",
                 externalRefs=[
@@ -409,7 +409,7 @@ class TestSbom:
                 ],
                 annotations=[
                     SPDXPackageAnnotation(
-                        annotator="cachi2:jsonencoded",
+                        annotator="Tool:cachi2:jsonencoded",
                         annotationDate="2021-07-01T00:00:00Z",
                         annotationType="OTHER",
                         comment=json.dumps({"name": "cachi2:found_by", "value": "cachi2"}),
@@ -417,7 +417,7 @@ class TestSbom:
                 ],
             ),
             SPDXPackage(
-                SPDXID="SPDXID-Package-spdx-expression-parse-v1.0.0-2d5c537d20208409089cf9c7ae9398b7105beef1f883cfc4c0b1f804bca86b02",
+                SPDXID="SPDXRef-Package-spdx-expression-parse-v1.0.0-2d5c537d20208409089cf9c7ae9398b7105beef1f883cfc4c0b1f804bca86b02",
                 name="spdx-expression-parse",
                 versionInfo="v1.0.0",
                 externalRefs=[
@@ -429,7 +429,7 @@ class TestSbom:
                 ],
                 annotations=[
                     SPDXPackageAnnotation(
-                        annotator="cachi2:jsonencoded",
+                        annotator="Tool:cachi2:jsonencoded",
                         annotationDate="2021-07-01T00:00:00Z",
                         annotationType="OTHER",
                         comment=json.dumps({"name": "cachi2:found_by", "value": "cachi2"}),
@@ -447,19 +447,19 @@ class TestSbom:
             SPDXRelation(
                 spdxElementId="SPDXRef-DocumentRoot-File-",
                 comment="",
-                relatedSpdxElement="SPDXID-Package-github.com/org/A-v1.0.0-8090f86e9eb851549de5f8391948c1df6a2c8976bfa33c3cbd82e917564ac94f",
+                relatedSpdxElement="SPDXRef-Package-github.com/org/A-v1.0.0-8090f86e9eb851549de5f8391948c1df6a2c8976bfa33c3cbd82e917564ac94f",
                 relationshipType="CONTAINS",
             ),
             SPDXRelation(
                 spdxElementId="SPDXRef-DocumentRoot-File-",
                 comment="",
-                relatedSpdxElement="SPDXID-Package-github.com/org/A-v1.1.0-898f4d436d82296d12247741855acc48a1f80639d2418e556268f30ae2336303",
+                relatedSpdxElement="SPDXRef-Package-github.com/org/A-v1.1.0-898f4d436d82296d12247741855acc48a1f80639d2418e556268f30ae2336303",
                 relationshipType="CONTAINS",
             ),
             SPDXRelation(
                 spdxElementId="SPDXRef-DocumentRoot-File-",
                 comment="",
-                relatedSpdxElement="SPDXID-Package-spdx-expression-parse-v1.0.0-2d5c537d20208409089cf9c7ae9398b7105beef1f883cfc4c0b1f804bca86b02",
+                relatedSpdxElement="SPDXRef-Package-spdx-expression-parse-v1.0.0-2d5c537d20208409089cf9c7ae9398b7105beef1f883cfc4c0b1f804bca86b02",
                 relationshipType="CONTAINS",
             ),
         ]
@@ -491,18 +491,20 @@ class TestSbom:
                 Property(name="cdx:npm:package:bundled", value="true"),
             ]
         )
-        cyclonedx_sbom = sbom.to_spdx().to_cyclonedx()
+        cyclonedx_sbom = sbom.to_spdx("NOASSERTION").to_cyclonedx()
         assert cyclonedx_sbom == sbom
 
 
 class TestSPDXSbom:
     def test_sort_and_dedupe_packages(self) -> None:
         sbom = SPDXSbom(
-            creationInfo={"creators": []},
+            creationInfo={"creators": [], "created": "2021-07-01T00:00:00Z"},
+            documentNamespace="NOASSERTION",
             packages=[
                 {
                     "name": "github.com/org/B",
                     "versionInfo": "v1.0.0",
+                    "downloadLocation": "NOASSERTION",
                     "externalRefs": [
                         {
                             "referenceCategory": "PACKAGE-MANAGER",
@@ -514,6 +516,7 @@ class TestSPDXSbom:
                 {
                     "name": "github.com/org/A",
                     "versionInfo": "v1.1.0",
+                    "downloadLocation": "NOASSERTION",
                     "externalRefs": [
                         {
                             "referenceCategory": "PACKAGE-MANAGER",
@@ -525,6 +528,7 @@ class TestSPDXSbom:
                 {
                     "name": "github.com/org/A",
                     "versionInfo": "v1.1.0",
+                    "downloadLocation": "NOASSERTION",
                     "externalRefs": [
                         {
                             "referenceCategory": "PACKAGE-MANAGER",
@@ -536,6 +540,7 @@ class TestSPDXSbom:
                 {
                     "name": "github.com/org/A",
                     "versionInfo": "v1.0.0",
+                    "downloadLocation": "NOASSERTION",
                     "externalRefs": [
                         {
                             "referenceCategory": "PACKAGE-MANAGER",
@@ -547,6 +552,7 @@ class TestSPDXSbom:
                 {
                     "name": "github.com/org/A",
                     "versionInfo": "v1.0.0",
+                    "downloadLocation": "NOASSERTION",
                     "externalRefs": [
                         {
                             "referenceCategory": "PACKAGE-MANAGER",
@@ -558,6 +564,7 @@ class TestSPDXSbom:
                 {
                     "name": "github.com/org/B",
                     "versionInfo": "v1.0.0",
+                    "downloadLocation": "NOASSERTION",
                     "externalRefs": [
                         {
                             "referenceCategory": "PACKAGE-MANAGER",
@@ -569,6 +576,7 @@ class TestSPDXSbom:
                 {
                     "name": "fmt",
                     "versionInfo": None,
+                    "downloadLocation": "NOASSERTION",
                     "externalRefs": [
                         {
                             "referenceCategory": "PACKAGE-MANAGER",
@@ -580,6 +588,7 @@ class TestSPDXSbom:
                 {
                     "name": "bytes",
                     "versionInfo": None,
+                    "downloadLocation": "NOASSERTION",
                     "externalRefs": [
                         {
                             "referenceCategory": "PACKAGE-MANAGER",
@@ -695,7 +704,11 @@ class TestSPDXSbom:
 
     def test_to_cyclonedx(self) -> None:
         sbom = SPDXSbom(
-            creationInfo={"creators": ["Tool: cachi2", "Organization: cachi2"]},
+            documentNamespace="NOASSERTION",
+            creationInfo={
+                "creators": ["Tool: cachi2", "Organization: cachi2"],
+                "created": "2021-07-01T00:00:00Z",
+            },
             packages=[
                 {
                     "name": "github.com/org/B",
@@ -823,7 +836,11 @@ class TestSPDXSbom:
     ) -> None:
         sbom = SPDXSbom(
             SPDXID="SPDXRef-DOCUMENT",
-            creationInfo={"creators": ["Tool: cachi2", "Organization: cachi2"]},
+            documentNamespace="NOASSERTION",
+            creationInfo={
+                "creators": ["Tool: cachi2", "Organization: cachi2"],
+                "created": "2021-07-01T00:00:00Z",
+            },
             packages=[
                 {
                     "SPDXID": "SPDXRef-DocumentRoot-File-",
@@ -834,7 +851,7 @@ class TestSPDXSbom:
                 },
                 {
                     "name": "github.com/org/B",
-                    "SPDXID": "SPDXID-Package-github.com/org/B-v1.0.0-f75a590094f92d64111235b9ae298c34b9acd126f8fc6263b7924810bfe6470c",
+                    "SPDXID": "SPDXRef-Package-github.com/org/B-v1.0.0-f75a590094f92d64111235b9ae298c34b9acd126f8fc6263b7924810bfe6470c",
                     "versionInfo": "v1.0.0",
                     "externalRefs": [
                         {
@@ -845,7 +862,7 @@ class TestSPDXSbom:
                     ],
                     "annotations": [
                         {
-                            "annotator": "cachi2:jsonencoded",
+                            "annotator": "Tool:cachi2:jsonencoded",
                             "annotationDate": "2021-07-01T00:00:00Z",
                             "annotationType": "OTHER",
                             "comment": '{"name": "cachi2:found_by", "value": "cachi2"}',
@@ -854,7 +871,7 @@ class TestSPDXSbom:
                 },
                 {
                     "name": "github.com/org/A",
-                    "SPDXID": "SPDXID-Package-github.com/org/A-v1.1.0-e4e45c4dc4bfb505f298188b3156fcee718b13e618a73a270401f5a3b77e49b3",
+                    "SPDXID": "SPDXRef-Package-github.com/org/A-v1.1.0-e4e45c4dc4bfb505f298188b3156fcee718b13e618a73a270401f5a3b77e49b3",
                     "versionInfo": "v1.1.0",
                     "externalRefs": [
                         {
@@ -865,7 +882,7 @@ class TestSPDXSbom:
                     ],
                     "annotations": [
                         {
-                            "annotator": "cachi2:jsonencoded",
+                            "annotator": "Tool:cachi2:jsonencoded",
                             "annotationDate": "2021-07-01T00:00:00Z",
                             "annotationType": "OTHER",
                             "comment": '{"name": "cachi2:found_by", "value": "cachi2"}',
@@ -874,7 +891,7 @@ class TestSPDXSbom:
                 },
                 {
                     "name": "github.com/org/A",
-                    "SPDXID": "SPDXID-Package-github.com/org/A-v1.1.0-f75a590094f92d64111235b9ae298c34b9acd126f8fc6263b7924810bfe6470c",
+                    "SPDXID": "SPDXRef-Package-github.com/org/A-v1.1.0-f75a590094f92d64111235b9ae298c34b9acd126f8fc6263b7924810bfe6470c",
                     "versionInfo": "v1.1.0",
                     "externalRefs": [
                         {
@@ -885,7 +902,7 @@ class TestSPDXSbom:
                     ],
                     "annotations": [
                         {
-                            "annotator": "cachi2:jsonencoded",
+                            "annotator": "Tool:cachi2:jsonencoded",
                             "annotationDate": "2021-07-01T00:00:00Z",
                             "annotationType": "OTHER",
                             "comment": '{"name": "cachi2:found_by", "value": "cachi2"}',
@@ -894,7 +911,7 @@ class TestSPDXSbom:
                 },
                 {
                     "name": "github.com/org/A",
-                    "SPDXID": "SPDXID-Package-github.com/org/A-v1.0.0-8090f86e9eb851549de5f8391948c1df6a2c8976bfa33c3cbd82e917564ac94f",
+                    "SPDXID": "SPDXRef-Package-github.com/org/A-v1.0.0-8090f86e9eb851549de5f8391948c1df6a2c8976bfa33c3cbd82e917564ac94f",
                     "versionInfo": "v1.0.0",
                     "externalRefs": [
                         {
@@ -905,7 +922,7 @@ class TestSPDXSbom:
                     ],
                     "annotations": [
                         {
-                            "annotator": "cachi2:jsonencoded",
+                            "annotator": "Tool:cachi2:jsonencoded",
                             "annotationDate": "2021-07-01T00:00:00Z",
                             "annotationType": "OTHER",
                             "comment": '{"name": "cachi2:found_by", "value": "cachi2"}',
@@ -914,7 +931,7 @@ class TestSPDXSbom:
                 },
                 {
                     "name": "github.com/org/B",
-                    "SPDXID": "SPDXID-Package-github.com/org/B-v1.0.0-f75a590094f92d64111235b9ae298c34b9acd126f8fc6263b7924810bfe6470c",
+                    "SPDXID": "SPDXRef-Package-github.com/org/B-v1.0.0-f75a590094f92d64111235b9ae298c34b9acd126f8fc6263b7924810bfe6470c",
                     "versionInfo": "v1.0.0",
                     "externalRefs": [
                         {
@@ -925,7 +942,7 @@ class TestSPDXSbom:
                     ],
                     "annotations": [
                         {
-                            "annotator": "cachi2:jsonencoded",
+                            "annotator": "Tool:cachi2:jsonencoded",
                             "annotationDate": "2021-07-01T00:00:00Z",
                             "annotationType": "OTHER",
                             "comment": '{"name": "cachi2:found_by", "value": "cachi2"}',
@@ -934,7 +951,7 @@ class TestSPDXSbom:
                 },
                 {
                     "name": "fmt",
-                    "SPDXID": "SPDXID-Package-fmt--7e4d2ed76d4ea914ece19cdfb657d52dfe5c22193e31c8141497806571490439",
+                    "SPDXID": "SPDXRef-Package-fmt--7e4d2ed76d4ea914ece19cdfb657d52dfe5c22193e31c8141497806571490439",
                     "versionInfo": "",
                     "externalRefs": [
                         {
@@ -945,7 +962,7 @@ class TestSPDXSbom:
                     ],
                     "annotations": [
                         {
-                            "annotator": "cachi2:jsonencoded",
+                            "annotator": "Tool:cachi2:jsonencoded",
                             "annotationDate": "2021-07-01T00:00:00Z",
                             "annotationType": "OTHER",
                             "comment": '{"name": "cachi2:found_by", "value": "cachi2"}',
@@ -954,7 +971,7 @@ class TestSPDXSbom:
                 },
                 {
                     "name": "bytes",
-                    "SPDXID": "SPDXID-Package-bytes--159a73f12ce40d92d01ba213c0ec5b442a301c842533acb3487aed9454ae17e7",
+                    "SPDXID": "SPDXRef-Package-bytes--159a73f12ce40d92d01ba213c0ec5b442a301c842533acb3487aed9454ae17e7",
                     "versionInfo": "",
                     "externalRefs": [
                         {
@@ -965,7 +982,7 @@ class TestSPDXSbom:
                     ],
                     "annotations": [
                         {
-                            "annotator": "cachi2:jsonencoded",
+                            "annotator": "Tool:cachi2:jsonencoded",
                             "annotationDate": "2021-07-01T00:00:00Z",
                             "annotationType": "OTHER",
                             "comment": '{"name": "cachi2:found_by", "value": "cachi2"}',
@@ -983,42 +1000,42 @@ class TestSPDXSbom:
                 {
                     "spdxElementId": "SPDXRef-DocumentRoot-File-",
                     "comment": "",
-                    "relatedSpdxElement": "SPDXID-Package-bytes--159a73f12ce40d92d01ba213c0ec5b442a301c842533acb3487aed9454ae17e7",
+                    "relatedSpdxElement": "SPDXRef-Package-bytes--159a73f12ce40d92d01ba213c0ec5b442a301c842533acb3487aed9454ae17e7",
                     "relationshipType": "CONTAINS",
                 },
                 {
                     "spdxElementId": "SPDXRef-DocumentRoot-File-",
                     "comment": "",
-                    "relatedSpdxElement": "SPDXID-Package-fmt--7e4d2ed76d4ea914ece19cdfb657d52dfe5c22193e31c8141497806571490439",
+                    "relatedSpdxElement": "SPDXRef-Package-fmt--7e4d2ed76d4ea914ece19cdfb657d52dfe5c22193e31c8141497806571490439",
                     "relationshipType": "CONTAINS",
                 },
                 {
                     "spdxElementId": "SPDXRef-DocumentRoot-File-",
                     "comment": "",
-                    "relatedSpdxElement": "SPDXID-Package-github.com/org/A-v1.0.0-8090f86e9eb851549de5f8391948c1df6a2c8976bfa33c3cbd82e917564ac94f",
+                    "relatedSpdxElement": "SPDXRef-Package-github.com/org/A-v1.0.0-8090f86e9eb851549de5f8391948c1df6a2c8976bfa33c3cbd82e917564ac94f",
                     "relationshipType": "CONTAINS",
                 },
                 {
                     "spdxElementId": "SPDXRef-DocumentRoot-File-",
                     "comment": "",
-                    "relatedSpdxElement": "SPDXID-Package-github.com/org/A-v1.1.0-e4e45c4dc4bfb505f298188b3156fcee718b13e618a73a270401f5a3b77e49b3",
+                    "relatedSpdxElement": "SPDXRef-Package-github.com/org/A-v1.1.0-e4e45c4dc4bfb505f298188b3156fcee718b13e618a73a270401f5a3b77e49b3",
                     "relationshipType": "CONTAINS",
                 },
                 {
                     "spdxElementId": "SPDXRef-DocumentRoot-File-",
                     "comment": "",
-                    "relatedSpdxElement": "SPDXID-Package-github.com/org/A-v1.1.0-e92e3a95e71ca3b2ef7bd075547593856dec87255626aa3db90a05dcde1b05ec",
+                    "relatedSpdxElement": "SPDXRef-Package-github.com/org/A-v1.1.0-e92e3a95e71ca3b2ef7bd075547593856dec87255626aa3db90a05dcde1b05ec",
                     "relationshipType": "CONTAINS",
                 },
                 {
                     "spdxElementId": "SPDXRef-DocumentRoot-File-",
                     "comment": "",
-                    "relatedSpdxElement": "SPDXID-Package-github.com/org/B-v1.0.0-f75a590094f92d64111235b9ae298c34b9acd126f8fc6263b7924810bfe6470c",
+                    "relatedSpdxElement": "SPDXRef-Package-github.com/org/B-v1.0.0-f75a590094f92d64111235b9ae298c34b9acd126f8fc6263b7924810bfe6470c",
                     "relationshipType": "CONTAINS",
                 },
             ],
         )
-        spdx_sbom = sbom.to_cyclonedx().to_spdx()
+        spdx_sbom = sbom.to_cyclonedx().to_spdx("NOASSERTION")
         assert json.dumps(sbom.model_dump(), sort_keys=True, indent=4) == json.dumps(
             spdx_sbom.model_dump(), sort_keys=True, indent=4
         )
