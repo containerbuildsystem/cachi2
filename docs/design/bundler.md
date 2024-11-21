@@ -393,9 +393,13 @@ BUNDLE_ALLOW_OFFLINE_INSTALL=true
 - **BUNDLE_CACHE_PATH**: The directory that Bundler will place cached gems in when running bundle package, and that
 Bundler will look in when installing gems. Defaults to `vendor/cache`.
 
-- **BUNDLE_DEPLOYMENT**: Disallow changes to the Gemfile. This also has the side effect of forcing Bundler to use the
-local cache instead of trying to reach out for the Internet. This allows the hermetic build to work without forcing the
-users to add the `--local` flag to the `bundler install` command.
+- **BUNDLE_DEPLOYMENT**: Disallow changes to the Gemfile. This also has the desired
+side effect of forcing Bundler to use the local package cache instead of trying to reach out for
+the Internet behaving similarly to `--local` flag to `bundle install` with the exception that it
+can be enforced with a configuration key which the latter cannot
+[yet](https://github.com/rubygems/rubygems/issues/8265). This in turn makes hermetic builds work.
+There are some considerations and consequences when it comes to enforcing the deployment setting,
+see [Offline installation using deployment mode](#offline-installation-using-deployment-mode).
 
 - **BUNDLE_NO_PRUNE**: Whether Bundler should leave outdated gems unpruned when caching. Since we're potentially using
 a single cache folder for multiple Gems ("input packages" in Cachi2's terms), we need to make sure that the first
@@ -446,6 +450,30 @@ This all means that hacky solutions aren't going to work around bundler and so
 **until Bundler enables setting the [`--local`
 flag](https://github.com/rubygems/rubygems/issues/8265) via configuration options, we need to keep
 making use of the deployment mode.**
+
+##### Offline installation using deployment mode
+Deployment mode is a way of vendoring one's code along with the dependencies.
+The most important bit about the deployment mode based on the official
+[docs](https://www.bundler.cn/man/bundle-install.1.html#DEPLOYMENT-MODE)
+
+>Gems are installed to vendor/bundle not your default system location.
+>
+>In development, it's convenient to share the gems used in your application with other applications
+>and other scripts that run on the system.
+>
+>In deployment, isolation is a more important default. In addition, the user deploying the
+>application may not have permission to install gems to the system, or the web server may not have
+>permission to read them.
+>As a result, bundle install --deployment installs gems to the vendor/bundle directory in the
+>application. This may be overridden using the --path option.
+
+is that this creates a local `vendor/bundle` directory local to the application repository instead
+of using a system-wide location during the install. What that means in practice is that regardless
+of the Rubygems ecosystem recommendations we're enforcing a particular way of installing
+applications onto our whole user base. If they wish to override it, they need to make changes to
+their build recipes and explicitly by setting the `BUNDLE_PATH` configuration option and point it
+to a system location. That is official the only way to tell bundler to skip creating the local
+`vendor/bundle` directory using the deployment mode.
 
 ### Generating the SBOM
 
