@@ -82,7 +82,20 @@ The directory that Bundler will look into when installing gems.
 ### BUNDLE_DEPLOYMENT
 
 Disallow changes to the **Gemfile**. When the **Gemfile** is changed
-and the lockfile has not been updated, running Bundler commands will be blocked.
+and the lockfile has not been updated, running Bundler commands will be blocked. More importantly
+though, this makes Bundler comply with network isolated builds. However, this setting has a
+user-side implication regarding their build recipes, e.g. Dockerfiles[^why-implication] and you may
+want to consider enforcing the installation path for your app explicitly with
+[`BUNDLE_PATH`](https://bundler.io/v2.5/man/bundle-config.1.html#LIST-OF-AVAILABLE-KEYS)
+
+[^why-implication]: `BUNDLE_DEPLOYMENT` enforces
+[deployment mode](https://www.bundler.cn/man/bundle-install.1.html#DEPLOYMENT-MODE) which is
+essentially vendoring your application and its dependencies. In other words, deployment will
+install your application to a local `vendor/bundle` directory instead of using the standard
+system-wide location. This is currently the only way of forcing bundler to respect and use the
+offline package cache during hermetic builds. Note that the deployment mode doesn't play nicely
+with other installation flags and so trying to use `--local` with your `bundle install` command in
+your Dockerfile won't take effect, consider `BUNDLE_PATH` instead.
 
 ### BUNDLE_NO_PRUNE
 
