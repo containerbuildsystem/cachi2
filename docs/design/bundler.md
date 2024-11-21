@@ -388,6 +388,9 @@ BUNDLE_CACHE_PATH=${output_dir}/deps/rubygems
 BUNDLE_DEPLOYMENT=true
 BUNDLE_NO_PRUNE=true
 BUNDLE_ALLOW_OFFLINE_INSTALL=true
+BUNDLE_DISABLE_VERSION_CHECK=true
+BUNDLE_DISABLE_LOCAL_BRANCH_CHECK=true
+BUNDLE_DISABLE_LOCAL_REVISION_CHECK=true
 ```
 
 - **BUNDLE_CACHE_PATH**: The directory that Bundler will place cached gems in when running bundle package, and that
@@ -411,6 +414,16 @@ package cache.
 
 - **BUNDLE_DISABLE_VERSION_CHECK**: Stop Bundler from checking if a newer Bundler version is
 available on rubygems.org.
+
+- **BUNDLE_DISABLE_LOCAL_REVISION_CHECK**: Allow Bundler to use a local git override without a
+branch specified in the Gemfile
+
+- **BUNDLE_DISABLE_LOCAL_BRANCH_CHECK**: Allow Bundler to use a local git override without checking
+if the revision present in the lockfile is present in the repository.
+
+- **BUNDLE_LOCAL__<GEM_NAME>**: Instead of checking out the remote git repository for GEM_NAME,
+the local git directory override will be used. See below for more information on Bundler's git
+dependency handling.
 
 For more information, see Bundler's [documentation](https://bundler.io/v2.5/man/bundle-config.1.html).
 
@@ -450,6 +463,32 @@ This all means that hacky solutions aren't going to work around bundler and so
 **until Bundler enables setting the [`--local`
 flag](https://github.com/rubygems/rubygems/issues/8265) via configuration options, we need to keep
 making use of the deployment mode.**
+
+##### Offline installs involving git dependencies
+Bundler seems to follow a different approach when it comes to git dependencies since in its default
+configuration it always tries to fetch the source from the remote to ensure the application is built
+against the correct branch/revision. This argument is indirectly supported by the
+[docs](https://bundler.io/guides/deploying.html#deploying-your-application), more specifically:
+
+> If you have run bundle pack, checked in the vendor/cache directory, and do not have any git gems,
+Bundler will not contact the internet while installing your bundle.
+
+This is a problem for hermetic builds and as such setting `BUNDLE_DEPLOYMENT` alone doesn't help
+and we need more settings. In order to overcome this behavioral trait, we need to follow the
+recommendation in the [config](https://bundler.io/v2.5/man/bundle-config.1.html#LOCAL-GIT-REPOS)
+docs and override each git dependency with the location on the disk we fetched the git dependency
+to and tell bundler about it with the `BUNDLE_LOCAL__<GEM_NAME>` configuration key.
+However, this still isn't enough for Bundler to honour offline installs with git dependencies,
+because then it's trying to enforce further checks as outlined in the
+[docs](https://bundler.io/v2.5/man/bundle-config.1.html#LOCAL-GIT-REPOS):
+
+>Bundler does many checks to ensure a developer won't work with invalid references. Particularly,
+>we force a developer to specify a branch in the Gemfile in order to use this feature. If the
+>branch specified in the Gemfile and the current branch in the local git repository do not
+>match, Bundler will abort.
+
+Therefore, we additionally need to enforce both `BUNDLE_DISABLE_LOCAL_BRANCH_CHECK` and
+`BUNDLE_DISABLE_LOCAL_REVISION_CHECK`.
 
 ##### Offline installation using deployment mode
 Deployment mode is a way of vendoring one's code along with the dependencies.
