@@ -10,6 +10,7 @@ from pydantic import BaseModel
 from cachi2.core.errors import PackageRejected, UnexpectedFormat
 from cachi2.core.package_managers.npm import NPM_REGISTRY_CNAMES
 from cachi2.core.package_managers.yarn_classic.project import PackageJson, Project, YarnLock
+from cachi2.core.package_managers.yarn_classic.utils import find_runtime_deps
 from cachi2.core.package_managers.yarn_classic.workspaces import (
     Workspace,
     extract_workspace_metadata,
@@ -79,8 +80,9 @@ YarnClassicPackage = Union[
 
 
 class _YarnClassicPackageFactory:
-    def __init__(self, source_dir: RootedPath):
+    def __init__(self, source_dir: RootedPath, runtime_deps: set[str]) -> None:
         self._source_dir = source_dir
+        self._runtime_deps = runtime_deps
 
     def create_package_from_pyarn_package(self, package: PYarnPackage) -> YarnClassicPackage:
         def assert_package_has_relative_path(package: PYarnPackage) -> None:
@@ -93,12 +95,16 @@ class _YarnClassicPackageFactory:
                     solution="Ensure that file/link packages in yarn.lock do not have absolute paths.",
                 )
 
+        package_id = f"{package.name}@{package.version}"
+        dev = package_id not in self._runtime_deps
+
         if _is_from_npm_registry(package.url):
             return RegistryPackage(
                 name=package.name,
                 version=package.version,
                 integrity=package.checksum,
                 url=package.url,
+                dev=dev,
             )
         elif package.path is not None:
             # Ensure path is not absolute
@@ -112,17 +118,20 @@ class _YarnClassicPackageFactory:
                     version=package.version,
                     relpath=path.subpath_from_root,
                     integrity=package.checksum,
+                    dev=dev,
                 )
             return LinkPackage(
                 name=package.name,
                 version=package.version,
                 relpath=path.subpath_from_root,
+                dev=dev,
             )
         elif _is_git_url(package.url):
             return GitPackage(
                 name=package.name,
                 version=package.version,
                 url=package.url,
+                dev=dev,
             )
         elif _is_tarball_url(package.url):
             return UrlPackage(
@@ -130,6 +139,7 @@ class _YarnClassicPackageFactory:
                 version=package.version,
                 url=package.url,
                 integrity=package.checksum,
+                dev=dev,
             )
         else:
             raise UnexpectedFormat(
@@ -187,11 +197,11 @@ def _is_from_npm_registry(url: str) -> bool:
 
 
 def _get_packages_from_lockfile(
-    source_dir: RootedPath, yarn_lock: YarnLock
+    source_dir: RootedPath, yarn_lock: YarnLock, runtime_deps: set[str]
 ) -> list[YarnClassicPackage]:
     """Return a list of Packages for all dependencies in yarn.lock."""
     pyarn_packages: list[PYarnPackage] = yarn_lock.yarn_lockfile.packages()
-    package_factory = _YarnClassicPackageFactory(source_dir)
+    package_factory = _YarnClassicPackageFactory(source_dir, runtime_deps)
 
     return [
         package_factory.create_package_from_pyarn_package(package) for package in pyarn_packages
@@ -230,8 +240,10 @@ def resolve_packages(project: Project) -> Iterable[YarnClassicPackage]:
     """Return a list of Packages corresponding to all project dependencies."""
     workspaces = extract_workspace_metadata(project.source_dir)
     yarn_lock = YarnLock.from_file(project.source_dir.join_within_root("yarn.lock"))
+    runtime_deps = find_runtime_deps(project.package_json, yarn_lock, workspaces)
+
     return chain(
         [_get_main_package(project.package_json)],
         _get_workspace_packages(project.source_dir, workspaces),
-        _get_packages_from_lockfile(project.source_dir, yarn_lock),
+        _get_packages_from_lockfile(project.source_dir, yarn_lock, runtime_deps),
     )

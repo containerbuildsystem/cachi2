@@ -157,7 +157,7 @@ def test__is_from_npm_registry_can_parse_incorrect_registry_urls() -> None:
             GitPackage(
                 name="foo",
                 version="1.0.0",
-                dev=False,
+                dev=True,
                 url="https://github.com/org/foo.git#fffffff",
             ),
         ),
@@ -170,7 +170,7 @@ def test__is_from_npm_registry_can_parse_incorrect_registry_urls() -> None:
             UrlPackage(
                 name="foo",
                 version="1.0.0",
-                dev=False,
+                dev=True,
                 url="https://example.com/foo-1.0.0.tgz",
             ),
         ),
@@ -179,7 +179,11 @@ def test__is_from_npm_registry_can_parse_incorrect_registry_urls() -> None:
 def test_create_package_from_pyarn_package(
     pyarn_package: PYarnPackage, expected_package: YarnClassicPackage, rooted_tmp_path: RootedPath
 ) -> None:
-    package_factory = _YarnClassicPackageFactory(rooted_tmp_path)
+    runtime_deps = (
+        set() if expected_package.dev else set({f"{pyarn_package.name}@{pyarn_package.version}"})
+    )
+
+    package_factory = _YarnClassicPackageFactory(rooted_tmp_path, runtime_deps)
     assert package_factory.create_package_from_pyarn_package(pyarn_package) == expected_package
 
 
@@ -194,7 +198,7 @@ def test_create_package_from_pyarn_package_fail_absolute_path(rooted_tmp_path: R
         f"({pyarn_package.path}), which is not permitted."
     )
 
-    package_factory = _YarnClassicPackageFactory(rooted_tmp_path)
+    package_factory = _YarnClassicPackageFactory(rooted_tmp_path, set())
     with pytest.raises(PackageRejected, match=re.escape(error_msg)):
         package_factory.create_package_from_pyarn_package(pyarn_package)
 
@@ -208,7 +212,7 @@ def test_create_package_from_pyarn_package_fail_path_outside_root(
         path="../path/outside/root",
     )
 
-    package_factory = _YarnClassicPackageFactory(rooted_tmp_path)
+    package_factory = _YarnClassicPackageFactory(rooted_tmp_path, set())
     with pytest.raises(PathOutsideRoot):
         package_factory.create_package_from_pyarn_package(pyarn_package)
 
@@ -222,7 +226,7 @@ def test_create_package_from_pyarn_package_fail_unexpected_format(
         url="ftp://some-tarball.tgz",
     )
 
-    package_factory = _YarnClassicPackageFactory(rooted_tmp_path)
+    package_factory = _YarnClassicPackageFactory(rooted_tmp_path, set())
     with pytest.raises(UnexpectedFormat):
         package_factory.create_package_from_pyarn_package(pyarn_package)
 
@@ -233,7 +237,6 @@ def test_create_package_from_pyarn_package_fail_unexpected_format(
 def test__get_packages_from_lockfile(
     mock_create_package: mock.Mock, rooted_tmp_path: RootedPath
 ) -> None:
-
     # Setup lockfile instance
     mock_pyarn_lockfile = mock.Mock()
     mock_yarn_lock = mock.Mock(yarn_lockfile=mock_pyarn_lockfile)
@@ -250,7 +253,7 @@ def test__get_packages_from_lockfile(
         mock.call(mock_pyarn_package_2),
     ]
 
-    output = _get_packages_from_lockfile(rooted_tmp_path, mock_yarn_lock)
+    output = _get_packages_from_lockfile(rooted_tmp_path, mock_yarn_lock, set())
 
     mock_pyarn_lockfile.packages.assert_called_once()
     mock_create_package.assert_has_calls(create_package_expected_calls)
@@ -262,7 +265,9 @@ def test__get_packages_from_lockfile(
 @mock.patch("cachi2.core.package_managers.yarn_classic.resolver.extract_workspace_metadata")
 @mock.patch("cachi2.core.package_managers.yarn_classic.resolver._get_packages_from_lockfile")
 @mock.patch("cachi2.core.package_managers.yarn_classic.resolver._get_main_package")
+@mock.patch("cachi2.core.package_managers.yarn_classic.resolver.find_runtime_deps")
 def test_resolve_packages(
+    find_runtime_deps: mock.Mock,
     mock_get_main_package: mock.Mock,
     mock_get_lockfile_packages: mock.Mock,
     mock_extract_workspaces: mock.Mock,
@@ -278,6 +283,7 @@ def test_resolve_packages(
     lockfile_packages = [mock.Mock(), mock.Mock()]
     expected_output = [main_package, *workspace_packages, *lockfile_packages]
 
+    find_runtime_deps.return_value = set()
     mock_get_main_package.return_value = main_package
     mock_get_lockfile_packages.return_value = lockfile_packages
     mock_get_workspace_packages.return_value = workspace_packages
@@ -290,7 +296,9 @@ def test_resolve_packages(
         rooted_tmp_path, mock_extract_workspaces.return_value
     )
     mock_get_lockfile_packages.assert_called_once_with(
-        rooted_tmp_path, mock_get_yarn_lock.return_value
+        rooted_tmp_path,
+        mock_get_yarn_lock.return_value,
+        find_runtime_deps.return_value,
     )
     assert list(output) == expected_output
 
