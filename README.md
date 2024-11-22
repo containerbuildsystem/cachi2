@@ -136,6 +136,7 @@ Supported:
 * [npm](#npm)
 * [yarn](#yarn)
 * [bundler](#bundler)
+* [generic fetcher](#generic-fetcher)
 
 Planned:
 
@@ -236,6 +237,21 @@ on the dependencies specified in the [Gemfile](https://bundler.io/v2.5/man/gemfi
 Both files must be present in the source repository so you should check them into your git repository.
 
 See [docs/bundler.md](docs/bundler.md) for more details.
+
+### generic fetcher
+
+Generic fetcher is a way for Cachi2 to support prefetching arbitrary files that don't fit into other package managers.
+With the generic fetcher, you can easily fetch those files with Cachi2 along with your other language-specific dependencies,
+satisfy the hermetic build condition and have them recorded in the SBOM.
+
+Cachi2 uses a simple custom lockfile named `artifacts.lock.yaml` that is expected to be present in the repository, or
+supplied in JSON input. The lockfile describes the urls, checksums and output filenames for the downloaded files.
+
+Currently supported types of artifacts:
+- Arbitrary files
+- Maven artifacts
+
+See [docs/generic.md](docs/generic.md) for more details.
 
 ## Project status
 

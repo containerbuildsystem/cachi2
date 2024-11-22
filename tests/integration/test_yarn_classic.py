@@ -113,7 +113,7 @@ def test_yarn_classic_packages(
         pytest.param(
             utils.TestParameters(
                 repo="https://github.com/cachito-testing/cachi2-yarn.git",
-                ref="67679cb740122cfa6c17238c7a1ff9cfcdb875f3",
+                ref="valid_yarn_all_dependency_types",
                 packages=({"path": ".", "type": "yarn-classic"},),
                 flags=["--dev-package-managers"],
                 check_vendor_checksums=False,

@@ -391,6 +391,10 @@
         {
           "name": "cachi2:bundler:package:binary",
           "value": "true"
+        },
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
         }
       ],
       "purl": "pkg:gem/nokogiri@1.16.7",

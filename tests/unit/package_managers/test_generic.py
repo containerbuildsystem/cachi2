@@ -22,8 +22,7 @@ metadata:
     version: '0.42'
 artifacts:
     - download_url: https://example.com/artifact
-      checksums:
-        md5: 3a18656e1cea70504b905836dee14db0
+      checksum: md5:3a18656e1cea70504b905836dee14db0
 """
 
 LOCKFILE_CHECKSUM_MISSING = """
@@ -33,12 +32,13 @@ artifacts:
     - download_url: https://example.com/artifact
 """
 
-LOCKFILE_CHECKSUM_EMPTY = """
+LOCKFILE_WRONG_CHECKSUM_FORMAT = """
 metadata:
     version: '1.0'
 artifacts:
     - download_url: https://example.com/artifact
-      checksums: {}
+      filename: archive.zip
+      checksum: 32112bed1914cfe3799600f962750b1d
 """
 
 LOCKFILE_VALID = """
@@ -46,36 +46,55 @@ metadata:
     version: '1.0'
 artifacts:
     - download_url: https://example.com/artifact
-      target: archive.zip
-      checksums:
-        md5: 3a18656e1cea70504b905836dee14db0
+      filename: archive.zip
+      checksum: md5:3a18656e1cea70504b905836dee14db0
     - download_url: https://example.com/more/complex/path/file.tar.gz?foo=bar#fragment
-      checksums:
-        md5: 32112bed1914cfe3799600f962750b1d
+      checksum: md5:32112bed1914cfe3799600f962750b1d
 """
 
-LOCKFILE_INVALID_TARGET = """
+LOCKFILE_VALID_MAVEN = """
+metadata:
+    version: '1.0'
+artifacts:
+    - type: "maven"
+      attributes:
+        repository_url: "https://repo.spring.io/release"
+        group_id: "org.springframework.boot"
+        artifact_id: "spring-boot-starter"
+        version: "3.1.5"
+        type: "jar"
+        classifier: ""
+      checksum: "sha256:c3c5e397008ba2d3d0d6e10f7f343b68d2e16c5a3fbe6a6daa7dd4d6a30197a5"
+    - type: "maven"
+      attributes:
+        repository_url: "https://repo1.maven.org/maven2"
+        group_id: "io.netty"
+        artifact_id: "netty-transport-native-epoll"
+        version: "4.1.100.Final"
+        type: "jar"
+        classifier: "sources"
+      checksum: "sha256:c3c5e397008ba2d3d0d6e10f7f343b68d2e16c5a3fbe6a6daa7dd4d6a30197a5"
+"""
+
+LOCKFILE_INVALID_FILENAME = """
 metadata:
     version: '1.0'
 artifacts:
     - download_url: https://example.com/artifact
-      target: ./../../../archive.zip
-      checksums:
-        md5: 3a18656e1cea70504b905836dee14db0
+      filename: ./../../../archive.zip
+      checksum: md5:3a18656e1cea70504b905836dee14db0
 """
 
-LOCKFILE_TARGET_OVERLAP = """
+LOCKFILE_FILENAME_OVERLAP = """
 metadata:
     version: '1.0'
 artifacts:
     - download_url: https://example.com/artifact
-      target: archive.zip
-      checksums:
-        md5: 3a18656e1cea70504b905836dee14db0
+      filename: archive.zip
+      checksum: md5:3a18656e1cea70504b905836dee14db0
     - download_url: https://example.com/artifact2
-      target: archive.zip
-      checksums:
-        md5: 3a18656e1cea70504b905836dee14db0
+      filename: archive.zip
+      checksum: md5:3a18656e1cea70504b905836dee14db0
 """
 
 LOCKFILE_URL_OVERLAP = """
@@ -83,12 +102,10 @@ metadata:
     version: '1.0'
 artifacts:
     - download_url: https://example.com/artifact
-      checksums:
-        md5: 3a18656e1cea70504b905836dee14db0
+      checksum: md5:3a18656e1cea70504b905836dee14db0
     - download_url: https://example.com/artifact
-      target: archive.zip
-      checksums:
-        md5: 3a18656e1cea70504b905836dee14db0
+      filename: archive.zip
+      checksum: md5:3a18656e1cea70504b905836dee14db0
 """
 
 LOCKFILE_WRONG_CHECKSUM = """
@@ -96,9 +113,8 @@ metadata:
     version: '1.0'
 artifacts:
     - download_url: https://example.com/artifact
-      target: archive.zip
-      checksums:
-        md5: 32112bed1914cfe3799600f962750b1d
+      filename: archive.zip
+      checksum: md5:32112bed1914cfe3799600f962750b1d
 """
 
 
@@ -125,15 +141,33 @@ def test_fetch_generic_source(
     fetch_generic_source(mock_request)
 
     mock_resolve_generic_lockfile.assert_called()
-    mock_from_obj_list.assert_called_with(components=components)
+
+
+def test_fetch_generic_source_relative_lockfile_path() -> None:
+
+    model_input = GenericPackageInput.model_construct(
+        type="generic", lockfile=Path("relative.yaml")
+    )
+
+    mock_request = mock.Mock()
+    mock_request.generic_packages = [model_input]
+
+    with pytest.raises(PackageRejected) as exc_info:
+        fetch_generic_source(mock_request)
+
+    assert (
+        "Supplied generic lockfile path 'relative.yaml' is not absolute, refusing to continue."
+        in str(exc_info.value)
+    )
 
 
 @mock.patch("cachi2.core.package_managers.generic.main._load_lockfile")
 def test_resolve_generic_no_lockfile(mock_load: mock.Mock, rooted_tmp_path: RootedPath) -> None:
+    lockfile_path = rooted_tmp_path.join_within_root(DEFAULT_LOCKFILE_NAME)
     with pytest.raises(PackageRejected) as exc_info:
-        _resolve_generic_lockfile(rooted_tmp_path, rooted_tmp_path)
+        _resolve_generic_lockfile(lockfile_path.path, rooted_tmp_path)
     assert (
-        f"Cachi2 generic lockfile '{DEFAULT_LOCKFILE_NAME}' missing, refusing to continue"
+        f"Cachi2 generic lockfile '{lockfile_path}' does not exist, refusing to continue."
         in str(exc_info.value)
     )
     mock_load.assert_not_called()
@@ -150,22 +184,16 @@ def test_resolve_generic_no_lockfile(mock_load: mock.Mock, rooted_tmp_path: Root
             LOCKFILE_CHECKSUM_MISSING, PackageRejected, "Field required", id="checksum_missing"
         ),
         pytest.param(
-            LOCKFILE_CHECKSUM_EMPTY,
-            PackageRejected,
-            "At least one checksum must be provided",
-            id="checksum_empty",
-        ),
-        pytest.param(
-            LOCKFILE_INVALID_TARGET,
+            LOCKFILE_INVALID_FILENAME,
             PathOutsideRoot,
             "target is outside",
-            id="invalid_target",
+            id="invalid_filename",
         ),
         pytest.param(
-            LOCKFILE_TARGET_OVERLAP,
+            LOCKFILE_FILENAME_OVERLAP,
             PackageRejected,
-            "Duplicate targets",
-            id="conflicting_targets",
+            "Duplicate filenames",
+            id="conflicting_filenames",
         ),
         pytest.param(
             LOCKFILE_URL_OVERLAP,
@@ -177,6 +205,12 @@ def test_resolve_generic_no_lockfile(mock_load: mock.Mock, rooted_tmp_path: Root
             LOCKFILE_WRONG_CHECKSUM,
             PackageRejected,
             "Failed to verify archive.zip against any of the provided checksums.",
+            id="wrong_checksum",
+        ),
+        pytest.param(
+            LOCKFILE_WRONG_CHECKSUM_FORMAT,
+            PackageRejected,
+            "Checksum must be in the format 'algorithm:hash'",
             id="wrong_checksum",
         ),
     ],
@@ -192,7 +226,8 @@ def test_resolve_generic_lockfile_invalid(
     rooted_tmp_path: RootedPath,
 ) -> None:
     # setup lockfile
-    with open(rooted_tmp_path.join_within_root(DEFAULT_LOCKFILE_NAME), "w") as f:
+    lockfile_path = rooted_tmp_path.join_within_root(DEFAULT_LOCKFILE_NAME)
+    with open(lockfile_path, "w") as f:
         f.write(lockfile)
 
     # setup testing downloaded dependency
@@ -202,7 +237,7 @@ def test_resolve_generic_lockfile_invalid(
         f.write("Testfile")
 
     with pytest.raises(expected_exception) as exc_info:
-        _resolve_generic_lockfile(rooted_tmp_path, rooted_tmp_path)
+        _resolve_generic_lockfile(lockfile_path.path, rooted_tmp_path)
 
     assert expected_err in str(exc_info.value)
 
@@ -219,7 +254,7 @@ def test_resolve_generic_lockfile_invalid(
                     ],
                     "name": "archive.zip",
                     "properties": [{"name": "cachi2:found_by", "value": "cachi2"}],
-                    "purl": "pkg:generic/archive.zip?checksums=md5:3a18656e1cea70504b905836dee14db0&download_url=https://example.com/artifact",
+                    "purl": "pkg:generic/archive.zip?checksum=md5:3a18656e1cea70504b905836dee14db0&download_url=https://example.com/artifact",
                     "type": "file",
                     "version": None,
                 },
@@ -232,12 +267,44 @@ def test_resolve_generic_lockfile_invalid(
                     ],
                     "name": "file.tar.gz",
                     "properties": [{"name": "cachi2:found_by", "value": "cachi2"}],
-                    "purl": "pkg:generic/file.tar.gz?checksums=md5:32112bed1914cfe3799600f962750b1d&download_url=https://example.com/more/complex/path/file.tar.gz%3Ffoo%3Dbar%23fragment",
+                    "purl": "pkg:generic/file.tar.gz?checksum=md5:32112bed1914cfe3799600f962750b1d&download_url=https://example.com/more/complex/path/file.tar.gz%3Ffoo%3Dbar%23fragment",
                     "type": "file",
                     "version": None,
                 },
             ],
             id="valid_lockfile",
+        ),
+        pytest.param(
+            LOCKFILE_VALID_MAVEN,
+            [
+                {
+                    "external_references": [
+                        {
+                            "type": "distribution",
+                            "url": "https://repo.spring.io/release/org/springframework/boot/spring-boot-starter/3.1.5/spring-boot-starter-3.1.5.jar",
+                        }
+                    ],
+                    "name": "spring-boot-starter",
+                    "properties": [{"name": "cachi2:found_by", "value": "cachi2"}],
+                    "purl": "pkg:maven/org.springframework.boot/spring-boot-starter@3.1.5?checksum=sha256:c3c5e397008ba2d3d0d6e10f7f343b68d2e16c5a3fbe6a6daa7dd4d6a30197a5&repository_url=https://repo.spring.io/release&type=jar",
+                    "type": "library",
+                    "version": "3.1.5",
+                },
+                {
+                    "external_references": [
+                        {
+                            "type": "distribution",
+                            "url": "https://repo1.maven.org/maven2/io/netty/netty-transport-native-epoll/4.1.100.Final/netty-transport-native-epoll-4.1.100.Final-sources.jar",
+                        }
+                    ],
+                    "name": "netty-transport-native-epoll",
+                    "properties": [{"name": "cachi2:found_by", "value": "cachi2"}],
+                    "purl": "pkg:maven/io.netty/netty-transport-native-epoll@4.1.100.Final?checksum=sha256:c3c5e397008ba2d3d0d6e10f7f343b68d2e16c5a3fbe6a6daa7dd4d6a30197a5&classifier=sources&repository_url=https://repo1.maven.org/maven2&type=jar",
+                    "type": "library",
+                    "version": "4.1.100.Final",
+                },
+            ],
+            id="valid_lockfile_maven",
         ),
     ],
 )
@@ -253,11 +320,12 @@ def test_resolve_generic_lockfile_valid(
     rooted_tmp_path: RootedPath,
 ) -> None:
     # setup lockfile
-    with open(rooted_tmp_path.join_within_root(DEFAULT_LOCKFILE_NAME), "w") as f:
+    lockfile_path = rooted_tmp_path.join_within_root(DEFAULT_LOCKFILE_NAME)
+    with open(lockfile_path, "w") as f:
         f.write(lockfile_content)
 
     assert [
-        c.model_dump() for c in _resolve_generic_lockfile(rooted_tmp_path, rooted_tmp_path)
+        c.model_dump() for c in _resolve_generic_lockfile(lockfile_path.path, rooted_tmp_path)
     ] == expected_components
     mock_checksums.assert_called()
 
@@ -268,26 +336,22 @@ def test_load_generic_lockfile_valid(rooted_tmp_path: RootedPath) -> None:
         "artifacts": [
             {
                 "download_url": Url("https://example.com/artifact"),
-                "target": str(rooted_tmp_path.join_within_root("archive.zip")),
-                "checksums": {"md5": "3a18656e1cea70504b905836dee14db0"},
+                "filename": str(rooted_tmp_path.join_within_root("archive.zip")),
+                "checksum": "md5:3a18656e1cea70504b905836dee14db0",
             },
             {
-                "checksums": {"md5": "32112bed1914cfe3799600f962750b1d"},
+                "checksum": "md5:32112bed1914cfe3799600f962750b1d",
                 "download_url": Url(
                     "https://example.com/more/complex/path/file.tar.gz?foo=bar#fragment"
                 ),
-                "target": str(rooted_tmp_path.join_within_root("file.tar.gz")),
+                "filename": str(rooted_tmp_path.join_within_root("file.tar.gz")),
             },
         ],
     }
 
     # setup lockfile
-    with open(rooted_tmp_path.join_within_root(DEFAULT_LOCKFILE_NAME), "w") as f:
+    lockfile_path = rooted_tmp_path.join_within_root(DEFAULT_LOCKFILE_NAME)
+    with open(lockfile_path, "w") as f:
         f.write(LOCKFILE_VALID)
 
-    assert (
-        _load_lockfile(
-            rooted_tmp_path.join_within_root(DEFAULT_LOCKFILE_NAME), rooted_tmp_path
-        ).model_dump()
-        == expected_lockfile
-    )
+    assert _load_lockfile(lockfile_path.path, rooted_tmp_path).model_dump() == expected_lockfile

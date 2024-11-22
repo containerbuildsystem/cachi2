@@ -6,7 +6,6 @@ from typing import Any, Generator, Iterable
 import pydantic
 
 from cachi2.core.errors import PackageRejected
-from cachi2.core.models.input import YarnClassicPackageInput
 from cachi2.core.rooted_path import PathOutsideRoot, RootedPath
 
 
@@ -60,27 +59,28 @@ def _ensure_workspaces_are_well_formed(
             )
 
 
-def _get_workspace_paths(
-    workspaces_globs: list[str],
-    source_dir: RootedPath,
-) -> Iterable[Path]:
+def _get_workspace_paths(workspaces_globs: list[str], source_dir: RootedPath) -> list[Path]:
     """Resolve globs within source directory."""
 
     def all_paths_matching(glob: str) -> Generator[Path, None, None]:
-        return (pth.resolve() for pth in source_dir.path.glob(glob))
+        return (path.resolve() for path in source_dir.path.glob(glob))
 
-    return chain.from_iterable(map(all_paths_matching, workspaces_globs))
+    return list(chain.from_iterable(map(all_paths_matching, workspaces_globs)))
 
 
-def _extract_workspaces_globs(
-    package: dict[str, Any],
-) -> list[str]:
-    """Extract globs from workspaces entry in package dict."""
-    # This could be an Array or an Array nested in an Object.
-    # Official docs mentioning the former:
-    #   https://classic.yarnpkg.com/lang/en/docs/workspaces/
-    # Official blog containing a hint about the latter:
-    #   https://classic.yarnpkg.com/lang/en/docs/workspaces/
+def _extract_workspaces_globs(package: dict[str, Any]) -> list[str]:
+    """Extract globs from workspaces entry in package dict.
+
+    The 'workspaces' entry can either be:
+    - an array of strings
+      (e.g., "workspaces": ["workspace-a", "workspace-b"])
+    - an object with a 'packages' key containing an array of strings
+      (e.g., "workspaces": {"packages": ["workspace-a", "workspace-b"]})
+
+    See:
+    https://classic.yarnpkg.com/en/docs/workspaces/#toc-how-to-use-it
+    https://classic.yarnpkg.com/blog/2018/02/15/nohoist/#how-to-use-it
+    """
     workspaces_globs = package.get("workspaces", [])
     if isinstance(workspaces_globs, dict):
         workspaces_globs = workspaces_globs.get("packages", [])
@@ -93,21 +93,20 @@ def _read_package_from(path: RootedPath) -> dict[str, Any]:
 
 
 def extract_workspace_metadata(
-    package: YarnClassicPackageInput,
-    source_dir: RootedPath,
+    package_path: RootedPath,
 ) -> list[Workspace]:
     """Extract workspace metadata from a package."""
-    processed_package = _read_package_from(source_dir.join_within_root(package.path))
+    processed_package = _read_package_from(package_path)
     workspaces_globs = _extract_workspaces_globs(processed_package)
-    workspaces_paths = _get_workspace_paths(workspaces_globs, source_dir)
-    ensure_no_path_leads_out(workspaces_paths, source_dir)
+    workspaces_paths = _get_workspace_paths(workspaces_globs, package_path)
+    ensure_no_path_leads_out(workspaces_paths, package_path)
     _ensure_workspaces_are_well_formed(workspaces_paths)
     parsed_workspaces = []
     for wp in workspaces_paths:
         parsed_workspaces.append(
             Workspace(
                 path=wp,
-                package_contents=_read_package_from(source_dir.join_within_root(wp)),
+                package_contents=_read_package_from(package_path.join_within_root(wp)),
             )
         )
     return parsed_workspaces

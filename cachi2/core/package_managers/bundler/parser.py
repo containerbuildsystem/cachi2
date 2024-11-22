@@ -4,7 +4,7 @@ import subprocess
 from functools import cached_property
 from pathlib import Path
 from typing import Annotated, Optional, Union
-from urllib.parse import urlparse
+from urllib.parse import urljoin, urlparse
 
 import pydantic
 from git import Repo
@@ -71,7 +71,7 @@ class GemDependency(_GemMetadata):
     @cached_property
     def remote_location(self) -> str:
         """Return remote location to download this gem from."""
-        return f"{self.source}/gems/{self.name}-{self.version}.gem"
+        return urljoin(self.source, f"downloads/{self.name}-{self.version}.gem")
 
     def download_to(self, deps_dir: RootedPath) -> None:
         """Download represented gem to specified file system location."""
@@ -93,7 +93,7 @@ class GemPlatformSpecificDependency(GemDependency):
     @property
     def remote_location(self) -> str:
         """Return remote location to download this gem from."""
-        return f"{self.source}downloads/{self.name}-{self.version}-{self.platform}.gem"
+        return urljoin(self.source, f"downloads/{self.name}-{self.version}-{self.platform}.gem")
 
     def download_to(self, deps_dir: RootedPath) -> None:
         """Download represented gem to specified file system location."""

@@ -5,7 +5,6 @@ from pathlib import Path
 from typing import Union
 
 import yaml
-from packageurl import PackageURL
 from pydantic import ValidationError
 
 from cachi2.core.checksum import must_match_any_checksum
@@ -13,13 +12,13 @@ from cachi2.core.config import get_config
 from cachi2.core.errors import PackageRejected
 from cachi2.core.models.input import Request
 from cachi2.core.models.output import RequestOutput
-from cachi2.core.models.sbom import Component, ExternalReference
+from cachi2.core.models.sbom import Component
 from cachi2.core.package_managers.general import async_download_files
 from cachi2.core.package_managers.generic.models import GenericLockfileV1
 from cachi2.core.rooted_path import RootedPath
 
 log = logging.getLogger(__name__)
-DEFAULT_LOCKFILE_NAME = "generic_lockfile.yaml"
+DEFAULT_LOCKFILE_NAME = "artifacts.lock.yaml"
 DEFAULT_DEPS_DIR = "deps/generic"
 
 
@@ -32,24 +31,29 @@ def fetch_generic_source(request: Request) -> RequestOutput:
     components = []
     for package in request.generic_packages:
         path = request.source_dir.join_within_root(package.path)
-        components.extend(_resolve_generic_lockfile(path, request.output_dir))
+        lockfile = package.lockfile or path.join_within_root(DEFAULT_LOCKFILE_NAME).path
+        if not lockfile.is_absolute():
+            raise PackageRejected(
+                f"Supplied generic lockfile path '{lockfile}' is not absolute, refusing to continue.",
+                solution="Make sure the supplied path to the generic lockfile is absolute.",
+            )
+        components.extend(_resolve_generic_lockfile(lockfile, request.output_dir))
     return RequestOutput.from_obj_list(components=components)
 
 
-def _resolve_generic_lockfile(source_dir: RootedPath, output_dir: RootedPath) -> list[Component]:
+def _resolve_generic_lockfile(lockfile_path: Path, output_dir: RootedPath) -> list[Component]:
     """
     Resolve the generic lockfile and pre-fetch the dependencies.
 
-    :param source_dir: the source directory to resolve the lockfile from
+    :param lockfile_path: absolute path to the lockfile
     :param output_dir: the output directory to store the dependencies
     """
-    lockfile_path = source_dir.join_within_root(DEFAULT_LOCKFILE_NAME)
-    if not lockfile_path.path.exists():
+    if not lockfile_path.exists():
         raise PackageRejected(
-            f"Cachi2 generic lockfile '{DEFAULT_LOCKFILE_NAME}' missing, refusing to continue.",
+            f"Cachi2 generic lockfile '{lockfile_path}' does not exist, refusing to continue.",
             solution=(
-                f"Make sure your repository has cachi2 generic lockfile '{DEFAULT_LOCKFILE_NAME}' checked in "
-                "to the repository."
+                f"Make sure your repository has cachi2 generic lockfile '{DEFAULT_LOCKFILE_NAME}' "
+                f"checked in to the repository, or the supplied lockfile path is correct."
             ),
         )
 
@@ -62,18 +66,18 @@ def _resolve_generic_lockfile(source_dir: RootedPath, output_dir: RootedPath) ->
 
     for artifact in lockfile.artifacts:
         # create the parent directory for the artifact
-        Path.mkdir(Path(artifact.target).parent, parents=True, exist_ok=True)
-        to_download[str(artifact.download_url)] = artifact.target
+        Path.mkdir(Path(artifact.filename).parent, parents=True, exist_ok=True)
+        to_download[str(artifact.download_url)] = artifact.filename
 
     asyncio.run(async_download_files(to_download, get_config().concurrency_limit))
 
     # verify checksums
     for artifact in lockfile.artifacts:
-        must_match_any_checksum(artifact.target, artifact.formatted_checksums)
-    return _generate_sbom_components(lockfile)
+        must_match_any_checksum(artifact.filename, [artifact.formatted_checksum])
+    return [artifact.get_sbom_component() for artifact in lockfile.artifacts]
 
 
-def _load_lockfile(lockfile_path: RootedPath, output_dir: RootedPath) -> GenericLockfileV1:
+def _load_lockfile(lockfile_path: Path, output_dir: RootedPath) -> GenericLockfileV1:
     """
     Load the cachi2 generic lockfile from the given path.
 
@@ -103,29 +107,3 @@ def _load_lockfile(lockfile_path: RootedPath, output_dir: RootedPath) -> Generic
                 ),
             )
     return lockfile
-
-
-def _generate_sbom_components(lockfile: GenericLockfileV1) -> list[Component]:
-    """Generate a list of SBOM components for a given lockfile."""
-    components: list[Component] = []
-
-    for artifact in lockfile.artifacts:
-        name = Path(artifact.target).name
-        url = str(artifact.download_url)
-        checksums = ",".join([f"{algo}:{digest}" for algo, digest in artifact.checksums.items()])
-        component = Component(
-            name=name,
-            purl=PackageURL(
-                type="generic",
-                name=name,
-                qualifiers={
-                    "download_url": url,
-                    "checksums": checksums,
-                },
-            ).to_string(),
-            type="file",
-            external_references=[ExternalReference(url=url, type="distribution")],
-        )
-        components.append(component)
-
-    return components
