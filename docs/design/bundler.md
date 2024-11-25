@@ -410,7 +410,42 @@ available on rubygems.org.
 
 For more information, see Bundler's [documentation](https://bundler.io/v2.5/man/bundle-config.1.html).
 
+#### Offline installation pitfalls
 
+Bundler seems to be very opinionated when it comes to performing offline installations. This boils
+down to mainly the following factors:
+- involvement of git dependencies in the application build
+- inability to enforce the `--local` flag for `bundle install` via configuration options making the
+_deployment_ mode the only viable workaround
+
+Both of the above are further described in a dedicated subsection below. The need for the deployment
+mode comes from the fact that bundler doesn't pull Gem specification from the local cache by
+default and so trying not to make use of the deployment mode, (also without using `--local` on the
+user side) leads to errors similar to the following:
+```
+ bundler install --verbose
+ Running `bundle install --verbose` with bundler 2.5.22
+ Found no changes, using resolution from the lockfile
+ ...
+ The definition is missing ["racc-1.8.1", ...]
+```
+
+Attempts to trick bundler into getting the gem specification from the local offline cache instead
+by trying to create a `specifications` directory next to the fetched gems with `GEM_PATH`,
+populated with extracted `.gemspec` files can only be successful when platform packages (i.e.
+without native extensions) aren't involved otherwise leading to errors like:
+
+```
+Running `bundle install --verbose` with bundler 2.5.22
+Found no changes, using resolution from the lockfile Source locally installed gems is ignoring
+#<Bundler::StubSpecification name=racc version=1.8.1 platform=ruby> because it is missing
+extensions
+```
+
+This all means that hacky solutions aren't going to work around bundler and so
+**until Bundler enables setting the [`--local`
+flag](https://github.com/rubygems/rubygems/issues/8265) via configuration options, we need to keep
+making use of the deployment mode.**
 
 ### Generating the SBOM
 
