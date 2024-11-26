@@ -134,6 +134,11 @@ Run all the checks that your pull request will be subjected to:
 make test
 ```
 
+Cachi2 is a collaborative project and as such it needs to conform to a number of
+coding standards which cannot be enforced by linters alone. This is the reason for
+code reviews existence. To gain further insight into principles used when assessing
+a change please refer to [coding best practices](./docs/hacking/coding_best_practices.md).
+
 ### Pull request guidelines
 
 Observe the following guidelines when submitting a pull request for review
