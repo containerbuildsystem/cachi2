@@ -15,7 +15,7 @@ from . import utils
         pytest.param(
             utils.TestParameters(
                 repo="https://github.com/cachito-testing/cachi2-rpm",
-                ref="3956e4d095920b3f06b861dbc778a520fdb89fd2",
+                ref="missing-checksum",
                 packages=({"path": ".", "type": "rpm"},),
                 flags=["--dev-package-managers"],
                 check_output=True,
@@ -28,7 +28,7 @@ from . import utils
         pytest.param(
             utils.TestParameters(
                 repo="https://github.com/cachito-testing/cachi2-rpm",
-                ref="a214ee8db55418ea1d0734cd2a401c97ad896390",
+                ref="unmatched-checksum",
                 packages=({"path": ".", "type": "rpm"},),
                 flags=["--dev-package-managers"],
                 check_output=False,
@@ -42,7 +42,7 @@ from . import utils
         pytest.param(
             utils.TestParameters(
                 repo="https://github.com/cachito-testing/cachi2-rpm",
-                ref="699bfad4030c97e3b62042ffc48149ef896164ec",
+                ref="unexpected-size",
                 packages=({"path": ".", "type": "rpm"},),
                 flags=["--dev-package-managers"],
                 check_output=False,
@@ -56,7 +56,7 @@ from . import utils
         pytest.param(
             utils.TestParameters(
                 repo="https://github.com/cachito-testing/cachi2-rpm",
-                ref="12afdef45a07560303496217de0222c5f7a49cac",
+                ref="multiple-packages",
                 packages=(
                     {"path": "this-project", "type": "rpm"},
                     {"path": "another-project", "type": "rpm"},
@@ -72,7 +72,7 @@ from . import utils
         pytest.param(
             utils.TestParameters(
                 repo="https://github.com/cachito-testing/cachi2-rpm",
-                ref="22cb12ee0ba4f98d8a751e552c3caee8de5b0237",
+                ref="multiple-archs",
                 packages=({"path": ".", "type": "rpm"},),
                 flags=["--dev-package-managers"],
                 check_output=True,
@@ -85,7 +85,7 @@ from . import utils
         pytest.param(
             utils.TestParameters(
                 repo="https://github.com/cachito-testing/cachi2-rpm",
-                ref="b9189ebf73e04fb91d90ff6f5b348c4c879ff589",
+                ref="dnf_tls_client_auth",
                 packages=(
                     {
                         "path": ".",
@@ -151,7 +151,7 @@ def test_rpm_packages(
         pytest.param(
             utils.TestParameters(
                 repo="https://github.com/cachito-testing/cachi2-rpm",
-                ref="ce7fed744fc8fc2fd5d8981027e519ecd50b8805",
+                ref="test-repo-file",
                 packages=({"path": ".", "type": "rpm"},),
                 flags=["--dev-package-managers"],
                 check_output=False,
@@ -232,7 +232,7 @@ def test_repo_files(
         pytest.param(
             utils.TestParameters(
                 repo="https://github.com/cachito-testing/cachi2-rpm.git",
-                ref="7660507280b7021651dfd543fad28b0a535f4d8d",
+                ref="e2e",
                 packages=(
                     {
                         "type": "rpm",
@@ -252,7 +252,7 @@ def test_repo_files(
         pytest.param(
             utils.TestParameters(
                 repo="https://github.com/cachito-testing/cachi2-rpm.git",
-                ref="00ba90ca7bff585c7a286dc223e44bcbcd1de865",
+                ref="e2e-modularity",
                 packages=(
                     {
                         "type": "rpm",
