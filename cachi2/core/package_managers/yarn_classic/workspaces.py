@@ -1,4 +1,3 @@
-import json
 from itertools import chain
 from pathlib import Path
 from typing import Any, Generator, Iterable
@@ -83,11 +82,6 @@ def _extract_workspaces_globs(package: dict[str, Any]) -> list[str]:
     if isinstance(workspaces_globs, dict):
         workspaces_globs = workspaces_globs.get("packages", [])
     return workspaces_globs
-
-
-def _read_package_from(path: RootedPath) -> dict[str, Any]:
-    """Read package.json from a path."""
-    return json.loads(path.join_within_root("package.json").path.read_text())
 
 
 def extract_workspace_metadata(package_path: RootedPath) -> list[Workspace]:
