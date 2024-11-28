@@ -324,16 +324,23 @@ def test__get_main_package_no_name(rooted_tmp_path: RootedPath) -> None:
 
 
 def test__get_workspace_packages(rooted_tmp_path: RootedPath) -> None:
-    workspace_path = rooted_tmp_path.join_within_root("foo").path
+    workspace_path = rooted_tmp_path.join_within_root("foo")
+    workspace_path.path.mkdir()
+
+    package_json_path = workspace_path.join_within_root("package.json")
+    package_json_path.path.write_text('{"name": "foo", "version": "1.0.0"}')
+
+    package_json = PackageJson.from_file(package_json_path)
     workspace = Workspace(
-        path=workspace_path,
-        package_contents={"name": "foo", "version": "1.0.0"},
+        path=workspace_path.path,
+        package_json=package_json,
     )
+
     expected = [
         WorkspacePackage(
             name="foo",
             version="1.0.0",
-            relpath=workspace_path.relative_to(rooted_tmp_path.path),
+            relpath=workspace_path.path.relative_to(rooted_tmp_path.path),
         )
     ]
 
