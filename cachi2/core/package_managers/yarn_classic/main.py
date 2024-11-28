@@ -1,4 +1,9 @@
 import logging
+import re
+from collections import Counter
+from pathlib import Path
+from typing import Iterable
+from urllib.parse import urlparse
 
 from cachi2.core.errors import PackageManagerError, PackageRejected
 from cachi2.core.models.input import Request
@@ -9,7 +14,13 @@ from cachi2.core.package_managers.yarn.utils import (
     run_yarn_cmd,
 )
 from cachi2.core.package_managers.yarn_classic.project import Project
-from cachi2.core.package_managers.yarn_classic.resolver import resolve_packages
+from cachi2.core.package_managers.yarn_classic.resolver import (
+    GitPackage,
+    RegistryPackage,
+    UrlPackage,
+    YarnClassicPackage,
+    resolve_packages,
+)
 from cachi2.core.rooted_path import RootedPath
 
 log = logging.getLogger(__name__)
@@ -43,7 +54,8 @@ def _resolve_yarn_project(project: Project, output_dir: RootedPath) -> None:
     prefetch_env = _get_prefetch_environment_variables(output_dir)
     _verify_corepack_yarn_version(project.source_dir, prefetch_env)
     _fetch_dependencies(project.source_dir, prefetch_env)
-    resolve_packages(project)
+    packages = resolve_packages(project)
+    _verify_no_offline_mirror_collisions(packages)
 
 
 def _fetch_dependencies(source_dir: RootedPath, env: dict[str, str]) -> None:
@@ -125,3 +137,60 @@ def _verify_corepack_yarn_version(source_dir: RootedPath, env: dict[str, str]) -
         )
 
     log.info("Processing the request using yarn@%s", installed_yarn_version)
+
+
+def _verify_no_offline_mirror_collisions(packages: Iterable[YarnClassicPackage]) -> None:
+    """Verify that there are no duplicate tarballs in the offline mirror."""
+    tarballs = []
+    for p in packages:
+        if isinstance(p, (RegistryPackage, UrlPackage)):
+            tarball_name = _get_tarball_mirror_name(p.url)
+            tarballs.append(tarball_name)
+        elif isinstance(p, GitPackage):
+            tarball_name = _get_git_tarball_mirror_name(p.url)
+            tarballs.append(tarball_name)
+        else:
+            # file, link, and workspace packages are not copied to the offline mirror
+            continue
+
+    c = Counter(tarballs)
+    duplicate_tarballs = [f"{name} ({count}x)" for name, count in c.most_common() if count > 1]
+    if len(duplicate_tarballs) > 0:
+        raise PackageManagerError(f"Duplicate tarballs detected: {', '.join(duplicate_tarballs)}")
+
+
+# https://github.com/yarnpkg/yarn/blob/7cafa512a777048ce0b666080a24e80aae3d66a9/src/fetchers/tarball-fetcher.js#L21
+RE_URL_NAME_MATCH = r"/(?:(@[^/]+)(?:\/|%2f))?[^/]+/(?:-|_attachments)/(?:@[^/]+\/)?([^/]+)$"
+
+
+# https://github.com/yarnpkg/yarn/blob/7cafa512a777048ce0b666080a24e80aae3d66a9/src/fetchers/tarball-fetcher.js#L65
+def _get_tarball_mirror_name(url: str) -> str:
+    parsed_url = urlparse(url)
+    path = Path(parsed_url.path)
+
+    match = re.search(RE_URL_NAME_MATCH, str(path))
+
+    if match is not None:
+        scope, tarball_basename = match.groups()
+        package_filename = f"{scope}-{tarball_basename}" if scope else tarball_basename
+    else:
+        package_filename = path.name
+
+    return package_filename
+
+
+# https://github.com/yarnpkg/yarn/blob/7cafa512a777048ce0b666080a24e80aae3d66a9/src/fetchers/git-fetcher.js#L40
+def _get_git_tarball_mirror_name(url: str) -> str:
+    parsed_url = urlparse(url)
+    path = Path(parsed_url.path)
+
+    package_filename = path.name
+    hash = parsed_url.fragment
+
+    if hash:
+        package_filename = f"{package_filename}-{hash}"
+
+    if package_filename.startswith(":"):
+        package_filename = package_filename[1:]
+
+    return package_filename

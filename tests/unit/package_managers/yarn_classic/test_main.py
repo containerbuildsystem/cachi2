@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterable
 from unittest import mock
 
 import pytest
@@ -15,9 +15,15 @@ from cachi2.core.package_managers.yarn_classic.main import (
     _get_prefetch_environment_variables,
     _resolve_yarn_project,
     _verify_corepack_yarn_version,
+    _verify_no_offline_mirror_collisions,
     fetch_yarn_source,
 )
 from cachi2.core.package_managers.yarn_classic.project import Project
+from cachi2.core.package_managers.yarn_classic.resolver import (
+    GitPackage,
+    RegistryPackage,
+    YarnClassicPackage,
+)
 from cachi2.core.rooted_path import RootedPath
 
 
@@ -206,3 +212,49 @@ def test_verify_corepack_yarn_version_invalid_version(
 
     with pytest.raises(PackageManagerError, match=error_message):
         _verify_corepack_yarn_version(RootedPath(tmp_path), env={"foo": "bar"})
+
+
+def test_verify_offline_mirror_collisions_registry_packages() -> None:
+    packages: Iterable[YarnClassicPackage] = [
+        RegistryPackage(
+            name="foo",
+            version="1.0.0",
+            url="https://registry.yarnpkg.com/same/-/same-1.0.0.tgz",
+        ),
+        RegistryPackage(
+            name="bar",
+            version="1.0.0",
+            url="https://registry.yarnpkg.com/same/-/same-1.0.0.tgz",
+        ),
+    ]
+
+    with pytest.raises(PackageManagerError):
+        _verify_no_offline_mirror_collisions(packages)
+
+
+def test_verify_offline_mirror_collisions_scoped_registry_packages() -> None:
+    packages: Iterable[YarnClassicPackage] = [
+        RegistryPackage(
+            name="foo",
+            version="1.0.0",
+            url="https://registry.yarnpkg.com/@colors/colors/-/colors-1.6.0.tgz",
+        ),
+        RegistryPackage(
+            name="bar",
+            version="1.0.0",
+            url="https://registry.yarnpkg.com/@colors/colors/-/colors-1.6.0.tgz",
+        ),
+    ]
+
+    with pytest.raises(PackageManagerError):
+        _verify_no_offline_mirror_collisions(packages)
+
+
+def test_verify_offline_mirror_collisions_git_packages() -> None:
+    packages: Iterable[YarnClassicPackage] = [
+        GitPackage(name="foo", version="1.0.0", url="https://github.com/user/repo.git#commit-hash"),
+        GitPackage(name="bar", version="1.0.0", url="https://github.com/user/repo.git#commit-hash"),
+    ]
+
+    with pytest.raises(PackageManagerError):
+        _verify_no_offline_mirror_collisions(packages)
