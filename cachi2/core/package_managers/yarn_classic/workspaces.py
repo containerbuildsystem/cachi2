@@ -6,20 +6,27 @@ from typing import Any, Generator, Iterable
 import pydantic
 
 from cachi2.core.errors import PackageRejected
+from cachi2.core.package_managers.yarn_classic.project import PackageJson
 from cachi2.core.rooted_path import RootedPath
 
 
 class Workspace(pydantic.BaseModel):
-    """Workspace model."""
+    """
+    Workspace model.
 
-    path: Path  # path to a workspace.
-    package_contents: dict  # package data extracted from path/"package.json".
+    Attributes:
+        path: Path to workspace directory.
+        package_json: Content of package.json file.
+    """
 
-    @pydantic.field_validator("package_contents")
-    def _ensure_package_is_named(cls, package_contents: dict) -> dict:
-        if "name" not in package_contents:
+    path: Path
+    package_json: PackageJson
+
+    @pydantic.field_validator("package_json")
+    def _ensure_package_is_named(cls, package_json: PackageJson) -> PackageJson:
+        if "name" not in package_json.data:
             raise ValueError("Workspaces must contain 'name' field.")
-        return package_contents
+        return package_json
 
 
 def ensure_no_path_leads_out(
@@ -83,21 +90,23 @@ def _read_package_from(path: RootedPath) -> dict[str, Any]:
     return json.loads(path.join_within_root("package.json").path.read_text())
 
 
-def extract_workspace_metadata(
-    package_path: RootedPath,
-) -> list[Workspace]:
+def extract_workspace_metadata(package_path: RootedPath) -> list[Workspace]:
     """Extract workspace metadata from a package."""
-    processed_package = _read_package_from(package_path)
-    workspaces_globs = _extract_workspaces_globs(processed_package)
+    package_json = PackageJson.from_file(package_path.join_within_root("package.json"))
+    workspaces_globs = _extract_workspaces_globs(package_json.data)
     workspaces_paths = _get_workspace_paths(workspaces_globs, package_path)
     ensure_no_path_leads_out(workspaces_paths, package_path)
     _ensure_workspaces_are_well_formed(workspaces_paths)
+
     parsed_workspaces = []
     for wp in workspaces_paths:
         parsed_workspaces.append(
             Workspace(
                 path=wp,
-                package_contents=_read_package_from(package_path.join_within_root(wp)),
+                package_json=PackageJson.from_file(
+                    package_path.join_within_root(wp, "package.json")
+                ),
             )
         )
+
     return parsed_workspaces

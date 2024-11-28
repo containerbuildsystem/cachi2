@@ -218,8 +218,8 @@ def _get_workspace_packages(
     """Return a WorkspacePackage for each Workspace."""
     return [
         WorkspacePackage(
-            name=ws.package_contents["name"],
-            version=ws.package_contents.get("version"),
+            name=ws.package_json.data.get("name"),
+            version=ws.package_json.data.get("version"),
             relpath=ws.path.relative_to(source_dir.path),
         )
         for ws in workspaces

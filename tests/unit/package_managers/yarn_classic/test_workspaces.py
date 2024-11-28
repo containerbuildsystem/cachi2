@@ -4,6 +4,7 @@ from unittest import mock
 import pytest
 
 from cachi2.core.errors import PathOutsideRoot
+from cachi2.core.package_managers.yarn_classic.project import PackageJson
 from cachi2.core.package_managers.yarn_classic.workspaces import (
     Workspace,
     _extract_workspaces_globs,
@@ -13,21 +14,19 @@ from cachi2.core.package_managers.yarn_classic.workspaces import (
 from cachi2.core.rooted_path import RootedPath
 
 
-@mock.patch("cachi2.core.package_managers.yarn_classic.workspaces._read_package_from")
 @mock.patch("cachi2.core.package_managers.yarn_classic.workspaces._get_workspace_paths")
 def test_packages_with_workspaces_outside_source_dir_are_rejected(
     mock_get_ws_paths: mock.Mock,
-    mock_read_package_from: mock.Mock,
+    rooted_tmp_path: RootedPath,
 ) -> None:
-    mock_read_package_from.return_value = {"workspaces": ["../../usr"]}
-    mock_get_ws_paths.return_value = [Path("/tmp/foo/bar"), Path("/usr")]
-    package_path = RootedPath("/tmp/foo")
+    package_json_path = rooted_tmp_path.join_within_root("package.json")
+    package_json_path.path.write_text('{"workspaces": ["../../usr"]}')
+    mock_get_ws_paths.return_value = [Path("/usr")]
 
     with pytest.raises(PathOutsideRoot):
-        extract_workspace_metadata(package_path)
+        extract_workspace_metadata(rooted_tmp_path)
 
 
-@mock.patch("cachi2.core.package_managers.yarn_classic.workspaces._read_package_from")
 @mock.patch("cachi2.core.package_managers.yarn_classic.workspaces._get_workspace_paths")
 @mock.patch(
     "cachi2.core.package_managers.yarn_classic.workspaces._ensure_workspaces_are_well_formed"
@@ -35,19 +34,25 @@ def test_packages_with_workspaces_outside_source_dir_are_rejected(
 def test_workspaces_could_be_parsed(
     mock_workspaces_ok: mock.Mock,
     mock_get_ws_paths: mock.Mock,
-    mock_read_package_from: mock.Mock,
+    rooted_tmp_path: RootedPath,
 ) -> None:
-    mock_read_package_from.side_effect = [{"workspaces": ["quux"]}, {"name": "inner_package"}]
-    mock_get_ws_paths.return_value = [Path("/tmp/foo/bar")]
-    package_path = RootedPath("/tmp/foo")
+    package_json_path = rooted_tmp_path.join_within_root("package.json")
+    package_json_path.path.write_text('{"name": "outer_package", "workspaces": ["foo"]}')
+
+    workspace_path = rooted_tmp_path.join_within_root("foo")
+    workspace_path.path.mkdir()
+    workspace_package_json_path = workspace_path.join_within_root("package.json")
+    workspace_package_json_path.path.write_text('{"name": "inner_package"}')
+
+    mock_get_ws_paths.return_value = [workspace_path.path]
 
     expected_result = [
         Workspace(
-            path="/tmp/foo/bar",
-            package_contents={"name": "inner_package"},
+            path=workspace_path.path,
+            package_json=PackageJson.from_file(workspace_package_json_path),
         ),
     ]
-    result = extract_workspace_metadata(package_path)
+    result = extract_workspace_metadata(rooted_tmp_path)
 
     assert result == expected_result
 
