@@ -81,6 +81,20 @@ log = logging.getLogger(__name__)
             ),
             id="yarn_classic_lifecycle_scripts",
         ),
+        pytest.param(
+            utils.TestParameters(
+                repo="https://github.com/cachito-testing/cachi2-yarn.git",
+                ref="offline-mirror-collision",
+                packages=({"path": ".", "type": "yarn-classic"},),
+                flags=["--dev-package-managers"],
+                check_output=False,
+                check_deps_checksums=False,
+                check_vendor_checksums=False,
+                expected_exit_code=1,
+                expected_output="Duplicate tarballs detected",
+            ),
+            id="yarn_classic_offline_mirror_collision",
+        ),
     ],
 )
 def test_yarn_classic_packages(
