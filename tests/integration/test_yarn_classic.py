@@ -14,7 +14,7 @@ log = logging.getLogger(__name__)
         pytest.param(
             utils.TestParameters(
                 repo="https://github.com/cachito-testing/cachi2-yarn.git",
-                ref="3d596bd12839bff7ca8965895f4ce70c00bc3c7f",
+                ref="corepack_packagemanager_ignored",
                 packages=({"path": ".", "type": "yarn-classic"},),
                 flags=["--dev-package-managers"],
                 check_output=False,
@@ -28,7 +28,7 @@ log = logging.getLogger(__name__)
         pytest.param(
             utils.TestParameters(
                 repo="https://github.com/cachito-testing/cachi2-yarn.git",
-                ref="e02f9f5ba278ad412e2823acf6f68a521acabfab",
+                ref="yarnpath_ignored",
                 packages=({"path": ".", "type": "yarn-classic"},),
                 flags=["--dev-package-managers"],
                 check_output=False,
@@ -42,7 +42,7 @@ log = logging.getLogger(__name__)
         pytest.param(
             utils.TestParameters(
                 repo="https://github.com/cachito-testing/cachi2-yarn.git",
-                ref="ab0e1befff22af6fe92b75c8a75cb024fa7d8c33",
+                ref="invalid_checksum",
                 packages=({"path": ".", "type": "yarn-classic"},),
                 flags=["--dev-package-managers"],
                 check_output=False,
@@ -70,7 +70,7 @@ log = logging.getLogger(__name__)
         pytest.param(
             utils.TestParameters(
                 repo="https://github.com/cachito-testing/cachi2-yarn.git",
-                ref="200cc9423b1df173c12b61f951e463d8a18d9e19",
+                ref="lifecycle_scripts",
                 packages=({"path": ".", "type": "yarn-classic"},),
                 flags=["--dev-package-managers"],
                 check_output=False,
@@ -127,7 +127,7 @@ def test_yarn_classic_packages(
         pytest.param(
             utils.TestParameters(
                 repo="https://github.com/cachito-testing/cachi2-yarn.git",
-                ref="db27afd28d5b5fdc349f3ffb12b0f58140f6be32",
+                ref="valid_multiple_packages",
                 packages=(
                     {"path": "first-pkg", "type": "yarn-classic"},
                     {"path": "second-pkg", "type": "yarn-classic"},
