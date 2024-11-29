@@ -500,11 +500,8 @@ def test_resolve_gomod_suspicious_symlinks(symlinked_file: str, gomod_request: R
     app_dir = gomod_request.source_dir
 
     expect_err_msg = re.escape(f"Joining path '{symlinked_file}' to '{app_dir}'")
-    with pytest.raises(PathOutsideRoot, match=expect_err_msg) as exc_info:
+    with pytest.raises(PathOutsideRoot, match=expect_err_msg):
         _resolve_gomod(app_dir, gomod_request, tmp_path, version_resolver)
-
-    e = exc_info.value
-    assert "Found a potentially harmful symlink" in e.friendly_msg()
 
 
 @pytest.mark.parametrize(

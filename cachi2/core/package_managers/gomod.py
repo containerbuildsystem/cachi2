@@ -46,7 +46,7 @@ from cachi2.core.models.input import Request
 from cachi2.core.models.output import EnvironmentVariable, RequestOutput
 from cachi2.core.models.property_semantics import PropertySet
 from cachi2.core.models.sbom import Component
-from cachi2.core.rooted_path import PathOutsideRoot, RootedPath
+from cachi2.core.rooted_path import RootedPath
 from cachi2.core.scm import get_repo_id
 from cachi2.core.utils import get_cache_dir, load_json_stream, run_cmd
 
@@ -727,14 +727,7 @@ def _protect_against_symlinks(app_dir: RootedPath) -> None:
     """
 
     def check_potential_symlink(relative_path: Union[str, Path]) -> None:
-        try:
-            app_dir.join_within_root(relative_path)
-        except PathOutsideRoot as e:
-            e.solution = (
-                "Found a potentially harmful symlink, which would make the go command read "
-                "a file outside of your source repository. Refusing to proceed."
-            )
-            raise
+        app_dir.join_within_root(relative_path)
 
     check_potential_symlink("go.mod")
     check_potential_symlink("go.sum")
@@ -1456,15 +1449,8 @@ def _validate_local_replacements(modules: Iterable[ParsedModule], app_path: Root
         if module.replace and module.replace.path.startswith(".")
     ]
 
-    for name, path in replaced_paths:
-        try:
-            app_path.join_within_root(path)
-        except PathOutsideRoot as e:
-            e.solution = (
-                f"The module '{name}' is being replaced by the local path '{path}', "
-                "which falls outside of the repository root. Refusing to proceed."
-            )
-            raise
+    for _, path in replaced_paths:
+        app_path.join_within_root(path)
 
 
 def _parse_vendor(module_dir: RootedPath) -> Iterable[ParsedModule]:

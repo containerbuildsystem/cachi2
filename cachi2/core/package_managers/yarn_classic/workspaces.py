@@ -6,7 +6,7 @@ from typing import Any, Generator, Iterable
 import pydantic
 
 from cachi2.core.errors import PackageRejected
-from cachi2.core.rooted_path import PathOutsideRoot, RootedPath
+from cachi2.core.rooted_path import RootedPath
 
 
 class Workspace(pydantic.BaseModel):
@@ -32,16 +32,7 @@ def ensure_no_path_leads_out(
     Does nothing when path does not exist in the file system.
     """
     for path in paths:
-        try:
-            source_dir.join_within_root(path)
-        except PathOutsideRoot:
-            raise PackageRejected(
-                f"Found a workspace path which is not relative to package: {path}",
-                solution=(
-                    "Avoid using packages which try to access your filesystem "
-                    "outside of package directory."
-                ),
-            )
+        source_dir.join_within_root(path)
 
 
 def _ensure_workspaces_are_well_formed(
