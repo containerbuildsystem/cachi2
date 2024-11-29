@@ -3,7 +3,7 @@ from unittest import mock
 
 import pytest
 
-from cachi2.core.errors import PackageRejected
+from cachi2.core.errors import PathOutsideRoot
 from cachi2.core.package_managers.yarn_classic.workspaces import (
     Workspace,
     _extract_workspaces_globs,
@@ -23,7 +23,7 @@ def test_packages_with_workspaces_outside_source_dir_are_rejected(
     mock_get_ws_paths.return_value = [Path("/tmp/foo/bar"), Path("/usr")]
     package_path = RootedPath("/tmp/foo")
 
-    with pytest.raises(PackageRejected):
+    with pytest.raises(PathOutsideRoot):
         extract_workspace_metadata(package_path)
 
 
