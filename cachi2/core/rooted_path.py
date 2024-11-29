@@ -4,17 +4,7 @@ from typing import Any, TypeVar, Union
 
 from pydantic_core import CoreSchema, core_schema
 
-from cachi2.core.errors import UsageError
-
-
-class PathOutsideRoot(UsageError):
-    """Afer joining a subpath, the result is outside the root of a rooted path."""
-
-    default_solution = (
-        "With security in mind, Cachi2 will not access files outside the "
-        "specified source/output directories."
-    )
-
+from cachi2.core.errors import PathOutsideRoot
 
 StrPath = Union[str, PathLike[str]]
 RootedPathT = TypeVar("RootedPathT", bound="RootedPath")

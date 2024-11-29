@@ -46,6 +46,15 @@ class UsageError(Cachi2Error):
     is_invalid_usage: ClassVar[bool] = True
 
 
+class PathOutsideRoot(UsageError):
+    """Afer joining a subpath, the result is outside the root of a rooted path."""
+
+    default_solution = (
+        "With security in mind, Cachi2 will not access files outside the "
+        "specified source/output directories."
+    )
+
+
 class InvalidInput(UsageError):
     """User input was invalid."""
 
