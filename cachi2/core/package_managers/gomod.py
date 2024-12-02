@@ -727,11 +727,14 @@ def _protect_against_symlinks(app_dir: RootedPath) -> None:
     def check_potential_symlink(relative_path: Union[str, Path]) -> None:
         app_dir.join_within_root(relative_path)
 
-    check_potential_symlink("go.mod")
-    check_potential_symlink("go.sum")
-    check_potential_symlink("vendor/modules.txt")
-    for go_file in app_dir.path.rglob("*.go"):
-        check_potential_symlink(go_file.relative_to(app_dir))
+    # we purposefully skip checking go.work here because it is being checked elsewhere
+
+    go_control_files = ["go.mod", "go.sum", "vendor/modules.txt"]
+    go_sources_paths = [fp.relative_to(app_dir) for fp in app_dir.path.rglob("*.go")]
+
+    # mypy doesn't see the object type from chain can only be a str or a Path and reports an error
+    for p in chain(go_control_files, go_sources_paths):
+        check_potential_symlink(p)  # type: ignore
 
 
 def _find_missing_gomod_files(source_path: RootedPath, subpaths: list[str]) -> list[Path]:
