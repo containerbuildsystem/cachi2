@@ -32,10 +32,6 @@ $(
     cp go.sum "$mocked_data_dir_abspath/workspaces/go.sum"
 
     echo "generating $mocked_data_dir/workspaces/go_list_modules.json"
-    go work edit -json > \
-        "$mocked_data_dir_abspath/workspaces/go_work.json"
-
-    echo "generating $mocked_data_dir/workspaces/go_list_modules.json"
     go list -m -json > \
         "$mocked_data_dir_abspath/workspaces/go_list_modules.json"
 
@@ -50,6 +46,29 @@ $(
     echo "generating $mocked_data_dir/workspaces/go_list_deps_threedot.json"
     go list -deps -json=ImportPath,Module,Standard,Deps ./... > \
         "$mocked_data_dir_abspath/workspaces/go_list_deps_threedot.json"
+
+    echo "generating $mocked_data_dir/workspaces/go_work.json"
+    go work edit -json > \
+        "$mocked_data_dir_abspath/workspaces/go_work.json"
+
+    paths="$(jq -r '.Use[]?.DiskPath | select(. != ".")' < \
+        "$mocked_data_dir_abspath/workspaces/go_work.json")"
+    for p in ${paths}; do
+        echo "preparing per-workspace directory $p"
+        mkdir -p "$mocked_data_dir_abspath/workspaces/$p"
+
+        if [[ -s $p/go.sum ]]; then
+            echo "generating $mocked_data_dir/workspaces/$p/go.sum"
+            cp "$p/go.sum" "$mocked_data_dir_abspath/workspaces/$p/go.sum"
+        fi
+
+        pushd . &>/dev/null
+        cd "$p"
+        echo "generating $mocked_data_dir/workspaces/$p/go_list_deps_threedot.json"
+        go list -deps -json=ImportPath,Module,Standard,Deps ./... > \
+            "$mocked_data_dir_abspath/workspaces/$p/go_list_deps_threedot.json"
+        popd &>/dev/null
+    done
 
     git restore .
     git switch main
