@@ -1,11 +1,14 @@
 {
-	"Go": "1.19",
+	"Go": "1.22.0",
 	"Use": [
 		{
 			"DiskPath": "."
 		},
 		{
-			"DiskPath": "./uuid"
+			"DiskPath": "./terminaltor"
+		},
+		{
+			"DiskPath": "./weird"
 		}
 	],
 	"Replace": null

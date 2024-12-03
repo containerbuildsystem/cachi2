@@ -25,17 +25,6 @@
       "replace": null
     },
     {
-      "path": "github.com/cachito-testing/gomod-pandemonium/terminaltor",
-      "version": "v0.0.0",
-      "main": false,
-      "replace": {
-        "path": "./terminaltor",
-        "version": null,
-        "main": false,
-        "replace": null
-      }
-    },
-    {
       "path": "github.com/op/go-logging",
       "version": "v0.0.0-20160315200505-970db520ece7",
       "main": false,
@@ -113,11 +102,22 @@
       "replace": null
     },
     {
-      "path": "github.com/google/uuid",
+      "path": "github.com/cachito-testing/gomod-pandemonium/terminaltor",
       "version": null,
       "main": false,
       "replace": {
-        "path": "./uuid",
+        "path": "./terminaltor",
+        "version": null,
+        "main": false,
+        "replace": null
+      }
+    },
+    {
+      "path": "github.com/cachito-testing/gomod-pandemonium/weird",
+      "version": null,
+      "main": false,
+      "replace": {
+        "path": "./weird",
         "version": null,
         "main": false,
         "replace": null
@@ -585,14 +585,9 @@
       "standard": false,
       "module": {
         "path": "github.com/cachito-testing/gomod-pandemonium/terminaltor",
-        "version": "v0.0.0",
-        "main": false,
-        "replace": {
-          "path": "./terminaltor",
-          "version": null,
-          "main": false,
-          "replace": null
-        }
+        "version": null,
+        "main": true,
+        "replace": null
       }
     },
     {
@@ -600,16 +595,6 @@
       "standard": false,
       "module": {
         "path": "github.com/cachito-testing/gomod-pandemonium",
-        "version": null,
-        "main": true,
-        "replace": null
-      }
-    },
-    {
-      "import_path": "github.com/google/uuid",
-      "standard": false,
-      "module": {
-        "path": "github.com/google/uuid",
         "version": null,
         "main": true,
         "replace": null
@@ -1280,6 +1265,14 @@
       "v0.6.0"
     ],
     [
+      "github.com/cachito-testing/gomod-pandemonium/terminaltor",
+      "v1.0.0"
+    ],
+    [
+      "github.com/cachito-testing/gomod-pandemonium/weird",
+      "v0.0.0-20230417073518-0c6890c3280a"
+    ],
+    [
       "github.com/cachito-testing/retrodep/v2",
       "v2.1.1"
     ],
@@ -1310,10 +1303,6 @@
     [
       "github.com/google/pprof",
       "v0.0.0-20210407192527-94a9f03dee38"
-    ],
-    [
-      "github.com/google/uuid",
-      "v1.6.0"
     ],
     [
       "github.com/kr/pretty",
