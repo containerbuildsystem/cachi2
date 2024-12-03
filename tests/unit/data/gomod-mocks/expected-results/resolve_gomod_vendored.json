@@ -186,6 +186,16 @@
       "module": null
     },
     {
+      "import_path": "internal/byteorder",
+      "standard": true,
+      "module": null
+    },
+    {
+      "import_path": "internal/chacha8rand",
+      "standard": true,
+      "module": null
+    },
+    {
       "import_path": "internal/coverage/rtcov",
       "standard": true,
       "module": null
@@ -206,7 +216,27 @@
       "module": null
     },
     {
-      "import_path": "runtime/internal/atomic",
+      "import_path": "internal/profilerecord",
+      "standard": true,
+      "module": null
+    },
+    {
+      "import_path": "internal/runtime/atomic",
+      "standard": true,
+      "module": null
+    },
+    {
+      "import_path": "internal/runtime/exithook",
+      "standard": true,
+      "module": null
+    },
+    {
+      "import_path": "internal/runtime/syscall",
+      "standard": true,
+      "module": null
+    },
+    {
+      "import_path": "internal/stringslite",
       "standard": true,
       "module": null
     },
@@ -217,11 +247,6 @@
     },
     {
       "import_path": "runtime/internal/sys",
-      "standard": true,
-      "module": null
-    },
-    {
-      "import_path": "runtime/internal/syscall",
       "standard": true,
       "module": null
     },
@@ -241,7 +266,22 @@
       "module": null
     },
     {
+      "import_path": "cmp",
+      "standard": true,
+      "module": null
+    },
+    {
       "import_path": "internal/itoa",
+      "standard": true,
+      "module": null
+    },
+    {
+      "import_path": "internal/race",
+      "standard": true,
+      "module": null
+    },
+    {
+      "import_path": "iter",
       "standard": true,
       "module": null
     },
@@ -266,11 +306,6 @@
       "module": null
     },
     {
-      "import_path": "internal/race",
-      "standard": true,
-      "module": null
-    },
-    {
       "import_path": "sync/atomic",
       "standard": true,
       "module": null
@@ -291,7 +326,7 @@
       "module": null
     },
     {
-      "import_path": "sort",
+      "import_path": "slices",
       "standard": true,
       "module": null
     },
@@ -311,12 +346,32 @@
       "module": null
     },
     {
-      "import_path": "syscall",
+      "import_path": "path",
       "standard": true,
       "module": null
     },
     {
-      "import_path": "internal/syscall/unix",
+      "import_path": "internal/bisect",
+      "standard": true,
+      "module": null
+    },
+    {
+      "import_path": "internal/godebug",
+      "standard": true,
+      "module": null
+    },
+    {
+      "import_path": "internal/asan",
+      "standard": true,
+      "module": null
+    },
+    {
+      "import_path": "internal/msan",
+      "standard": true,
+      "module": null
+    },
+    {
+      "import_path": "syscall",
       "standard": true,
       "module": null
     },
@@ -326,12 +381,22 @@
       "module": null
     },
     {
-      "import_path": "internal/poll",
+      "import_path": "io/fs",
       "standard": true,
       "module": null
     },
     {
-      "import_path": "internal/safefilepath",
+      "import_path": "internal/filepathlite",
+      "standard": true,
+      "module": null
+    },
+    {
+      "import_path": "internal/syscall/unix",
+      "standard": true,
+      "module": null
+    },
+    {
+      "import_path": "internal/poll",
       "standard": true,
       "module": null
     },
@@ -342,16 +407,6 @@
     },
     {
       "import_path": "internal/testlog",
-      "standard": true,
-      "module": null
-    },
-    {
-      "import_path": "path",
-      "standard": true,
-      "module": null
-    },
-    {
-      "import_path": "io/fs",
       "standard": true,
       "module": null
     },
@@ -372,6 +427,11 @@
     },
     {
       "import_path": "encoding/binary",
+      "standard": true,
+      "module": null
+    },
+    {
+      "import_path": "sort",
       "standard": true,
       "module": null
     },
@@ -541,16 +601,6 @@
       "module": null
     },
     {
-      "import_path": "internal/bisect",
-      "standard": true,
-      "module": null
-    },
-    {
-      "import_path": "internal/godebug",
-      "standard": true,
-      "module": null
-    },
-    {
       "import_path": "internal/nettrace",
       "standard": true,
       "module": null
@@ -561,7 +611,22 @@
       "module": null
     },
     {
-      "import_path": "internal/intern",
+      "import_path": "math/rand/v2",
+      "standard": true,
+      "module": null
+    },
+    {
+      "import_path": "internal/concurrent",
+      "standard": true,
+      "module": null
+    },
+    {
+      "import_path": "internal/weak",
+      "standard": true,
+      "module": null
+    },
+    {
+      "import_path": "unique",
       "standard": true,
       "module": null
     },
@@ -856,6 +921,51 @@
       "module": null
     },
     {
+      "import_path": "vendor/golang.org/x/crypto/internal/alias",
+      "standard": true,
+      "module": null
+    },
+    {
+      "import_path": "vendor/golang.org/x/crypto/chacha20",
+      "standard": true,
+      "module": null
+    },
+    {
+      "import_path": "vendor/golang.org/x/crypto/internal/poly1305",
+      "standard": true,
+      "module": null
+    },
+    {
+      "import_path": "vendor/golang.org/x/sys/cpu",
+      "standard": true,
+      "module": null
+    },
+    {
+      "import_path": "vendor/golang.org/x/crypto/chacha20poly1305",
+      "standard": true,
+      "module": null
+    },
+    {
+      "import_path": "vendor/golang.org/x/crypto/hkdf",
+      "standard": true,
+      "module": null
+    },
+    {
+      "import_path": "crypto/internal/hpke",
+      "standard": true,
+      "module": null
+    },
+    {
+      "import_path": "vendor/golang.org/x/crypto/sha3",
+      "standard": true,
+      "module": null
+    },
+    {
+      "import_path": "crypto/internal/mlkem768",
+      "standard": true,
+      "module": null
+    },
+    {
       "import_path": "crypto/md5",
       "standard": true,
       "module": null
@@ -897,36 +1007,6 @@
     },
     {
       "import_path": "crypto/x509",
-      "standard": true,
-      "module": null
-    },
-    {
-      "import_path": "vendor/golang.org/x/crypto/internal/alias",
-      "standard": true,
-      "module": null
-    },
-    {
-      "import_path": "vendor/golang.org/x/crypto/chacha20",
-      "standard": true,
-      "module": null
-    },
-    {
-      "import_path": "vendor/golang.org/x/crypto/internal/poly1305",
-      "standard": true,
-      "module": null
-    },
-    {
-      "import_path": "vendor/golang.org/x/sys/cpu",
-      "standard": true,
-      "module": null
-    },
-    {
-      "import_path": "vendor/golang.org/x/crypto/chacha20poly1305",
-      "standard": true,
-      "module": null
-    },
-    {
-      "import_path": "vendor/golang.org/x/crypto/hkdf",
       "standard": true,
       "module": null
     },
@@ -977,6 +1057,11 @@
     },
     {
       "import_path": "vendor/golang.org/x/net/http2/hpack",
+      "standard": true,
+      "module": null
+    },
+    {
+      "import_path": "maps",
       "standard": true,
       "module": null
     },
