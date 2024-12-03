@@ -26,7 +26,7 @@ $(
     cd "$tmpdir/gomod-pandemonium"
     export GOMODCACHE="$tmpdir/cachi2-mock-gomodcache"
 
-    git switch workspaces
+    git switch go-1.22-workspaces
 
     echo "generating $mocked_data_dir/workspaces/go.sum"
     cp go.sum "$mocked_data_dir_abspath/workspaces/go.sum"
