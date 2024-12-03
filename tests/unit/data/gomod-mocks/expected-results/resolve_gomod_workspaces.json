@@ -7,271 +7,271 @@
   },
   "modules": [
     {
-        "path": "github.com/Masterminds/semver",
-        "version": "v1.4.2",
-        "main": false,
-        "replace": null
+      "path": "github.com/Masterminds/semver",
+      "version": "v1.4.2",
+      "main": false,
+      "replace": null
     },
     {
-        "path": "golang.org/x/sys",
-        "version": "v0.6.0",
-        "main": false,
-        "replace": null
+      "path": "golang.org/x/sys",
+      "version": "v0.6.0",
+      "main": false,
+      "replace": null
     },
     {
-        "path": "github.com/moby/term",
-        "version": "v0.0.0-20221205130635-1aeaba878587",
-        "main": false,
-        "replace": null
+      "path": "github.com/moby/term",
+      "version": "v0.0.0-20221205130635-1aeaba878587",
+      "main": false,
+      "replace": null
     },
     {
-        "path": "github.com/cachito-testing/gomod-pandemonium/terminaltor",
-        "version": "v0.0.0",
-        "main": false,
-        "replace": {
-          "path": "terminaltor",
-          "version": null,
-          "main": false,
-          "replace": null
-        }
-    },
-    {
-        "path": "github.com/op/go-logging",
-        "version": "v0.0.0-20160315200505-970db520ece7",
-        "main": false,
-        "replace": null
-    },
-    {
-        "path": "github.com/pkg/errors",
-        "version": "v0.8.1",
-        "main": false,
-        "replace": null
-    },
-    {
-        "path": "gopkg.in/yaml.v2",
-        "version": "v2.2.2",
-        "main": false,
-        "replace": null
-    },
-    {
-        "path": "github.com/release-engineering/retrodep/v2",
-        "version": "v2.1.0",
-        "main": false,
-        "replace": {
-          "path": "github.com/cachito-testing/retrodep/v2",
-          "version": "v2.1.1",
-          "main": false,
-          "replace": null
-        }
-    },
-    {
-        "path": "golang.org/x/tools",
-        "version": "v0.7.0",
-        "main": false,
-        "replace": null
-    },
-    {
-        "path": "github.com/go-logr/logr",
-        "version": "v1.2.3",
-        "main": false,
-        "replace": null
-    },
-    {
-        "path": "github.com/google/go-cmp",
-        "version": "v0.5.9",
-        "main": false,
-        "replace": null
-    },
-    {
-        "path": "github.com/onsi/ginkgo/v2",
-        "version": "v2.9.2",
-        "main": false,
-        "replace": null
-    },
-    {
-        "path": "golang.org/x/net",
-        "version": "v0.8.0",
-        "main": false,
-        "replace": null
-    },
-    {
-        "path": "github.com/onsi/gomega",
-        "version": "v1.27.4",
-        "main": false,
-        "replace": null
-    },
-    {
-        "path": "golang.org/x/text",
-        "version": "v0.8.0",
-        "main": false,
-        "replace": null
-    },
-    {
-        "path": "gopkg.in/yaml.v3",
-        "version": "v3.0.1",
-        "main": false,
-        "replace": null
-    },
-    {
-        "path": "github.com/google/uuid",
+      "path": "github.com/cachito-testing/gomod-pandemonium/terminaltor",
+      "version": "v0.0.0",
+      "main": false,
+      "replace": {
+        "path": "./terminaltor",
         "version": null,
         "main": false,
-        "replace": {
-          "path": "./uuid",
-          "version": null,
-          "main": false,
-          "replace": null
-        }
+        "replace": null
+      }
     },
     {
-        "path": "github.com/Azure/go-ansiterm",
-        "version": "v0.0.0-20210617225240-d185dfc1b5a1",
-        "main": false,
-        "replace": null
+      "path": "github.com/op/go-logging",
+      "version": "v0.0.0-20160315200505-970db520ece7",
+      "main": false,
+      "replace": null
     },
     {
-        "path": "github.com/Microsoft/go-winio",
-        "version": "v0.6.0",
-        "main": false,
-        "replace": null
+      "path": "github.com/pkg/errors",
+      "version": "v0.8.1",
+      "main": false,
+      "replace": null
     },
     {
-        "path": "github.com/chzyer/logex",
-        "version": "v1.1.10",
-        "main": false,
-        "replace": null
+      "path": "gopkg.in/yaml.v2",
+      "version": "v2.2.2",
+      "main": false,
+      "replace": null
     },
     {
-        "path": "github.com/chzyer/readline",
-        "version": "v0.0.0-20180603132655-2972be24d48e",
+      "path": "github.com/release-engineering/retrodep/v2",
+      "version": "v2.1.0",
+      "main": false,
+      "replace": {
+        "path": "github.com/cachito-testing/retrodep/v2",
+        "version": "v2.1.1",
         "main": false,
         "replace": null
+      }
     },
     {
-        "path": "github.com/chzyer/test",
-        "version": "v0.0.0-20180213035817-a1ea475d72b1",
-        "main": false,
-        "replace": null
+      "path": "golang.org/x/tools",
+      "version": "v0.7.0",
+      "main": false,
+      "replace": null
     },
     {
-        "path": "github.com/creack/pty",
-        "version": "v1.1.18",
-        "main": false,
-        "replace": null
+      "path": "github.com/go-logr/logr",
+      "version": "v1.2.3",
+      "main": false,
+      "replace": null
     },
     {
-        "path": "github.com/davecgh/go-spew",
-        "version": "v1.1.1",
-        "main": false,
-        "replace": null
+      "path": "github.com/google/go-cmp",
+      "version": "v0.5.9",
+      "main": false,
+      "replace": null
     },
     {
-        "path": "github.com/go-task/slim-sprig",
-        "version": "v0.0.0-20230315185526-52ccab3ef572",
-        "main": false,
-        "replace": null
+      "path": "github.com/onsi/ginkgo/v2",
+      "version": "v2.9.2",
+      "main": false,
+      "replace": null
     },
     {
-        "path": "github.com/golang/protobuf",
-        "version": "v1.5.3",
-        "main": false,
-        "replace": null
+      "path": "golang.org/x/net",
+      "version": "v0.8.0",
+      "main": false,
+      "replace": null
     },
     {
-        "path": "github.com/google/pprof",
-        "version": "v0.0.0-20210407192527-94a9f03dee38",
-        "main": false,
-        "replace": null
+      "path": "github.com/onsi/gomega",
+      "version": "v1.27.4",
+      "main": false,
+      "replace": null
     },
     {
-        "path": "github.com/ianlancetaylor/demangle",
-        "version": "v0.0.0-20200824232613-28f6c0f3b639",
-        "main": false,
-        "replace": null
+      "path": "golang.org/x/text",
+      "version": "v0.8.0",
+      "main": false,
+      "replace": null
     },
     {
-        "path": "github.com/kr/pretty",
-        "version": "v0.1.0",
-        "main": false,
-        "replace": null
+      "path": "gopkg.in/yaml.v3",
+      "version": "v3.0.1",
+      "main": false,
+      "replace": null
     },
     {
-        "path": "github.com/kr/pty",
-        "version": "v1.1.1",
+      "path": "github.com/google/uuid",
+      "version": null,
+      "main": false,
+      "replace": {
+        "path": "./uuid",
+        "version": null,
         "main": false,
         "replace": null
+      }
     },
     {
-        "path": "github.com/kr/text",
-        "version": "v0.1.0",
-        "main": false,
-        "replace": null
+      "path": "github.com/Azure/go-ansiterm",
+      "version": "v0.0.0-20210617225240-d185dfc1b5a1",
+      "main": false,
+      "replace": null
     },
     {
-        "path": "github.com/pmezard/go-difflib",
-        "version": "v1.0.0",
-        "main": false,
-        "replace": null
+      "path": "github.com/Microsoft/go-winio",
+      "version": "v0.6.0",
+      "main": false,
+      "replace": null
     },
     {
-        "path": "github.com/sirupsen/logrus",
-        "version": "v1.7.0",
-        "main": false,
-        "replace": null
+      "path": "github.com/chzyer/logex",
+      "version": "v1.1.10",
+      "main": false,
+      "replace": null
     },
     {
-        "path": "github.com/stretchr/objx",
-        "version": "v0.1.0",
-        "main": false,
-        "replace": null
+      "path": "github.com/chzyer/readline",
+      "version": "v0.0.0-20180603132655-2972be24d48e",
+      "main": false,
+      "replace": null
     },
     {
-        "path": "github.com/stretchr/testify",
-        "version": "v1.6.1",
-        "main": false,
-        "replace": null
+      "path": "github.com/chzyer/test",
+      "version": "v0.0.0-20180213035817-a1ea475d72b1",
+      "main": false,
+      "replace": null
     },
     {
-        "path": "github.com/yuin/goldmark",
-        "version": "v1.4.13",
-        "main": false,
-        "replace": null
+      "path": "github.com/creack/pty",
+      "version": "v1.1.18",
+      "main": false,
+      "replace": null
     },
     {
-        "path": "golang.org/x/crypto",
-        "version": "v0.0.0-20190308221718-c2843e01d9a2",
-        "main": false,
-        "replace": null
+      "path": "github.com/davecgh/go-spew",
+      "version": "v1.1.1",
+      "main": false,
+      "replace": null
     },
     {
-        "path": "golang.org/x/mod",
-        "version": "v0.9.0",
-        "main": false,
-        "replace": null
+      "path": "github.com/go-task/slim-sprig",
+      "version": "v0.0.0-20230315185526-52ccab3ef572",
+      "main": false,
+      "replace": null
     },
     {
-        "path": "golang.org/x/sync",
-        "version": "v0.1.0",
-        "main": false,
-        "replace": null
+      "path": "github.com/golang/protobuf",
+      "version": "v1.5.3",
+      "main": false,
+      "replace": null
     },
     {
-        "path": "golang.org/x/term",
-        "version": "v0.6.0",
-        "main": false,
-        "replace": null
+      "path": "github.com/google/pprof",
+      "version": "v0.0.0-20210407192527-94a9f03dee38",
+      "main": false,
+      "replace": null
     },
     {
-        "path": "google.golang.org/protobuf",
-        "version": "v1.28.0",
-        "main": false,
-        "replace": null
+      "path": "github.com/ianlancetaylor/demangle",
+      "version": "v0.0.0-20200824232613-28f6c0f3b639",
+      "main": false,
+      "replace": null
     },
     {
-        "path": "gopkg.in/check.v1",
-        "version": "v1.0.0-20180628173108-788fd7840127",
-        "main": false,
-        "replace": null
+      "path": "github.com/kr/pretty",
+      "version": "v0.1.0",
+      "main": false,
+      "replace": null
+    },
+    {
+      "path": "github.com/kr/pty",
+      "version": "v1.1.1",
+      "main": false,
+      "replace": null
+    },
+    {
+      "path": "github.com/kr/text",
+      "version": "v0.1.0",
+      "main": false,
+      "replace": null
+    },
+    {
+      "path": "github.com/pmezard/go-difflib",
+      "version": "v1.0.0",
+      "main": false,
+      "replace": null
+    },
+    {
+      "path": "github.com/sirupsen/logrus",
+      "version": "v1.7.0",
+      "main": false,
+      "replace": null
+    },
+    {
+      "path": "github.com/stretchr/objx",
+      "version": "v0.1.0",
+      "main": false,
+      "replace": null
+    },
+    {
+      "path": "github.com/stretchr/testify",
+      "version": "v1.6.1",
+      "main": false,
+      "replace": null
+    },
+    {
+      "path": "github.com/yuin/goldmark",
+      "version": "v1.4.13",
+      "main": false,
+      "replace": null
+    },
+    {
+      "path": "golang.org/x/crypto",
+      "version": "v0.0.0-20190308221718-c2843e01d9a2",
+      "main": false,
+      "replace": null
+    },
+    {
+      "path": "golang.org/x/mod",
+      "version": "v0.9.0",
+      "main": false,
+      "replace": null
+    },
+    {
+      "path": "golang.org/x/sync",
+      "version": "v0.1.0",
+      "main": false,
+      "replace": null
+    },
+    {
+      "path": "golang.org/x/term",
+      "version": "v0.6.0",
+      "main": false,
+      "replace": null
+    },
+    {
+      "path": "google.golang.org/protobuf",
+      "version": "v1.28.0",
+      "main": false,
+      "replace": null
+    },
+    {
+      "path": "gopkg.in/check.v1",
+      "version": "v1.0.0-20180628173108-788fd7840127",
+      "main": false,
+      "replace": null
     }
   ],
   "packages": [
@@ -306,6 +306,16 @@
       "module": null
     },
     {
+      "import_path": "internal/byteorder",
+      "standard": true,
+      "module": null
+    },
+    {
+      "import_path": "internal/chacha8rand",
+      "standard": true,
+      "module": null
+    },
+    {
       "import_path": "internal/coverage/rtcov",
       "standard": true,
       "module": null
@@ -326,7 +336,27 @@
       "module": null
     },
     {
-      "import_path": "runtime/internal/atomic",
+      "import_path": "internal/profilerecord",
+      "standard": true,
+      "module": null
+    },
+    {
+      "import_path": "internal/runtime/atomic",
+      "standard": true,
+      "module": null
+    },
+    {
+      "import_path": "internal/runtime/exithook",
+      "standard": true,
+      "module": null
+    },
+    {
+      "import_path": "internal/runtime/syscall",
+      "standard": true,
+      "module": null
+    },
+    {
+      "import_path": "internal/stringslite",
       "standard": true,
       "module": null
     },
@@ -337,11 +367,6 @@
     },
     {
       "import_path": "runtime/internal/sys",
-      "standard": true,
-      "module": null
-    },
-    {
-      "import_path": "runtime/internal/syscall",
       "standard": true,
       "module": null
     },
@@ -361,7 +386,22 @@
       "module": null
     },
     {
+      "import_path": "cmp",
+      "standard": true,
+      "module": null
+    },
+    {
       "import_path": "internal/itoa",
+      "standard": true,
+      "module": null
+    },
+    {
+      "import_path": "internal/race",
+      "standard": true,
+      "module": null
+    },
+    {
+      "import_path": "iter",
       "standard": true,
       "module": null
     },
@@ -386,11 +426,6 @@
       "module": null
     },
     {
-      "import_path": "internal/race",
-      "standard": true,
-      "module": null
-    },
-    {
       "import_path": "sync/atomic",
       "standard": true,
       "module": null
@@ -411,7 +446,7 @@
       "module": null
     },
     {
-      "import_path": "sort",
+      "import_path": "slices",
       "standard": true,
       "module": null
     },
@@ -431,12 +466,32 @@
       "module": null
     },
     {
-      "import_path": "syscall",
+      "import_path": "path",
       "standard": true,
       "module": null
     },
     {
-      "import_path": "internal/syscall/unix",
+      "import_path": "internal/bisect",
+      "standard": true,
+      "module": null
+    },
+    {
+      "import_path": "internal/godebug",
+      "standard": true,
+      "module": null
+    },
+    {
+      "import_path": "internal/asan",
+      "standard": true,
+      "module": null
+    },
+    {
+      "import_path": "internal/msan",
+      "standard": true,
+      "module": null
+    },
+    {
+      "import_path": "syscall",
       "standard": true,
       "module": null
     },
@@ -446,12 +501,22 @@
       "module": null
     },
     {
-      "import_path": "internal/poll",
+      "import_path": "io/fs",
       "standard": true,
       "module": null
     },
     {
-      "import_path": "internal/safefilepath",
+      "import_path": "internal/filepathlite",
+      "standard": true,
+      "module": null
+    },
+    {
+      "import_path": "internal/syscall/unix",
+      "standard": true,
+      "module": null
+    },
+    {
+      "import_path": "internal/poll",
       "standard": true,
       "module": null
     },
@@ -462,16 +527,6 @@
     },
     {
       "import_path": "internal/testlog",
-      "standard": true,
-      "module": null
-    },
-    {
-      "import_path": "path",
-      "standard": true,
-      "module": null
-    },
-    {
-      "import_path": "io/fs",
       "standard": true,
       "module": null
     },
@@ -492,6 +547,11 @@
     },
     {
       "import_path": "encoding/binary",
+      "standard": true,
+      "module": null
+    },
+    {
+      "import_path": "sort",
       "standard": true,
       "module": null
     },
@@ -528,7 +588,7 @@
         "version": "v0.0.0",
         "main": false,
         "replace": {
-          "path": "terminaltor",
+          "path": "./terminaltor",
           "version": null,
           "main": false,
           "replace": null
@@ -671,16 +731,6 @@
       "module": null
     },
     {
-      "import_path": "internal/bisect",
-      "standard": true,
-      "module": null
-    },
-    {
-      "import_path": "internal/godebug",
-      "standard": true,
-      "module": null
-    },
-    {
       "import_path": "internal/nettrace",
       "standard": true,
       "module": null
@@ -691,7 +741,22 @@
       "module": null
     },
     {
-      "import_path": "internal/intern",
+      "import_path": "math/rand/v2",
+      "standard": true,
+      "module": null
+    },
+    {
+      "import_path": "internal/concurrent",
+      "standard": true,
+      "module": null
+    },
+    {
+      "import_path": "internal/weak",
+      "standard": true,
+      "module": null
+    },
+    {
+      "import_path": "unique",
       "standard": true,
       "module": null
     },
@@ -986,6 +1051,51 @@
       "module": null
     },
     {
+      "import_path": "vendor/golang.org/x/crypto/internal/alias",
+      "standard": true,
+      "module": null
+    },
+    {
+      "import_path": "vendor/golang.org/x/crypto/chacha20",
+      "standard": true,
+      "module": null
+    },
+    {
+      "import_path": "vendor/golang.org/x/crypto/internal/poly1305",
+      "standard": true,
+      "module": null
+    },
+    {
+      "import_path": "vendor/golang.org/x/sys/cpu",
+      "standard": true,
+      "module": null
+    },
+    {
+      "import_path": "vendor/golang.org/x/crypto/chacha20poly1305",
+      "standard": true,
+      "module": null
+    },
+    {
+      "import_path": "vendor/golang.org/x/crypto/hkdf",
+      "standard": true,
+      "module": null
+    },
+    {
+      "import_path": "crypto/internal/hpke",
+      "standard": true,
+      "module": null
+    },
+    {
+      "import_path": "vendor/golang.org/x/crypto/sha3",
+      "standard": true,
+      "module": null
+    },
+    {
+      "import_path": "crypto/internal/mlkem768",
+      "standard": true,
+      "module": null
+    },
+    {
       "import_path": "crypto/md5",
       "standard": true,
       "module": null
@@ -1027,36 +1137,6 @@
     },
     {
       "import_path": "crypto/x509",
-      "standard": true,
-      "module": null
-    },
-    {
-      "import_path": "vendor/golang.org/x/crypto/internal/alias",
-      "standard": true,
-      "module": null
-    },
-    {
-      "import_path": "vendor/golang.org/x/crypto/chacha20",
-      "standard": true,
-      "module": null
-    },
-    {
-      "import_path": "vendor/golang.org/x/crypto/internal/poly1305",
-      "standard": true,
-      "module": null
-    },
-    {
-      "import_path": "vendor/golang.org/x/sys/cpu",
-      "standard": true,
-      "module": null
-    },
-    {
-      "import_path": "vendor/golang.org/x/crypto/chacha20poly1305",
-      "standard": true,
-      "module": null
-    },
-    {
-      "import_path": "vendor/golang.org/x/crypto/hkdf",
       "standard": true,
       "module": null
     },
@@ -1107,6 +1187,11 @@
     },
     {
       "import_path": "vendor/golang.org/x/net/http2/hpack",
+      "standard": true,
+      "module": null
+    },
+    {
+      "import_path": "maps",
       "standard": true,
       "module": null
     },
