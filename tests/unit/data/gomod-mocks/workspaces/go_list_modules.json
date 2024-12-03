@@ -3,11 +3,19 @@
 	"Main": true,
 	"Dir": "{repo_dir}",
 	"GoMod": "{repo_dir}/go.mod",
-	"GoVersion": "1.19"
+	"GoVersion": "1.22.0"
 }
 {
-	"Path": "github.com/google/uuid",
+	"Path": "github.com/cachito-testing/gomod-pandemonium/terminaltor",
 	"Main": true,
-	"Dir": "{repo_dir}/uuid",
-	"GoMod": "{repo_dir}/uuid/go.mod"
+	"Dir": "{repo_dir}/terminaltor",
+	"GoMod": "{repo_dir}/terminaltor/go.mod",
+	"GoVersion": "1.22.0"
+}
+{
+	"Path": "github.com/cachito-testing/gomod-pandemonium/weird",
+	"Main": true,
+	"Dir": "{repo_dir}/weird",
+	"GoMod": "{repo_dir}/weird/go.mod",
+	"GoVersion": "1.22.0"
 }

@@ -1220,7 +1220,6 @@
 		"Path": "github.com/moby/term",
 		"Version": "v0.0.0-20221205130635-1aeaba878587",
 		"Time": "2022-12-05T13:06:35Z",
-		"Indirect": true,
 		"Dir": "{gomodcache_dir}/github.com/moby/term@v0.0.0-20221205130635-1aeaba878587",
 		"GoMod": "{gomodcache_dir}/cache/download/github.com/moby/term/@v/v0.0.0-20221205130635-1aeaba878587.mod",
 		"GoVersion": "1.18",
@@ -1292,16 +1291,10 @@
 	"ImportPath": "github.com/cachito-testing/gomod-pandemonium/terminaltor",
 	"Module": {
 		"Path": "github.com/cachito-testing/gomod-pandemonium/terminaltor",
-		"Version": "v0.0.0",
-		"Replace": {
-			"Path": "./terminaltor",
-			"Dir": "{repo_dir}/terminaltor",
-			"GoMod": "{repo_dir}/terminaltor/go.mod",
-			"GoVersion": "1.19"
-		},
+		"Main": true,
 		"Dir": "{repo_dir}/terminaltor",
 		"GoMod": "{repo_dir}/terminaltor/go.mod",
-		"GoVersion": "1.19"
+		"GoVersion": "1.22.0"
 	},
 	"Deps": [
 		"bytes",
@@ -1372,16 +1365,7 @@
 		"Main": true,
 		"Dir": "{repo_dir}",
 		"GoMod": "{repo_dir}/go.mod",
-		"GoVersion": "1.19"
-	}
-}
-{
-	"ImportPath": "github.com/google/uuid",
-	"Module": {
-		"Path": "github.com/google/uuid",
-		"Main": true,
-		"Dir": "{repo_dir}/uuid",
-		"GoMod": "{repo_dir}/uuid/go.mod"
+		"GoVersion": "1.22.0"
 	}
 }
 {
@@ -7891,7 +7875,7 @@
 		"Main": true,
 		"Dir": "{repo_dir}",
 		"GoMod": "{repo_dir}/go.mod",
-		"GoVersion": "1.19"
+		"GoVersion": "1.22.0"
 	},
 	"Deps": [
 		"bufio",
@@ -7948,7 +7932,6 @@
 		"github.com/Masterminds/semver",
 		"github.com/cachito-testing/gomod-pandemonium/terminaltor",
 		"github.com/cachito-testing/gomod-pandemonium/where-was-i-built",
-		"github.com/google/uuid",
 		"github.com/moby/term",
 		"github.com/op/go-logging",
 		"github.com/pkg/errors",
