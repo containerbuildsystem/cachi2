@@ -1,4 +1,3 @@
-import json
 import logging
 import os
 import re
@@ -541,7 +540,7 @@ def _create_modules_from_parsed_data(
     parsed_modules: Iterable[ParsedModule],
     modules_in_go_sum: frozenset[ModuleID],
     version_resolver: "ModuleVersionResolver",
-    go_work_path: Optional[RootedPath] = None,
+    go_work: GoWork,
 ) -> list[Module]:
     def _create_module(module: ParsedModule) -> Module:
         mod_id = _get_module_id(module)
@@ -554,8 +553,9 @@ def _create_modules_from_parsed_data(
             real_path = name
 
             if mod_id not in modules_in_go_sum:
-                if go_work_path:
-                    missing_hash_in_file = go_work_path.subpath_from_root / "go.work.sum"
+                if go_work:
+                    # __bool__ checks go_work.dir, so it can't be None
+                    missing_hash_in_file = go_work.dir.subpath_from_root / "go.work.sum"  # type: ignore
                 else:
                     missing_hash_in_file = main_module_dir.subpath_from_root / "go.sum"
 
@@ -678,11 +678,11 @@ def fetch_gomod_source(request: Request) -> RequestOutput:
             log.info("Fetching the gomod dependencies at subpath %s", subpath)
 
             main_module_dir = request.source_dir.join_within_root(subpath)
-            go_work_path = _get_go_work_path(main_module_dir)
+            go_work = GoWork(main_module_dir)
 
             try:
                 resolve_result = _resolve_gomod(
-                    main_module_dir, request, Path(tmp_dir), version_resolver, go_work_path
+                    main_module_dir, request, Path(tmp_dir), version_resolver, go_work
                 )
             except PackageManagerError:
                 log.error("Failed to fetch gomod dependencies")
@@ -700,7 +700,7 @@ def fetch_gomod_source(request: Request) -> RequestOutput:
                     resolve_result.parsed_modules,
                     resolve_result.modules_in_go_sum,
                     version_resolver,
-                    go_work_path,
+                    go_work,
                 )
             )
 
@@ -927,7 +927,7 @@ def _resolve_gomod(
     request: Request,
     tmp_dir: Path,
     version_resolver: "ModuleVersionResolver",
-    go_work_path: Optional[RootedPath] = None,
+    go_work: GoWork,
 ) -> ResolvedGoModule:
     """
     Resolve and fetch gomod dependencies for given app source archive.
@@ -979,15 +979,16 @@ def _resolve_gomod(
     # Explicitly disable toolchain telemetry for go >= 1.23
     _disable_telemetry(go, run_params)
 
-    if go_work_path:
-        modules_in_go_sum = _parse_go_sum_from_workspaces(go_work_path, go, run_params)
+    if go_work:
+        modules_in_go_sum = _parse_go_sum_from_workspaces(go_work, go, run_params)
     else:
         modules_in_go_sum = _parse_go_sum(app_dir.join_within_root("go.sum"))
 
     # Vendor dependencies if the gomod-vendor flag is set
     flags = request.flags
     if should_vendor:
-        if go_work_path and go_work_path.join_within_root("vendor").path.is_dir():
+        # go_work.dir can't be None here
+        if go_work and go_work.dir.path.join("vendor").is_dir():  # type: ignore
             # NOTE: the same error will be reported even for 1.21 which doesn't support workspace
             # vendoring, but given it's an invalid configuration and that we plan full 1.22 support
             # in the foreseeable future, a not so user friendly error should be fine
@@ -1006,7 +1007,7 @@ def _resolve_gomod(
 
     go_list = ["list", "-e"]
     main_module, workspace_modules = _parse_local_modules(
-        go, go_list, run_params, app_dir, version_resolver
+        go_work, go, go_list, run_params, app_dir, version_resolver
     )
 
     def go_list_deps(pattern: Literal["./...", "all"]) -> Iterator[ParsedPackage]:
@@ -1034,6 +1035,7 @@ def _resolve_gomod(
 
 
 def _parse_local_modules(
+    go_work: GoWork,
     go: Go,
     go_list: list[str],
     run_params: dict[str, Any],
@@ -1060,9 +1062,8 @@ def _parse_local_modules(
     )
 
     workspace_modules = [
-        _parse_workspace_module(app_dir, workspace_dict) for workspace_dict in workspace_dict_list
+        _parse_workspace_module(go_work, ws, go, run_params) for ws in workspace_dict_list
     ]
-
     return main_module, workspace_modules
 
 
@@ -1094,25 +1095,26 @@ def _process_modules_json_stream(
     return main_module, module_list
 
 
-def _parse_workspace_module(app_dir: RootedPath, module: ModuleDict) -> ParsedModule:
+def _parse_workspace_module(
+    go_work: GoWork, module: ModuleDict, go: Go, run_params: dict[str, Any] = {}
+) -> ParsedModule:
     """Create a ParsedModule from a listed workspace.
 
     The replacement info returned will always be relative to the go.work file path.
     """
-    # We can't use pathlib since corresponding method PurePath.relative_to('foo', walk_up=True)
-    # is available only in Python 3.12 and later.
-    relative_dir = os.path.relpath(module["Dir"], app_dir)
-
-    # We need to prepend "./" to a workspace that is direct child of app_dir so it can be treated
-    # the same way as a locally replaced module when converting it into a Module.
-    if not relative_dir.startswith("."):
-        relative_dir = f"./{relative_dir}"
-
-    replaced_module = ParsedModule(path=relative_dir)
+    # there's only ever going to be a single match
+    ws_rootedpath = None
+    for wsp_rooted in go_work.workspace_paths(go, run_params):
+        if str(wsp_rooted.path) == module["Dir"]:
+            ws_rootedpath = wsp_rooted
+            break
+    else:
+        # This should be impossible
+        raise RuntimeError(f"Failed to match a module based on '{module['Dir']}'")
 
     return ParsedModule(
         path=module["Path"],
-        replace=replaced_module,
+        replace=ParsedModule(path=f"./{ws_rootedpath.subpath_from_root}"),
     )
 
 
@@ -1131,12 +1133,12 @@ def _get_go_work_path(app_dir: RootedPath) -> Optional[RootedPath]:
 
 
 def _parse_go_sum_from_workspaces(
-    go_work_path: RootedPath,
+    go_work: GoWork,
     go: Go,
     run_params: dict[str, Any],
 ) -> frozenset[ModuleID]:
     """Return the set of modules present in all go.sum files across the existing workspaces."""
-    go_sum_files = _get_go_sum_files(go_work_path, go, run_params)
+    go_sum_files = _get_go_sum_files(go_work, go, run_params)
 
     modules: frozenset[ModuleID] = frozenset()
 
@@ -1147,19 +1149,16 @@ def _parse_go_sum_from_workspaces(
 
 
 def _get_go_sum_files(
-    go_work_path: RootedPath,
+    go_work: GoWork,
     go: Go,
     run_params: dict[str, Any],
 ) -> list[RootedPath]:
     """Find all go.sum files present in the related workspaces."""
-    go_work_json = go(["work", "edit", "-json"], run_params).rstrip()
-    go_work = json.loads(go_work_json)
+    workspace_paths = go_work.workspace_paths(go, run_params)
 
-    go_sums = [
-        go_work_path.join_within_root(f"{module['DiskPath']}/go.sum") for module in go_work["Use"]
-    ]
-
-    go_sums.append(go_work_path.join_within_root("go.work.sum"))
+    # mypy doesn't see that go_work is true here and true means .path and .dir are set
+    go_sums = [go_work.dir.join_within_root(wp.path / "go.sum") for wp in workspace_paths]  # type: ignore
+    go_sums.append(go_work.dir.join_within_root("go.work.sum"))  # type: ignore
 
     return go_sums
 
