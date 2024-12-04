@@ -112,6 +112,22 @@ from . import utils
                 reason="CACHI2_TEST_LOCAL_DNF_SERVER!=true",
             ),
         ),
+        pytest.param(
+            utils.TestParameters(
+                repo="https://github.com/cachito-testing/cachi2-rpm",
+                ref="multiple-packages",
+                packages=(
+                    {"path": "this-project", "type": "rpm", "include_summary_in_sbom": "true"},
+                    {"path": "another-project", "type": "rpm"},
+                ),
+                flags=["--dev-package-managers"],
+                check_output=True,
+                check_deps_checksums=False,
+                check_vendor_checksums=False,
+                expected_exit_code=0,
+            ),
+            id="rpm_summary_is_reported",
+        ),
     ],
 )
 def test_rpm_packages(

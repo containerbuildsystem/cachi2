@@ -47,6 +47,7 @@ class Package:
     vendor: Optional[str] = None
     checksum: Optional[str] = None
     repository_id: Optional[str] = None
+    summary: Optional[str] = None
 
     @classmethod
     def from_filepath(cls, rpm_filepath: Path, rpm_download_metadata: dict[str, Any]) -> "Package":
@@ -85,6 +86,7 @@ class Package:
             "version=%{VERSION}\n"
             "release=%{RELEASE}\n"
             "arch=%{ARCH}\n"
+            "summary=%{SUMMARY}\n"
             # vendor and epoch are optional RPM tags; return "" if not set instead of "(None)"
             "vendor=%|VENDOR?{%{VENDOR}}:{}|\n"
             "epoch=%|EPOCH?{%{EPOCH}}:{}|\n"
@@ -205,7 +207,14 @@ def fetch_rpm_source(request: Request) -> RequestOutput:
 
     for package in request.rpm_packages:
         path = request.source_dir.join_within_root(package.path)
-        components.extend(_resolve_rpm_project(path, request.output_dir, options=package.options))
+        components.extend(
+            _resolve_rpm_project(
+                path,
+                request.output_dir,
+                options=package.options,
+                include_summary_in_sbom=package.include_summary_in_sbom,
+            )
+        )
 
         # FIXME: this is only ever good enough for a PoC, but needs to be handled properly in the
         # future.
@@ -240,6 +249,7 @@ def _resolve_rpm_project(
     source_dir: RootedPath,
     output_dir: RootedPath,
     options: Optional[ExtraOptions] = None,
+    include_summary_in_sbom: bool = False,
 ) -> list[Component]:
     """
     Process a request for a single RPM source directory.
@@ -288,7 +298,7 @@ def _resolve_rpm_project(
         _verify_downloaded(metadata)
 
         lockfile_relative_path = source_dir.subpath_from_root / DEFAULT_LOCKFILE_NAME
-        return _generate_sbom_components(metadata, lockfile_relative_path)
+        return _generate_sbom_components(metadata, lockfile_relative_path, include_summary_in_sbom)
 
 
 def _download(
@@ -383,14 +393,20 @@ def _is_rpm_file(file_path: Path) -> bool:
 
 
 def _generate_sbom_components(
-    files_metadata: dict[Path, Any], lockfile_path: Path
+    files_metadata: dict[Path, Any],
+    lockfile_path: Path,
+    include_summary_in_sbom: bool = False,
 ) -> list[Component]:
     components = []
     for file_path, file_metadata in files_metadata.items():
         if not _is_rpm_file(file_path):
             continue
         package = Package.from_filepath(file_path, file_metadata)
-        components.append(package.to_component(lockfile_path))
+        component = package.to_component(lockfile_path)
+        if include_summary_in_sbom:
+            summary = Property(name="cachi2:rpm_summary", value=str(package.summary))
+            component.properties.append(summary)
+        components.append(component)
     return components
 
 

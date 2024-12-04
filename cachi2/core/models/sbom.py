@@ -7,6 +7,7 @@ from cachi2.core.models.validators import unique_sorted
 PropertyName = Literal[
     "cachi2:bundler:package:binary",
     "cachi2:found_by",
+    "cachi2:rpm_summary",
     "cachi2:missing_hash:in_file",
     "cachi2:pip:package:binary",
     "cdx:npm:package:bundled",
