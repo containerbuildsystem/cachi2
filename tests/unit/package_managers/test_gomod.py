@@ -724,7 +724,7 @@ def test_parse_workspace_modules(
     # makes Dir an absolute path based on tmp_path
     module["Dir"] = str(rooted_tmp_path.join_within_root(module["Dir"]).path)
 
-    parsed_workspace = _parse_workspace_module(app_dir, module, "0.0.1")
+    parsed_workspace = _parse_workspace_module(app_dir, module)
     assert parsed_workspace == expected_module
 
 
