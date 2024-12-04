@@ -103,6 +103,28 @@ class ParsedPackage(_ParsedModel):
     module: Optional[ParsedModule] = None
 
 
+class _GoWorkUseStruct(_ParsedModel):
+    disk_path: str
+
+
+class ParsedGoWork(_ParsedModel):
+    """Repr of the go.work file returned by 'go work edit -json' (relevant fields only).
+
+    See: go work help edit
+    """
+
+    go: Optional[str] = None
+    toolchain: Optional[str] = None
+    use: Optional[list[_GoWorkUseStruct]] = []
+
+    @pydantic.field_validator("use")
+    @classmethod
+    def _empty_array(cls, val: Optional[list[_GoWorkUseStruct]]) -> list:
+        if val is None:
+            return []
+        return val
+
+
 class ResolvedGoModule(NamedTuple):
     """Contains the data for a resolved main module (a module in the user's repo)."""
 
