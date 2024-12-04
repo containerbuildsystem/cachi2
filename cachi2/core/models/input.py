@@ -214,6 +214,7 @@ class RpmPackageInput(_PackageInputBase):
     """Accepted input for a rpm package."""
 
     type: Literal["rpm"]
+    include_summary_in_sbom: bool = False
     options: Optional[ExtraOptions] = None
 
 
