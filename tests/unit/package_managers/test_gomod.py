@@ -24,6 +24,7 @@ from cachi2.core.package_managers.gomod import (
     ModuleID,
     ModuleVersionResolver,
     Package,
+    ParsedGoWork,
     ParsedModule,
     ParsedPackage,
     ResolvedGoModule,
@@ -912,6 +913,95 @@ def test_create_modules_from_parsed_data(
     )
 
     assert modules == expect_modules
+
+
+@pytest.mark.parametrize(
+    "input_json,expected",
+    [
+        pytest.param(
+            """{"Use": [], "Replace": []}""",
+            {"go": None, "toolchain": None, "use": []},
+            id="empty",
+        ),
+        pytest.param(
+            """
+            {
+                "Go": "1.999.999",
+                "Use": [
+                    {"DiskPath": "."},
+                    {"DiskPath": "./foo/bar"},
+                    {"DiskPath": "./bar/baz"}
+                ]
+            }""",
+            {
+                "go": "1.999.999",
+                "toolchain": None,
+                "use": [{"disk_path": "."}, {"disk_path": "./foo/bar"}, {"disk_path": "./bar/baz"}],
+            },
+            id="simple",
+        ),
+        pytest.param(
+            """
+            {
+                "Go": "1.999.999",
+                "Use": [
+                    {"DiskPath": "."},
+                    {"DiskPath": "./foo/bar"},
+                    {"DiskPath": "./bar/baz"}
+                ],
+                "Replace": [
+                    {
+                        "Old": {
+                                    "Path": "github.com/foo/bar"
+                               },
+                        "New": {
+                                    "Path": "github.com/bar/baz",
+                                    "Version": "v0.999.0"
+                               }
+                    }
+                ]
+            }""",
+            {
+                "go": "1.999.999",
+                "toolchain": None,
+                "use": [{"disk_path": "."}, {"disk_path": "./foo/bar"}, {"disk_path": "./bar/baz"}],
+            },
+            id="complex",
+        ),
+    ],
+)
+def test_go_work_model(input_json: str, expected: dict) -> None:
+    assert ParsedGoWork.model_validate_json(input_json).model_dump() == expected
+
+
+@pytest.mark.parametrize(
+    "input_json",
+    [
+        pytest.param("", id="invalid_json"),
+        pytest.param(
+            """
+            {
+                "Go": "1.999.999",
+                "Use": "invalid"
+            }""",
+            id="invalid_type",
+        ),
+        pytest.param(
+            """
+            {
+                "Go": "1.999.999",
+                "Use": [
+                    {"Path": "./foo/bar"},
+                ],
+            }
+            """,
+            id="missing_mandatory_attribute",
+        ),
+    ],
+)
+def test_go_work_model_fail(input_json: str) -> None:
+    with pytest.raises(ValueError):
+        ParsedGoWork.model_validate_json(input_json)
 
 
 def test_module_to_component() -> None:
