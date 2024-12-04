@@ -67,6 +67,10 @@
         {
           "name": "cachi2:found_by",
           "value": "cachi2"
+        },
+        {
+          "name": "cdx:npm:package:development",
+          "value": "true"
         }
       ],
       "purl": "pkg:npm/assertion-error@2.0.1?checksum=sha512:2338bc45071f7ea09e3558058a02a58b5b2c92521ba479c261ce809275c662807a82b26ac9e6f2ee3bf5d895108264c09c80e76dc935bb192c4f87733773d604&repository_url=https://registry.yarnpkg.com",
@@ -115,6 +119,10 @@
         {
           "name": "cachi2:found_by",
           "value": "cachi2"
+        },
+        {
+          "name": "cdx:npm:package:development",
+          "value": "true"
         }
       ],
       "purl": "pkg:npm/chai@5.1.1?checksum=sha512:a53d5980ff2b3cda9482279568463eaf242be90e075cd83c122f549cb52b8cde0803b76f402e4907efe4c5570f3431f205c73fdba0973e46cdceadeac2b38428&repository_url=https://registry.yarnpkg.com",
@@ -151,6 +159,10 @@
         {
           "name": "cachi2:found_by",
           "value": "cachi2"
+        },
+        {
+          "name": "cdx:npm:package:development",
+          "value": "true"
         }
       ],
       "purl": "pkg:npm/check-error@2.1.1?checksum=sha512:38095bf93ed5e0ea7d3b07648e682e611aa771d971e498a87f038052499317e8cd747c334da4ece2c4401a9ccb177a0ecf9c40c831ab3e07880c54260ce4e227&repository_url=https://registry.yarnpkg.com",
@@ -235,6 +247,10 @@
         {
           "name": "cachi2:found_by",
           "value": "cachi2"
+        },
+        {
+          "name": "cdx:npm:package:development",
+          "value": "true"
         }
       ],
       "purl": "pkg:npm/deep-eql@5.0.2?checksum=sha512:87993fe54e74209245a737cbea73bd8da6ae99f8cefdfd8d8cafe8601d838f39b8a7d2fedd3f6a5a966a6768406cb3eeb98abdc2b534f164320532f919b3e4e5&repository_url=https://registry.yarnpkg.com",
@@ -307,6 +323,10 @@
         {
           "name": "cachi2:found_by",
           "value": "cachi2"
+        },
+        {
+          "name": "cdx:npm:package:development",
+          "value": "true"
         }
       ],
       "purl": "pkg:npm/get-func-name@2.0.2?checksum=sha512:f2f5cebee135ebb0ad21cdcec88b5ca3b37f76946d05b60eb0fb170b3ed7fcf3279468d88d21ae64980cd58ee699ec3b04a7fd06abcb5f6b67395cb504152cc5&repository_url=https://registry.yarnpkg.com",
@@ -415,6 +435,10 @@
         {
           "name": "cachi2:found_by",
           "value": "cachi2"
+        },
+        {
+          "name": "cdx:npm:package:development",
+          "value": "true"
         }
       ],
       "purl": "pkg:npm/loupe@3.1.1?checksum=sha512:79d36effc0f930a55f1951518457fc680c624cce96ba67f3e57b1a6ad4b1943df0e11d5dfd610a513c9d09d3c66e5f4aed01bf09adc69c3576b08288a5745073&repository_url=https://registry.yarnpkg.com",
@@ -487,6 +511,10 @@
         {
           "name": "cachi2:found_by",
           "value": "cachi2"
+        },
+        {
+          "name": "cdx:npm:package:development",
+          "value": "true"
         }
       ],
       "purl": "pkg:npm/pathval@2.0.0?checksum=sha512:bc4ec9291c844b4f4a8ae9dab97ee777643dfcbee5868938b263fd4594c3783e0c56cef60e9daa345573dfd373e5ad055445b404947a0b40d8aeaeae9e8ce264&repository_url=https://registry.yarnpkg.com",
