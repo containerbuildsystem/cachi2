@@ -103,6 +103,21 @@ class ParsedPackage(_ParsedModel):
     module: Optional[ParsedModule] = None
 
 
+class _GoWorkUseStruct(_ParsedModel):
+    disk_path: str
+
+
+class ParsedGoWork(_ParsedModel):
+    """Repr of the go.work file returned by 'go work edit -json' (relevant fields only).
+
+    See: go work help edit
+    """
+
+    go: Optional[str] = None
+    toolchain: Optional[str] = None
+    use: list[_GoWorkUseStruct] = []
+
+
 class ResolvedGoModule(NamedTuple):
     """Contains the data for a resolved main module (a module in the user's repo)."""
 
