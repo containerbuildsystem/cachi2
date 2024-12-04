@@ -5,6 +5,7 @@ import re
 import shutil
 import subprocess
 import tempfile
+from collections import UserDict
 from datetime import datetime, timezone
 from functools import cached_property
 from itertools import chain
@@ -425,6 +426,84 @@ class Go:
             raise PackageManagerError(
                 f"Go execution failed: `{' '.join(cmd)}` failed with {rc=}"
             ) from e
+
+
+class GoWork(UserDict):
+    """Representation of Go's go.work file."""
+
+    def __init__(self, app_dir: RootedPath) -> None:
+        """Initialize GoWork dict."""
+        super().__init__()
+        self._path = None
+        self._app_dir = app_dir
+
+        # workspaces may not be enabled -> empty instance
+        if (rooted_path := self._get_go_work_path(app_dir)) is None:
+            return
+
+        self._path = rooted_path
+
+    def __bool__(self) -> bool:
+        return self._path is not None
+
+    @staticmethod
+    def _get_go_work(go: Go, run_params: dict[str, Any]) -> str:
+        return go(["work", "edit", "-json"], run_params)
+
+    @staticmethod
+    def _get_go_work_path(app_dir: RootedPath) -> Optional[RootedPath]:
+        go_work_file = Go()(["env", "GOWORK"], {"cwd": app_dir}).rstrip()
+
+        # workspaces can be disabled explicitly with GOWORK=off
+        if not go_work_file or go_work_file == "off":
+            return None
+
+        # make sure that the path to go.work is within the request's root
+        return app_dir.join_within_root(go_work_file)
+
+    @property
+    def path(self) -> Optional[RootedPath]:
+        """Return the go.work file path."""
+        return self._path
+
+    @cached_property
+    def dir(self) -> Optional[RootedPath]:
+        """Return the base directory for the go.work file."""
+        if self._path is None:
+            return None
+
+        return RootedPath(self._app_dir.root).join_within_root(self._path.subpath_from_root.parent)
+
+    def _parse(self, go: Go, run_params: dict[str, Any] = {}) -> "Self":
+        """Actually parse the go.work file and fill in the instance with returned data."""
+        # NOTE: This is only a temporary solution. This method is to be merged to __init__. We
+        # can't do that just yet because this is being called from fetch_gomod_source which is
+        # before we set up the correct Go toolchains. We don't need toolchains to query the GOWORK
+        # env variable, but we need correct toolchain for everything else, otherwise go might
+        # complain about not meeting the required versions, so make this effectively a "lazy"
+        # evaluation driven by the caller.
+        if self.data or self._path is None:
+            return self
+
+        go_work_json = self._get_go_work(go, run_params)
+        self.data = ParsedGoWork.model_validate_json(go_work_json).model_dump()
+        return self
+
+    def workspace_paths(self, go: Go, run_params: dict[str, Any] = {}) -> Iterable[RootedPath]:
+        """Get a list of paths to all workspace modules.
+
+        :return:RootedPath instance iterable where root is go.work's containing directory
+        """
+        if not self.data:
+            self._parse(go, run_params)
+
+        if self._path is None or self.get("use", []) == []:
+            return []
+
+        # This re-root is going to be useful when constructing workspace ParsedModule.
+        # mypy doesn't see that self.dir is directly connected to self._path which we checked
+        go_work_dir_reroot = RootedPath(self.dir.path)  # type: ignore
+        return (go_work_dir_reroot.join_within_root(p["disk_path"]) for p in self["use"])
 
 
 ModuleID = tuple[str, str]

@@ -19,6 +19,7 @@ from cachi2.core.models.output import BuildConfig, EnvironmentVariable, RequestO
 from cachi2.core.models.sbom import Component, Property
 from cachi2.core.package_managers.gomod import (
     Go,
+    GoWork,
     Module,
     ModuleDict,
     ModuleID,
@@ -2365,3 +2366,166 @@ class TestGo:
         error_msg = f"Could not extract Go toolchain version from Go's output: '{go_output}'"
         with pytest.raises(PackageManagerError, match=error_msg):
             Go(release=None).release
+
+
+class TestGoWork:
+    @pytest.mark.parametrize(
+        "go_work_env, expected",
+        [
+            pytest.param("off", {"path": None, "dir": None}, id="go_work_off"),
+            pytest.param("", {"path": None, "dir": None}, id="no_go_work"),
+            pytest.param(
+                "$GOWORK/go.work",
+                {
+                    "dir": "$GOWORK",
+                    "path": "$GOWORK/go.work",
+                },
+                id="with_go_work",
+            ),
+        ],
+    )
+    @mock.patch("cachi2.core.package_managers.gomod.run_cmd")
+    def test__init__(
+        self,
+        mock_run: mock.Mock,
+        rooted_tmp_path: RootedPath,
+        go_work_env: str,
+        expected: dict,
+    ) -> None:
+        if expected["path"] is not None:
+            go_work_env = go_work_env.replace("$GOWORK", str(rooted_tmp_path))
+            expected["dir"] = rooted_tmp_path
+            expected["path"] = rooted_tmp_path.join_within_root("go.work")
+
+        mock_run.return_value = go_work_env
+        go_work = GoWork(rooted_tmp_path)
+        assert go_work.path == expected["path"]
+        assert go_work.dir == expected["dir"]
+        assert go_work.data == {}
+
+    @mock.patch("cachi2.core.package_managers.gomod.run_cmd")
+    def test__init__fail(self, mock_run: mock.Mock, rooted_tmp_path: RootedPath) -> None:
+        mock_run.return_value = "/a/random/path/go.work"
+        with pytest.raises(PathOutsideRoot):
+            GoWork(rooted_tmp_path)
+
+    @pytest.mark.parametrize(
+        "go_work_env, expected",
+        [
+            pytest.param("", False, id="no_go_work"),
+            pytest.param("$GOWORK/go.work", True, id="with_go_work"),
+        ],
+    )
+    @mock.patch("cachi2.core.package_managers.gomod.run_cmd")
+    def test__bool__(
+        self, mock_run: mock.Mock, rooted_tmp_path: RootedPath, go_work_env: str, expected: bool
+    ) -> None:
+        if go_work_env:
+            go_work_env = go_work_env.replace("$GOWORK", str(rooted_tmp_path))
+        mock_run.return_value = go_work_env
+        assert bool(GoWork(rooted_tmp_path)) is expected
+
+    @pytest.mark.parametrize(
+        "go_work_json, expected",
+        [
+            pytest.param("", {"props": {"path": None, "dir": None}, "data": {}}, id="no_go_work"),
+            pytest.param(
+                """
+                {
+                    "Go": "1.999.999",
+                    "Use": [
+                        {"DiskPath": "."},
+                        {"DiskPath": "./foo/bar"},
+                        {"DiskPath": "./bar/baz"}
+                    ]
+                }
+                """,
+                {
+                    "props": {
+                        "dir": "$GOWORK",
+                        "path": "$GOWORK/go.work",
+                    },
+                    "data": {
+                        "go": "1.999.999",
+                        "toolchain": None,
+                        "use": [
+                            {"disk_path": "."},
+                            {"disk_path": "./foo/bar"},
+                            {"disk_path": "./bar/baz"},
+                        ],
+                    },
+                },
+                id="with_go_work",
+            ),
+        ],
+    )
+    @mock.patch("cachi2.core.package_managers.gomod.run_cmd")
+    @mock.patch("cachi2.core.package_managers.gomod.GoWork._get_go_work_path")
+    def test_parse(
+        self,
+        mock_get_go_work_path: mock.Mock,
+        mock_run: mock.Mock,
+        rooted_tmp_path: RootedPath,
+        go_work_json: str,
+        expected: dict,
+    ) -> None:
+        mock_get_go_work_path.return_value = rooted_tmp_path.join_within_root("go.work")
+        mock_run.return_value = go_work_json
+
+        if not go_work_json:
+            mock_get_go_work_path.return_value = None
+        else:
+            expected["props"]["dir"] = rooted_tmp_path
+            expected["props"]["path"] = rooted_tmp_path.join_within_root("go.work")
+
+        run_params = {"env": {"GOTOOLCHAIN": "auto"}, "cwd": str(rooted_tmp_path)}
+
+        go_work = GoWork(rooted_tmp_path)
+        go_work._parse(Go(), run_params=run_params)
+
+        assert go_work.path == expected["props"]["path"]
+        assert go_work.dir == expected["props"]["dir"]
+        assert go_work.data == expected["data"]
+
+        if go_work_json:
+            # test if _parse is idempotent
+            go_work._parse(Go(), run_params=run_params)
+            mock_run.assert_called_once_with(["go", "work", "edit", "-json"], run_params)
+
+    @pytest.mark.parametrize(
+        "go_work_json, expected",
+        [
+            pytest.param('{"Go": "1.999.999"}', [], id="minimal_go_work"),
+            pytest.param(
+                """
+                {
+                    "Go": "1.999.999",
+                    "Use": [
+                        {"DiskPath": "."},
+                        {"DiskPath": "./foo/bar"},
+                        {"DiskPath": "./bar/baz"}
+                    ]
+                }
+                """,
+                [".", "./foo/bar", "./bar/baz"],
+                id="complex_go_work",
+            ),
+        ],
+    )
+    @mock.patch("cachi2.core.package_managers.gomod.GoWork._get_go_work")
+    @mock.patch("cachi2.core.package_managers.gomod.GoWork._get_go_work_path")
+    def test_workspace_paths(
+        self,
+        mock_get_go_work_path: mock.Mock,
+        mock_get_go_work: mock.Mock,
+        rooted_tmp_path: RootedPath,
+        go_work_json: str,
+        expected: list,
+    ) -> None:
+        go = mock.Mock()
+        mock_get_go_work_path.return_value = rooted_tmp_path.join_within_root("go.work")
+        mock_get_go_work.return_value = go_work_json
+        expected = [rooted_tmp_path.join_within_root(rp) for rp in expected]
+
+        assert list(GoWork(rooted_tmp_path).workspace_paths(go)) == expected
+        mock_get_go_work.assert_called_once()
