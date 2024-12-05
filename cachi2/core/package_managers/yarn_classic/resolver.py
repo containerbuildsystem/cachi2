@@ -325,8 +325,10 @@ def resolve_packages(project: Project) -> Iterable[YarnClassicPackage]:
     yarn_lock = YarnLock.from_file(project.source_dir.join_within_root("yarn.lock"))
     runtime_deps = find_runtime_deps(project.package_json, yarn_lock, workspaces)
 
-    return chain(
-        [_get_main_package(project.package_json)],
-        _get_workspace_packages(project.source_dir, workspaces),
-        _get_packages_from_lockfile(project.source_dir, yarn_lock, runtime_deps),
+    return list(
+        chain(
+            [_get_main_package(project.package_json)],
+            _get_workspace_packages(project.source_dir, workspaces),
+            _get_packages_from_lockfile(project.source_dir, yarn_lock, runtime_deps),
+        )
     )
