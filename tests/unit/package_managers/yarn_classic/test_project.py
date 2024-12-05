@@ -4,7 +4,7 @@ import pytest
 from pyarn import lockfile  # type: ignore
 
 from cachi2.core.errors import PackageRejected
-from cachi2.core.package_managers.yarn_classic.main import _verify_repository
+from cachi2.core.package_managers.yarn_classic.main import _reject_if_pnp_install
 from cachi2.core.package_managers.yarn_classic.project import (
     ConfigFile,
     PackageJson,
@@ -205,7 +205,7 @@ def test_pnp_installs_true(
 
     _setup_pnp_installs(rooted_tmp_path, pnp_kind)
     with pytest.raises(PackageRejected):
-        _verify_repository(project)
+        _reject_if_pnp_install(project)
 
 
 @pytest.mark.parametrize(
@@ -233,4 +233,4 @@ def test_pnp_installs_false(
 
     project = Project.from_source_dir(rooted_tmp_path)
 
-    _verify_repository(project)
+    _reject_if_pnp_install(project)

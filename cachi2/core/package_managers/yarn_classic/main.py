@@ -50,7 +50,7 @@ def _resolve_yarn_project(project: Project, output_dir: RootedPath) -> None:
     """Process a request for a single yarn source directory."""
     log.info(f"Fetching the yarn dependencies at the subpath {project.source_dir}")
 
-    _verify_repository(project)
+    _reject_if_pnp_install(project)
     prefetch_env = _get_prefetch_environment_variables(output_dir)
     _verify_corepack_yarn_version(project.source_dir, prefetch_env)
     _fetch_dependencies(project.source_dir, prefetch_env)
@@ -119,11 +119,6 @@ def _reject_if_pnp_install(project: Project) -> None:
                 " and any 'node_modules' directories."
             ),
         )
-
-
-def _verify_repository(project: Project) -> None:
-    _reject_if_pnp_install(project)
-    # _check_lockfile(project)
 
 
 def _verify_corepack_yarn_version(source_dir: RootedPath, env: dict[str, str]) -> None:
