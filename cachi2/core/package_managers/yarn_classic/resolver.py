@@ -1,9 +1,8 @@
 import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from itertools import chain
 from pathlib import Path
-from typing import Iterable, Optional, Union
+from typing import Optional, Union
 from urllib.parse import urlparse
 
 from packageurl import PackageURL
@@ -338,14 +337,15 @@ def _get_workspace_packages(
     ]
 
 
-def resolve_packages(project: Project) -> Iterable[YarnClassicPackage]:
+def resolve_packages(project: Project) -> list[YarnClassicPackage]:
     """Return a list of Packages corresponding to all project dependencies."""
     workspaces = extract_workspace_metadata(project.source_dir)
     yarn_lock = YarnLock.from_file(project.source_dir.join_within_root("yarn.lock"))
     runtime_deps = find_runtime_deps(project.package_json, yarn_lock, workspaces)
 
-    return chain(
-        [_get_main_package(project.source_dir, project.package_json)],
-        _get_workspace_packages(project.source_dir, workspaces),
-        _get_packages_from_lockfile(project.source_dir, yarn_lock, runtime_deps),
-    )
+    result: list[YarnClassicPackage] = []
+
+    result.append(_get_main_package(project.source_dir, project.package_json))
+    result.extend(_get_workspace_packages(project.source_dir, workspaces))
+    result.extend(_get_packages_from_lockfile(project.source_dir, yarn_lock, runtime_deps))
+    return result
