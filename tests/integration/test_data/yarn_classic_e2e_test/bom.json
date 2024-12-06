@@ -114,6 +114,18 @@
       "version": "6.3.0"
     },
     {
+      "name": "camelcase",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:npm/camelcase@8.0.0?download_url=https://github.com/sindresorhus/camelcase/archive/2f1e273fc50281098d99627fef0853aa431139b5.tar.gz%232843ebd77073532e04e3382af6f2b92ae4e696f6",
+      "type": "library",
+      "version": "8.0.0"
+    },
+    {
       "name": "chai",
       "properties": [
         {
@@ -444,18 +456,6 @@
       "purl": "pkg:npm/loupe@3.1.1?checksum=sha512:79d36effc0f930a55f1951518457fc680c624cce96ba67f3e57b1a6ad4b1943df0e11d5dfd610a513c9d09d3c66e5f4aed01bf09adc69c3576b08288a5745073&repository_url=https://registry.yarnpkg.com",
       "type": "library",
       "version": "3.1.1"
-    },
-    {
-      "name": "mkdirp",
-      "properties": [
-        {
-          "name": "cachi2:found_by",
-          "value": "cachi2"
-        }
-      ],
-      "purl": "pkg:npm/mkdirp@8.0.0?download_url=https://github.com/sindresorhus/camelcase/archive/2f1e273fc50281098d99627fef0853aa431139b5.tar.gz%232843ebd77073532e04e3382af6f2b92ae4e696f6",
-      "type": "library",
-      "version": "8.0.0"
     },
     {
       "name": "p-limit",
