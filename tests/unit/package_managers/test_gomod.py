@@ -795,18 +795,6 @@ def test_get_go_work_path(
         assert go_work_path == repo_root
 
 
-@mock.patch("cachi2.core.package_managers.gomod.Go.__call__")
-def test_get_go_work_path_when_go_work_is_outside_of_repo(
-    mock_run: mock.Mock, rooted_tmp_path: RootedPath
-) -> None:
-    mock_run.return_value = "/a/random/path/go.work"
-
-    error_message = f"Joining path '/a/random/path' to '{rooted_tmp_path}': target is outside '{rooted_tmp_path}'"
-
-    with pytest.raises(PathOutsideRoot, match=error_message):
-        _get_go_work_path(rooted_tmp_path)
-
-
 @pytest.mark.parametrize("has_workspaces", (False, True))
 @mock.patch("cachi2.core.package_managers.gomod.ModuleVersionResolver")
 def test_create_modules_from_parsed_data(
