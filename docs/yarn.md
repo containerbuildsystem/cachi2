@@ -20,7 +20,9 @@ cache](#building-your-project-using-the-pre-fetched-yarn-dependency-cache)
 ## Cachi2's Yarn support scope
 
 ### Supported Yarn versions
-Cachi2 only currently only supports Yarn in version 3.
+Cachi2 currently supports Yarn versions 1 and 3. Version 1 is referred to as
+"Yarn Classic" and is covered in [yarn_classic.md](yarn_classic.md). This document
+describes Yarn v3 support.
 
 _Note: newer versions of Yarn are likely to be added in future releases._
 
