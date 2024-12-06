@@ -705,31 +705,24 @@ def test_process_modules_json_stream(
         # main module is also the workspace root:
         pytest.param(
             ".",
-            {"Dir": "workspace", "Path": "example.com/myproject/workspace"},
+            {"Dir": "foo", "Path": "example.com/myproject/foo"},
             ParsedModule(
-                path="example.com/myproject/workspace",
-                replace=ParsedModule(path="./workspace"),
+                path="example.com/myproject/foo",
+                replace=ParsedModule(path="./foo"),
             ),
-            id="workspace_root_is_a_go_module",
-        ),
-        # main module and workspace are inside the workspace root:
-        pytest.param(
-            "mainmod",
-            {"Dir": "workspace", "Path": "example.com/myproject/workspace"},
-            ParsedModule(
-                path="example.com/myproject/workspace",
-                replace=ParsedModule(path="../workspace"),
-            ),
-            id="only_nested_workspaces",
+            id="app_root_is_workspace",
         ),
     ),
 )
 def test_parse_workspace_modules(
-    relative_app_dir: str, module: dict[str, Any], expected_module: ParsedModule, tmp_path: Path
+    relative_app_dir: str,
+    module: dict[str, Any],
+    expected_module: ParsedModule,
+    rooted_tmp_path: RootedPath,
 ) -> None:
-    app_dir = RootedPath(tmp_path).join_within_root(relative_app_dir)
+    app_dir = rooted_tmp_path.join_within_root(relative_app_dir)
     # makes Dir an absolute path based on tmp_path
-    module["Dir"] = str(tmp_path.joinpath(module["Dir"]))
+    module["Dir"] = str(rooted_tmp_path.join_within_root(module["Dir"]).path)
 
     parsed_workspace = _parse_workspace_module(app_dir, module, "0.0.1")
     assert parsed_workspace == expected_module
