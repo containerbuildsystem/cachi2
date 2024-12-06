@@ -939,16 +939,33 @@ def _go_list_deps(
     )
 
 
-def _parse_packages(go: Go, run_params: dict[str, Any]) -> Iterator[ParsedPackage]:
+def _parse_packages(go_work: GoWork, go: Go, run_params: dict[str, Any]) -> Iterator[ParsedPackage]:
     """Return all Go packages for the project.
 
-    Query the packages from the root of the project.
+    Query the packages from the root of the project. If the project uses Go workspaces (1.18+) we
+    additionally need to execute the query from every workspace module because 'go list' command
+    isn't workspace aware and doesn't return all results if run just from the project root.
 
+    :param go_work: GoWork instance wrapping the go.work file
     :param go: Go executable wrapper instance
     :param run_params: Additional run cmd params
     :return: ParsedPackage iterator
     """
-    return iter(_go_list_deps(go, "./...", run_params))
+    all_packages: Iterable[ParsedPackage] = []
+
+    if not go_work:
+        log.debug("Querying for list of packages")
+        all_packages = _go_list_deps(go, "./...", run_params)
+    else:
+        # If there are workspace modules we need to run 'list -e ./...' under every local module
+        # path because 'go list' command isn't fully properly workspace context aware
+        for wsp in go_work.workspace_paths(go, run_params):
+            log.debug(f"Querying workspace module '{wsp.path}' for list of packages")
+
+            packages = list(_go_list_deps(go, "./...", run_params | {"cwd": wsp.path}))
+            log.debug(packages)
+            all_packages = chain(all_packages, packages)
+    return iter(all_packages)
 
 
 def _resolve_gomod(
@@ -1045,7 +1062,7 @@ def _resolve_gomod(
     _validate_local_replacements(all_modules, app_dir)
 
     log.info("Retrieving the list of packages")
-    all_packages = _parse_packages(go, run_params)
+    all_packages = _parse_packages(go_work, go, run_params)
 
     return ResolvedGoModule(main_module, all_modules, all_packages, modules_in_go_sum)
 

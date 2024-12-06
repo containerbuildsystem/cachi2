@@ -178,12 +178,14 @@ def test_resolve_gomod(
     data_dir: Path,
     gomod_request: Request,
 ) -> None:
+    go_work: Union[mock.Mock, GoWork]
+
     module_dir = gomod_request.source_dir.join_within_root("path/to/module")
     mocked_data_folder = "non-vendored" if not has_workspaces else "workspaces"
     mock_disable_telemetry.return_value = None
-    mock_get_go_work_path.return_value = module_dir.join_within_root("go_work.json")
-    mock_get_go_work.return_value = get_mocked_data(data_dir, "workspaces/go_work.json")
-    go_work = GoWork(module_dir)
+    workspace_paths: list = []
+    go_work = mock.MagicMock()
+    go_work.__bool__.return_value = False
 
     # Mock the "subprocess.run" calls
     run_side_effects = []
@@ -222,19 +224,30 @@ def test_resolve_gomod(
     mock_parse_packages.return_value = parse_packages_mocked_data
 
     if has_workspaces:
+        mocked_go_work_path = RootedPath(get_mock_dir(data_dir) / "workspaces/go_work.json")
+        mock_get_go_work_path.return_value = mocked_go_work_path
+        mock_get_go_work.return_value = get_mocked_data(data_dir, "workspaces/go_work.json")
         go_work_path = module_dir.join_within_root("workspace_root")
         go_work_path.path.mkdir(parents=True, exist_ok=True)
         go_work_path.join_within_root("go.sum").path.write_text(
             get_mocked_data(data_dir, "workspaces/go.sum")
         )
+        go_work = GoWork(RootedPath(get_mock_dir(data_dir) / "workspaces"))
 
-    run_side_effects.append(
-        proc_mock(
-            "go mod download -json",
-            returncode=0,
-            stdout=get_mocked_data(data_dir, f"{mocked_data_folder}/go_mod_download.json"),
-        )
-    )
+        # we need to mock _parse_packages queries to all workspace module directories
+        workspace_paths = list(go_work.workspace_paths(mock.Mock(), {}))
+        for wsp in workspace_paths:
+            fp = f"{wsp}/go_list_deps_threedot.json"
+            mocked_data = _parse_go_list_deps_data(data_dir, fp)
+            parse_packages_mocked_data.extend(mocked_data)
+
+        # This is a dirty hack we need because we're faking the runtime directories, but actually
+        # read the mock data from elsewhere and 'dir' is a cached_property. Therefore, we need to
+        # mangle some private attributes and delete the property to force re-computing it using
+        # the expected fake info.
+        go_work._app_dir = module_dir
+        go_work._path = module_dir.join_within_root("go.work")
+        del go_work.dir
 
     flags: list[Flag] = []
     if cgo_disable:
@@ -2072,22 +2085,71 @@ def test_disable_telemetry(
         mock_run_cmd.assert_called_with(cmd, params)
 
 
-def test_parse_packages(data_dir: Path) -> None:
+@pytest.mark.parametrize(
+    "input_subdir, expected_outfile",
+    [
+        pytest.param("non-vendored", "resolve_gomod.json", id="without_workspaces"),
+        pytest.param("workspaces", "resolve_gomod_workspaces.json", id="with_workspaces"),
+    ],
+)
+@mock.patch("cachi2.core.package_managers.gomod.GoWork._get_go_work_path")
+@mock.patch("cachi2.core.package_managers.gomod.GoWork._get_go_work")
+def test_parse_packages(
+    mock_get_go_work: mock.Mock,
+    mock_get_go_work_path: mock.Mock,
+    request: pytest.FixtureRequest,
+    rooted_tmp_path: RootedPath,
+    data_dir: Path,
+    input_subdir: str,
+    expected_outfile: str,
+) -> None:
     """Test parsing of packages into ParsedPackage structures with real-like data.
 
     Calls into _go_list_deps. Low level go command interaction testing was already done in
-    test_go_list_deps.
+    test_go_list_deps. Note querying workspaces will return some data duplicated - that's
+    expected.
     """
-    mocked_indata = get_mocked_data(data_dir, "non-vendored/go_list_deps_threedot.json")
-    mocked_outdata = json.loads(get_mocked_data(data_dir, "expected-results/resolve_gomod.json"))
+    go_work: Union[mock.Mock, GoWork]
+    mocked_indata: str
+
+    ws_paths: list = []
+    mocked_outdata = json.loads(get_mocked_data(data_dir, f"expected-results/{expected_outfile}"))
     expected = [ParsedPackage(**package) for package in mocked_outdata["packages"]]
 
     go = mock.MagicMock()
-    go.return_value = mocked_indata
-    pkgs = _parse_packages(go, {})
+    if request.node.callspec.id == "without_workspaces":
+        mocked_indata = get_mocked_data(data_dir, f"{input_subdir}/go_list_deps_threedot.json")
+
+        go_work = mock.MagicMock()
+        go_work.__bool__.return_value = False
+        go.return_value = mocked_indata
+    else:
+        side_effects = []
+
+        mocked_go_work_json_path = get_mock_dir(data_dir) / f"{input_subdir}/go_work.json"
+        mock_get_go_work_path.return_value = RootedPath(mocked_go_work_json_path)
+        mock_get_go_work.return_value = get_mocked_data(data_dir, f"{input_subdir}/go_work.json")
+        go_work = GoWork(rooted_tmp_path)
+
+        # add each <workspace_module>/go_list_deps_threedot.json as a side-effect to Go() execution
+        ws_paths = list(go_work.workspace_paths(go, {}))
+        for wp in ws_paths:
+            indata_relative = f"{input_subdir}/{wp.subpath_from_root}/go_list_deps_threedot.json"
+            mocked_indata = get_mocked_data(data_dir, indata_relative)
+            side_effects.append(mocked_indata)
+
+        go.side_effect = side_effects
+
+    run_params = {"env": {"GOMODCACHE": "foo"}}
+    pkgs = _parse_packages(go_work, go, run_params)
 
     calls = go.call_args_list
-    go.assert_called_once()
+    if request.node.callspec.id == "without_workspaces":
+        go.assert_called_once()
+    else:
+        calls = go.call_args_list
+        assert go.call_count == len(ws_paths)
+        assert all([run_params | {"cwd": ws_paths[i].path} in c.args for i, c in enumerate(calls)])
 
     # _parse_packages calls _go_list_deps always with the './...' pattern
     assert all("./..." in call.args[0] for call in calls)
