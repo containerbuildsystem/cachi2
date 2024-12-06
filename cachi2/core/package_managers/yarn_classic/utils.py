@@ -1,5 +1,8 @@
+import re
 from collections import deque
+from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 from pyarn.lockfile import Package as PYarnPackage
 
@@ -110,3 +113,42 @@ def _find_transitive_deps(
                 bfs_queue.append(new_dep)
 
     return visited
+
+
+# https://github.com/yarnpkg/yarn/blob/7cafa512a777048ce0b666080a24e80aae3d66a9/src/fetchers/tarball-fetcher.js#L21
+RE_URL_NAME_MATCH = r"/(?:(@[^/]+)(?:\/|%2f))?[^/]+/(?:-|_attachments)/(?:@[^/]+\/)?([^/]+)$"
+
+
+# https://github.com/yarnpkg/yarn/blob/7cafa512a777048ce0b666080a24e80aae3d66a9/src/fetchers/tarball-fetcher.js#L65
+def get_tarball_mirror_name(url: str) -> str:
+    """Get the name of the tarball file that will be stored in the offline mirror."""
+    parsed_url = urlparse(url)
+    path = Path(parsed_url.path)
+
+    match = re.search(RE_URL_NAME_MATCH, str(path))
+
+    if match is not None:
+        scope, tarball_basename = match.groups()
+        package_filename = f"{scope}-{tarball_basename}" if scope else tarball_basename
+    else:
+        package_filename = path.name
+
+    return package_filename
+
+
+# https://github.com/yarnpkg/yarn/blob/7cafa512a777048ce0b666080a24e80aae3d66a9/src/fetchers/git-fetcher.js#L40
+def get_git_tarball_mirror_name(url: str) -> str:
+    """Get the name of the tarball file that will be stored in the offline mirror for git packages."""
+    parsed_url = urlparse(url)
+    path = Path(parsed_url.path)
+
+    package_filename = path.name
+    hash = parsed_url.fragment
+
+    if hash:
+        package_filename = f"{package_filename}-{hash}"
+
+    if package_filename.startswith(":"):
+        package_filename = package_filename[1:]
+
+    return package_filename

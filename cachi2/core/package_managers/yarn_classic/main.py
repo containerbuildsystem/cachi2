@@ -1,9 +1,7 @@
 import logging
-import re
 from collections import Counter
 from pathlib import Path
 from typing import Any, Iterable
-from urllib.parse import urlparse
 
 from cachi2.core.errors import PackageManagerError, PackageRejected
 from cachi2.core.models.input import Request
@@ -20,6 +18,10 @@ from cachi2.core.package_managers.yarn_classic.resolver import (
     UrlPackage,
     YarnClassicPackage,
     resolve_packages,
+)
+from cachi2.core.package_managers.yarn_classic.utils import (
+    get_git_tarball_mirror_name,
+    get_tarball_mirror_name,
 )
 from cachi2.core.rooted_path import RootedPath
 
@@ -182,10 +184,10 @@ def _verify_no_offline_mirror_collisions(packages: Iterable[YarnClassicPackage])
     tarballs = []
     for p in packages:
         if isinstance(p, (RegistryPackage, UrlPackage)):
-            tarball_name = _get_tarball_mirror_name(p.url)
+            tarball_name = get_tarball_mirror_name(p.url)
             tarballs.append(tarball_name)
         elif isinstance(p, GitPackage):
-            tarball_name = _get_git_tarball_mirror_name(p.url)
+            tarball_name = get_git_tarball_mirror_name(p.url)
             tarballs.append(tarball_name)
         else:
             # file, link, and workspace packages are not copied to the offline mirror
@@ -195,43 +197,6 @@ def _verify_no_offline_mirror_collisions(packages: Iterable[YarnClassicPackage])
     duplicate_tarballs = [f"{name} ({count}x)" for name, count in c.most_common() if count > 1]
     if len(duplicate_tarballs) > 0:
         raise PackageManagerError(f"Duplicate tarballs detected: {', '.join(duplicate_tarballs)}")
-
-
-# https://github.com/yarnpkg/yarn/blob/7cafa512a777048ce0b666080a24e80aae3d66a9/src/fetchers/tarball-fetcher.js#L21
-RE_URL_NAME_MATCH = r"/(?:(@[^/]+)(?:\/|%2f))?[^/]+/(?:-|_attachments)/(?:@[^/]+\/)?([^/]+)$"
-
-
-# https://github.com/yarnpkg/yarn/blob/7cafa512a777048ce0b666080a24e80aae3d66a9/src/fetchers/tarball-fetcher.js#L65
-def _get_tarball_mirror_name(url: str) -> str:
-    parsed_url = urlparse(url)
-    path = Path(parsed_url.path)
-
-    match = re.search(RE_URL_NAME_MATCH, str(path))
-
-    if match is not None:
-        scope, tarball_basename = match.groups()
-        package_filename = f"{scope}-{tarball_basename}" if scope else tarball_basename
-    else:
-        package_filename = path.name
-
-    return package_filename
-
-
-# https://github.com/yarnpkg/yarn/blob/7cafa512a777048ce0b666080a24e80aae3d66a9/src/fetchers/git-fetcher.js#L40
-def _get_git_tarball_mirror_name(url: str) -> str:
-    parsed_url = urlparse(url)
-    path = Path(parsed_url.path)
-
-    package_filename = path.name
-    hash = parsed_url.fragment
-
-    if hash:
-        package_filename = f"{package_filename}-{hash}"
-
-    if package_filename.startswith(":"):
-        package_filename = package_filename[1:]
-
-    return package_filename
 
 
 # References
