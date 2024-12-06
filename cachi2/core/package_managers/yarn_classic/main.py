@@ -6,6 +6,7 @@ from typing import Any, Iterable
 from cachi2.core.errors import PackageManagerError, PackageRejected
 from cachi2.core.models.input import Request
 from cachi2.core.models.output import Component, EnvironmentVariable, RequestOutput
+from cachi2.core.models.property_semantics import PropertySet
 from cachi2.core.package_managers.yarn.utils import (
     VersionsRange,
     extract_yarn_version_from_env,
@@ -61,14 +62,16 @@ def fetch_yarn_source(request: Request) -> RequestOutput:
     for package in request.yarn_packages:
         package_path = request.source_dir.join_within_root(package.path)
         _ensure_mirror_dir_exists(request.output_dir)
-        _resolve_yarn_project(Project.from_source_dir(package_path), request.output_dir)
+        components.extend(
+            _resolve_yarn_project(Project.from_source_dir(package_path), request.output_dir)
+        )
 
     return RequestOutput.from_obj_list(
         components, _generate_build_environment_variables(), project_files=[]
     )
 
 
-def _resolve_yarn_project(project: Project, output_dir: RootedPath) -> None:
+def _resolve_yarn_project(project: Project, output_dir: RootedPath) -> list[Component]:
     """Process a request for a single yarn source directory."""
     log.info(f"Fetching the yarn dependencies at the subpath {project.source_dir}")
 
@@ -78,6 +81,25 @@ def _resolve_yarn_project(project: Project, output_dir: RootedPath) -> None:
     _fetch_dependencies(project.source_dir, prefetch_env)
     packages = resolve_packages(project, output_dir.join_within_root(MIRROR_DIR))
     _verify_no_offline_mirror_collisions(packages)
+
+    return _create_sbom_components(packages)
+
+
+def _create_sbom_components(packages: Iterable[YarnClassicPackage]) -> list[Component]:
+    """Create SBOM components from the given yarn packages."""
+    result = []
+    for package in packages:
+        properties = PropertySet(npm_development=package.dev).to_properties()
+        result.append(
+            Component(
+                name=package.name,
+                purl=package.purl,
+                version=package.version,
+                properties=properties,
+            )
+        )
+
+    return result
 
 
 def _fetch_dependencies(source_dir: RootedPath, env: dict[str, str]) -> None:

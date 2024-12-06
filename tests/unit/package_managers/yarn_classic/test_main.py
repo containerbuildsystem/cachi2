@@ -1,3 +1,4 @@
+import itertools
 import json
 from pathlib import Path
 from typing import Any, Iterable
@@ -54,19 +55,48 @@ def test_generate_build_environment_variables(
 
 
 @pytest.mark.parametrize(
-    "input_request, components",
-    [
+    "input_request, package_components",
+    (
         pytest.param(
             [{"type": "yarn", "path": "."}],
-            [],
+            [
+                [
+                    Component(
+                        name="foo",
+                        purl="pkg:npm/foo@1.0.0",
+                        version="1.0.0",
+                    ),
+                    Component(name="bar", purl="pkg:npm/bar@2.0.0", version="2.0.0"),
+                ],
+            ],
             id="single_input_package",
         ),
         pytest.param(
             [{"type": "yarn", "path": "."}, {"type": "yarn", "path": "./path"}],
-            [],
+            [
+                [
+                    Component(
+                        name="foo",
+                        purl="pkg:npm/foo@1.0.0",
+                        version="1.0.0",
+                    ),
+                ],
+                [
+                    Component(
+                        name="bar",
+                        purl="pkg:npm/bar@2.0.0",
+                        version="2.0.0",
+                    ),
+                    Component(
+                        name="baz",
+                        purl="pkg:npm/baz@3.0.0",
+                        version="3.0.0",
+                    ),
+                ],
+            ],
             id="multiple_input_packages",
         ),
-    ],
+    ),
     indirect=["input_request"],
 )
 @mock.patch("cachi2.core.package_managers.yarn_classic.main._resolve_yarn_project")
@@ -75,26 +105,28 @@ def test_fetch_yarn_source(
     mock_create_project: mock.Mock,
     mock_resolve_yarn: mock.Mock,
     input_request: Request,
+    package_components: list[Component],
     yarn_classic_env_variables: list[EnvironmentVariable],
-    components: list[Component],
 ) -> None:
-    expected_output = RequestOutput(
-        components=components,
-        build_config=BuildConfig(environment_variables=yarn_classic_env_variables),
-    )
     package_dirs = [
         input_request.source_dir.join_within_root(p.path) for p in input_request.packages
     ]
     projects = [_prepare_project(path, {}) for path in package_dirs]
+
     mock_create_project.side_effect = projects
+    mock_resolve_yarn.side_effect = package_components
 
     output = fetch_yarn_source(input_request)
 
     mock_create_project.assert_has_calls([mock.call(path) for path in package_dirs])
     mock_resolve_yarn.assert_has_calls([mock.call(p, input_request.output_dir) for p in projects])
 
-    assert input_request.output_dir.join_within_root("deps/yarn-classic").path.exists()
+    expected_output = RequestOutput(
+        components=list(itertools.chain.from_iterable(package_components)),
+        build_config=BuildConfig(environment_variables=yarn_classic_env_variables),
+    )
     assert output == expected_output
+    assert input_request.output_dir.join_within_root(MIRROR_DIR).path.exists()
 
 
 @mock.patch("cachi2.core.package_managers.yarn_classic.main.resolve_packages")
