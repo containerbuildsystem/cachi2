@@ -574,24 +574,25 @@ def test_parse_broken_go_sum(rooted_tmp_path: RootedPath, caplog: pytest.LogCapt
     ]
 
 
-@mock.patch("cachi2.core.package_managers.gomod.Go")
 @mock.patch("cachi2.core.package_managers.gomod.ModuleVersionResolver")
-def test_parse_local_modules(go: mock.Mock, version_resolver: mock.Mock) -> None:
-    go.return_value = """
+def test_parse_local_modules(version_resolver: mock.Mock) -> None:
+    go_list_m_json = """
     {
         "Path": "myorg.com/my-project",
         "Main": true,
         "Dir": "/path/to/project"
     }
     {
-        "Path": "myorg.com/my-project/workspace",
+        "Path": "myorg.com/my-project/workspace/foo",
         "Main": true,
-        "Dir": "/path/to/project/workspace"
+        "Dir": "/path/to/project/workspace/foo"
     }
     """
 
     app_dir = RootedPath("/path/to/project")
     version_resolver.get_golang_version.return_value = "1.0.0"
+    go = mock.Mock()
+    go.return_value = go_list_m_json
 
     main_module, workspace_modules = _parse_local_modules(go, [], {}, app_dir, version_resolver)
 
@@ -602,8 +603,8 @@ def test_parse_local_modules(go: mock.Mock, version_resolver: mock.Mock) -> None
     )
 
     assert workspace_modules[0] == ParsedModule(
-        path="myorg.com/my-project/workspace",
-        replace=ParsedModule(path="./workspace"),
+        path="myorg.com/my-project/workspace/foo",
+        replace=ParsedModule(path="./workspace/foo"),
     )
 
 
