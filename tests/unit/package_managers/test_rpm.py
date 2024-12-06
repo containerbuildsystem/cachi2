@@ -361,7 +361,7 @@ def test_resolve_rpm_project(
         mock_model_validate.return_value, mock_package_dir_path, None
     )
     mock_verify_downloaded.assert_called_once_with({})
-    mock_generate_sbom_components.assert_called_once_with({}, Path("rpms.lock.yaml"))
+    mock_generate_sbom_components.assert_called_once_with({}, Path("rpms.lock.yaml"), False)
 
 
 @mock.patch("cachi2.core.package_managers.rpm.main.run_cmd")
