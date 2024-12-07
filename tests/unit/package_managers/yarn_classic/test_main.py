@@ -10,6 +10,7 @@ from cachi2.core.models.input import Request
 from cachi2.core.models.output import BuildConfig, EnvironmentVariable, RequestOutput
 from cachi2.core.models.sbom import Component
 from cachi2.core.package_managers.yarn_classic.main import (
+    MIRROR_DIR,
     _fetch_dependencies,
     _generate_build_environment_variables,
     _get_prefetch_environment_variables,
@@ -122,7 +123,7 @@ def test_resolve_yarn_project(
     mock_fetch_dependencies.assert_called_once_with(
         project.source_dir, mock_prefetch_env_vars.return_value
     )
-    mock_resolve_packages.assert_called_once_with(project)
+    mock_resolve_packages.assert_called_once_with(project, output_dir.join_within_root(MIRROR_DIR))
 
 
 @mock.patch("cachi2.core.package_managers.yarn_classic.main.run_yarn_cmd")
