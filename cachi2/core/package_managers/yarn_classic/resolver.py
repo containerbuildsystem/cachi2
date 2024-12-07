@@ -1,8 +1,10 @@
+import json
 import re
+import tarfile
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional, Union
+from typing import Any, Iterable, Optional, Union
 from urllib.parse import urlparse
 
 from packageurl import PackageURL
@@ -12,7 +14,11 @@ from cachi2.core.checksum import ChecksumInfo
 from cachi2.core.errors import PackageRejected, UnexpectedFormat
 from cachi2.core.package_managers.npm import NPM_REGISTRY_CNAMES
 from cachi2.core.package_managers.yarn_classic.project import PackageJson, Project, YarnLock
-from cachi2.core.package_managers.yarn_classic.utils import find_runtime_deps
+from cachi2.core.package_managers.yarn_classic.utils import (
+    find_runtime_deps,
+    get_git_tarball_mirror_name,
+    get_tarball_mirror_name,
+)
 from cachi2.core.package_managers.yarn_classic.workspaces import (
     Workspace,
     extract_workspace_metadata,
@@ -181,8 +187,11 @@ YarnClassicPackage = Union[
 
 
 class _YarnClassicPackageFactory:
-    def __init__(self, source_dir: RootedPath, runtime_deps: set[str]) -> None:
+    def __init__(
+        self, source_dir: RootedPath, mirror_dir: RootedPath, runtime_deps: set[str]
+    ) -> None:
         self._source_dir = source_dir
+        self._mirror_dir = mirror_dir
         self._runtime_deps = runtime_deps
 
     def create_package_from_pyarn_package(self, package: PYarnPackage) -> YarnClassicPackage:
@@ -200,6 +209,7 @@ class _YarnClassicPackageFactory:
         dev = package_id not in self._runtime_deps
 
         if _is_from_npm_registry(package.url):
+            # registry packages should already have the correct name
             return RegistryPackage(
                 name=package.name,
                 version=package.version,
@@ -214,29 +224,47 @@ class _YarnClassicPackageFactory:
             path = self._source_dir.join_within_root(package.path)
             # File packages have a url, whereas link packages do not
             if package.url:
+                real_name = _read_name_from_tarball(path)
+
                 return FilePackage(
-                    name=package.name,
+                    name=real_name,
                     version=package.version,
                     path=path,
                     integrity=package.checksum,
                     dev=dev,
                 )
+
+            package_json_path = path.join_within_root("package.json")
+            # package.json is not required for link packages
+            if package_json_path.path.exists():
+                real_name = _read_name_from_package_json(package_json_path)
+            else:
+                real_name = package.name
+
             return LinkPackage(
-                name=package.name,
+                name=real_name,
                 version=package.version,
                 path=path,
                 dev=dev,
             )
         elif _is_git_url(package.url):
+            tarball_name = get_git_tarball_mirror_name(package.url)
+            tarball_path = self._mirror_dir.join_within_root(tarball_name)
+            real_name = _read_name_from_tarball(tarball_path)
+
             return GitPackage(
-                name=package.name,
+                name=real_name,
                 version=package.version,
                 url=package.url,
                 dev=dev,
             )
         elif _is_tarball_url(package.url):
+            tarball_name = get_tarball_mirror_name(package.url)
+            tarball_path = self._mirror_dir.join_within_root(tarball_name)
+            real_name = _read_name_from_tarball(tarball_path)
+
             return UrlPackage(
-                name=package.name,
+                name=real_name,
                 version=package.version,
                 url=package.url,
                 integrity=package.checksum,
@@ -298,11 +326,11 @@ def _is_from_npm_registry(url: str) -> bool:
 
 
 def _get_packages_from_lockfile(
-    source_dir: RootedPath, yarn_lock: YarnLock, runtime_deps: set[str]
+    source_dir: RootedPath, mirror_dir: RootedPath, yarn_lock: YarnLock, runtime_deps: set[str]
 ) -> list[YarnClassicPackage]:
     """Return a list of Packages for all dependencies in yarn.lock."""
     pyarn_packages: list[PYarnPackage] = yarn_lock.yarn_lockfile.packages()
-    package_factory = _YarnClassicPackageFactory(source_dir, runtime_deps)
+    package_factory = _YarnClassicPackageFactory(source_dir, mirror_dir, runtime_deps)
 
     return [
         package_factory.create_package_from_pyarn_package(package) for package in pyarn_packages
@@ -337,7 +365,7 @@ def _get_workspace_packages(
     ]
 
 
-def resolve_packages(project: Project) -> list[YarnClassicPackage]:
+def resolve_packages(project: Project, mirror_dir: RootedPath) -> Iterable[YarnClassicPackage]:
     """Return a list of Packages corresponding to all project dependencies."""
     workspaces = extract_workspace_metadata(project.source_dir)
     yarn_lock = YarnLock.from_file(project.source_dir.join_within_root("yarn.lock"))
@@ -347,5 +375,37 @@ def resolve_packages(project: Project) -> list[YarnClassicPackage]:
 
     result.append(_get_main_package(project.source_dir, project.package_json))
     result.extend(_get_workspace_packages(project.source_dir, workspaces))
-    result.extend(_get_packages_from_lockfile(project.source_dir, yarn_lock, runtime_deps))
+    result.extend(
+        _get_packages_from_lockfile(project.source_dir, mirror_dir, yarn_lock, runtime_deps)
+    )
     return result
+
+
+def _read_name_from_tarball(tarball_path: RootedPath) -> str:
+    """Read the package name from the package.json file in the cached tarball."""
+    with tarfile.open(tarball_path) as tar:
+        names = tar.getnames()
+        package_json_subpath = next((n for n in names if n.endswith("package.json")), None)
+        if package_json_subpath is None:
+            raise ValueError(f"No package.json found in the tarball {tarball_path}")
+
+        package_json = tar.extractfile(package_json_subpath)
+        if package_json is None:
+            raise ValueError(f"Failed to extract package.json from {tarball_path}")
+
+        package_json_content: dict[str, Any] = json.loads(package_json.read())
+
+        if (name := package_json_content.get("name")) is None:
+            raise ValueError(f"No 'name' field found in package.json in {tarball_path}")
+
+        return name
+
+
+def _read_name_from_package_json(path: RootedPath) -> str:
+    """Read the package name from a package.json file."""
+    package_json = PackageJson.from_file(path)
+
+    if (name := package_json.data.get("name")) is None:
+        raise ValueError(f"No 'name' field found in package.json in {path}")
+
+    return name

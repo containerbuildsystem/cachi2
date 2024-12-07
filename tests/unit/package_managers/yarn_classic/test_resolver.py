@@ -1,4 +1,7 @@
+import io
+import json
 import re
+import tarfile
 from unittest import mock
 from urllib.parse import quote
 
@@ -8,6 +11,7 @@ from pyarn.lockfile import Package as PYarnPackage
 
 from cachi2.core.checksum import ChecksumInfo
 from cachi2.core.errors import PackageRejected, UnexpectedFormat
+from cachi2.core.package_managers.yarn_classic.main import MIRROR_DIR
 from cachi2.core.package_managers.yarn_classic.project import PackageJson
 from cachi2.core.package_managers.yarn_classic.resolver import (
     FilePackage,
@@ -23,6 +27,7 @@ from cachi2.core.package_managers.yarn_classic.resolver import (
     _is_from_npm_registry,
     _is_git_url,
     _is_tarball_url,
+    _read_name_from_tarball,
     _YarnClassicPackageFactory,
     resolve_packages,
 )
@@ -106,7 +111,11 @@ def test__is_from_npm_registry_can_parse_incorrect_registry_urls() -> None:
     assert not _is_from_npm_registry("https://example.org/fecha.tar.gz")
 
 
-def test_create_package_from_pyarn_package(rooted_tmp_path: RootedPath) -> None:
+@mock.patch("cachi2.core.package_managers.yarn_classic.resolver._read_name_from_tarball")
+def test_create_package_from_pyarn_package(
+    mock_read_name_from_tarball: mock.Mock,
+    rooted_tmp_path: RootedPath,
+) -> None:
     test_cases: list[tuple[PYarnPackage, YarnClassicPackage]] = [
         (
             PYarnPackage(
@@ -179,13 +188,14 @@ def test_create_package_from_pyarn_package(rooted_tmp_path: RootedPath) -> None:
     ]
 
     for pyarn_package, expected_package in test_cases:
+        mock_read_name_from_tarball.return_value = expected_package.name
         runtime_deps = (
             set()
             if expected_package.dev
             else set({f"{pyarn_package.name}@{pyarn_package.version}"})
         )
 
-        package_factory = _YarnClassicPackageFactory(rooted_tmp_path, runtime_deps)
+        package_factory = _YarnClassicPackageFactory(rooted_tmp_path, rooted_tmp_path, runtime_deps)
         assert package_factory.create_package_from_pyarn_package(pyarn_package) == expected_package
 
 
@@ -200,7 +210,7 @@ def test_create_package_from_pyarn_package_fail_absolute_path(rooted_tmp_path: R
         f"({pyarn_package.path}), which is not permitted."
     )
 
-    package_factory = _YarnClassicPackageFactory(rooted_tmp_path, set())
+    package_factory = _YarnClassicPackageFactory(rooted_tmp_path, rooted_tmp_path, set())
     with pytest.raises(PackageRejected, match=re.escape(error_msg)):
         package_factory.create_package_from_pyarn_package(pyarn_package)
 
@@ -214,7 +224,7 @@ def test_create_package_from_pyarn_package_fail_path_outside_root(
         path="../path/outside/root",
     )
 
-    package_factory = _YarnClassicPackageFactory(rooted_tmp_path, set())
+    package_factory = _YarnClassicPackageFactory(rooted_tmp_path, rooted_tmp_path, set())
     with pytest.raises(PathOutsideRoot):
         package_factory.create_package_from_pyarn_package(pyarn_package)
 
@@ -228,7 +238,7 @@ def test_create_package_from_pyarn_package_fail_unexpected_format(
         url="ftp://some-tarball.tgz",
     )
 
-    package_factory = _YarnClassicPackageFactory(rooted_tmp_path, set())
+    package_factory = _YarnClassicPackageFactory(rooted_tmp_path, rooted_tmp_path, set())
     with pytest.raises(UnexpectedFormat):
         package_factory.create_package_from_pyarn_package(pyarn_package)
 
@@ -255,7 +265,7 @@ def test__get_packages_from_lockfile(
         mock.call(mock_pyarn_package_2),
     ]
 
-    output = _get_packages_from_lockfile(rooted_tmp_path, mock_yarn_lock, set())
+    output = _get_packages_from_lockfile(rooted_tmp_path, rooted_tmp_path, mock_yarn_lock, set())
 
     mock_pyarn_lockfile.packages.assert_called_once()
     mock_create_package.assert_has_calls(create_package_expected_calls)
@@ -290,7 +300,7 @@ def test_resolve_packages(
     mock_get_lockfile_packages.return_value = lockfile_packages
     mock_get_workspace_packages.return_value = workspace_packages
 
-    output = resolve_packages(project)
+    output = resolve_packages(project, rooted_tmp_path.join_within_root(MIRROR_DIR))
     mock_extract_workspaces.assert_called_once_with(rooted_tmp_path)
     mock_get_yarn_lock.assert_called_once_with(yarn_lock_path)
     mock_get_main_package.assert_called_once_with(project.source_dir, project.package_json)
@@ -299,6 +309,7 @@ def test_resolve_packages(
     )
     mock_get_lockfile_packages.assert_called_once_with(
         rooted_tmp_path,
+        rooted_tmp_path.join_within_root(MIRROR_DIR),
         mock_get_yarn_lock.return_value,
         find_runtime_deps.return_value,
     )
@@ -432,3 +443,38 @@ def test_package_purl(rooted_tmp_path_repo: RootedPath) -> None:
 
     for package, expected_purl in yarn_classic_packages:
         assert package.purl == expected_purl
+
+
+def mock_tarball(path: RootedPath, package_json_content: dict[str, str]) -> RootedPath:
+    tarball_path = path.join_within_root("package.tar.gz")
+
+    if not package_json_content:
+        with tarfile.open(tarball_path, mode="w:gz") as tar:
+            tar.addfile(tarfile.TarInfo(name="foo"), io.BytesIO())
+
+        return tarball_path
+
+    with tarfile.open(tarball_path, mode="w:gz") as tar:
+        package_json_bytes = json.dumps(package_json_content).encode("utf-8")
+        info = tarfile.TarInfo(name="package.json")
+        info.size = len(package_json_bytes)
+        tar.addfile(info, io.BytesIO(package_json_bytes))
+
+    return tarball_path
+
+
+def test_successful_name_extraction(rooted_tmp_path: RootedPath) -> None:
+    tarball_path = mock_tarball(path=rooted_tmp_path, package_json_content={"name": "foo"})
+    assert _read_name_from_tarball(tarball_path) == "foo"
+
+
+def test_no_package_json(rooted_tmp_path: RootedPath) -> None:
+    tarball_path = mock_tarball(path=rooted_tmp_path, package_json_content={})
+    with pytest.raises(ValueError, match="No package.json found"):
+        _read_name_from_tarball(tarball_path)
+
+
+def test_missing_name_field(rooted_tmp_path: RootedPath) -> None:
+    tarball_path = mock_tarball(path=rooted_tmp_path, package_json_content={"key": "foo"})
+    with pytest.raises(ValueError, match="No 'name' field found"):
+        _read_name_from_tarball(tarball_path)

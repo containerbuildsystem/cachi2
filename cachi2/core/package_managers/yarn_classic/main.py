@@ -76,7 +76,7 @@ def _resolve_yarn_project(project: Project, output_dir: RootedPath) -> None:
     prefetch_env = _get_prefetch_environment_variables(output_dir)
     _verify_corepack_yarn_version(project.source_dir, prefetch_env)
     _fetch_dependencies(project.source_dir, prefetch_env)
-    packages = resolve_packages(project)
+    packages = resolve_packages(project, output_dir.join_within_root(MIRROR_DIR))
     _verify_no_offline_mirror_collisions(packages)
 
 
