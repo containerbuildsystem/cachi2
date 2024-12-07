@@ -1118,20 +1118,6 @@ def _parse_workspace_module(
     )
 
 
-def _get_go_work_path(app_dir: RootedPath) -> Optional[RootedPath]:
-    """Get the directory that contains the go.work file, if it exists."""
-    go = Go()
-    go_work_file = go(["env", "GOWORK"], {"cwd": app_dir}).rstrip()
-
-    if not go_work_file or go_work_file == "off":
-        return None
-
-    go_work_path = Path(go_work_file).parent
-
-    # make sure that the path to go.work is within the request's root
-    return app_dir.join_within_root(go_work_path)
-
-
 def _parse_go_sum_from_workspaces(
     go_work: GoWork,
     go: Go,
