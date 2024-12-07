@@ -35,7 +35,6 @@ from cachi2.core.package_managers.gomod import (
     _deduplicate_resolved_modules,
     _disable_telemetry,
     _get_go_sum_files,
-    _get_go_work_path,
     _get_gomod_version,
     _get_repository_name,
     _parse_go_sum,
@@ -783,33 +782,6 @@ def test_get_go_sum_files(
 
     expected_files = [rooted_tmp_path.join_within_root(p) for p in relative_file_paths]
     assert files == expected_files
-
-
-@pytest.mark.parametrize(
-    "path_to_go_work_file, should_return_none",
-    (
-        pytest.param(Template("$tmp_path/project"), False, id="go_work_exists"),
-        pytest.param(Template(""), True, id="go_work_does_not_exist"),
-        pytest.param(Template("off"), True, id="go_work_disabled"),
-    ),
-)
-@mock.patch("cachi2.core.package_managers.gomod.Go.__call__")
-def test_get_go_work_path(
-    mock_run: mock.Mock,
-    path_to_go_work_file: Template,
-    should_return_none: bool,
-    tmp_path: Path,
-) -> None:
-    mock_run.return_value = path_to_go_work_file.substitute({"tmp_path": tmp_path})
-
-    repo_root = RootedPath(tmp_path)
-
-    go_work_path = _get_go_work_path(repo_root)
-
-    if should_return_none:
-        assert go_work_path is None
-    else:
-        assert go_work_path == repo_root
 
 
 @pytest.mark.parametrize("has_workspaces", (False, True))
