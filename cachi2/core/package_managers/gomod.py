@@ -1,10 +1,10 @@
-import json
 import logging
 import os
 import re
 import shutil
 import subprocess
 import tempfile
+from collections import UserDict
 from datetime import datetime, timezone
 from functools import cached_property
 from itertools import chain
@@ -30,18 +30,13 @@ import pydantic
 import semver
 from packageurl import PackageURL
 from packaging import version
+from pydantic.alias_generators import to_pascal
 
 if TYPE_CHECKING:
     from typing_extensions import Self
 
 from cachi2.core.config import get_config
-from cachi2.core.errors import (
-    FetchError,
-    PackageManagerError,
-    PackageRejected,
-    UnexpectedFormat,
-    UnsupportedFeature,
-)
+from cachi2.core.errors import FetchError, PackageManagerError, PackageRejected, UnexpectedFormat
 from cachi2.core.models.input import Request
 from cachi2.core.models.output import EnvironmentVariable, RequestOutput
 from cachi2.core.models.property_semantics import PropertySet
@@ -68,15 +63,12 @@ class _ParsedModel(pydantic.BaseModel):
 
     >>> SomeModel.model_validate({"SomeAttribute": "hello"})
     SomeModel(some_attribute="hello")
+
+    >>> SomeModel(some_attribute="hello")
+    SomeModel(some_attribute="hello")
     """
 
-    class Config:
-        @staticmethod
-        def alias_generator(attr_name: str) -> str:
-            return "".join(word.capitalize() for word in attr_name.split("_"))
-
-        # allow SomeModel(some_attribute="hello"), not just SomeModel(SomeAttribute="hello")
-        populate_by_name = True
+    model_config = pydantic.ConfigDict(alias_generator=to_pascal, populate_by_name=True)
 
 
 class ParsedModule(_ParsedModel):
@@ -103,6 +95,28 @@ class ParsedPackage(_ParsedModel):
     import_path: str
     standard: bool = False
     module: Optional[ParsedModule] = None
+
+
+class _GoWorkUseStruct(_ParsedModel):
+    disk_path: str
+
+
+class ParsedGoWork(_ParsedModel):
+    """Repr of the go.work file returned by 'go work edit -json' (relevant fields only).
+
+    See: go work help edit
+    """
+
+    go: Optional[str] = None
+    toolchain: Optional[str] = None
+    use: Optional[list[_GoWorkUseStruct]] = []
+
+    @pydantic.field_validator("use")
+    @classmethod
+    def _empty_array(cls, val: Optional[list[_GoWorkUseStruct]]) -> list:
+        if val is None:
+            return []
+        return val
 
 
 class ResolvedGoModule(NamedTuple):
@@ -414,6 +428,88 @@ class Go:
             ) from e
 
 
+class GoWork(UserDict):
+    """Representation of Go's go.work file."""
+
+    @staticmethod
+    def _get_go_work(go: Go, run_params: dict[str, Any]) -> str:
+        return go(["work", "edit", "-json"], run_params)
+
+    @staticmethod
+    def _get_go_work_path(app_dir: RootedPath) -> Optional[RootedPath]:
+        go_work_file = Go()(["env", "GOWORK"], {"cwd": app_dir}).rstrip()
+
+        # workspaces can be disabled explicitly with GOWORK=off
+        if not go_work_file or go_work_file == "off":
+            return None
+
+        # make sure that the path to go.work is within the request's root
+        return app_dir.join_within_root(go_work_file)
+
+    @property
+    def path(self) -> Optional[RootedPath]:
+        """Return the go.work file path."""
+        return self._path
+
+    @cached_property
+    def dir(self) -> Optional[RootedPath]:
+        """Return the base directory for the go.work file."""
+        if self._path is None:
+            return None
+
+        return RootedPath(self._app_dir.root).join_within_root(self._path.subpath_from_root.parent)
+
+    def __init__(self, app_dir: RootedPath) -> None:
+        """Initialize GoWork dict."""
+        super().__init__()
+        self._path = None
+        self._parsed = False
+        self._app_dir = app_dir
+
+        # workspaces may not be enabled -> empty instance
+        if (rooted_path := self._get_go_work_path(app_dir)) is None:
+            return
+
+        self._path = rooted_path
+
+    def __bool__(self) -> bool:
+        return self._path is not None and self.dir is not None
+
+    def _parse(self, go: Go, run_params: dict[str, Any] = {}) -> "Self":
+        """Actually parse the go.work file and fill in the instance with returned data."""
+        # NOTE: This is only a temporary solution. This method is to be merged to __init__. We
+        # can't do that just yet because this is being called from fetch_gomod_source which is
+        # before we set up the correct Go toolchains. We don't need toolchains to query the GOWORK
+        # env variable, but we need correct toolchain for everything else, otherwise go might
+        # complain about not meeting the required versions, so make this effectively a "lazy"
+        # evaluation driven by the caller.
+        if self._parsed or self._path is None:
+            return self
+
+        go_work_json = self._get_go_work(go, run_params)
+        self.data = ParsedGoWork.model_validate_json(go_work_json).model_dump() | self.data
+        self._parsed = True
+        return self
+
+    def workspace_paths(self, go: Go, run_params: dict[str, Any] = {}) -> Iterable[RootedPath]:
+        """Get a list of paths to all workspace modules.
+
+        Note that this call must be preceded by a call to self.parse().
+
+        :return:RootedPath instance iterable where root is go.work's containing directory
+        """
+        if not self._parsed:
+            self._parse(go, run_params)
+
+        if self._path is None or self.get("use", []) == []:
+            return []
+
+        # This re-root is going to be useful when constructing workspace ParsedModule.
+        # mypy doesn't see that self.dir is directly connected to self._path which we checked
+        go_work_dir_reroot = RootedPath(self.dir.path)  # type: ignore
+        return iter(go_work_dir_reroot.join_within_root(p["disk_path"]) for p in self["use"])
+
+
 ModuleID = tuple[str, str]
 
 
@@ -449,7 +545,7 @@ def _create_modules_from_parsed_data(
     parsed_modules: Iterable[ParsedModule],
     modules_in_go_sum: frozenset[ModuleID],
     version_resolver: "ModuleVersionResolver",
-    go_work_path: Optional[RootedPath] = None,
+    go_work: GoWork,
 ) -> list[Module]:
     def _create_module(module: ParsedModule) -> Module:
         mod_id = _get_module_id(module)
@@ -462,8 +558,9 @@ def _create_modules_from_parsed_data(
             real_path = name
 
             if mod_id not in modules_in_go_sum:
-                if go_work_path:
-                    missing_hash_in_file = go_work_path.subpath_from_root / "go.work.sum"
+                if go_work:
+                    # __bool__ checks go_work.dir, so it can't be None
+                    missing_hash_in_file = go_work.dir.subpath_from_root / "go.work.sum"  # type: ignore
                 else:
                     missing_hash_in_file = main_module_dir.subpath_from_root / "go.sum"
 
@@ -585,14 +682,12 @@ def fetch_gomod_source(request: Request) -> RequestOutput:
         for subpath in subpaths:
             log.info("Fetching the gomod dependencies at subpath %s", subpath)
 
-            log.info(f'Fetching the gomod dependencies at the "{subpath}" directory')
-
             main_module_dir = request.source_dir.join_within_root(subpath)
-            go_work_path = _get_go_work_path(main_module_dir)
+            go_work = GoWork(main_module_dir)
 
             try:
                 resolve_result = _resolve_gomod(
-                    main_module_dir, request, Path(tmp_dir), version_resolver, go_work_path
+                    main_module_dir, request, Path(tmp_dir), version_resolver, go_work
                 )
             except PackageManagerError:
                 log.error("Failed to fetch gomod dependencies")
@@ -610,7 +705,7 @@ def fetch_gomod_source(request: Request) -> RequestOutput:
                     resolve_result.parsed_modules,
                     resolve_result.modules_in_go_sum,
                     version_resolver,
-                    go_work_path,
+                    go_work,
                 )
             )
 
@@ -729,11 +824,14 @@ def _protect_against_symlinks(app_dir: RootedPath) -> None:
     def check_potential_symlink(relative_path: Union[str, Path]) -> None:
         app_dir.join_within_root(relative_path)
 
-    check_potential_symlink("go.mod")
-    check_potential_symlink("go.sum")
-    check_potential_symlink("vendor/modules.txt")
-    for go_file in app_dir.path.rglob("*.go"):
-        check_potential_symlink(go_file.relative_to(app_dir))
+    # we purposefully skip checking go.work here because it is being checked elsewhere
+
+    go_control_files = ["go.mod", "go.sum", "vendor/modules.txt"]
+    go_sources_paths = [fp.relative_to(app_dir) for fp in app_dir.path.rglob("*.go")]
+
+    # mypy doesn't see the object type from chain can only be a str or a Path and reports an error
+    for p in chain(go_control_files, go_sources_paths):
+        check_potential_symlink(p)  # type: ignore
 
 
 def _find_missing_gomod_files(source_path: RootedPath, subpaths: list[str]) -> list[Path]:
@@ -829,12 +927,58 @@ def _disable_telemetry(go: Go, run_params: dict[str, Any]) -> None:
         go(["telemetry", "off"], run_params)
 
 
+def _go_list_deps(
+    go: Go, pattern: Literal["./...", "all"], run_params: Optional[dict[str, Any]] = None
+) -> Iterator[ParsedPackage]:
+    """Run go list -deps -json and return the parsed list of packages.
+
+    The "./..." pattern returns the list of packages compiled into the final binary.
+
+    The "all" pattern includes dependencies needed only for tests. Use it to get a more
+    complete module list (roughly matching the list of downloaded modules).
+    """
+    cmd = ["list", "-e", "-deps", "-json=ImportPath,Module,Standard,Deps", pattern]
+    return map(
+        ParsedPackage.model_validate,
+        load_json_stream(go(cmd, run_params)),
+    )
+
+
+def _parse_packages(go_work: GoWork, go: Go, run_params: dict[str, Any]) -> Iterator[ParsedPackage]:
+    """Return all Go packages for the project.
+
+    Query the packages from the root of the project. If the project uses Go workspaces (1.18+) we
+    additionally need to execute the query from every workspace module because 'go list' command
+    isn't workspace aware and doesn't return all results if run just from the project root.
+
+    :param go_work: GoWork instance wrapping the go.work file
+    :param go: Go executable wrapper instance
+    :param run_params: Additional run cmd params
+    :return: ParsedPackage iterator
+    """
+    all_packages: Iterable[ParsedPackage] = []
+
+    if not go_work:
+        log.debug("Querying for list of packages")
+        all_packages = _go_list_deps(go, "./...", run_params)
+    else:
+        # If there are workspace modules we need to run 'list -e ./...' under every local module
+        # path because 'go list' command isn't fully properly workspace context aware
+        for wsp in go_work.workspace_paths(go, run_params):
+            log.debug(f"Querying workspace module '{wsp.path}' for list of packages")
+
+            packages = list(_go_list_deps(go, "./...", run_params | {"cwd": wsp.path}))
+            log.debug(packages)
+            all_packages = chain(all_packages, packages)
+    return iter(all_packages)
+
+
 def _resolve_gomod(
     app_dir: RootedPath,
     request: Request,
     tmp_dir: Path,
     version_resolver: "ModuleVersionResolver",
-    go_work_path: Optional[RootedPath] = None,
+    go_work: GoWork,
 ) -> ResolvedGoModule:
     """
     Resolve and fetch gomod dependencies for given app source archive.
@@ -886,21 +1030,15 @@ def _resolve_gomod(
     # Explicitly disable toolchain telemetry for go >= 1.23
     _disable_telemetry(go, run_params)
 
-    if go_work_path:
-        modules_in_go_sum = _parse_go_sum_from_workspaces(go_work_path, go, run_params)
+    if go_work:
+        modules_in_go_sum = _parse_go_sum_from_workspaces(go_work, go, run_params)
     else:
         modules_in_go_sum = _parse_go_sum(app_dir.join_within_root("go.sum"))
 
     # Vendor dependencies if the gomod-vendor flag is set
     flags = request.flags
     if should_vendor:
-        if go_work_path and go_work_path.join_within_root("vendor").path.is_dir():
-            # NOTE: the same error will be reported even for 1.21 which doesn't support workspace
-            # vendoring, but given it's an invalid configuration and that we plan full 1.22 support
-            # in the foreseeable future, a not so user friendly error should be fine
-            raise UnsupportedFeature("Go workspace vendoring is not supported")
-
-        downloaded_modules = _vendor_deps(go, app_dir, run_params)
+        downloaded_modules = _vendor_deps(go, app_dir, bool(go_work), run_params)
     else:
         log.info("Downloading the gomod dependencies")
         downloaded_modules = (
@@ -911,43 +1049,28 @@ def _resolve_gomod(
     if "force-gomod-tidy" in flags:
         go(["mod", "tidy"], run_params)
 
-    go_list = ["list", "-e"]
-    if not should_vendor:
-        # Make Go ignore the vendor dir even if there is one
-        go_list.extend(["-mod", "readonly"])
-
     main_module, workspace_modules = _parse_local_modules(
-        go, go_list, run_params, app_dir, version_resolver
+        go_work, go, run_params, app_dir, version_resolver
     )
 
-    def go_list_deps(pattern: Literal["./...", "all"]) -> Iterator[ParsedPackage]:
-        """Run go list -deps -json and return the parsed list of packages.
-
-        The "./..." pattern returns the list of packages compiled into the final binary.
-
-        The "all" pattern includes dependencies needed only for tests. Use it to get a more
-        complete module list (roughly matching the list of downloaded modules).
-        """
-        cmd = [*go_list, "-deps", "-json=ImportPath,Module,Standard,Deps", pattern]
-        return map(ParsedPackage.model_validate, load_json_stream(go(cmd, run_params)))
-
     package_modules = [
-        module for pkg in go_list_deps("all") if (module := pkg.module) and not module.main
+        module
+        for pkg in _go_list_deps(go, "all", run_params)
+        if (module := pkg.module) and not module.main
     ]
     package_modules.extend(workspace_modules)
     all_modules = _deduplicate_resolved_modules(package_modules, downloaded_modules)
+    _validate_local_replacements(all_modules, app_dir)
 
     log.info("Retrieving the list of packages")
-    all_packages = list(go_list_deps("./..."))
-
-    _validate_local_replacements(all_modules, app_dir)
+    all_packages = _parse_packages(go_work, go, run_params)
 
     return ResolvedGoModule(main_module, all_modules, all_packages, modules_in_go_sum)
 
 
 def _parse_local_modules(
+    go_work: GoWork,
     go: Go,
-    go_list: list[str],
     run_params: dict[str, Any],
     app_dir: RootedPath,
     version_resolver: "ModuleVersionResolver",
@@ -957,7 +1080,7 @@ def _parse_local_modules(
 
     :return: A tuple containing the main module and a list of workspaces
     """
-    modules_json_stream = go([*go_list, "-m", "-json"], run_params).rstrip()
+    modules_json_stream = go(["list", "-e", "-m", "-json"], run_params).rstrip()
     main_module_dict, workspace_dict_list = _process_modules_json_stream(
         app_dir, modules_json_stream
     )
@@ -972,10 +1095,8 @@ def _parse_local_modules(
     )
 
     workspace_modules = [
-        _parse_workspace_module(app_dir, workspace_dict, main_module_version)
-        for workspace_dict in workspace_dict_list
+        _parse_workspace_module(go_work, ws, go, run_params) for ws in workspace_dict_list
     ]
-
     return main_module, workspace_modules
 
 
@@ -1008,50 +1129,35 @@ def _process_modules_json_stream(
 
 
 def _parse_workspace_module(
-    app_dir: RootedPath, module: ModuleDict, main_module_version: str
+    go_work: GoWork, module: ModuleDict, go: Go, run_params: dict[str, Any] = {}
 ) -> ParsedModule:
     """Create a ParsedModule from a listed workspace.
 
-    The replacement info returned will always be relative to the module currently being processed.
+    The replacement info returned will always be relative to the go.work file path.
     """
-    # We can't use pathlib since corresponding method PurePath.relative_to('foo', walk_up=True)
-    # is available only in Python 3.12 and later.
-    relative_dir = os.path.relpath(module["Dir"], app_dir)
-
-    # We need to prepend "./" to a workspace that is direct child of app_dir so it can be treated
-    # the same way as a locally replaced module when converting it into a Module.
-    if not relative_dir.startswith("."):
-        relative_dir = f"./{relative_dir}"
-
-    replaced_module = ParsedModule(path=relative_dir)
+    # there's only ever going to be a single match
+    ws_rootedpath = None
+    for wsp_rooted in go_work.workspace_paths(go, run_params):
+        if str(wsp_rooted.path) == module["Dir"]:
+            ws_rootedpath = wsp_rooted
+            break
+    else:
+        # This should be impossible
+        raise RuntimeError(f"Failed to match a module based on '{module['Dir']}'")
 
     return ParsedModule(
         path=module["Path"],
-        replace=replaced_module,
+        replace=ParsedModule(path=f"./{ws_rootedpath.subpath_from_root}"),
     )
 
 
-def _get_go_work_path(app_dir: RootedPath) -> Optional[RootedPath]:
-    """Get the directory that contains the go.work file, if it exists."""
-    go = Go()
-    go_work_file = go(["env", "GOWORK"], {"cwd": app_dir}).rstrip()
-
-    if not go_work_file or go_work_file == "off":
-        return None
-
-    go_work_path = Path(go_work_file).parent
-
-    # make sure that the path to go.work is within the request's root
-    return app_dir.join_within_root(go_work_path)
-
-
 def _parse_go_sum_from_workspaces(
-    go_work_path: RootedPath,
+    go_work: GoWork,
     go: Go,
     run_params: dict[str, Any],
 ) -> frozenset[ModuleID]:
     """Return the set of modules present in all go.sum files across the existing workspaces."""
-    go_sum_files = _get_go_sum_files(go_work_path, go, run_params)
+    go_sum_files = _get_go_sum_files(go_work, go, run_params)
 
     modules: frozenset[ModuleID] = frozenset()
 
@@ -1062,19 +1168,16 @@ def _parse_go_sum_from_workspaces(
 
 
 def _get_go_sum_files(
-    go_work_path: RootedPath,
+    go_work: GoWork,
     go: Go,
     run_params: dict[str, Any],
 ) -> list[RootedPath]:
     """Find all go.sum files present in the related workspaces."""
-    go_work_json = go(["work", "edit", "-json"], run_params).rstrip()
-    go_work = json.loads(go_work_json)
+    workspace_paths = go_work.workspace_paths(go, run_params)
 
-    go_sums = [
-        go_work_path.join_within_root(f"{module['DiskPath']}/go.sum") for module in go_work["Use"]
-    ]
-
-    go_sums.append(go_work_path.join_within_root("go.work.sum"))
+    # mypy doesn't see that go_work is true here and true means .path and .dir are set
+    go_sums = [go_work.dir.join_within_root(wp.path / "go.sum") for wp in workspace_paths]  # type: ignore
+    go_sums.append(go_work.dir.join_within_root("go.work.sum"))  # type: ignore
 
     return go_sums
 
@@ -1453,9 +1556,9 @@ def _validate_local_replacements(modules: Iterable[ParsedModule], app_path: Root
         app_path.join_within_root(path)
 
 
-def _parse_vendor(module_dir: RootedPath) -> Iterable[ParsedModule]:
+def _parse_vendor(context_dir: RootedPath) -> Iterable[ParsedModule]:
     """Parse modules from vendor/modules.txt."""
-    modules_txt = module_dir.join_within_root("vendor", "modules.txt")
+    modules_txt = context_dir.join_within_root("vendor", "modules.txt")
     if not modules_txt.path.exists():
         return []
 
@@ -1513,25 +1616,27 @@ def _parse_vendor(module_dir: RootedPath) -> Iterable[ParsedModule]:
 
 def _vendor_deps(
     go: Go,
-    app_dir: RootedPath,
+    context_dir: RootedPath,
+    has_workspace: bool,
     run_params: dict[str, Any],
 ) -> Iterable[ParsedModule]:
     """
     Vendor golang dependencies.
 
-    If Cachi2 is not allowed to make changes, it will verify that the vendor directory already
-    contained the correct content.
+    Cachi2 checks the vendor directory for updated content, failing if Go'd be to make any changes.
 
     :param app_dir: path to the module directory
-    :param can_make_changes: is Cachi2 allowed to make changes?
     :param run_params: common params for the subprocess calls to `go`
+    :param has_workspace: whether we detected Go workspaces in the repo (affects @context_dir)
     :return: the list of Go modules parsed from vendor/modules.txt
-    :raise PackageRejected: if vendor directory changed and Cachi2 is not allowed to make changes
+    :raise PackageRejected: if vendor directory changed
     :raise UnexpectedFormat: if Cachi2 fails to parse vendor/modules.txt
     """
     log.info("Vendoring the gomod dependencies")
-    go(["mod", "vendor"], run_params)
-    if _vendor_changed(app_dir):
+
+    cmdscope = "work" if has_workspace else "mod"
+    go([cmdscope, "vendor"], run_params)
+    if _vendor_changed(context_dir):
         raise PackageRejected(
             reason=(
                 "The content of the vendor directory is not consistent with go.mod. "
@@ -1539,23 +1644,25 @@ def _vendor_deps(
             ),
             solution=(
                 "Please try running `go mod vendor` and committing the changes.\n"
-                "Note that you may need to `git add --force` ignored files in the vendor/ dir.\n"
-                "Also consider whether you really want the -check variant of the flag."
+                "Note that you may need to `git add --force` ignored files in the vendor/ dir."
             ),
             docs=VENDORING_DOC,
         )
-    return _parse_vendor(app_dir)
+    return _parse_vendor(context_dir)
 
 
-def _vendor_changed(app_dir: RootedPath) -> bool:
-    """Check for changes in the vendor directory."""
-    repo_root = app_dir.root
-    vendor = app_dir.path.relative_to(repo_root).joinpath("vendor")
+def _vendor_changed(context_dir: RootedPath) -> bool:
+    """Check for changes in the vendor directory.
+
+    :param context_dir: main module dir OR workspace context (directory containing go.work)
+    """
+    repo_root = context_dir.root
+    vendor = context_dir.path.relative_to(repo_root).joinpath("vendor")
     modules_txt = vendor / "modules.txt"
 
     repo = git.Repo(repo_root)
     # Add untracked files but do not stage them
-    repo.git.add("--intent-to-add", "--force", "--", app_dir)
+    repo.git.add("--intent-to-add", "--force", "--", context_dir)
 
     try:
         # Diffing modules.txt should catch most issues and produce relatively useful output
@@ -1570,6 +1677,6 @@ def _vendor_changed(app_dir: RootedPath) -> bool:
             log.error("%s directory changed after vendoring:\n%s", vendor, vendor_diff)
             return True
     finally:
-        repo.git.reset("--", app_dir)
+        repo.git.reset("--", context_dir)
 
     return False

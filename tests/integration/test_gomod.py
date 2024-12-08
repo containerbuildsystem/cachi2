@@ -240,6 +240,19 @@ def test_gomod_packages(
             ],
             id="gomod_1.20_e2e_dirty_go.mod",
         ),
+        pytest.param(
+            utils.TestParameters(
+                repo="https://github.com/eskultety/cachito-testing-cachi2-gomod",
+                ref="5aabb6779a3263103d77f2829cdc8d083fe7e1c5",
+                packages=({"path": "hi/hiii", "type": "gomod"},),
+                flags=["--gomod-vendor"],
+                expected_exit_code=0,
+                expected_output="All dependencies fetched successfully",
+            ),
+            [],  # check using CMD defined in Dockerfile
+            [""],
+            id="gomod_1.22_e2e_workspace_vendoring",
+        ),
     ],
 )
 def test_e2e_gomod(
