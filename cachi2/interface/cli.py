@@ -8,7 +8,7 @@ import shutil
 import sys
 from itertools import chain
 from pathlib import Path
-from typing import Any, Callable, List, Optional, Union, cast
+from typing import Any, Callable, List, Optional, Union
 
 import pydantic
 import typer
@@ -18,7 +18,7 @@ from cachi2.core.errors import Cachi2Error, InvalidInput, UnexpectedFormat
 from cachi2.core.extras.envfile import EnvFormat, generate_envfile
 from cachi2.core.models.input import Flag, PackageInput, Request, parse_user_input
 from cachi2.core.models.output import BuildConfig
-from cachi2.core.models.property_semantics import merge_component_properties, merge_relationships
+from cachi2.core.models.property_semantics import merge_component_properties
 from cachi2.core.models.sbom import Sbom, SPDXSbom
 from cachi2.core.resolver import inject_files_post, resolve_packages, supported_package_managers
 from cachi2.core.rooted_path import RootedPath
@@ -454,6 +454,7 @@ def merge_sboms(
                 cyclonedx_sboms_to_merge.append(_sbom.to_cyclonedx())
             else:
                 cyclonedx_sboms_to_merge.append(_sbom)
+        # TODO: merging SBOMs should be done uniformly via "+"
         sbom: Union[Sbom, SPDXSbom] = Sbom(
             components=merge_component_properties(
                 chain.from_iterable(s.components for s in cyclonedx_sboms_to_merge)
@@ -467,22 +468,10 @@ def merge_sboms(
             else:
                 spdx_sboms_to_merge.append(_sbom)
 
-        packages = chain.from_iterable(cast(SPDXSbom, s).packages for s in spdx_sboms_to_merge)
-        sbom = SPDXSbom(
-            spdxVersion="SPDX-2.3",
-            SPDXID="SPDXRef-DOCUMENT",
-            dataLicense="CC0-1.0",
-            name=sbom_name or cast(SPDXSbom, spdx_sboms_to_merge[0]).name,
-            documentNamespace="NOASSERTION",
-            creationInfo=cast(SPDXSbom, spdx_sboms_to_merge[0]).creationInfo,
-            packages=packages,
-        )
+        sbom = sum(spdx_sboms_to_merge, start=spdx_sboms_to_merge[0])
+        if sbom_name is not None:
+            sbom.name = sbom_name
         sbom.creationInfo.created = datetime.datetime.now().isoformat()[:-7] + "Z"
-
-        root_ids: List[str] = [s.SPDXID for s in spdx_sboms_to_merge]
-        sbom.relationships, sbom.packages = merge_relationships(
-            [s.relationships for s in spdx_sboms_to_merge], root_ids, sbom.packages
-        )
 
     sbom_json = sbom.model_dump_json(indent=2, by_alias=True, exclude_none=True)
 

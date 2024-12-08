@@ -8,7 +8,7 @@ import subprocess
 import sys
 from functools import cache
 from pathlib import Path
-from typing import Callable, Iterable, Iterator, Optional, Sequence
+from typing import Any, Callable, Iterable, Iterator, Optional, Sequence
 
 from cachi2.core.config import get_config
 from cachi2.core.errors import Cachi2Error
@@ -195,3 +195,8 @@ def get_cache_dir() -> Path:
     except KeyError:
         cache_dir = Path.home().joinpath(".cache")
     return cache_dir.joinpath("cachi2")
+
+
+def first(predicate: Callable, iterable: Iterable, fallback: Any) -> Any:
+    """Return the first match of predicate in iterable or fallback value."""
+    return next((x for x in iterable if predicate(x)), fallback)
