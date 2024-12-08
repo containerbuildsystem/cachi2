@@ -1,6 +1,9 @@
 import datetime
 import hashlib
 import json
+from collections import defaultdict
+from functools import cached_property
+from pathlib import Path
 from typing import Annotated, Any, Dict, Iterable, Literal, Optional, Union
 from urllib.parse import urlparse
 
@@ -8,6 +11,7 @@ import pydantic
 from packageurl import PackageURL
 
 from cachi2.core.models.validators import unique_sorted
+from cachi2.core.utils import first
 
 PropertyName = Literal[
     "cachi2:bundler:package:binary",
@@ -233,6 +237,16 @@ class SPDXPackageExternalRef(pydantic.BaseModel):
         return hash((self.referenceLocator, self.referenceType, self.referenceCategory))
 
 
+class SPDXPackageExternalRefSecurity(SPDXPackageExternalRef):
+    """SPDX Package External Reference for category package-manager.
+
+    Compliant to the SPDX specification:
+    https://spdx.github.io/spdx-spec/v2.3/package-information/#721-external-reference-field
+    """
+
+    referenceCategory: Literal["SECURITY"]
+
+
 class SPDXPackageExternalRefPackageManager(SPDXPackageExternalRef):
     """SPDX Package External Reference for category package-manager.
 
@@ -256,14 +270,32 @@ class SPDXPackageExternalRefPackageManagerPURL(
     referenceType: Literal["purl"]
 
 
+class SPDXPackageExternalRefSecurityPURL(
+    SPDXPackageExternalRefSecurity, SPDXPackageExternalRefReferenceLocatorURI
+):
+    """SPDX Package External Reference for category package-manager and type purl.
+
+    Compliant to the SPDX specification:
+    https://spdx.github.io/spdx-spec/v2.3/package-information/#721-external-reference-field
+    """
+
+    referenceCategory: Literal["SECURITY"]
+    referenceType: Literal["cpe23Type"]
+
+
 SPDXPackageExternalRefPackageManagerType = Annotated[
     SPDXPackageExternalRefPackageManagerPURL,
     pydantic.Field(discriminator="referenceType"),
 ]
 
+SPDXPackageExternalRefSecurityType = Annotated[
+    SPDXPackageExternalRefSecurityPURL,
+    pydantic.Field(discriminator="referenceType"),
+]
+
 
 SPDXPackageExternalRefType = Annotated[
-    Union[SPDXPackageExternalRefPackageManagerType,],
+    Union[SPDXPackageExternalRefPackageManagerType, SPDXPackageExternalRefSecurityType],
     pydantic.Field(discriminator="referenceCategory"),
 ]
 
@@ -284,6 +316,43 @@ class SPDXPackageAnnotation(pydantic.BaseModel):
         return hash((self.annotator, self.annotationDate, self.annotationType, self.comment))
 
 
+class SPDXChecksum(pydantic.BaseModel):
+    """A basic representation of a checksum entry."""
+
+    algorithm: str
+    checksumValue: str
+
+    def __hash__(self) -> int:
+        return hash(self.algorithm + self.checksumValue)
+
+
+class SPDXFile(pydantic.BaseModel):
+    """SPDX File.
+
+    Compliant to the SPDX specification:
+    https://spdx.github.io/spdx-spec/v2.3/package-information/
+
+    An actual SPDX document generated from a directory or a container image
+    would usually contain "files" section. This section would contain file
+    entries of this shape.
+    """
+
+    SPDXID: Optional[str] = None
+    fileName: str
+    checksums: list[SPDXChecksum] = []  # TODO: flesh out proper cehcksums type
+    licenseConcluded: str = "NOASSERTION"
+    copyrightText: str = ""
+    comment: str = ""
+
+    def __hash__(self) -> int:
+        return hash(
+            hash(self.SPDXID)
+            + hash(self.fileName)
+            + hash(self.licenseConcluded + self.copyrightText + self.comment)
+            + sum(hash(c) for c in self.checksums)
+        )
+
+
 class SPDXPackage(pydantic.BaseModel):
     """SPDX Package.
 
@@ -301,6 +370,16 @@ class SPDXPackage(pydantic.BaseModel):
     def __lt__(self, other: "SPDXPackage") -> bool:
         return (self.SPDXID or "") < (other.SPDXID or "")
 
+    def __hash__(self) -> int:
+        return hash(
+            hash(self.SPDXID)
+            + hash(self.name)
+            + hash(self.versionInfo)
+            + hash(self.downloadLocation)
+            + sum(hash(e) for e in self.externalRefs)
+            + sum(hash(a) for a in self.annotations)
+        )
+
     @staticmethod
     def _calculate_package_hash_from_dict(package_dict: Dict[str, Any]) -> str:
         return hashlib.sha256(json.dumps(package_dict, sort_keys=True).encode()).hexdigest()
@@ -315,7 +394,7 @@ class SPDXPackage(pydantic.BaseModel):
         unique_purls_parts = set([(p.type, p.name, p.version) for p in parsed_purls])
         if len(unique_purls_parts) > 1:
             raise ValueError(
-                "SPDXPackage includes multiple purls with different (type,name,version): "
+                "SPDXPackage includes multiple purls with different (type,name,version) tuple: "
                 + f"{unique_purls_parts}"
             )
         return refs
@@ -377,6 +456,12 @@ class SPDXRelation(pydantic.BaseModel):
     relatedSpdxElement: str
     relationshipType: str
 
+    def __hash__(self) -> int:
+        return hash(
+            hash(self.spdxElementId + self.relatedSpdxElement + self.relationshipType)
+            + hash(self.comment)
+        )
+
 
 class SPDXSbom(pydantic.BaseModel):
     """Software bill of materials in the SPDX format.
@@ -385,7 +470,9 @@ class SPDXSbom(pydantic.BaseModel):
     https://spdx.github.io/spdx-spec/v2.3
     """
 
-    model_config = pydantic.ConfigDict(extra="forbid")
+    # NOTE: The model is intentionally made non-strict for now because a strict model rejects
+    # SBOMs generated by Syft. It is unclear at the moment if additional preprocessing will
+    # be happening or desired.
 
     spdxVersion: Literal["SPDX-2.3"] = "SPDX-2.3"
     SPDXID: Literal["SPDXRef-DOCUMENT"] = "SPDXRef-DOCUMENT"
@@ -395,7 +482,22 @@ class SPDXSbom(pydantic.BaseModel):
 
     creationInfo: SPDXCreationInfo
     packages: list[SPDXPackage] = []
+    files: list[SPDXFile] = []
     relationships: list[SPDXRelation] = []
+
+    def __hash__(self) -> int:
+        return hash(
+            hash(self.name + self.documentNamespace)
+            + hash(SPDXCreationInfo)
+            + sum(hash(p) for p in self.packages)
+            + sum(hash(f) for f in self.files)
+            + sum(hash(r) for r in self.relationships)
+        )
+
+    @classmethod
+    def from_file(cls, path: Path) -> "SPDXSbom":
+        """Consume a SPDX json directly from a file."""
+        return cls.model_validate_json(path.read_text())
 
     @staticmethod
     def deduplicate_spdx_packages(items: Iterable[SPDXPackage]) -> list[SPDXPackage]:
@@ -404,6 +506,7 @@ class SPDXSbom(pydantic.BaseModel):
         If package with same name and version is found multiple times in the list,
         merge external references of all the packages into one package.
         """
+        # NOTE: keeping this implementation for historical reasons.
         unique_items = {}
         for item in items:
             purls = [
@@ -444,6 +547,83 @@ class SPDXSbom(pydantic.BaseModel):
     def _unique_packages(cls, packages: list[SPDXPackage]) -> list[SPDXPackage]:
         """Sort and de-duplicate components."""
         return cls.deduplicate_spdx_packages(packages)
+
+    @cached_property
+    def root_id(self) -> str:
+        """Return the root_id of this SBOM."""
+        direct_relationships, inverse_relationships = defaultdict(list), dict()
+        for rel in self.relationships:
+            direct_relationships[rel.spdxElementId].append(rel.relatedSpdxElement)
+            inverse_relationships[rel.relatedSpdxElement] = rel.spdxElementId
+        # noqa because the name is bound to make local intent clearer and first() call easier to
+        # follow.
+        unidirectionally_related_package = (
+            lambda p: inverse_relationships.get(p) == self.SPDXID  # noqa: E731
+        )
+        # Note: defaulting to top-level SPDXID is inherited from the original implementation.
+        # It is unclear if it is really needed, but is left around to match the precedent.
+        root_id = first(unidirectionally_related_package, direct_relationships, self.SPDXID)
+        return root_id
+
+    @cached_property
+    def non_root_packages(self) -> list[SPDXPackage]:
+        """Return non-root packages."""
+        return [p for p in self.packages if p.SPDXID != self.root_id]
+
+    @staticmethod
+    def retarget_and_prune_relationships(
+        from_sbom: "SPDXSbom",
+        to_sbom: "SPDXSbom",
+    ) -> list[SPDXRelation]:
+        """Retarget and prune relationships."""
+        out = []
+        for r in from_sbom.relationships:
+            # Do a copy to ensure we are not pulling a carpet from underneath us:
+            new_rel = r.model_copy(deep=True)
+            if new_rel.spdxElementId == from_sbom.root_id:
+                new_rel.spdxElementId = to_sbom.root_id
+            if new_rel.relatedSpdxElement == from_sbom.root_id:
+                new_rel.spdxElementId = to_sbom.SPDXID
+            # Old top-level "DESCRIBES" must go:
+            if not (
+                new_rel.relatedSpdxElement == from_sbom.root_id
+                and new_rel.relationshipType == "DESCRIBES"
+            ):
+                out.append(new_rel)
+        return out
+
+    def __add__(self, other: Union["SPDXSbom", Sbom]) -> "SPDXSbom":
+        if isinstance(other, self.__class__):
+            # Packages are not going to be modified so it is OK to just pass references around.
+            merged_packages = self.packages + other.non_root_packages
+            # Relationships, on the other hand, are amended, so new
+            # relationships will be constructed.
+            # Further, identical relationships should be dropped.
+            # Deduplication based on building a set is considered safe because all
+            # fields of all elements are used to compute a hash.
+            merged_relationships = list(
+                set(
+                    self.relationships
+                    + self.retarget_and_prune_relationships(from_sbom=other, to_sbom=self)
+                )
+            )
+            # The same as packages: files are not modified, so keeping them as is.
+            # Identical file entries should be skipped.
+            merged_files = list(set(self.files + other.files))
+            res = self.model_copy(
+                update={
+                    # At the moment of writing pydantic does not deem it necessary to
+                    # validate updated fields because we should just trust them [1].
+                    "packages": self.deduplicate_spdx_packages(merged_packages),
+                    "relationships": merged_relationships,
+                    "files": merged_files,
+                },
+                deep=True,
+            )
+            return res
+        elif isinstance(other, Sbom):
+            return self + other.to_spdx(doc_namespace="NOASSERTION")
+        raise Exception("Something smart goes here")
 
     def to_cyclonedx(self) -> Sbom:
         """Convert a SPDX SBOM to a CycloneDX SBOM."""
@@ -503,3 +683,7 @@ class SPDXSbom(pydantic.BaseModel):
             components=components,
             metadata=Metadata(tools=tools),
         )
+
+
+# References
+# [1] https://github.com/pydantic/pydantic/blob/6fa92d139a297a26725dec0a7f9b0cce912d6a7f/pydantic/main.py#L383

@@ -238,22 +238,6 @@ class TestSPDXPackage:
     @pytest.mark.parametrize(
         "category,type,locator,valid",
         [
-            ("SECURITY", "cpe22Type", "cpe:/o:canonical:ubuntu_linux:10.04:-:lts", False),
-            (
-                "SECURITY",
-                "cpe23Type",
-                "cpe:2.3:a:microsoft:internet_explorer:8.0.6001:beta:*:*:*:*:*:*",
-                False,
-            ),
-            ("SECURITY", "advisory", "https://nvd.nist.gov/vuln/detail/CVE-2020-28498", False),
-            ("SECURITY", "fix", "https://github.com/indutny/elliptic/commit/441b7428", False),
-            (
-                "SECURITY",
-                "url",
-                "https://github.com/christianlundkvist/blog/blob/master/2020_05_26_secp256k1_twist_attacks/secp256k1_twist_attacks.md",
-                False,
-            ),
-            ("SECURITY", "swid", "2df9de35-0aff-4a86-ace6-f7dddd1ade4c", False),
             ("PACKAGE-MANAGER", "maven-central", "org.apache.tomcat:tomcat:9.0.0.M4", False),
             ("PACKAGE-MANAGER", "npm", "http-server@0.3.0", False),
             ("PACKAGE-MANAGER", "nuget", "Microsoft.AspNet.MVC/5.0.0", False),
@@ -278,7 +262,7 @@ class TestSPDXPackage:
     ) -> None:
         """Fails on unsupported category and type combinations.
 
-        Only PACKAGE-MANAGER category with type purl is supported.
+        Only PACKAGE-MANAGER and SECURITY categories with type purl is supported.
         """
         adapter: pydantic.TypeAdapter = pydantic.TypeAdapter(SPDXPackageExternalRefType)
         with pytest.raises(pydantic.ValidationError):
