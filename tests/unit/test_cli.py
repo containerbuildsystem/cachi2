@@ -974,7 +974,7 @@ class TestMergeSboms:
         [
             [
                 "./tests/unit/data/sboms/cachi2.bom.spdx.json",
-                "./tests/unit/data/sboms/syft.bom.spdx.json",
+                "./tests/unit/data/something.simple0.100.0.spdx.pretty.json",
             ],
         ],
     )

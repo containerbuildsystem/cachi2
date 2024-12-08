@@ -1,521 +1,287 @@
-from itertools import chain
-from typing import cast
+from collections import defaultdict
+from functools import reduce
+from operator import add
+from pathlib import Path
+from typing import Any
 
 import pytest
 
-from cachi2.core.models.sbom import (
-    SPDXPackage,
-    SPDXPackageExternalRefPackageManagerPURL,
-    SPDXRelation,
-    SPDXSbom,
-)
-from cachi2.interface.cli import merge_relationships
+from cachi2.core.models.sbom import SPDXSbom
 
 
+def _find_roots(sbom: SPDXSbom) -> list[str]:
+    direct_rel_map = defaultdict(list)
+    inverse_map = dict()
+    for rel in sbom.relationships:
+        spdx_id, related_spdx = rel.spdxElementId, rel.relatedSpdxElement
+        direct_rel_map[spdx_id].append(related_spdx)
+        inverse_map[related_spdx] = spdx_id
+    unidirectionally_related_package = lambda p: inverse_map.get(p) == sbom.SPDXID  # noqa: E731
+    roots = list(filter(unidirectionally_related_package, direct_rel_map))
+    return roots
+
+
+def _assert_merging_sboms_produces_correct_number_of_packages(
+    merged_sbom: SPDXSbom,
+    *sources: SPDXSbom,
+) -> None:
+    # Ignoring mypy because it is cheaper to rebind the name in a local utility.
+    sources = set(sources)  # type: ignore
+    unqie_packages_across_all_sources = set(sum([s.packages for s in sources], []))
+    # Drop one root package per source, add 1 to account for one eventuial root:
+    expected_num_of_packages = len(unqie_packages_across_all_sources) - len(sources) + 1
+    actual_num_of_packages = len(merged_sbom.packages)
+    difference = expected_num_of_packages - actual_num_of_packages
+    msg = (
+        f"""Number of packages in input SBOMs and resulting SBOM do not add up:
+        The new SBOM contains {abs(difference)} package{'s' if abs(difference) != 1 else ''} """
+        f"""{"more" if difference < 0 else "less"} than the both input SBOMs."""
+    )
+    assert expected_num_of_packages == actual_num_of_packages, msg
+
+    assert len(merged_sbom.relationships) == len(
+        set(merged_sbom.relationships)
+    ), "Relationships length mismatch"
+
+
+def _assert_merging_two_distinct_sboms_produces_correct_number_of_packages(
+    sbom_left: SPDXSbom,
+    sbom_right: SPDXSbom,
+    merged_sbom: SPDXSbom,
+) -> None:
+    # Note the 'distinct' part: sbom_left and sbom_right _do not_ intersect.
+    # You should never verify intersecting SBOMs with this function.
+    # -1 for one of the roots that must go.
+    expected_num_of_packages = len(sbom_left.packages) + len(sbom_right.packages) - 1
+    actual_num_of_packages = len(merged_sbom.packages)
+    difference = expected_num_of_packages - actual_num_of_packages
+    msg = (
+        f"""
+        Number of packages in input SBOMs and resulting SBOM do not add up:
+        The new SBOM contains {abs(difference)} package{'s' if abs(difference) != 1 else ''} """
+        f"""{"more" if difference < 0 else "less"} than the both input SBOMs."""
+    )
+    assert expected_num_of_packages == actual_num_of_packages, msg
+
+
+def _assert_merging_two_sboms_produces_correct_number_of_files(
+    sbom_left: SPDXSbom,
+    sbom_right: SPDXSbom,
+    merged_sbom: SPDXSbom,
+) -> None:
+    assert len(sbom_left.files) + len(sbom_right.files) == len(merged_sbom.files)
+
+
+def _assert_root_was_inherited_from_left_sbom(
+    merged_sbom: SPDXSbom,
+    sbom_left: SPDXSbom,
+) -> None:
+    msg = f"""Root mismatch!
+        Expected: {sbom_left.root_id}
+        Got: {merged_sbom.root_id}
+    """
+    assert merged_sbom.root_id == sbom_left.root_id, msg
+
+
+def _assert_there_is_only_one_root(merged_sbom: SPDXSbom) -> None:
+    assert len(_find_roots(merged_sbom)) == 1, f"Found several roots in {merged_sbom}"
+
+
+def _assert_all_relationships_are_within_the_document(for_sbom: SPDXSbom) -> None:
+    external_rels = []
+    package_names = [p.SPDXID for p in for_sbom.packages]
+    file_names = [f.SPDXID for f in for_sbom.files]
+    known_entities = package_names + file_names
+
+    for r in for_sbom.relationships:
+        if r.relatedSpdxElement not in known_entities:
+            external_rels.append(r)
+    if external_rels:
+        assert False, f"Found relations that lead outside of a document: {external_rels}"
+
+
+def _assert_root_is_present(sbom: SPDXSbom) -> None:
+    # DocumentRoot can be File or Directory:
+    fail_msg = "Document root is missing"
+    root_pfx = "SPDXRef-DocumentRoot-"
+    # The inline would be too long otherwise, thus lambda, thus noqa.
+    is_root = lambda p: p.SPDXID is not None and p.SPDXID.startswith(root_pfx)  # noqa: E731
+    assert any(is_root(p) for p in sbom.packages), fail_msg
+
+
+def _assert_no_relation_is_missing(sbom: SPDXSbom) -> None:
+    # I.e. ther are at least as many relations as packages _and_ files
+    # (each package will relate to at least one other package and that would be
+    # thr root document).
+    assert len(sbom.relationships) == len(
+        set(sbom.relationships)
+    ), "There are duplicate relationships"
+    fail_msg = (
+        "Some packages are not having relationships: not enough relationships for all packages"
+    )
+    assert len(sbom.packages) + len(sbom.files) <= len(sbom.relationships), fail_msg
+
+
+def _assert_no_relationship_points_out(sbom: SPDXSbom) -> None:
+    packages = set(p.SPDXID for p in sbom.packages)
+    files = set(f.SPDXID for f in sbom.files)
+    assert all(
+        (rel := r.relatedSpdxElement) in packages or rel in files for r in sbom.relationships
+    ), "Found stray relationship(s)"
+
+
+def _assert_no_unrelated_packages(sbom: SPDXSbom) -> None:
+    ids_related_to = set(r.relatedSpdxElement for r in sbom.relationships)
+    assert all(p.SPDXID in ids_related_to for p in sbom.packages), "Unrelated packages detecetd"
+
+
+def _assert_no_unrelated_files(sbom: SPDXSbom) -> None:
+    ids_related_to = set(r.relatedSpdxElement for r in sbom.relationships)
+    assert all(f.SPDXID in ids_related_to for f in sbom.files), "Unrelated files detected"
+
+
+def _assert_sbom_is_well_formed(sbom: SPDXSbom) -> None:
+    _assert_root_is_present(sbom)
+    _assert_no_relation_is_missing(sbom)
+    _assert_no_relationship_points_out(sbom)
+    _assert_no_unrelated_packages(sbom)
+    _assert_no_unrelated_files(sbom)
+
+
+# Data for this test was generated with syft like this:
+# For a directory:
+#  $ ./syft dir:experiments/ -o spdx-json > experiments.json
+#  $ jq < experiments.json > experiments.pretty.json
+#  $ ls experiments
+#  $ ash-0.3.8-20.el4_7.1.x86_64.rpm
+# For a container image (sha256:4048db5d36726e313ab8f7ffccf2362a34cba69e4cdd49119713483a68641fce):
+#  $ ./syft alpine -o spdx-json > alpine.json
+#  $ jq < alpine.json > alpine.pretty.json
+# I used syft v 0.100.0 to be consistent with what I assumed to be correct test data.
 @pytest.mark.parametrize(
-    "sbom_files_to_merge",
+    "sbom_main,sbom_other",
     [
         [
-            "./tests/unit/data/sboms/cachi2.bom.spdx.json",
-            "./tests/unit/data/sboms/syft.bom.spdx.json",
+            "./tests/unit/data/something.simple0.100.0.spdx.pretty.json",
+            "./tests/unit/data/something.more.simple.0.100.0.spdx.pretty.json",
         ],
         [
-            "./tests/unit/data/sboms/syft.bom.spdx.json",
-            "./tests/unit/data/sboms/cachi2.bom.spdx.json",
+            "./tests/unit/data/something.more.simple.0.100.0.spdx.pretty.json",
+            "./tests/unit/data/something.simple0.100.0.spdx.pretty.json",
+        ],
+        [
+            "./tests/unit/data/alpine.pretty.json",
+            "./tests/unit/data/something.simple0.100.0.spdx.pretty.json",
+        ],
+        [
+            "./tests/unit/data/something.simple0.100.0.spdx.pretty.json",
+            "./tests/unit/data/alpine.pretty.json",
         ],
     ],
 )
-def test_merge_spdx_relationships(
-    sbom_files_to_merge: list[str],
+# NOTE: additional tests should be:
+#  * verifying rules for mixed merging of SPDX and CycloneDX
+#  * verifying merging of CycloneDX with a conversion to SPDX
+#  * ensure no change for SPDX + same SPDX, but pre-converted into CDX
+# Also it is likely that conversion willl need to be tested as well
+# TODO:
+#    SPDXSbom.from_cyclonedx(SBOM)
+#    Sbom.from_spdx(SPDXSbom)
+# or even beter: (can be both actually)
+#    Sbom.from_sbom(other):
+#        if same_class: return other
+#        else: return convert_to(cls)
+# TODO: merging with self
+#       deduplication must be accounted for (should happen automatically with model_copy)
+def test_merging_two_spdx_sboms_works_in_general_independent_of_order(
+    sbom_main: Any,  # 'Any' is used to prevent mypy from having a fit over re-binding
+    sbom_other: Any,  # 'Any' is used to prevent mypy from having a fit over re-binding
 ) -> None:
-    sboms_to_merge = []
-    for sbom_file in sbom_files_to_merge:
-        with open(sbom_file, "r") as f:
-            sbom_json = f.read()
-            sboms_to_merge.append(SPDXSbom.model_validate_json(sbom_json))
+    # Re-using the names withing a short scope => mypy sad => must distract mypy.
+    # Simple ignore won't work here so the need for a cast.
+    sbom_main = SPDXSbom.from_file(Path(sbom_main))
+    sbom_other = SPDXSbom.from_file(Path(sbom_other))
 
-    packages = list(chain.from_iterable(s.packages for s in sboms_to_merge))
+    merged_sbom = sbom_main + sbom_other
 
-    doc_ids = cast(list[str], [s.SPDXID for s in sboms_to_merge])
-    relationships_to_merge = [s.relationships for s in sboms_to_merge]
-    merged, packages = merge_relationships(relationships_to_merge, doc_ids, packages)
-    assert merged == [
-        SPDXRelation(
-            spdxElementId="SPDXRef-DOCUMENT",
-            comment=None,
-            relatedSpdxElement="SPDXRef-DocumentRoot-File-",
-            relationshipType="DESCRIBES",
+    _assert_all_relationships_are_within_the_document(for_sbom=merged_sbom)
+    _assert_merging_two_distinct_sboms_produces_correct_number_of_packages(
+        sbom_main, sbom_other, merged_sbom
+    )
+    _assert_merging_sboms_produces_correct_number_of_packages(merged_sbom, sbom_other, sbom_main)
+    _assert_merging_two_sboms_produces_correct_number_of_files(sbom_main, sbom_other, merged_sbom)
+    _assert_root_was_inherited_from_left_sbom(merged_sbom, sbom_main)
+    _assert_there_is_only_one_root(merged_sbom)
+
+
+@pytest.mark.parametrize(
+    "sboms_to_merge",
+    [
+        pytest.param(
+            (
+                "./tests/unit/data/alpine.pretty.json",
+                "./tests/unit/data/something.simple0.100.0.spdx.pretty.json",
+                "./tests/unit/data/something.more.simple.0.100.0.spdx.pretty.json",
+            ),
+            id="three unique SBOMs",
         ),
-        SPDXRelation(
-            spdxElementId="SPDXRef-DocumentRoot-File-",
-            comment=None,
-            relatedSpdxElement="SPDXRef-Package-go-module-.-terminaltor-1b79094a8c283d88",
-            relationshipType="CONTAINS",
+        pytest.param(
+            (
+                "./tests/unit/data/alpine.pretty.json",
+                "./tests/unit/data/something.simple0.100.0.spdx.pretty.json",
+                "./tests/unit/data/something.more.simple.0.100.0.spdx.pretty.json",
+                "./tests/unit/data/something.simple0.100.0.spdx.pretty.json",
+            ),
+            # The same SBOM is attempted to be merged in -- should be a separate test
+            id="three unique SBOMs and a duplicate",
         ),
-        SPDXRelation(
-            spdxElementId="SPDXRef-DocumentRoot-File-",
-            comment=None,
-            relatedSpdxElement="SPDXRef-Package-go-module-.-terminaltor-9c8431f4d44b5c65",
-            relationshipType="CONTAINS",
+    ],
+)
+def test_merging_several_spdx_sboms_works_in_general_independent_of_order(
+    sboms_to_merge: list[Any],  # 'Any' is used to prevent mypy from having a fit over re-binding
+) -> None:
+    sboms_to_merge = [SPDXSbom.from_file(Path(s)) for s in sboms_to_merge]
+
+    merged_sbom = reduce(add, sboms_to_merge)
+    # merged_sbom = sum(sboms_to_merge[1:], sboms_to_merge[0]) ?
+
+    _assert_all_relationships_are_within_the_document(for_sbom=merged_sbom)
+    # TODO: assert_no_relation_goes_missing(merged_sbom, *sboms)
+    _assert_merging_sboms_produces_correct_number_of_packages(merged_sbom, *sboms_to_merge)
+    _assert_root_was_inherited_from_left_sbom(merged_sbom, sboms_to_merge[0])
+    _assert_there_is_only_one_root(merged_sbom)
+    _assert_sbom_is_well_formed(merged_sbom)
+
+
+def _same_order(sbom1: SPDXSbom, sbom2: SPDXSbom) -> bool:
+    for r1, r2 in zip(sbom1.relationships, sbom2.relationships):
+        if r1 != r2:
+            return False
+    return True
+
+
+@pytest.mark.parametrize(
+    "sboms_to_merge",
+    [
+        pytest.param(
+            (
+                "./tests/unit/data/something.simple0.100.0.spdx.pretty.json",
+                "./tests/unit/data/something.more.simple.0.100.0.spdx.pretty.json",
+            ),
+            id="two sboms",
         ),
-        SPDXRelation(
-            spdxElementId="SPDXRef-DocumentRoot-File-",
-            comment=None,
-            relatedSpdxElement="SPDXRef-Package-python-PyYAML-0172906cb007d3b6",
-            relationshipType="CONTAINS",
-        ),
-        SPDXRelation(
-            spdxElementId="SPDXRef-DocumentRoot-File-",
-            comment=None,
-            relatedSpdxElement="SPDXRef-Package-python-aiowsgi-b32dee5d93047994",
-            relationshipType="CONTAINS",
-        ),
-        SPDXRelation(
-            spdxElementId="SPDXRef-DocumentRoot-File-",
-            comment=None,
-            relatedSpdxElement="SPDXRef-Package-python-appr-93a64d044490691c",
-            relationshipType="CONTAINS",
-        ),
-        SPDXRelation(
-            spdxElementId="SPDXRef-DocumentRoot-File-",
-            comment=None,
-            relatedSpdxElement="SPDXRef-Package-rpm-bash-1a6619bdab5f8a2d",
-            relationshipType="CONTAINS",
-        ),
-        SPDXRelation(
-            spdxElementId="SPDXRef-DocumentRoot-File-",
-            comment=None,
-            relatedSpdxElement="SPDXRef-Package-python-cachi2-71a99443e114c112",
-            relationshipType="CONTAINS",
-        ),
-        SPDXRelation(
-            spdxElementId="SPDXRef-DocumentRoot-File-",
-            comment=None,
-            relatedSpdxElement="SPDXRef-Package-npm-cachito-npm-without-deps-72138119b55a065d",
-            relationshipType="CONTAINS",
-        ),
-        SPDXRelation(
-            spdxElementId="SPDXRef-DocumentRoot-File-",
-            comment=None,
-            relatedSpdxElement="SPDXRef-Package-go-module-code.gitea.io-sdk-gitea-3172f131171fcbf8",
-            relationshipType="CONTAINS",
-        ),
-        SPDXRelation(
-            spdxElementId="SPDXRef-DocumentRoot-File-",
-            comment=None,
-            relatedSpdxElement="SPDXRef-Package-npm-fecha-ff4ad17b28d08441",
-            relationshipType="CONTAINS",
-        ),
-        SPDXRelation(
-            spdxElementId="SPDXRef-DocumentRoot-File-",
-            comment=None,
-            relatedSpdxElement="SPDXRef-Package-go-module-github.com-docker-cli-1671a7feec4073fe",
-            relationshipType="CONTAINS",
-        ),
-        SPDXRelation(
-            spdxElementId="SPDXRef-DocumentRoot-File-",
-            comment=None,
-            relatedSpdxElement="SPDXRef-Package-go-module-github.com-"
-            "redhat-appstudio-build-service-5719506d15c0a3dd",
-            relationshipType="CONTAINS",
-        ),
-        SPDXRelation(
-            spdxElementId="SPDXRef-DocumentRoot-File-",
-            comment=None,
-            relatedSpdxElement="SPDXRef-Package-go-module-knative.dev-pkg-8ce424e944b2a02f",
-            relationshipType="CONTAINS",
-        ),
-    ]
-    assert sorted(packages) == [
-        SPDXPackage(
-            SPDXID="SPDXRef-Package-go-module-.-terminaltor-1b79094a8c283d88",
-            name="./terminaltor",
-            versionInfo=None,
-            externalRefs=[
-                SPDXPackageExternalRefPackageManagerPURL(
-                    referenceLocator="pkg:golang/./terminaltor",
-                    referenceType="purl",
-                    referenceCategory="PACKAGE-MANAGER",
-                )
-            ],
-        ),
-        SPDXPackage(
-            SPDXID="SPDXRef-Package-go-module-.-terminaltor-9c8431f4d44b5c65",
-            name="./terminaltor",
-            versionInfo="(devel)",
-            externalRefs=[
-                SPDXPackageExternalRefPackageManagerPURL(
-                    referenceLocator="pkg:golang/./terminaltor@(devel)",
-                    referenceType="purl",
-                    referenceCategory="PACKAGE-MANAGER",
-                ),
-            ],
-            annotations=[],
-        ),
-        SPDXPackage(
-            SPDXID="SPDXRef-Package-go-module-archive-tar-1ce4dbb5cf96f1c7",
-            name="archive/tar",
-            versionInfo=None,
-            externalRefs=[
-                SPDXPackageExternalRefPackageManagerPURL(
-                    referenceLocator="pkg:golang/archive/tar?type=package",
-                    referenceType="purl",
-                    referenceCategory="PACKAGE-MANAGER",
-                )
-            ],
-            annotations=[],
-        ),
-        SPDXPackage(
-            SPDXID="SPDXRef-Package-go-module-code.gitea.io-sdk-gitea-3172f131171fcbf8",
-            name="code.gitea.io/sdk/gitea",
-            versionInfo="v0.15.1",
-            externalRefs=[
-                SPDXPackageExternalRefPackageManagerPURL(
-                    referenceLocator="pkg:golang/code.gitea.io/sdk/gitea@v0.15.1",
-                    referenceType="purl",
-                    referenceCategory="PACKAGE-MANAGER",
-                )
-            ],
-            annotations=[],
-        ),
-        SPDXPackage(
-            SPDXID="SPDXRef-Package-go-module-code.gitea.io-sdk-gitea-cdc94d3a9074a69b",
-            name="code.gitea.io/sdk/gitea",
-            versionInfo="v0.15.1",
-            externalRefs=[
-                SPDXPackageExternalRefPackageManagerPURL(
-                    referenceLocator="pkg:golang/code.gitea.io/sdk/gitea@v0.15.1?type=module",
-                    referenceType="purl",
-                    referenceCategory="PACKAGE-MANAGER",
-                )
-            ],
-            annotations=[],
-        ),
-        SPDXPackage(
-            SPDXID="SPDXRef-Package-go-module-github.com-cachito-testing-gomod-pandemon"
-            "ium-terminaltor-d85aa69f7b0304e3",
-            name="github.com/cachito-testing/gomod-" "pandemonium/terminaltor",
-            versionInfo="v1.0.0",
-            externalRefs=[
-                SPDXPackageExternalRefPackageManagerPURL(
-                    referenceLocator="pkg:golang/github.com/cachito-testing/gomod-pandem"
-                    "onium/terminaltor@v1.0.0?type=module",
-                    referenceType="purl",
-                    referenceCategory="PACKAGE-MANAGER",
-                )
-            ],
-            annotations=[],
-        ),
-        SPDXPackage(
-            SPDXID="SPDXRef-Package-go-module-github.com-docker-cli-1671a7feec4073fe",
-            name="github.com/docker/cli",
-            versionInfo="v23.0.0-rc.3+incompatible",
-            externalRefs=[
-                SPDXPackageExternalRefPackageManagerPURL(
-                    referenceLocator="pkg:golang/github.com/docker/cli@v23.0.0-rc.3+incompatible",
-                    referenceType="purl",
-                    referenceCategory="PACKAGE-MANAGER",
-                )
-            ],
-            annotations=[],
-        ),
-        SPDXPackage(
-            SPDXID="SPDXRef-Package-go-module-github.com-docker-cli-cli-config-73cc4b7b8f510817",
-            name="github.com/docker/cli/cli/config",
-            versionInfo="v23.0.0-rc.3+incompatible",
-            externalRefs=[
-                SPDXPackageExternalRefPackageManagerPURL(
-                    referenceLocator="pkg:golang/github.com/docker/cli/cli/config@v23.0.0-rc."
-                    "3%2Bincompatible?type=package",
-                    referenceType="purl",
-                    referenceCategory="PACKAGE-MANAGER",
-                )
-            ],
-            annotations=[],
-        ),
-        SPDXPackage(
-            SPDXID="SPDXRef-Package-go-module-github.com-docker-cli-ea403731821a081e",
-            name="github.com/docker/cli",
-            versionInfo="v23.0.0-rc.3+incompatible",
-            externalRefs=[
-                SPDXPackageExternalRefPackageManagerPURL(
-                    referenceLocator="pkg:golang/github.com/docker/cli@v23.0.0-rc.3%2Binc"
-                    "ompatible?type=module",
-                    referenceType="purl",
-                    referenceCategory="PACKAGE-MANAGER",
-                )
-            ],
-            annotations=[],
-        ),
-        SPDXPackage(
-            SPDXID="SPDXRef-Package-go-module-github.com-redhat-appstudio-build-"
-            "service-5719506d15c0a3dd",
-            name="github.com/redhat-appstudio/build-service",
-            versionInfo="(devel)",
-            externalRefs=[
-                SPDXPackageExternalRefPackageManagerPURL(
-                    referenceLocator="pkg:golang/github.com/redhat-appstudio/build-service@(devel)",
-                    referenceType="purl",
-                    referenceCategory="PACKAGE-MANAGER",
-                )
-            ],
-            annotations=[],
-        ),
-        SPDXPackage(
-            SPDXID="SPDXRef-Package-go-module-github.com-redhat-appstudio-build-service-"
-            "574d786c89acf613",
-            name="github.com/redhat-appstudio/build-service",
-            versionInfo="v0.0.0-20230503110830-d1a9e858489d",
-            externalRefs=[
-                SPDXPackageExternalRefPackageManagerPURL(
-                    referenceLocator="pkg:golang/github.com/redhat-appstudio/build-service@v0"
-                    ".0.0-20230503110830-d1a9e858489d?type=module",
-                    referenceType="purl",
-                    referenceCategory="PACKAGE-MANAGER",
-                )
-            ],
-            annotations=[],
-        ),
-        SPDXPackage(
-            SPDXID="SPDXRef-Package-go-module-knative.dev-pkg-0a00bf33a820e7f1",
-            name="knative.dev/pkg",
-            versionInfo="v0.0.0-20230125083639-408ad0773f47",
-            externalRefs=[
-                SPDXPackageExternalRefPackageManagerPURL(
-                    referenceLocator="pkg:golang/knative.dev/pkg@v0.0.0-20230125083639-408ad0"
-                    "773f47?type=module",
-                    referenceType="purl",
-                    referenceCategory="PACKAGE-MANAGER",
-                )
-            ],
-            annotations=[],
-        ),
-        SPDXPackage(
-            SPDXID="SPDXRef-Package-go-module-knative.dev-pkg-8ce424e944b2a02f",
-            name="knative.dev/pkg",
-            versionInfo="v0.0.0-20230125083639-408ad0773f47",
-            externalRefs=[
-                SPDXPackageExternalRefPackageManagerPURL(
-                    referenceLocator="pkg:golang/knative.dev/pkg@v0.0.0-20230125083639-408ad0773f47",
-                    referenceType="purl",
-                    referenceCategory="PACKAGE-MANAGER",
-                )
-            ],
-            annotations=[],
-        ),
-        SPDXPackage(
-            SPDXID="SPDXRef-Package-go-module-knative.dev-pkg-metrics-c613be23287c5dc4",
-            name="knative.dev/pkg/metrics",
-            versionInfo="v0.0.0-20230125083639-408ad0773f47",
-            externalRefs=[
-                SPDXPackageExternalRefPackageManagerPURL(
-                    referenceLocator="pkg:golang/knative.dev/pkg/metrics@v0.0.0-2023012508"
-                    "3639-408ad0773f47?type=package",
-                    referenceType="purl",
-                    referenceCategory="PACKAGE-MANAGER",
-                )
-            ],
-            annotations=[],
-        ),
-        SPDXPackage(
-            SPDXID="SPDXRef-Package-npm-cachito-npm-without-deps-563e3658e3eb288e",
-            name="cachito-npm-without-deps",
-            versionInfo=None,
-            externalRefs=[
-                SPDXPackageExternalRefPackageManagerPURL(
-                    referenceLocator="pkg:npm/cachito-npm-without-deps?vcs_url=git%2"
-                    "Bhttps://github.com/cachito-testing/cachito-npm-without-deps.git"
-                    "%402f0ce1d7b1f8b35572d919428b965285a69583f6",
-                    referenceType="purl",
-                    referenceCategory="PACKAGE-MANAGER",
-                )
-            ],
-            annotations=[],
-        ),
-        SPDXPackage(
-            SPDXID="SPDXRef-Package-npm-cachito-npm-without-deps-72138119b55a065d",
-            name="cachito-npm-without-deps",
-            versionInfo="git+https://github.com/cachito-testing/cachito-npm-without-deps."
-            "git#2f0ce1d7b1f8b35572d919428b965285a69583f6",
-            externalRefs=[
-                SPDXPackageExternalRefPackageManagerPURL(
-                    referenceLocator="pkg:npm/cachito-npm-without-deps@git+https://github.com/"
-                    "cachito-testing/cachito-npm-without-deps.git%232f0ce1d7b1f8b35572d919428b"
-                    "965285a69583f6",
-                    referenceType="purl",
-                    referenceCategory="PACKAGE-MANAGER",
-                )
-            ],
-            annotations=[],
-        ),
-        SPDXPackage(
-            SPDXID="SPDXRef-Package-npm-fecha-874399c7dda48850",
-            name="fecha",
-            versionInfo=None,
-            externalRefs=[
-                SPDXPackageExternalRefPackageManagerPURL(
-                    referenceLocator="pkg:npm/fecha?checksum=sha512:8ae71e98d68e38e1f6e"
-                    "4c629187684dd85e4dc96647c7219b1dd189598ea52865e947f0ad94a7001fa8fb"
-                    "5eccf58467fe34ad10066e831af3374120134604bd5&download_url=https://g"
-                    "ithub.com/taylorhakes/fecha/archive/91680e4db1415fea33eac878cfd889"
-                    "c80a7b55c7.tar.gz",
-                    referenceType="purl",
-                    referenceCategory="PACKAGE-MANAGER",
-                )
-            ],
-            annotations=[],
-        ),
-        SPDXPackage(
-            SPDXID="SPDXRef-Package-npm-fecha-ff4ad17b28d08441",
-            name="fecha",
-            versionInfo="https://github.com/taylorhakes/fecha/archive/91680e4db1415fea3"
-            "3eac878cfd889c80a7b55c7.tar.gz",
-            externalRefs=[
-                SPDXPackageExternalRefPackageManagerPURL(
-                    referenceLocator="pkg:npm/fecha@https://github.com/taylorhakes/fecha/"
-                    "archive/91680e4db1415fea33eac878cfd889c80a7b55c7.tar.gz",
-                    referenceType="purl",
-                    referenceCategory="PACKAGE-MANAGER",
-                )
-            ],
-            annotations=[],
-        ),
-        SPDXPackage(
-            SPDXID="SPDXRef-Package-python-PyYAML-0172906cb007d3b6",
-            name="PyYAML",
-            versionInfo="6.0",
-            externalRefs=[
-                SPDXPackageExternalRefPackageManagerPURL(
-                    referenceLocator="pkg:pypi/PyYAML@6.0",
-                    referenceType="purl",
-                    referenceCategory="PACKAGE-MANAGER",
-                )
-            ],
-            annotations=[],
-        ),
-        SPDXPackage(
-            SPDXID="SPDXRef-Package-python-PyYAML-696696f5e92f1b5e",
-            name="PyYAML",
-            versionInfo="6.0",
-            externalRefs=[
-                SPDXPackageExternalRefPackageManagerPURL(
-                    referenceLocator="pkg:pypi/pyyaml@6.0",
-                    referenceType="purl",
-                    referenceCategory="PACKAGE-MANAGER",
-                )
-            ],
-            annotations=[],
-        ),
-        SPDXPackage(
-            SPDXID="SPDXRef-Package-python-aiowsgi-78716bdabf6daae1",
-            name="aiowsgi",
-            versionInfo="0.8",
-            externalRefs=[
-                SPDXPackageExternalRefPackageManagerPURL(
-                    referenceLocator="pkg:pypi/aiowsgi@0.8",
-                    referenceType="purl",
-                    referenceCategory="PACKAGE-MANAGER",
-                )
-            ],
-            annotations=[],
-        ),
-        SPDXPackage(
-            SPDXID="SPDXRef-Package-python-aiowsgi-b32dee5d93047994",
-            name="aiowsgi",
-            versionInfo="0.8",
-            externalRefs=[
-                SPDXPackageExternalRefPackageManagerPURL(
-                    referenceLocator="pkg:pypi/aiowsgi@0.8",
-                    referenceType="purl",
-                    referenceCategory="PACKAGE-MANAGER",
-                )
-            ],
-            annotations=[],
-        ),
-        SPDXPackage(
-            SPDXID="SPDXRef-Package-python-appr-93a64d044490691c",
-            name="appr",
-            versionInfo="0.7.4",
-            externalRefs=[
-                SPDXPackageExternalRefPackageManagerPURL(
-                    referenceLocator="pkg:pypi/appr@0.7.4",
-                    referenceType="purl",
-                    referenceCategory="PACKAGE-MANAGER",
-                )
-            ],
-            annotations=[],
-        ),
-        SPDXPackage(
-            SPDXID="SPDXRef-Package-python-appr-d869da81f0adbece",
-            name="appr",
-            versionInfo=None,
-            externalRefs=[
-                SPDXPackageExternalRefPackageManagerPURL(
-                    referenceLocator="pkg:pypi/appr?checksum=sha256:ee6a0a38bed8cff46a56"
-                    "2ed3620bc453141a02262ab0c8dd055824af2829ee5c&download_url="
-                    "https://github.com/quay/appr/archive/37ff9a487a54ad41b59855ecd76e"
-                    "e092fe206a84.zip",
-                    referenceType="purl",
-                    referenceCategory="PACKAGE-MANAGER",
-                )
-            ],
-            annotations=[],
-        ),
-        SPDXPackage(
-            SPDXID="SPDXRef-Package-python-cachi2-71a99443e114c112",
-            name="cachi2",
-            versionInfo="0.0.post1+gdfd2180.d20230704",
-            externalRefs=[
-                SPDXPackageExternalRefPackageManagerPURL(
-                    referenceLocator="pkg:pypi/cachi2@0.0.post1+gdfd2180.d20230704",
-                    referenceType="purl",
-                    referenceCategory="PACKAGE-MANAGER",
-                )
-            ],
-            annotations=[],
-        ),
-        SPDXPackage(
-            SPDXID="SPDXRef-Package-python-cachi2-865cdb2c6f0ff5c5",
-            name="cachi2",
-            versionInfo="0.0.1",
-            externalRefs=[
-                SPDXPackageExternalRefPackageManagerPURL(
-                    referenceLocator="pkg:pypi/cachi2@0.0.1?vcs_url="
-                    "git%2Bssh://git%40github.com/containerbuildsystem/cachi2%40fc0d6079"
-                    "c2dc9b2a491c0848e550ad3509986110",
-                    referenceType="purl",
-                    referenceCategory="PACKAGE-MANAGER",
-                )
-            ],
-            annotations=[],
-        ),
-        SPDXPackage(
-            SPDXID="SPDXRef-Package-python-test-package-cachi2-bdec7caf7aac75f3",
-            name="test_package_cachi2",
-            versionInfo="1.0.0",
-            externalRefs=[
-                SPDXPackageExternalRefPackageManagerPURL(
-                    referenceLocator="pkg:pypi/test-package-cachi2@1.0.0?vcs_url=git%2B"
-                    "ssh://git%40github.com/brunoapimentel/pip-e2e-test.git%40294df352deed83"
-                    "5cf703ae8a799926418ae5fd3b",
-                    referenceType="purl",
-                    referenceCategory="PACKAGE-MANAGER",
-                )
-            ],
-            annotations=[],
-        ),
-        SPDXPackage(
-            SPDXID="SPDXRef-Package-rpm-bash-1a6619bdab5f8a2d",
-            name="bash",
-            versionInfo="4.4.20-4.el8_6",
-            externalRefs=[
-                SPDXPackageExternalRefPackageManagerPURL(
-                    referenceLocator="pkg:rpm/rhel/bash@4.4.20-4.el8_6?arch=x86_64&upstream="
-                    "bash-4.4.20-4.el8_6.src.rpm&distro=rhel-8.7",
-                    referenceType="purl",
-                    referenceCategory="PACKAGE-MANAGER",
-                )
-            ],
-            annotations=[],
-        ),
-    ]
+    ],
+)
+def test_merging_spdx_sboms_produces_consistent_ordering(
+    sboms_to_merge: list[Any],  # 'Any' is used to prevent mypy from having a fit over re-binding
+) -> None:
+    sboms_to_merge = [SPDXSbom.from_file(Path(s)) for s in sboms_to_merge]
+
+    merged_sbom1 = reduce(add, sboms_to_merge)
+    merged_sbom2 = reduce(add, sboms_to_merge)
+    merged_sbom3 = reduce(add, sboms_to_merge)
+
+    assert _same_order(merged_sbom1, merged_sbom2), "Order mismatch!"
+    assert _same_order(merged_sbom2, merged_sbom3), "Order mismatch!"
+
+    _assert_sbom_is_well_formed(merged_sbom1)
