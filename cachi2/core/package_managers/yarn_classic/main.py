@@ -1,13 +1,11 @@
 import logging
-import re
 from collections import Counter
-from pathlib import Path
 from typing import Iterable
-from urllib.parse import urlparse
 
 from cachi2.core.errors import PackageManagerError, PackageRejected
 from cachi2.core.models.input import Request
 from cachi2.core.models.output import Component, EnvironmentVariable, RequestOutput
+from cachi2.core.models.property_semantics import PropertySet
 from cachi2.core.package_managers.yarn.utils import (
     VersionsRange,
     extract_yarn_version_from_env,
@@ -20,6 +18,10 @@ from cachi2.core.package_managers.yarn_classic.resolver import (
     UrlPackage,
     YarnClassicPackage,
     resolve_packages,
+)
+from cachi2.core.package_managers.yarn_classic.utils import (
+    get_git_tarball_mirror_name,
+    get_tarball_mirror_name,
 )
 from cachi2.core.rooted_path import RootedPath
 
@@ -39,23 +41,44 @@ def fetch_yarn_source(request: Request) -> RequestOutput:
     for package in request.yarn_classic_packages:
         package_path = request.source_dir.join_within_root(package.path)
         _ensure_mirror_dir_exists(request.output_dir)
-        _resolve_yarn_project(Project.from_source_dir(package_path), request.output_dir)
+        components.extend(
+            _resolve_yarn_project(Project.from_source_dir(package_path), request.output_dir)
+        )
 
     return RequestOutput.from_obj_list(
         components, _generate_build_environment_variables(), project_files=[]
     )
 
 
-def _resolve_yarn_project(project: Project, output_dir: RootedPath) -> None:
+def _resolve_yarn_project(project: Project, output_dir: RootedPath) -> list[Component]:
     """Process a request for a single yarn source directory."""
     log.info(f"Fetching the yarn dependencies at the subpath {project.source_dir}")
 
-    _verify_repository(project)
+    _reject_if_pnp_install(project)
     prefetch_env = _get_prefetch_environment_variables(output_dir)
     _verify_corepack_yarn_version(project.source_dir, prefetch_env)
     _fetch_dependencies(project.source_dir, prefetch_env)
-    packages = resolve_packages(project)
+    packages = resolve_packages(project, output_dir.join_within_root(MIRROR_DIR))
     _verify_no_offline_mirror_collisions(packages)
+
+    return _create_sbom_components(packages)
+
+
+def _create_sbom_components(packages: Iterable[YarnClassicPackage]) -> list[Component]:
+    """Create SBOM components from the given yarn packages."""
+    result = []
+    for package in packages:
+        properties = PropertySet(npm_development=package.dev).to_properties()
+        result.append(
+            Component(
+                name=package.name,
+                purl=package.purl,
+                version=package.version,
+                properties=properties,
+            )
+        )
+
+    return result
 
 
 def _fetch_dependencies(source_dir: RootedPath, env: dict[str, str]) -> None:
@@ -121,11 +144,6 @@ def _reject_if_pnp_install(project: Project) -> None:
         )
 
 
-def _verify_repository(project: Project) -> None:
-    _reject_if_pnp_install(project)
-    # _check_lockfile(project)
-
-
 def _verify_corepack_yarn_version(source_dir: RootedPath, env: dict[str, str]) -> None:
     """Verify that corepack installed the correct version of yarn by checking `yarn --version`."""
     installed_yarn_version = extract_yarn_version_from_env(source_dir, env)
@@ -144,10 +162,10 @@ def _verify_no_offline_mirror_collisions(packages: Iterable[YarnClassicPackage])
     tarballs = []
     for p in packages:
         if isinstance(p, (RegistryPackage, UrlPackage)):
-            tarball_name = _get_tarball_mirror_name(p.url)
+            tarball_name = get_tarball_mirror_name(p.url)
             tarballs.append(tarball_name)
         elif isinstance(p, GitPackage):
-            tarball_name = _get_git_tarball_mirror_name(p.url)
+            tarball_name = get_git_tarball_mirror_name(p.url)
             tarballs.append(tarball_name)
         else:
             # file, link, and workspace packages are not copied to the offline mirror
@@ -157,40 +175,3 @@ def _verify_no_offline_mirror_collisions(packages: Iterable[YarnClassicPackage])
     duplicate_tarballs = [f"{name} ({count}x)" for name, count in c.most_common() if count > 1]
     if len(duplicate_tarballs) > 0:
         raise PackageManagerError(f"Duplicate tarballs detected: {', '.join(duplicate_tarballs)}")
-
-
-# https://github.com/yarnpkg/yarn/blob/7cafa512a777048ce0b666080a24e80aae3d66a9/src/fetchers/tarball-fetcher.js#L21
-RE_URL_NAME_MATCH = r"/(?:(@[^/]+)(?:\/|%2f))?[^/]+/(?:-|_attachments)/(?:@[^/]+\/)?([^/]+)$"
-
-
-# https://github.com/yarnpkg/yarn/blob/7cafa512a777048ce0b666080a24e80aae3d66a9/src/fetchers/tarball-fetcher.js#L65
-def _get_tarball_mirror_name(url: str) -> str:
-    parsed_url = urlparse(url)
-    path = Path(parsed_url.path)
-
-    match = re.search(RE_URL_NAME_MATCH, str(path))
-
-    if match is not None:
-        scope, tarball_basename = match.groups()
-        package_filename = f"{scope}-{tarball_basename}" if scope else tarball_basename
-    else:
-        package_filename = path.name
-
-    return package_filename
-
-
-# https://github.com/yarnpkg/yarn/blob/7cafa512a777048ce0b666080a24e80aae3d66a9/src/fetchers/git-fetcher.js#L40
-def _get_git_tarball_mirror_name(url: str) -> str:
-    parsed_url = urlparse(url)
-    path = Path(parsed_url.path)
-
-    package_filename = path.name
-    hash = parsed_url.fragment
-
-    if hash:
-        package_filename = f"{package_filename}-{hash}"
-
-    if package_filename.startswith(":"):
-        package_filename = package_filename[1:]
-
-    return package_filename

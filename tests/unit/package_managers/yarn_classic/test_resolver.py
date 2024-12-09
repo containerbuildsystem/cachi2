@@ -1,11 +1,17 @@
+import io
+import json
 import re
+import tarfile
 from pathlib import Path
 from unittest import mock
+from urllib.parse import quote
 
 import pytest
 from pyarn.lockfile import Package as PYarnPackage
 
+from cachi2.core.checksum import ChecksumInfo
 from cachi2.core.errors import PackageRejected, UnexpectedFormat
+from cachi2.core.package_managers.yarn_classic.main import MIRROR_DIR
 from cachi2.core.package_managers.yarn_classic.project import PackageJson
 from cachi2.core.package_managers.yarn_classic.resolver import (
     FilePackage,
@@ -21,11 +27,14 @@ from cachi2.core.package_managers.yarn_classic.resolver import (
     _is_from_npm_registry,
     _is_git_url,
     _is_tarball_url,
+    _read_name_from_tarball,
     _YarnClassicPackageFactory,
     resolve_packages,
 )
 from cachi2.core.package_managers.yarn_classic.workspaces import Workspace
 from cachi2.core.rooted_path import PathOutsideRoot, RootedPath
+from cachi2.core.scm import RepoID
+from tests.common_utils import GIT_REF
 
 VALID_GIT_URLS = [
     "git://git.host.com/some/path",
@@ -176,14 +185,23 @@ def test__is_from_npm_registry_can_parse_incorrect_registry_urls() -> None:
         ),
     ],
 )
+@mock.patch("cachi2.core.package_managers.yarn_classic.resolver._read_name_from_tarball")
+@mock.patch("cachi2.core.package_managers.yarn_classic.resolver._read_name_from_package_json")
 def test_create_package_from_pyarn_package(
-    pyarn_package: PYarnPackage, expected_package: YarnClassicPackage, rooted_tmp_path: RootedPath
+    mock_read_name_from_package_json: mock.Mock,
+    mock_read_name_from_tarball: mock.Mock,
+    pyarn_package: PYarnPackage,
+    expected_package: YarnClassicPackage,
+    rooted_tmp_path: RootedPath,
 ) -> None:
+    mock_read_name_from_package_json.return_value = expected_package.name
+    mock_read_name_from_tarball.return_value = expected_package.name
+
     runtime_deps = (
         set() if expected_package.dev else set({f"{pyarn_package.name}@{pyarn_package.version}"})
     )
 
-    package_factory = _YarnClassicPackageFactory(rooted_tmp_path, runtime_deps)
+    package_factory = _YarnClassicPackageFactory(rooted_tmp_path, rooted_tmp_path, runtime_deps)
     assert package_factory.create_package_from_pyarn_package(pyarn_package) == expected_package
 
 
@@ -198,7 +216,7 @@ def test_create_package_from_pyarn_package_fail_absolute_path(rooted_tmp_path: R
         f"({pyarn_package.path}), which is not permitted."
     )
 
-    package_factory = _YarnClassicPackageFactory(rooted_tmp_path, set())
+    package_factory = _YarnClassicPackageFactory(rooted_tmp_path, rooted_tmp_path, set())
     with pytest.raises(PackageRejected, match=re.escape(error_msg)):
         package_factory.create_package_from_pyarn_package(pyarn_package)
 
@@ -212,7 +230,7 @@ def test_create_package_from_pyarn_package_fail_path_outside_root(
         path="../path/outside/root",
     )
 
-    package_factory = _YarnClassicPackageFactory(rooted_tmp_path, set())
+    package_factory = _YarnClassicPackageFactory(rooted_tmp_path, rooted_tmp_path, set())
     with pytest.raises(PathOutsideRoot):
         package_factory.create_package_from_pyarn_package(pyarn_package)
 
@@ -226,7 +244,7 @@ def test_create_package_from_pyarn_package_fail_unexpected_format(
         url="ftp://some-tarball.tgz",
     )
 
-    package_factory = _YarnClassicPackageFactory(rooted_tmp_path, set())
+    package_factory = _YarnClassicPackageFactory(rooted_tmp_path, rooted_tmp_path, set())
     with pytest.raises(UnexpectedFormat):
         package_factory.create_package_from_pyarn_package(pyarn_package)
 
@@ -253,7 +271,7 @@ def test__get_packages_from_lockfile(
         mock.call(mock_pyarn_package_2),
     ]
 
-    output = _get_packages_from_lockfile(rooted_tmp_path, mock_yarn_lock, set())
+    output = _get_packages_from_lockfile(rooted_tmp_path, rooted_tmp_path, mock_yarn_lock, set())
 
     mock_pyarn_lockfile.packages.assert_called_once()
     mock_create_package.assert_has_calls(create_package_expected_calls)
@@ -288,7 +306,7 @@ def test_resolve_packages(
     mock_get_lockfile_packages.return_value = lockfile_packages
     mock_get_workspace_packages.return_value = workspace_packages
 
-    output = resolve_packages(project)
+    output = resolve_packages(project, rooted_tmp_path.join_within_root(MIRROR_DIR))
     mock_extract_workspaces.assert_called_once_with(rooted_tmp_path)
     mock_get_yarn_lock.assert_called_once_with(yarn_lock_path)
     mock_get_main_package.assert_called_once_with(project.package_json)
@@ -297,6 +315,7 @@ def test_resolve_packages(
     )
     mock_get_lockfile_packages.assert_called_once_with(
         rooted_tmp_path,
+        rooted_tmp_path.join_within_root(MIRROR_DIR),
         mock_get_yarn_lock.return_value,
         find_runtime_deps.return_value,
     )
@@ -354,3 +373,112 @@ def test__get_workspace_packages(rooted_tmp_path: RootedPath) -> None:
 
     output = _get_workspace_packages(rooted_tmp_path, [workspace])
     assert output == expected
+
+
+def test_package_purl() -> None:
+    example_git_url = f"https://github.com/org/repo.git#{GIT_REF}"
+    example_repo_id = RepoID(origin_url=example_git_url, commit_id=GIT_REF)
+    example_vcs_url = example_repo_id.as_vcs_url_qualifier()
+    purl_vcs_url = quote(example_vcs_url, safe=":/")
+
+    example_sri_integrity = "sha512-GRaAEriuT4zp9N4p1i8BDBYmEyfo+xQ3yHjJU4eiK5NDa1RmUZG+unZABUTK4/Ox/M+GaHwb6Ow8rUITrtjszA=="
+    example_checksum = ChecksumInfo.from_sri(example_sri_integrity)
+
+    yarn_classic_packages: list[tuple[YarnClassicPackage, str]] = [
+        (
+            RegistryPackage(
+                name="npm-registry-pkg",
+                version="1.0.0",
+                integrity=example_sri_integrity,
+                url="https://registry.npmjs.org",
+            ),
+            f"pkg:npm/npm-registry-pkg@1.0.0?checksum={str(example_checksum)}",
+        ),
+        (
+            RegistryPackage(
+                name="yarn-registry-pkg",
+                version="2.0.0",
+                integrity=example_sri_integrity,
+                url="https://registry.yarnpkg.com",
+            ),
+            f"pkg:npm/yarn-registry-pkg@2.0.0?checksum={str(example_checksum)}&repository_url=https://registry.yarnpkg.com",
+        ),
+        (
+            GitPackage(
+                name="git-pkg",
+                version="3.0.0",
+                url=example_git_url,
+            ),
+            f"pkg:npm/git-pkg@3.0.0?vcs_url={purl_vcs_url}",
+        ),
+        (
+            UrlPackage(
+                name="url-pkg",
+                version="4.0.0",
+                url="https://example.com/package.tar.gz",
+            ),
+            "pkg:npm/url-pkg@4.0.0?download_url=https://example.com/package.tar.gz",
+        ),
+        (
+            FilePackage(
+                name="file-pkg",
+                version="5.0.0",
+                relpath=Path("path/to/package"),
+            ),
+            "pkg:npm/file-pkg@5.0.0#path/to/package",
+        ),
+        (
+            WorkspacePackage(
+                name="workspace-pkg",
+                version="6.0.0",
+                relpath=Path("workspace/package"),
+            ),
+            "pkg:npm/workspace-pkg@6.0.0#workspace/package",
+        ),
+        (
+            LinkPackage(
+                name="link-pkg",
+                version="7.0.0",
+                relpath=Path("link/to/package"),
+            ),
+            "pkg:npm/link-pkg@7.0.0#link/to/package",
+        ),
+    ]
+
+    for package, expected_purl in yarn_classic_packages:
+        assert package.purl == expected_purl
+
+
+def mock_tarball(path: RootedPath, package_json_content: dict[str, str]) -> RootedPath:
+    tarball_path = path.join_within_root("package.tar.gz")
+
+    if not package_json_content:
+        with tarfile.open(tarball_path, mode="w:gz") as tar:
+            tar.addfile(tarfile.TarInfo(name="foo"), io.BytesIO())
+
+        return tarball_path
+
+    with tarfile.open(tarball_path, mode="w:gz") as tar:
+        package_json_bytes = json.dumps(package_json_content).encode("utf-8")
+        info = tarfile.TarInfo(name="package.json")
+        info.size = len(package_json_bytes)
+        tar.addfile(info, io.BytesIO(package_json_bytes))
+
+    return tarball_path
+
+
+def test_successful_name_extraction(rooted_tmp_path: RootedPath) -> None:
+    tarball_path = mock_tarball(path=rooted_tmp_path, package_json_content={"name": "foo"})
+    assert _read_name_from_tarball(tarball_path) == "foo"
+
+
+def test_no_package_json(rooted_tmp_path: RootedPath) -> None:
+    tarball_path = mock_tarball(path=rooted_tmp_path, package_json_content={})
+    with pytest.raises(ValueError, match="No package.json found"):
+        _read_name_from_tarball(tarball_path)
+
+
+def test_missing_name_field(rooted_tmp_path: RootedPath) -> None:
+    tarball_path = mock_tarball(path=rooted_tmp_path, package_json_content={"key": "foo"})
+    with pytest.raises(ValueError, match="No 'name' field found"):
+        _read_name_from_tarball(tarball_path)
