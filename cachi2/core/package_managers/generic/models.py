@@ -7,8 +7,16 @@ from typing import Literal, Union
 from urllib.parse import urljoin, urlparse
 
 from packageurl import PackageURL
-from pydantic import AnyUrl, BaseModel, ConfigDict, field_validator, model_validator
+from pydantic import (
+    AnyUrl,
+    BaseModel,
+    ConfigDict,
+    PlainSerializer,
+    field_validator,
+    model_validator,
+)
 from pydantic_core.core_schema import ValidationInfo
+from typing_extensions import Annotated
 
 from cachi2.core.checksum import ChecksumInfo
 from cachi2.core.errors import PackageManagerError
@@ -88,7 +96,7 @@ class LockfileArtifactUrl(LockfileArtifactBase):
     :param download_url: The URL to download the artifact from.
     """
 
-    download_url: AnyUrl
+    download_url: Annotated[AnyUrl, PlainSerializer(str, return_type=str)]
 
     def resolve_filename(self) -> str:
         """Resolve the filename of the artifact."""
@@ -120,7 +128,7 @@ class LockfileArtifactUrl(LockfileArtifactBase):
 class LockfileArtifactMavenAttributes(BaseModel):
     """Attributes for a Maven artifact in the lockfile."""
 
-    repository_url: AnyUrl
+    repository_url: Annotated[AnyUrl, PlainSerializer(str, return_type=str)]
     group_id: str
     artifact_id: str
     version: str
