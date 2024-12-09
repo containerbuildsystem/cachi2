@@ -3,7 +3,6 @@ from typing import Any, Type
 from unittest import mock
 
 import pytest
-from pydantic_core import Url
 
 from cachi2.core.errors import Cachi2Error, PackageRejected
 from cachi2.core.models.input import GenericPackageInput
@@ -335,15 +334,13 @@ def test_load_generic_lockfile_valid(rooted_tmp_path: RootedPath) -> None:
         "metadata": {"version": "1.0"},
         "artifacts": [
             {
-                "download_url": Url("https://example.com/artifact"),
+                "download_url": "https://example.com/artifact",
                 "filename": str(rooted_tmp_path.join_within_root("archive.zip")),
                 "checksum": "md5:3a18656e1cea70504b905836dee14db0",
             },
             {
                 "checksum": "md5:32112bed1914cfe3799600f962750b1d",
-                "download_url": Url(
-                    "https://example.com/more/complex/path/file.tar.gz?foo=bar#fragment"
-                ),
+                "download_url": "https://example.com/more/complex/path/file.tar.gz?foo=bar#fragment",
                 "filename": str(rooted_tmp_path.join_within_root("file.tar.gz")),
             },
         ],
