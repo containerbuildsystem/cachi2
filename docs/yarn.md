@@ -1,6 +1,6 @@
 # yarn
 
-<https://v3.yarnpkg.com/>
+<https://yarnpkg.com/>
 
 * Overview [in the README][readme-yarn]
 * [Cachi2's Yarn support scope](#cachi2s-yarn-support-scope)
@@ -20,18 +20,17 @@ cache](#building-your-project-using-the-pre-fetched-yarn-dependency-cache)
 ## Cachi2's Yarn support scope
 
 ### Supported Yarn versions
-Cachi2 currently supports Yarn versions 1 and 3. Version 1 is referred to as
-"Yarn Classic" and is covered in [yarn_classic.md](yarn_classic.md). This document
-describes Yarn v3 support.
 
-_Note: newer versions of Yarn are likely to be added in future releases._
+Cachi2 currently supports Yarn versions 1, 3 and 4. Version 1 is referred to as
+"Yarn Classic" and is covered in [yarn_classic.md](yarn_classic.md). This document
+describes Yarn v3 and v4 support.
 
 ### Supported Yarn protocols/locators
 
 Cachi2 currently supports all standard
-[Yarn v3 protocols](<https://v3.yarnpkg.com/features/protocols/>) except for:
-- [Exec](https://v3.yarnpkg.com/features/protocols#exec)
-- [Git/GitHub](https://v3.yarnpkg.com/features/protocols#git)
+[Yarn protocols](<https://yarnpkg.com/protocols/>) except for:
+- [Exec](https://yarnpkg.com/protocol/exec)
+- [Git/GitHub](https://yarnpkg.com/protocol/git)
 
 Due to the nature of how the two protocols above work, mainly related to potentially executing
 arbitrary code, adding support for them with future releases of Cachi2 is unlikely. For further
@@ -41,7 +40,7 @@ official Yarn documentation on protocols linked earlier in this section.
 ### Dealing with .yarnrc.yml
 Cachi2 parses the project's ``.yarnrc.yml`` file and analyzes configuration settings. Before cachi2
 proceeds with the actual dependency fetching, it verifies whether all [configuration
-settings](https://v3.yarnpkg.com/configuration/yarnrc) that set a path to a resource don't point
+settings](https://yarnpkg.com/configuration/yarnrc) that set a path to a resource don't point
 outside of the source repository, so in order to avoid any issues reported by Cachi2 in this regard
 make sure all your project resource references are bound by the repository. Part of the analysis of
 the repository's ``.yarnrc.yml`` file is detection of plugin usage which is further explained in
@@ -49,16 +48,16 @@ the repository's ``.yarnrc.yml`` file is detection of plugin usage which is furt
 
 ### Dealing with Yarn Zero-Installs
 
-Yarn's [PnP Zero-Installs](https://v3.yarnpkg.com/features/zero-installs/) are unsupported due to
-the potentially [unplugged dependencies](https://v3.yarnpkg.com/advanced/lexicon#unplugged-package)
+Yarn's [PnP Zero-Installs](https://yarnpkg.com/features/caching#zero-installs) are unsupported due to
+the potentially [unplugged dependencies](https://yarnpkg.com/advanced/lexicon#unplugged-package)
 checked into the repository which simply make it impossible for the Yarn cache to be checked for
 integrity using Yarn's standard tooling (i.e. ``yarn install --check-cache``).
 
 _Note: the same applies to dealing with the ``node_modules`` top level directory which, if checked
 into the repository, can also serve the Zero-Install purpose. If you need further information on
 which dependency linking mode is used, have a look at the
-[nodeLinker](https://v3.yarnpkg.com/configuration/yarnrc/#nodeLinker) and on the
-[PnP](https://v3.yarnpkg.com/features/pnp/) approach in general._
+[nodeLinker](https://yarnpkg.com/configuration/yarnrc#nodeLinker) and on the
+[PnP](https://yarnpkg.com/features/pnp/) approach in general._
 
 _Also note that we may reconsider our initial decision when it comes to Zero-Installs provided the
 input repository doesn't rely on any dependencies which may include install scripts leading to
@@ -66,10 +65,12 @@ their unpacking in a form of ``.yarn/unplugged`` entries._
 
 ### Dealing with plugins
 Due to the nature of plugins (which can potentially execute arbitrary code, by e.g. adding new
-protocol resolvers), **all** plugins except for the vendored
-[exec](https://v3.yarnpkg.com/features/plugins#official-plugins) one are disabled during the
-dependency pre-fetch stage to ensure no other changes apart from downloading dependencies took
-action.
+protocol resolvers), **all** plugins except for the official ones (see "Default Plugins"
+[here](https://yarnpkg.com/api)) one are disabled during the dependency prefetch stage to ensure
+no other changes apart from downloading dependencies took action.
+
+For Yarn v3, even the official plugins are disabled, with the exception of
+[exec](https://v3.yarnpkg.com/features/plugins#official-plugins).
 
 _Note: cachi2 doesn't taint your project files, so any plugins you set will be enabled normally
 in your build environment, the only problem that can arise is if any of your specified plugins adds
@@ -79,7 +80,7 @@ fail with an error._
 ## Specifying packages to process
 
 A package is a file or directory that is described by a
-[package.json](https://v3.yarnpkg.com/configuration/manifest/) file (also called a
+[package.json](https://yarnpkg.com/configuration/manifest/) file (also called a
 manifest).
 
 Cachi2 ``fetch-deps`` shell command:
@@ -114,12 +115,12 @@ dependencies are then further managed in a ``yarn.lock`` file that Yarn CLI mana
 and creates it if missing. However, **Cachi2 will refuse to process your repository if the file is
 missing**, so be sure to check that file into the repository. Also make sure that the file is up
 to date for which you can use [yarn
-install](https://v3.yarnpkg.com/getting-started/usage/#installing-all-the-dependencies).
+install](https://yarnpkg.com/getting-started/usage/#installing-all-the-dependencies).
 
 ### Downloading dependencies
-If Yarn is configured to operate in the [PnP mode](https://v3.yarnpkg.com/features/pnp) (the
-default in Yarn v3) Yarn will store all dependencies as [ZIP
-archives](https://v3.yarnpkg.com/features/pnp/#packages-are-stored-inside-zip-archives-how-can-i-access-their-files).
+If Yarn is configured to operate in the [PnP mode](https://yarnpkg.com/features/pnp) (the
+default in Yarn v3 or v4) Yarn will store all dependencies as [ZIP
+archives](https://yarnpkg.com/features/pnp/#packages-are-stored-inside-zip-archives-how-can-i-access-their-files).
 
 Once the source repository analysis and verification described in the earlier sections of this
 document has been completed, then it's essentially just a matter of cachi2 internally invoking
