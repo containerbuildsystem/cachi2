@@ -357,9 +357,13 @@ flake8==7.1.1 \
     # via
     #   cachi2 (pyproject.toml)
     #   flake8-docstrings
+    #   flake8-pyproject
 flake8-docstrings==1.7.0 \
     --hash=sha256:4c8cc748dc16e6869728699e5d0d685da9a10b0ea718e090b1ba088e67a941af \
     --hash=sha256:51f2344026da083fc084166a9353f5082b01f72901df422f74b4d953ae88ac75
+    # via cachi2 (pyproject.toml)
+flake8-pyproject==1.2.3 \
+    --hash=sha256:6249fe53545205af5e76837644dc80b4c10037e73a0e5db87ff562d75fb5bd4a
     # via cachi2 (pyproject.toml)
 frozenlist==1.5.0 \
     --hash=sha256:000a77d6034fbad9b6bb880f7ec073027908f1b40254b5d6f26210d2dab1240e \
@@ -1142,6 +1146,7 @@ tomli==2.2.1 \
     #   black
     #   cachi2 (pyproject.toml)
     #   coverage
+    #   flake8-pyproject
     #   mypy
     #   pytest
     #   pytest-env

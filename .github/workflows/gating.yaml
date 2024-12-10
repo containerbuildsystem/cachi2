@@ -26,17 +26,18 @@ jobs:
         # REST API and the .git directory won't be present which fails due to setuptools-scm
         apt-get update && apt-get install --no-install-recommends --no-install-suggests -y git
         python3 -m pip install --upgrade pip
-        pip install tox
+        pip install nox
+        pip install tomli
 
     - uses: actions/checkout@v4
       with:
         fetch-depth: 0
 
-    - name: Test with tox
+    - name: Test with nox
       run: |
         # Disable Git's safe.directory mechanism as some unit tests do clone repositories
         git config --global --add safe.directory '*'
-        tox -e py3
+        nox -s python-${{ matrix.python-version }}
 
     - name: Upload coverage reports to Codecov
       if: matrix.python-version == '3.12'
@@ -50,7 +51,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        tox_env:
+        nox_env:
           - bandit
           - black
           - isort
@@ -67,14 +68,15 @@ jobs:
         # REST API and the .git directory won't be present which fails due to setuptools-scm
         apt-get update && apt-get install --no-install-recommends --no-install-suggests -y git
         python3 -m pip install --upgrade pip
-        pip install tox
+        pip install nox
+        pip install tomli
 
     - uses: actions/checkout@v4
       with:
         fetch-depth: 0
 
-    - name: Test '${{ matrix.tox_env }}' with tox
-      run: tox -e ${{ matrix.tox_env }}
+    - name: Test '${{ matrix.nox_env }}' with nox
+      run: nox -s ${{ matrix.nox_env }}
 
   hadolint:
     name: Hadolint
@@ -102,7 +104,8 @@ jobs:
           sudo apt-get install createrepo-c
           python3 -m venv /var/tmp/venv
           /var/tmp/venv/bin/pip3 install --upgrade pip
-          /var/tmp/venv/bin/pip3 install tox
+          /var/tmp/venv/bin/pip3 install nox
+          /var/tmp/venv/bin/pip3 install tomli
 
       - name: add checkout action...
         uses: actions/checkout@v4
@@ -171,4 +174,4 @@ jobs:
           CACHI2_TEST_LOCAL_DNF_SERVER: 'true'
         run: |
           git config --global --add safe.directory "*"
-          /var/tmp/venv/bin/tox -e integration
+          /var/tmp/venv/bin/nox -s integration-tests

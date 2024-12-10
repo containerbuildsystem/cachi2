@@ -54,6 +54,7 @@ When a feature's development has reached a stable point, you can propose making 
 Once maintainers are confident that they have enough information to maintain the new feature as officially supported they will accept it and help with moving it out from under experimental flag.
 
 ### Cachi2's Ethos
+
 Whenever adding a new feature to Cachi2, it is important to keep these fundamental aspects in mind
 
 1. Report prefetched dependencies as accurately as possible
@@ -79,8 +80,10 @@ Whenever adding a new feature to Cachi2, it is important to keep these fundament
 Set up a virtual environment that has everything you will need for development:
 
 ```shell
-make venv
-source venv/bin/activate
+python3 -m venv venv
+venv/bin/pip install --upgrade pip
+venv/bin/pip install -r requirements-extras.txt
+venv/bin/pip install -e .
 ```
 
 This installs the Cachi2 CLI in [editable mode](https://setuptools.pypa.io/en/latest/userguide/development_mode.html),
@@ -98,9 +101,6 @@ The CLI also depends on the following non-Python dependencies:
 ```shell
 dnf install golang-bin git
 ```
-
-You should now have everything needed to [try out](#basic-usage) the CLI or hack on the code in ~~vim~~ your favorite
-editor.
 
 ### Developer flags
 
@@ -126,12 +126,12 @@ Cachi2's codebase conforms to standards enforced by a collection of formatters, 
 * [pytest](https://docs.pytest.org/en/7.1.x/) to run unit tests and report coverage stats. Please aim for (near) full
   coverage of new code.
 
-Options for all the tools are configured in [pyproject.toml](./pyproject.toml) and [tox.ini](./tox.ini).
+Options for all the tools are configured in [pyproject.toml](./pyproject.toml).
 
 Run all the checks that your pull request will be subjected to:
 
 ```shell
-make test
+nox
 ```
 
 ### Pull request guidelines
@@ -180,60 +180,53 @@ When extending an existing feature, please add a new test case instead of modify
 Run all unit tests (but no other checks):
 
 ```shell
-make test-unit
+nox -s python-3.9
 ```
 
-For finer control over which tests get executed, e.g. to run all tests in a specific file, activate
-the [virtualenv](#virtual-environment) and run:
+For finer control over which tests get executed, e.g. to run all tests in a specific file, run:
 
 ```shell
-tox -e py39 -- tests/unit/test_cli.py
+nox -s python-3.9 -- tests/unit/test_cli.py
 ```
 
 Even better, run it stepwise (exit on first failure, re-start from the failed test next time):
 
 ```shell
-tox -e py39 -- tests/unit/test_cli.py --stepwise
+nox -s python-3.9 -- tests/unit/test_cli.py --stepwise
 ```
 
 You can also run a single test class or a single test method:
 
 ```shell
-tox -e py39 -- tests/unit/test_cli.py::TestGenerateEnv
-tox -e py39 -- tests/unit/test_cli.py::TestGenerateEnv::test_invalid_format
-tox -e py39 -- tests/unit/extras/test_envfile.py::test_cannot_determine_format
+nox -s python-3.9 -- tests/unit/test_cli.py::TestGenerateEnv
+nox -s python-3.9 -- tests/unit/test_cli.py::TestGenerateEnv::test_invalid_format
+nox -s python-3.9 -- tests/unit/extras/test_envfile.py::test_cannot_determine_format
 ```
 
-In short, tox passes all arguments to the right of `--` directly to pytest.
+In short, nox passes all arguments to the right of `--` directly to pytest.
 
 ### Running integration tests
 
 Build Cachi2 image (localhost/cachi2:latest) and run most integration tests:
 
 ```shell
-make test-integration
+nox -s integration-tests
 ```
 
-Run tests which requires a local PyPI server as well:
+Build Cachi2 image (localhost/cachi2:latest) and run **all** integration tests:
 
 ```shell
-make test-integration TEST_LOCAL_PYPISERVER=true
+nox -s all-integration-tests
 ```
 
-Note: while developing, you can run the PyPI server with `tests/pypiserver/start.sh &`.
+Note: while developing, you can run the PyPI server with `tests/pypiserver/start.sh &`
+and DNF server with `tests/dnfserver/start.sh &` to speed up the tests.
 
 To run integration-tests with custom image, specify the CACHI2\_IMAGE environment variable. Examples:
 
 ```shell
-CACHI2_IMAGE=quay.io/redhat-appstudio/cachi2:{tag} tox -e integration
-CACHI2_IMAGE=localhost/cachi2:latest tox -e integration
-```
-
-Similarly to unit tests, for finer control over which tests get executed, e.g. to run only 1 specific test case,
-execute:
-
-```shell
-tox -e integration -- tests/integration/test_package_managers.py::test_packages[gomod_without_deps]
+CACHI2_IMAGE=quay.io/redhat-appstudio/cachi2:{tag} nox -s integration-tests
+CACHI2_IMAGE=localhost/cachi2:latest nox -s  integration-tests
 ```
 
 #### Running integration tests and generating new test data
@@ -241,13 +234,13 @@ tox -e integration -- tests/integration/test_package_managers.py::test_packages[
 To re-generate new data (output, dependencies checksums, vendor checksums) and run integration tests with them:
 
 ```shell
-make GENERATE_TEST_DATA=true test-integration
+nox -s generate-test-data
 ```
 
 Generate data for test cases matching a pytest pattern:
 
 ```shell
-CACHI2_GENERATE_TEST_DATA=true tox -e integration -- -k gomod
+nox -s generate-test-data -- -k test_e2e_gomod
 ```
 
 ### Adding new dependencies to the project
@@ -262,8 +255,8 @@ environment is tied to Python 3.9, we have a Makefile target that runs the tool 
 image so you don't have to install another Python version locally just because of this. To
 re-generate the set of dependencies, run the following in the repository and commit the changes:
 
-```
-make pip-compile
+```shell
+nox -s pip-compile
 ```
 
 ## Releasing
