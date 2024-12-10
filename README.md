@@ -211,9 +211,9 @@ See [docs/npm.md](docs/npm.md) for more details.
 
 ### yarn
 
-<https://v3.yarnpkg.com/>
+<https://yarnpkg.com/>
 
-Current version: v3
+Current version: v4
 
 Unlike NPM, cachi2 merely drives the underlying ``yarn`` CLI command operations, that is, cachi2
 leaves most of the heavy lifting to Yarn itself and it mainly focuses on post-process validation.
