@@ -44,8 +44,8 @@ class _UrlMixin:
 
 
 @dataclass
-class _RelpathMixin:
-    relpath: Path
+class _PathMixin:
+    path: RootedPath
 
 
 @dataclass
@@ -64,17 +64,17 @@ class UrlPackage(_BasePackage, _UrlMixin):
 
 
 @dataclass
-class FilePackage(_BasePackage, _RelpathMixin):
+class FilePackage(_BasePackage, _PathMixin):
     """A Yarn 1.x package from a local file path."""
 
 
 @dataclass
-class WorkspacePackage(_BasePackage, _RelpathMixin):
+class WorkspacePackage(_BasePackage, _PathMixin):
     """A Yarn 1.x local workspace package."""
 
 
 @dataclass
-class LinkPackage(_BasePackage, _RelpathMixin):
+class LinkPackage(_BasePackage, _PathMixin):
     """A Yarn 1.x local link package."""
 
 
@@ -125,14 +125,14 @@ class _YarnClassicPackageFactory:
                 return FilePackage(
                     name=package.name,
                     version=package.version,
-                    relpath=path.subpath_from_root,
+                    path=path,
                     integrity=package.checksum,
                     dev=dev,
                 )
             return LinkPackage(
                 name=package.name,
                 version=package.version,
-                relpath=path.subpath_from_root,
+                path=path,
                 dev=dev,
             )
         elif _is_git_url(package.url):
@@ -217,7 +217,7 @@ def _get_packages_from_lockfile(
     ]
 
 
-def _get_main_package(package_json: PackageJson) -> WorkspacePackage:
+def _get_main_package(source_dir: RootedPath, package_json: PackageJson) -> WorkspacePackage:
     """Return a WorkspacePackage for the main package in package.json."""
     if "name" not in package_json._data:
         raise PackageRejected(
@@ -227,7 +227,7 @@ def _get_main_package(package_json: PackageJson) -> WorkspacePackage:
     return WorkspacePackage(
         name=package_json.data.get("name"),  # type: ignore
         version=package_json.data.get("version"),
-        relpath=package_json.path.subpath_from_root.parent,
+        path=source_dir,
     )
 
 
@@ -239,7 +239,7 @@ def _get_workspace_packages(
         WorkspacePackage(
             name=ws.package_json.data.get("name"),  # type: ignore
             version=ws.package_json.data.get("version"),
-            relpath=ws.path.relative_to(source_dir.path),
+            path=source_dir.join_within_root(ws.path),
         )
         for ws in workspaces
     ]
@@ -252,7 +252,7 @@ def resolve_packages(project: Project) -> Iterable[YarnClassicPackage]:
     runtime_deps = find_runtime_deps(project.package_json, yarn_lock, workspaces)
 
     return chain(
-        [_get_main_package(project.package_json)],
+        [_get_main_package(project.source_dir, project.package_json)],
         _get_workspace_packages(project.source_dir, workspaces),
         _get_packages_from_lockfile(project.source_dir, yarn_lock, runtime_deps),
     )
