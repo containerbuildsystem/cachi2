@@ -1,11 +1,11 @@
 import re
+from dataclasses import dataclass
 from itertools import chain
 from pathlib import Path
 from typing import Iterable, Optional, Union
 from urllib.parse import urlparse
 
 from pyarn.lockfile import Package as PYarnPackage
-from pydantic import BaseModel
 
 from cachi2.core.errors import PackageRejected, UnexpectedFormat
 from cachi2.core.package_managers.npm import NPM_REGISTRY_CNAMES
@@ -28,7 +28,8 @@ GIT_PATTERN_MATCHERS = (
 )
 
 
-class _BasePackage(BaseModel):
+@dataclass
+class _BasePackage:
     """A base Yarn 1.x package."""
 
     name: str
@@ -37,34 +38,42 @@ class _BasePackage(BaseModel):
     dev: bool = False
 
 
-class _UrlMixin(BaseModel):
+@dataclass
+class _UrlMixin:
     url: str
 
 
-class _RelpathMixin(BaseModel):
+@dataclass
+class _RelpathMixin:
     relpath: Path
 
 
+@dataclass
 class RegistryPackage(_BasePackage, _UrlMixin):
     """A Yarn 1.x package from the registry."""
 
 
+@dataclass
 class GitPackage(_BasePackage, _UrlMixin):
     """A Yarn 1.x package from a git repo."""
 
 
+@dataclass
 class UrlPackage(_BasePackage, _UrlMixin):
     """A Yarn 1.x package from a http/https URL."""
 
 
+@dataclass
 class FilePackage(_BasePackage, _RelpathMixin):
     """A Yarn 1.x package from a local file path."""
 
 
+@dataclass
 class WorkspacePackage(_BasePackage, _RelpathMixin):
     """A Yarn 1.x local workspace package."""
 
 
+@dataclass
 class LinkPackage(_BasePackage, _RelpathMixin):
     """A Yarn 1.x local link package."""
 
@@ -216,7 +225,7 @@ def _get_main_package(package_json: PackageJson) -> WorkspacePackage:
             solution="Ensure the package.json file has a valid name.",
         )
     return WorkspacePackage(
-        name=package_json.data["name"],
+        name=package_json.data.get("name"),  # type: ignore
         version=package_json.data.get("version"),
         relpath=package_json.path.subpath_from_root.parent,
     )
@@ -228,7 +237,7 @@ def _get_workspace_packages(
     """Return a WorkspacePackage for each Workspace."""
     return [
         WorkspacePackage(
-            name=ws.package_json.data.get("name"),
+            name=ws.package_json.data.get("name"),  # type: ignore
             version=ws.package_json.data.get("version"),
             relpath=ws.path.relative_to(source_dir.path),
         )
