@@ -892,7 +892,6 @@ def _resolve_gomod(
         modules_in_go_sum = _parse_go_sum(app_dir.join_within_root("go.sum"))
 
     # Vendor dependencies if the gomod-vendor flag is set
-    flags = request.flags
     if should_vendor:
         if go_work_path and go_work_path.join_within_root("vendor").path.is_dir():
             # NOTE: the same error will be reported even for 1.21 which doesn't support workspace
@@ -907,9 +906,6 @@ def _resolve_gomod(
             ParsedModule.model_validate(obj)
             for obj in load_json_stream(go(["mod", "download", "-json"], run_params, retry=True))
         )
-
-    if "force-gomod-tidy" in flags:
-        go(["mod", "tidy"], run_params)
 
     go_list = ["list", "-e"]
     if not should_vendor:

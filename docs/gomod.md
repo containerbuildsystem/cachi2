@@ -90,9 +90,15 @@ by Cachi2 anyway.
 The `cachi2 fetch-deps` command accepts the following gomod-related flags:
 
 * [--cgo-disable](#--cgo-disable)
-* [--force-gomod-tidy](#--force-gomod-tidy)
-* --gomod-vendor - see [vendoring](#vendoring)
-* --gomod-vendor-check - see [vendoring](#vendoring)
+
+### Deprecated flags
+
+* `--gomod-vendor` (deprecated in _v0.11.0_)
+* `--gomod-vendor-check` (deprecated in _v0.11.0_)
+* `--force-gomod-tidy` (deprecated in _v0.13.0_)
+
+All of them are deprecated and will have no effect when set. They are only kept for backwards
+compatibility reasons and will be removed in future releases.
 
 ### --cgo-disable
 
@@ -103,12 +109,6 @@ disable cgo in your build (nor should you disable it yourself if you rely on C).
 Disabling cgo should not prevent Cachi2 from fetching your Go dependencies as usual. Note that Cachi2 will not make any
 attempts to fetch missing C libraries. If required, you would need to get them through other means.
 
-### --force-gomod-tidy
-
-Makes Cachi2 run `go mod tidy` after downloading dependencies.
-
-⚠ This flag is questionable and may be removed in the future.
-
 ## Vendoring
 
 Go supports [vendoring](https://go.dev/ref/mod#vendoring) to store the source code of all dependencies in the vendor/
@@ -118,15 +118,6 @@ directory alongside your module. Before go 1.17, `go mod vendor` used to downloa
 We generally discourage vendoring, but Cachi2 does support processing repositories that contain vendored content. In
 this case, instead of a regular prefetching of dependencies, Cachi2 will only validate if the contents of the vendor
 directory are consistent with what `go mod vendor` would produce.
-
-### Deprecated flags
-
-Cachi2's behavior towards vendoring used to be governed by two flags:
-
-* `--gomod-vendor`
-* `--gomod-vendor-check`
-
-Both are deprecated and will have no effect when set. They are only kept for backwards compatibility reasons.
 
 ## Understanding reported dependencies
 
