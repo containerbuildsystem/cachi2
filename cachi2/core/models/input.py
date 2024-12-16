@@ -52,9 +52,7 @@ def _present_user_input_error(validation_error: pydantic.ValidationError) -> str
 
 
 # Supported package managers
-PackageManagerType = Literal[
-    "bundler", "generic", "gomod", "npm", "pip", "rpm", "yarn", "yarn-classic"
-]
+PackageManagerType = Literal["bundler", "generic", "gomod", "npm", "pip", "rpm", "yarn"]
 
 Flag = Literal[
     "cgo-disable", "dev-package-managers", "force-gomod-tidy", "gomod-vendor", "gomod-vendor-check"
@@ -225,12 +223,6 @@ class YarnPackageInput(_PackageInputBase):
     type: Literal["yarn"]
 
 
-class YarnClassicPackageInput(_PackageInputBase):
-    """Accepted input for a yarn classic package."""
-
-    type: Literal["yarn-classic"]
-
-
 PackageInput = Annotated[
     Union[
         BundlerPackageInput,
@@ -239,7 +231,6 @@ PackageInput = Annotated[
         NpmPackageInput,
         PipPackageInput,
         RpmPackageInput,
-        YarnClassicPackageInput,
         YarnPackageInput,
     ],
     # https://pydantic-docs.helpmanual.io/usage/types/#discriminated-unions-aka-tagged-unions
@@ -340,11 +331,6 @@ class Request(pydantic.BaseModel):
     def yarn_packages(self) -> list[YarnPackageInput]:
         """Get the yarn packages specified for this request."""
         return self._packages_by_type(YarnPackageInput)
-
-    @property
-    def yarn_classic_packages(self) -> list[YarnClassicPackageInput]:
-        """Get the yarn classic packages specified for this request."""
-        return self._packages_by_type(YarnClassicPackageInput)
 
     def _packages_by_type(self, pkgtype: type[T]) -> list[T]:
         return [package for package in self.packages if isinstance(package, pkgtype)]
