@@ -378,13 +378,15 @@ already contains everything you need.
 Containerfile.baseimage:
 
 ```Dockerfile
-FROM quay.io/centos/centos:stream8
+FROM quay.io/centos/centos:stream9
 
-# python3.8 runtime, C build dependencies
-RUN dnf -y install \
-        python38 \
-        python38-pip \
-        python38-devel \
+# python3.9 runtime, C build dependencies
+RUN dnf -y install 'dnf-command(config-manager)' && \
+    dnf config-manager --set-enabled crb && \
+    dnf -y install \
+        python3 \
+        python3-pip \
+        python3-devel \
         gcc \
         make \
         libffi-devel \
@@ -425,11 +427,11 @@ RUN source /tmp/cachi2.env && \
     # We're using network isolation => cannot build the cryptography package with Rust
     # (it downloads Rust crates)
     export CRYPTOGRAPHY_DONT_BUILD_RUST=1 && \
-    python3.8 -m pip install -U pip && \
-    python3.8 -m pip install --use-pep517 -r requirements.txt && \
-    python3.8 -m pip install --use-pep517 .
+    python3 -m pip install -U pip && \
+    python3 -m pip install --use-pep517 -r requirements.txt && \
+    python3 -m pip install --use-pep517 .
 
-CMD ["python3.8", "-m", "atomic_reactor.cli.main", "--help"]
+CMD ["python3", "-m", "atomic_reactor.cli.main", "--help"]
 ```
 
 We can then build the image as before while mounting the required Cachi2 data!
