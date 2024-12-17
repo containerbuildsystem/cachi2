@@ -27,6 +27,25 @@ class ExternalReference(pydantic.BaseModel):
     type: Literal["distribution"] = "distribution"
 
 
+class PatchDiff(pydantic.BaseModel):
+    """A Diff inside a Patch."""
+
+    url: str
+
+
+class Patch(pydantic.BaseModel):
+    """A Patch inside a SBOM Component Pedigree."""
+
+    type: Literal["backport", "cherry-pick", "monkey", "unofficial"] = "unofficial"
+    diff: PatchDiff
+
+
+class Pedigree(pydantic.BaseModel):
+    """A Pedigree inside a SBOM component."""
+
+    patches: list[Patch]
+
+
 FOUND_BY_CACHI2_PROPERTY: Property = Property(name="cachi2:found_by", value="cachi2")
 
 
@@ -45,6 +64,7 @@ class Component(pydantic.BaseModel):
     external_references: Optional[list[ExternalReference]] = pydantic.Field(
         serialization_alias="externalReferences", default=None
     )
+    pedigree: Optional[Pedigree] = None
 
     def key(self) -> str:
         """Uniquely identifies a package.
