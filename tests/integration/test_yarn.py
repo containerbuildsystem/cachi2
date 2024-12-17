@@ -51,6 +51,17 @@ log = logging.getLogger(__name__)
         pytest.param(
             utils.TestParameters(
                 repo="https://github.com/cachito-testing/cachi2-yarn-berry.git",
+                ref="53a2bfe8d5ee7ed9c2f752fe75831a881d54895f",
+                packages=({"path": ".", "type": "yarn"},),
+                check_vendor_checksums=False,
+                expected_exit_code=0,
+                expected_output="Processing the request using yarn@4.5.2",
+            ),
+            id="yarn_v4",
+        ),
+        pytest.param(
+            utils.TestParameters(
+                repo="https://github.com/cachito-testing/cachi2-yarn-berry.git",
                 ref="9d6a941220a1dfb14a6bdb6f3c52d7204a939688",
                 packages=({"path": ".", "type": "yarn"},),
                 check_output=False,
