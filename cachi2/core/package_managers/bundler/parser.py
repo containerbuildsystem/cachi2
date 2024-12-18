@@ -120,6 +120,7 @@ class GitDependency(_GemMetadata):
     """
 
     url: AcceptedUrl
+    branch: Optional[str]
     ref: AcceptedGitRef
 
     @cached_property
@@ -153,7 +154,11 @@ class GitDependency(_GemMetadata):
             to_path=git_repo_path.path,
             env={"GIT_TERMINAL_PROMPT": "0"},
         )
-        repo.git.checkout(self.ref)
+
+        if self.branch is not None:
+            repo.git.checkout(self.branch)
+
+        repo.git.reset("--hard", self.ref)
 
 
 class PathDependency(_GemMetadata):

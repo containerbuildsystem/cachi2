@@ -153,6 +153,7 @@ def test_parse_gemlock(
         {
             "type": "git",
             "url": "https://github.com/3scale/json-schema.git",
+            "branch": "devel",
             "ref": GIT_REF,
             **base_dep,
         },
@@ -177,6 +178,7 @@ def test_parse_gemlock(
             name="example",
             version="0.1.0",
             url="https://github.com/3scale/json-schema.git",
+            branch="devel",
             ref=GIT_REF,
         ),
         PathDependency(
@@ -263,6 +265,7 @@ def test_download_git_dependency_works(
         name="example",
         version="0.1.0",
         url="https://github.com/user/repo.git",
+        branch=None,
         ref=GIT_REF,
     )
     dep_path = rooted_tmp_path.join_within_root(f"{dep.repo_name}-{dep.ref[:12]}").path
@@ -287,6 +290,7 @@ def test_download_duplicate_git_dependency_is_skipped(
     dep = GitDependency(
         name="example",
         version="0.1.0",
+        branch=None,
         url="https://github.com/user/repo.git",
         ref=GIT_REF,
     )
@@ -323,6 +327,7 @@ def test_purls(rooted_tmp_path_repo: RootedPath) -> None:
                 name="my-git-dep",
                 version="0.1.0",
                 url="https://github.com/rubygems/example.git",
+                branch=None,
                 ref=GIT_REF,
             ),
             f"pkg:gem/my-git-dep@0.1.0?vcs_url=git%2Bhttps://github.com/rubygems/example.git%40{GIT_REF}",

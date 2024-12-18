@@ -47,6 +47,7 @@ def test_resolve_bundler_package(
     git_dep = GitDependency(
         name="my-git-dep",
         version="0.1.0",
+        branch=None,
         url="https://github.com/rubygems/example.git",
         ref=GIT_REF,
     )
