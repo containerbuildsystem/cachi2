@@ -90,7 +90,7 @@ def _resolve_bundler_package(
         else:
             properties = []
         if isinstance(dep, GitDependency):
-            git_paths.append((dep.name, dep.name + "-" + dep.ref[:12]))
+            git_paths.append((dep.name, dep.repo_name + "-" + dep.ref[:12]))
 
         c = Component(name=dep.name, version=dep.version, purl=dep.purl, properties=properties)
         components.append(c)
