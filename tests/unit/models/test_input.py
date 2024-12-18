@@ -69,6 +69,7 @@ class TestPackageInput:
                     "type": "rpm",
                     "path": Path("."),
                     "options": None,
+                    "add_rpm_summary": False,
                 },
             ),
             (
@@ -80,6 +81,7 @@ class TestPackageInput:
                             "foorepo": {"arch": "x86_64", "enabled": True},
                         }
                     },
+                    "add_rpm_summary": False,
                 },
                 {
                     "type": "rpm",
@@ -91,6 +93,7 @@ class TestPackageInput:
                         },
                         "ssl": None,
                     },
+                    "add_rpm_summary": False,
                 },
             ),
             (
@@ -110,6 +113,7 @@ class TestPackageInput:
                             "ssl_verify": False,
                         },
                     },
+                    "add_rpm_summary": False,
                 },
             ),
             (
@@ -138,6 +142,7 @@ class TestPackageInput:
                             "ssl_verify": False,
                         },
                     },
+                    "add_rpm_summary": False,
                 },
             ),
         ],
