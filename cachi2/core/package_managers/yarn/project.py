@@ -69,6 +69,16 @@ class YarnRc:
         self._data["checksumBehavior"] = checksum_behavior
 
     @property
+    def enable_constraints_checks(self) -> Optional[bool]:
+        """Get the enableConstraintsChecks configuration."""
+        return self._data.get("enableConstraintsChecks", None)
+
+    @enable_constraints_checks.setter
+    def enable_constraints_checks(self, enable_constraints_checks: Optional[bool]) -> None:
+        """Set the enableConstraintsChecks configuration."""
+        self._data["enableConstraintsChecks"] = enable_constraints_checks
+
+    @property
     def enable_immutable_cache(self) -> Optional[bool]:
         """Get the enableImmutableCache configuration."""
         return self._data.get("enableImmutableCache", None)
