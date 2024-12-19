@@ -40,6 +40,7 @@ def fetch_yarn_source(request: Request) -> RequestOutput:
 
 def _verify_yarnrc_paths(project: Project) -> None:
     paths_conf_opts = {
+        # pnpDataPath is only configurable in Yarn v3
         project.yarn_rc.pnp_data_path: "pnpDataPath",
         project.yarn_rc.pnp_unplugged_folder: "pnpUnpluggedFolder",
         project.yarn_rc.install_state_path: "installStatePath",
@@ -133,10 +134,10 @@ def _configure_yarn_version(project: Project) -> None:
 
     version = yarn_path_version if yarn_path_version else package_manager_version
     # By this point version is not Optional anymore, but mypy does not think so.
-    if version not in VersionsRange("3.0.0", "4.0.0"):  # type: ignore
+    if version not in VersionsRange("3.0.0", "5.0.0"):  # type: ignore
         raise PackageRejected(
             f"Unsupported Yarn version '{version}' detected",
-            solution="Please pick a different version of Yarn (3.0.0<= Yarn version <4.0.0)",
+            solution="Please pick a different version of Yarn (3.0.0<= Yarn version <5.0.0)",
         )
 
     if (
@@ -174,9 +175,12 @@ def _get_plugin_allowlist(yarn_rc: YarnRc) -> list[Plugin]:
     This list should only have official plugins that add new protocols and that also do not
     implement the 'fetchPackageInfo' hook, since it would allow arbitrary code execution.
 
+    Note that starting from v4, the official plugins are enabled by default and can't be disabled.
+    Since they're not present in the .yarnrc.yml file anymore, this function has no effect on v4
+    projects.
+
     See https://v3.yarnpkg.com/advanced/plugin-tutorial#hook-fetchPackageInfo.
     """
-    # NOTE: Revisit the allowlisted plugins when adding v4 support
     default_plugins = [
         Plugin(path=".yarn/plugins/@yarnpkg/plugin-exec.cjs", spec="@yarnpkg/plugin-exec"),
     ]
@@ -205,6 +209,15 @@ def _set_yarnrc_configuration(project: Project, output_dir: RootedPath) -> None:
     yarn_rc.enable_scripts = False
     yarn_rc.enable_global_cache = True
     yarn_rc.global_folder = str(output_dir.join_within_root("deps", "yarn"))
+
+    # version can be read from `package.json` since we have already executed
+    # `_configure_yarn_version` at this point
+    version = get_semver_from_package_manager(project.package_json.package_manager)
+
+    # In Yarn v4, constraints can be automatically executed as part of `yarn install`, so they
+    # need to be explicitly disabled
+    if version in VersionsRange("4.0.0-rc1", "5.0.0"):  # type: ignore
+        yarn_rc.enable_constraints_checks = False
 
     yarn_rc.write()
 

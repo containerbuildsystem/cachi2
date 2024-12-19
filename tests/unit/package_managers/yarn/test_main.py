@@ -48,9 +48,12 @@ class YarnVersions(Enum):
     YARN_V4_RC1 = semver.VersionInfo(4, 0, 0, prerelease="rc1")
     YARN_V4 = semver.VersionInfo(4, 0, 0)
 
+    YARN_V5_RC1 = semver.VersionInfo(5, 0, 0, prerelease="rc1")
+    YARN_V5 = semver.VersionInfo(5, 0, 0)
+
     @classmethod
     def supported(cls) -> List["YarnVersions"]:
-        return [cls.YARN_V3, cls.YARN_V36_RC1]
+        return [cls.YARN_V3, cls.YARN_V36_RC1, cls.YARN_V4, cls.YARN_V4_RC1]
 
     @classmethod
     def unsupported(cls) -> List["YarnVersions"]:
@@ -277,7 +280,9 @@ def test_resolve_zero_installs_fail() -> None:
     ],
 )
 @mock.patch("cachi2.core.package_managers.yarn.project.YarnRc.write")
+@mock.patch("cachi2.core.package_managers.yarn.main.get_semver_from_package_manager")
 def test_set_yarnrc_configuration(
+    mock_get_semver: mock.Mock,
     mock_write: mock.Mock,
     yarn_rc_content: str,
     expected_plugins: list[Plugin],
@@ -313,7 +318,28 @@ def test_set_yarnrc_configuration(
     mock_write.assert_called_once()
 
 
-def test_verify_yarnrc_paths() -> None:
+@mock.patch("cachi2.core.package_managers.yarn.project.YarnRc.write")
+def test_disable_constraints_checks_in_yarn_v4(
+    mock_write: mock.Mock,
+) -> None:
+    yarn_rc = YarnRc(mock.Mock(), {})
+
+    package_json = mock.Mock()
+    package_json.package_manager = "yarn@4.0.0"
+
+    project = mock.Mock()
+    project.yarn_rc = yarn_rc
+    project.package_json = package_json
+    output_dir = RootedPath("/tmp/output")
+
+    _set_yarnrc_configuration(project, output_dir)
+
+    assert yarn_rc._data["enableConstraintsChecks"] is False
+    mock_write.assert_called_once()
+
+
+@mock.patch("cachi2.core.package_managers.yarn.main.get_semver_from_package_manager")
+def test_verify_yarnrc_paths(mock_get_semver: mock.Mock) -> None:
     output_dir = RootedPath("/tmp/output")
     yarn_rc = YarnRc(RootedPath("/tmp/.yarnrc.yml"), {})
     project = mock.Mock()
