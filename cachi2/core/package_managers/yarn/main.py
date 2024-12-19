@@ -210,6 +210,15 @@ def _set_yarnrc_configuration(project: Project, output_dir: RootedPath) -> None:
     yarn_rc.enable_global_cache = True
     yarn_rc.global_folder = str(output_dir.join_within_root("deps", "yarn"))
 
+    # version can be read from `package.json` since we have already executed
+    # `_configure_yarn_version` at this point
+    version = get_semver_from_package_manager(project.package_json.package_manager)
+
+    # In Yarn v4, constraints can be automatically executed as part of `yarn install`, so they
+    # need to be explicitly disabled
+    if version in VersionsRange("4.0.0-rc1", "5.0.0"):  # type: ignore
+        yarn_rc.enable_constraints_checks = False
+
     yarn_rc.write()
 
 
