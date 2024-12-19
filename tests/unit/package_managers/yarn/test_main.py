@@ -48,9 +48,12 @@ class YarnVersions(Enum):
     YARN_V4_RC1 = semver.VersionInfo(4, 0, 0, prerelease="rc1")
     YARN_V4 = semver.VersionInfo(4, 0, 0)
 
+    YARN_V5_RC1 = semver.VersionInfo(5, 0, 0, prerelease="rc1")
+    YARN_V5 = semver.VersionInfo(5, 0, 0)
+
     @classmethod
     def supported(cls) -> List["YarnVersions"]:
-        return [cls.YARN_V3, cls.YARN_V36_RC1]
+        return [cls.YARN_V3, cls.YARN_V36_RC1, cls.YARN_V4, cls.YARN_V4_RC1]
 
     @classmethod
     def unsupported(cls) -> List["YarnVersions"]:
