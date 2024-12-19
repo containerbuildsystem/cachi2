@@ -11,21 +11,22 @@ parsed_specs = []
 lockfile_parser.specs.each do |spec|
     parsed_spec = {
       name: spec.name,
-      version: spec.version.to_s
+      version: spec.version
     }
 
     case spec.source
     when Bundler::Source::Rubygems
       parsed_spec[:type] = 'rubygems'
-      parsed_spec[:source] = spec.source.remotes.map(&:to_s).first
+      parsed_spec[:source] = spec.source.remotes.first
       parsed_spec[:platform] = spec.platform
     when Bundler::Source::Git
       parsed_spec[:type] = 'git'
       parsed_spec[:url] = spec.source.uri
+      parsed_spec[:branch] = spec.source.branch
       parsed_spec[:ref] = spec.source.revision
     when Bundler::Source::Path
       parsed_spec[:type] = 'path'
-      parsed_spec[:subpath] = spec.source.path.to_s
+      parsed_spec[:subpath] = spec.source.path
     end
 
     parsed_specs << parsed_spec

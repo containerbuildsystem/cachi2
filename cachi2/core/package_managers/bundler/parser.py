@@ -116,10 +116,12 @@ class GitDependency(_GemMetadata):
 
     Attributes:
         url:        The URL of the git repository.
+        branch:     The branch to checkout.
         ref:        Commit hash.
     """
 
     url: AcceptedUrl
+    branch: Optional[str] = None
     ref: AcceptedGitRef
 
     @cached_property
@@ -153,7 +155,11 @@ class GitDependency(_GemMetadata):
             to_path=git_repo_path.path,
             env={"GIT_TERMINAL_PROMPT": "0"},
         )
-        repo.git.checkout(self.ref)
+
+        if self.branch is not None:
+            repo.git.checkout(self.branch)
+
+        repo.git.reset("--hard", self.ref)
 
 
 class PathDependency(_GemMetadata):

@@ -153,6 +153,7 @@ def test_parse_gemlock(
         {
             "type": "git",
             "url": "https://github.com/3scale/json-schema.git",
+            "branch": "devel",
             "ref": GIT_REF,
             **base_dep,
         },
@@ -177,6 +178,7 @@ def test_parse_gemlock(
             name="example",
             version="0.1.0",
             url="https://github.com/3scale/json-schema.git",
+            branch="devel",
             ref=GIT_REF,
         ),
         PathDependency(
