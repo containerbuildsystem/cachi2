@@ -28,7 +28,7 @@ def _assert_merging_sboms_produces_correct_number_of_packages(
     # Ignoring mypy because it is cheaper to rebind the name in a local utility.
     sources = set(sources)  # type: ignore
     unqie_packages_across_all_sources = set(sum([s.packages for s in sources], []))
-    # Drop one root package per source, add 1 to account for one eventuial root:
+    # Drop one root package per source, add 1 to account for one eventual root:
     expected_num_of_packages = len(unqie_packages_across_all_sources) - len(sources) + 1
     actual_num_of_packages = len(merged_sbom.packages)
     difference = expected_num_of_packages - actual_num_of_packages
@@ -148,6 +148,16 @@ def _assert_sbom_is_well_formed(sbom: SPDXSbom) -> None:
     _assert_no_unrelated_files(sbom)
 
 
+def _assert_no_relationship_is_duplicated(sbom: SPDXSbom) -> None:
+    have_relationships = len(sbom.relationships)
+    should_have_relationships = len(set(sbom.relationships))
+    fail_msg = (
+        "Relationships duplication detected: have "
+        f"{have_relationships - should_have_relationships} relationships more than expected."
+    )
+    assert have_relationships == should_have_relationships, fail_msg
+
+
 # Data for this test was generated with syft like this:
 # For a directory:
 #  $ ./syft dir:experiments/ -o spdx-json > experiments.json
@@ -225,16 +235,6 @@ def test_merging_two_spdx_sboms_works_in_general_independent_of_order(
             ),
             id="three unique SBOMs",
         ),
-        pytest.param(
-            (
-                "./tests/unit/data/alpine.pretty.json",
-                "./tests/unit/data/something.simple0.100.0.spdx.pretty.json",
-                "./tests/unit/data/something.more.simple.0.100.0.spdx.pretty.json",
-                "./tests/unit/data/something.simple0.100.0.spdx.pretty.json",
-            ),
-            # The same SBOM is attempted to be merged in -- should be a separate test
-            id="three unique SBOMs and a duplicate",
-        ),
     ],
 )
 def test_merging_several_spdx_sboms_works_in_general_independent_of_order(
@@ -243,17 +243,81 @@ def test_merging_several_spdx_sboms_works_in_general_independent_of_order(
     sboms_to_merge = [SPDXSbom.from_file(Path(s)) for s in sboms_to_merge]
 
     merged_sbom = reduce(add, sboms_to_merge)
-    # merged_sbom = sum(sboms_to_merge[1:], sboms_to_merge[0]) ?
 
     _assert_all_relationships_are_within_the_document(for_sbom=merged_sbom)
-    # TODO: assert_no_relation_goes_missing(merged_sbom, *sboms)
     _assert_merging_sboms_produces_correct_number_of_packages(merged_sbom, *sboms_to_merge)
     _assert_root_was_inherited_from_left_sbom(merged_sbom, sboms_to_merge[0])
     _assert_there_is_only_one_root(merged_sbom)
     _assert_sbom_is_well_formed(merged_sbom)
 
 
-def _same_order(sbom1: SPDXSbom, sbom2: SPDXSbom) -> bool:
+@pytest.mark.parametrize(
+    "sboms_to_merge",
+    [
+        pytest.param(
+            (
+                "./tests/unit/data/alpine.pretty.json",
+                "./tests/unit/data/something.simple0.100.0.spdx.pretty.json",
+                "./tests/unit/data/something.more.simple.0.100.0.spdx.pretty.json",
+                "./tests/unit/data/something.simple0.100.0.spdx.pretty.json",
+            ),
+            id="three unique SBOMs and a duplicate",
+        ),
+        pytest.param(
+            (
+                "./tests/unit/data/alpine.pretty.json",
+                "./tests/unit/data/alpine.pretty.json",
+                "./tests/unit/data/alpine.pretty.json",
+                "./tests/unit/data/alpine.pretty.json",
+            ),
+            id="merging with self",
+        ),
+    ],
+)
+def test_merging_same_spdx_sbom_multiple_times_does_not_increase_the_number_of_packages(
+    sboms_to_merge: list[Any],  # 'Any' is used to prevent mypy from having a fit over re-binding
+) -> None:
+    sboms_to_merge = [SPDXSbom.from_file(Path(s)) for s in sboms_to_merge]
+
+    merged_sbom = reduce(add, sboms_to_merge)
+
+    _assert_all_relationships_are_within_the_document(for_sbom=merged_sbom)
+    _assert_merging_sboms_produces_correct_number_of_packages(merged_sbom, *sboms_to_merge)
+    _assert_root_was_inherited_from_left_sbom(merged_sbom, sboms_to_merge[0])
+    _assert_there_is_only_one_root(merged_sbom)
+    _assert_sbom_is_well_formed(merged_sbom)
+
+
+@pytest.mark.parametrize(
+    "sboms_to_merge",
+    [
+        pytest.param(
+            (
+                "./tests/unit/data/alpine.pretty.json",
+                "./tests/unit/data/alpine.pretty.json",
+                "./tests/unit/data/alpine.pretty.json",
+                "./tests/unit/data/alpine.pretty.json",
+            ),
+            id="merging with self",
+        ),
+    ],
+)
+def test_merging_spdx_on_self_does_not_modify_the_sbom(
+    sboms_to_merge: list[Any],  # 'Any' is used to prevent mypy from having a fit over re-binding
+) -> None:
+    sboms_to_merge = [SPDXSbom.from_file(Path(s)) for s in sboms_to_merge]
+
+    merged_sbom = reduce(add, sboms_to_merge)
+
+    _assert_all_relationships_are_within_the_document(for_sbom=merged_sbom)
+    _assert_no_relationship_is_duplicated(merged_sbom)
+    _assert_merging_sboms_produces_correct_number_of_packages(merged_sbom, *sboms_to_merge)
+    _assert_root_was_inherited_from_left_sbom(merged_sbom, sboms_to_merge[0])
+    _assert_there_is_only_one_root(merged_sbom)
+    _assert_sbom_is_well_formed(merged_sbom)
+
+
+def _same_relationship_order(sbom1: SPDXSbom, sbom2: SPDXSbom) -> bool:
     for r1, r2 in zip(sbom1.relationships, sbom2.relationships):
         if r1 != r2:
             return False
@@ -272,16 +336,18 @@ def _same_order(sbom1: SPDXSbom, sbom2: SPDXSbom) -> bool:
         ),
     ],
 )
-def test_merging_spdx_sboms_produces_consistent_ordering(
+def test_merging_spdx_sboms_produces_consistent_relationships_ordering(
     sboms_to_merge: list[Any],  # 'Any' is used to prevent mypy from having a fit over re-binding
 ) -> None:
+    # TODO: this must be moved to integration tests due to hash seed dependency.
+    # This might require some rework to ITs. Keeping this code here as a reminder.
     sboms_to_merge = [SPDXSbom.from_file(Path(s)) for s in sboms_to_merge]
 
     merged_sbom1 = reduce(add, sboms_to_merge)
     merged_sbom2 = reduce(add, sboms_to_merge)
     merged_sbom3 = reduce(add, sboms_to_merge)
 
-    assert _same_order(merged_sbom1, merged_sbom2), "Order mismatch!"
-    assert _same_order(merged_sbom2, merged_sbom3), "Order mismatch!"
+    assert _same_relationship_order(merged_sbom1, merged_sbom2), "Order mismatch!"
+    assert _same_relationship_order(merged_sbom2, merged_sbom3), "Order mismatch!"
 
     _assert_sbom_is_well_formed(merged_sbom1)

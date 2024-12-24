@@ -1019,7 +1019,9 @@ class TestSPDXSbom:
                 },
             ],
         )
+
         spdx_sbom = sbom.to_cyclonedx().to_spdx("NOASSERTION")
+
         assert json.dumps(sbom.model_dump(), sort_keys=True, indent=4) == json.dumps(
             spdx_sbom.model_dump(), sort_keys=True, indent=4
         )

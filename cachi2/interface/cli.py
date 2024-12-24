@@ -1,4 +1,3 @@
-import datetime
 import enum
 import functools
 import importlib.metadata
@@ -6,7 +5,6 @@ import json
 import logging
 import shutil
 import sys
-from itertools import chain
 from pathlib import Path
 from typing import Any, Callable, List, Optional, Union
 
@@ -18,8 +16,7 @@ from cachi2.core.errors import Cachi2Error, InvalidInput, UnexpectedFormat
 from cachi2.core.extras.envfile import EnvFormat, generate_envfile
 from cachi2.core.models.input import Flag, PackageInput, Request, parse_user_input
 from cachi2.core.models.output import BuildConfig
-from cachi2.core.models.property_semantics import merge_component_properties
-from cachi2.core.models.sbom import Sbom, SPDXSbom
+from cachi2.core.models.sbom import Sbom, SPDXSbom, spdx_now
 from cachi2.core.resolver import inject_files_post, resolve_packages, supported_package_managers
 from cachi2.core.rooted_path import RootedPath
 from cachi2.interface.logging import LogLevel, setup_logging
@@ -427,9 +424,10 @@ def merge_sboms(
 ) -> None:
     """Merge two or more SBOMs into one.
 
-    The command works with Cachi2-generated SBOMs only. You might want to run
+    The command works with Cachi2-generated SBOMs and with a supported subset of
+    SPDX SBOMs. You might want to run
 
-    cachi2 fetch-deps <args...>
+        cachi2 fetch-deps <args...>
 
     first to produce SBOMs to merge.
     """
@@ -446,33 +444,16 @@ def merge_sboms(
                 sboms_to_merge.append(SPDXSbom(**sbom_dict))
             except pydantic.ValidationError:
                 raise UnexpectedFormat(f"{sbom_file} does not appear to be a valid Cachi2 SBOM.")
-
+    # start_sbom will later coerce every other SBOM to its type.
+    start_sbom: Union[Sbom, SPDXSbom]  # this visual noise is demanded by mypy.
     if sbom_type == SBOMFormat.cyclonedx:
-        cyclonedx_sboms_to_merge = []
-        for _sbom in sboms_to_merge:
-            if not isinstance(_sbom, Sbom):
-                cyclonedx_sboms_to_merge.append(_sbom.to_cyclonedx())
-            else:
-                cyclonedx_sboms_to_merge.append(_sbom)
-        # TODO: merging SBOMs should be done uniformly via "+"
-        sbom: Union[Sbom, SPDXSbom] = Sbom(
-            components=merge_component_properties(
-                chain.from_iterable(s.components for s in cyclonedx_sboms_to_merge)
-            )
-        )
+        start_sbom = sboms_to_merge[0].to_cyclonedx()
     else:
-        spdx_sboms_to_merge = []
-        for _sbom in sboms_to_merge:
-            if not isinstance(_sbom, SPDXSbom):
-                spdx_sboms_to_merge.append(_sbom.to_spdx(doc_namespace="NOASSERTION"))
-            else:
-                spdx_sboms_to_merge.append(_sbom)
-
-        sbom = sum(spdx_sboms_to_merge, start=spdx_sboms_to_merge[0])
+        start_sbom = sboms_to_merge[0].to_spdx(doc_namespace="NOASSERTION")
         if sbom_name is not None:
-            sbom.name = sbom_name
-        sbom.creationInfo.created = datetime.datetime.now().isoformat()[:-7] + "Z"
-
+            start_sbom.name = sbom_name
+        start_sbom.creationInfo.created = spdx_now()
+    sbom = sum(sboms_to_merge[1:], start=start_sbom)
     sbom_json = sbom.model_dump_json(indent=2, by_alias=True, exclude_none=True)
 
     if output_sbom_file_name is not None:

@@ -1,33 +1,23 @@
 import datetime
 import hashlib
 import json
+import logging
 from collections import defaultdict
-from functools import cached_property
+from functools import cached_property, partial, reduce
+from itertools import chain, groupby
 from pathlib import Path
 from typing import Annotated, Any, Dict, Iterable, Literal, Optional, Union
 from urllib.parse import urlparse
 
 import pydantic
 from packageurl import PackageURL
+from typing_extensions import Self
 
+from cachi2.core.models.property_semantics import Property, PropertySet
 from cachi2.core.models.validators import unique_sorted
-from cachi2.core.utils import first
+from cachi2.core.utils import first_for, partition_by
 
-PropertyName = Literal[
-    "cachi2:bundler:package:binary",
-    "cachi2:found_by",
-    "cachi2:missing_hash:in_file",
-    "cachi2:pip:package:binary",
-    "cdx:npm:package:bundled",
-    "cdx:npm:package:development",
-]
-
-
-class Property(pydantic.BaseModel):
-    """A property inside an SBOM component."""
-
-    name: PropertyName
-    value: str
+log = logging.getLogger(__name__)
 
 
 class ExternalReference(pydantic.BaseModel):
@@ -96,6 +86,11 @@ class Metadata(pydantic.BaseModel):
     tools: list[Tool] = [Tool(vendor="red hat", name="cachi2")]
 
 
+def spdx_now() -> str:
+    """Return a time stamp in SPDX-compliant format."""
+    return datetime.datetime.now().isoformat()[:-7] + "Z"
+
+
 class Sbom(pydantic.BaseModel):
     """Software bill of materials in the CycloneDX format.
 
@@ -111,10 +106,26 @@ class Sbom(pydantic.BaseModel):
     spec_version: str = pydantic.Field(alias="specVersion", default="1.4")
     version: int = 1
 
+    def __add__(self, other: Union["Sbom", "SPDXSbom"]) -> "Sbom":
+        if isinstance(other, self.__class__):
+            return Sbom(
+                components=merge_component_properties(
+                    chain.from_iterable(s.components for s in [self, other])
+                )
+            )
+        else:
+            return self + other.to_cyclonedx()
+
     @pydantic.field_validator("components")
     def _unique_components(cls, components: list[Component]) -> list[Component]:
         """Sort and de-duplicate components."""
         return unique_sorted(components, by=lambda component: component.key())
+
+    def to_cyclonedx(self) -> Self:
+        """Return self, self is already the right type of Sbom."""
+        # This is a short-cut, but since it is unlikely that we would ever add more Sbom types
+        # it is acceptable. If, however this ever happens a proper base class will be needed.
+        return self
 
     def to_spdx(self, doc_namespace: str) -> "SPDXSbom":
         """Convert a CycloneDX SBOM to an SPDX SBOM.
@@ -123,87 +134,70 @@ class Sbom(pydantic.BaseModel):
             doc_namespace: SPDX document namespace. Namespace is URI of indicating
 
         """
-        packages = []
-        relationships = []
 
-        packages.append(
-            SPDXPackage(
-                name="",
-                versionInfo="",
-                SPDXID="SPDXRef-DocumentRoot-File-",
-            )
-        )
+        def create_document_root() -> SPDXPackage:
+            return SPDXPackage(name="", versionInfo="", SPDXID="SPDXRef-DocumentRoot-File-")
 
-        for component in self.components:
-            annotations = []
-            for prop in component.properties:
-                annotations.append(
-                    SPDXPackageAnnotation(
-                        annotator="Tool: cachi2:jsonencoded",
-                        annotationDate=datetime.datetime.now().isoformat()[:-7] + "Z",
-                        annotationType="OTHER",
-                        comment=json.dumps(
-                            {"name": f"{prop.name}", "value": f"{prop.value}"},
-                        ),
-                    )
-                )
-            package_hash = SPDXPackage._calculate_package_hash_from_dict(
-                {
-                    "name": component.name,
-                    "version": component.version,
-                    "purl": component.purl,
-                }
-            )
-
-            packages.append(
-                SPDXPackage(
-                    SPDXID=f"SPDXRef-Package-{component.name}-{component.version}-{package_hash}",
-                    name=component.name,
-                    versionInfo=component.version,
-                    externalRefs=[
-                        dict(
-                            referenceCategory="PACKAGE-MANAGER",
-                            referenceLocator=component.purl,
-                            referenceType="purl",
-                        )
-                    ],
-                    annotations=annotations,
-                )
-            )
-
-        relationships.append(
-            SPDXRelation(
+        def create_root_relationship() -> SPDXRelation:
+            return SPDXRelation(
                 spdxElementId="SPDXRef-DOCUMENT",
                 comment="",
                 relatedSpdxElement="SPDXRef-DocumentRoot-File-",
                 relationshipType="DESCRIBES",
             )
-        )
 
-        for package in packages:
-            if package.SPDXID == "SPDXRef-DocumentRoot-File-":
-                continue
-            relationships.append(
-                SPDXRelation(
-                    spdxElementId="SPDXRef-DocumentRoot-File-",
-                    comment="",
-                    relatedSpdxElement=package.SPDXID,
-                    relationshipType="CONTAINS",
+        def link_to_root(packages: Union[list[SPDXPackage], list[SPDXFile]]) -> list[SPDXRelation]:
+            relationships, root_id, rtype = [], "SPDXRef-DocumentRoot-File-", "CONTAINS"
+            pRel = partial(SPDXRelation, spdxElementId=root_id, comment="", relationshipType=rtype)
+            for package in packages:
+                if package.SPDXID == "SPDXRef-DocumentRoot-File-":
+                    continue
+                relationships.append(pRel(relatedSpdxElement=package.SPDXID))
+            return relationships
+
+        def libs_to_packages(libraries: list[Component]) -> list[SPDXPackage]:
+            packages, annottr, now = [], "Tool: cachi2:jsonencoded", spdx_now()
+            args = dict(annotator=annottr, annotationDate=now, annotationType="OTHER")
+            pAnnotation = partial(SPDXPackageAnnotation, **args)
+
+            # noqa for trivial helpers.
+            mkcomm = lambda p: json.dumps(dict(name=f"{p.name}", value=f"{p.value}"))  # noqa: E731
+            hashdict = lambda c: dict(name=c.name, version=c.version, purl=c.purl)  # noqa: E731
+            erefbase = dict(referenceCategory="PACKAGE-MANAGER", referenceType="purl")
+            erefdict = lambda c: dict(referenceLocator=c.purl, **erefbase)  # noqa: E731
+
+            for component in libraries:
+                package_hash = SPDXPackage._calculate_package_hash_from_dict(hashdict(component))
+                packages.append(
+                    SPDXPackage(
+                        SPDXID=f"SPDXRef-Package-{component.name}-{component.version}-{package_hash}",
+                        name=component.name,
+                        versionInfo=component.version,
+                        externalRefs=[erefdict(component)],
+                        annotations=[pAnnotation(comment=mkcomm(p)) for p in component.properties],
+                    )
                 )
-            )
+            return packages
+
+        def files_to_packages(cydxfiles: list[Component]) -> list[SPDXFile]:
+            return [SPDXFile(SPDXID="SPDXRef-File-{f.name}", fileName=f.name) for f in cydxfiles]
+
+        # Main function body.
+        cydxfiles, libraries = partition_by(lambda c: c.type == "library", self.components)
+        # mypy is upset by patrition_by being broadly typed.
+        packages = [create_document_root()] + libs_to_packages(libraries)  # type: ignore
+        files = files_to_packages(cydxfiles)  # type: ignore
+        relationships = [create_root_relationship()] + link_to_root(packages) + link_to_root(files)
+        # noqa for a trivial helper.
+        creator = lambda tool: [f"Tool: {tool.name}", f"Organization: {tool.vendor}"]  # noqa: E731
         return SPDXSbom(
             packages=packages,
             relationships=relationships,
+            files=files,
             documentNamespace=doc_namespace,
             creationInfo=SPDXCreationInfo(
-                creators=sum(
-                    [
-                        [f"Tool: {tool.name}", f"Organization: {tool.vendor}"]
-                        for tool in self.metadata.tools
-                    ],
-                    [],
-                ),
-                created=datetime.datetime.now().isoformat()[:-7] + "Z",
+                creators=sum([creator(tool) for tool in self.metadata.tools], []),
+                created=spdx_now(),
             ),
         )
 
@@ -353,6 +347,14 @@ class SPDXFile(pydantic.BaseModel):
         )
 
 
+def _extract_purls(from_refs: list[SPDXPackageExternalRefType]) -> list[str]:
+    return [ref.referenceLocator for ref in from_refs if ref.referenceType == "purl"]
+
+
+def _parse_purls(purls: list[str]) -> list[PackageURL]:
+    return [PackageURL.from_string(purl) for purl in purls if purl]
+
+
 class SPDXPackage(pydantic.BaseModel):
     """SPDX Package.
 
@@ -389,8 +391,7 @@ class SPDXPackage(pydantic.BaseModel):
         cls, refs: list[SPDXPackageExternalRefType]
     ) -> list[SPDXPackageExternalRefType]:
         """Validate that SPDXPackage includes only one purl with the same type, name, version."""
-        purls = [ref.referenceLocator for ref in refs if ref.referenceType == "purl"]
-        parsed_purls = [PackageURL.from_string(purl) for purl in purls if purl]
+        parsed_purls = _parse_purls(_extract_purls(from_refs=refs))
         unique_purls_parts = set([(p.type, p.name, p.version) for p in parsed_purls])
         if len(unique_purls_parts) > 1:
             raise ValueError(
@@ -404,7 +405,7 @@ class SPDXPackage(pydantic.BaseModel):
         """Create a SPDXPackage from a Cachi2 package dictionary."""
         external_refs = package.get("externalRefs", [])
         annotations = [SPDXPackageAnnotation(**an) for an in package.get("annotations", [])]
-        if not package.get("SPDXID"):
+        if package.get("SPDXID") is None:
             purls = sorted(
                 [
                     ref["referenceLocator"]
@@ -463,6 +464,16 @@ class SPDXRelation(pydantic.BaseModel):
         )
 
 
+def _unique(elements: Iterable) -> list:
+    out, seen = [], set()
+    for el in elements:
+        if el in seen:
+            continue
+        seen.add(el)
+        out.append(el)
+    return out
+
+
 class SPDXSbom(pydantic.BaseModel):
     """Software bill of materials in the SPDX format.
 
@@ -507,33 +518,26 @@ class SPDXSbom(pydantic.BaseModel):
         merge external references of all the packages into one package.
         """
         # NOTE: keeping this implementation mostly intact for historical reasons.
-        unique_items = {}
+        unique_items: dict[tuple, SPDXPackage] = {}
         for item in items:
-            purls = [
-                ref.referenceLocator for ref in item.externalRefs if ref.referenceType == "purl"
-            ]
+            purls = _extract_purls(item.externalRefs)
             if purls:
-                keys = [PackageURL.from_string(purl) for purl in purls if purl]
-                # name can exist in mutiple namespaces, e.g. rand exists in both math and
+                # name can exist in multiple namespaces, e.g. rand exists in both math and
                 # crypto, and must be distinguished between.
-                p = keys[0]
-                package_name = p.name
-                if p.namespace is not None:
-                    package_name = p.namespace + "/" + p.name
-                purl_tnv = (p.type, package_name, p.version)
+                purl = _parse_purls(purls)[0]
+                package_name = purl.name
+                if purl.namespace is not None:
+                    package_name = purl.namespace + "/" + purl.name
+                purl_tnv = (purl.type, package_name, purl.version)
             else:
+                log.warning(f"No purls found for {item}.")
                 purl_tnv = ("", item.name, item.versionInfo or "")
 
-            if purl_tnv not in unique_items:
-                # TODO: model_copy?
-                unique_items[purl_tnv] = SPDXPackage(
-                    SPDXID=item.SPDXID, name=item.name, versionInfo=item.versionInfo
-                )
-                unique_items[purl_tnv].externalRefs = item.externalRefs[:]
-                unique_items[purl_tnv].annotations = item.annotations[:]
-            else:
+            if purl_tnv in unique_items:
                 unique_items[purl_tnv].externalRefs.extend(item.externalRefs)
                 unique_items[purl_tnv].annotations.extend(item.annotations)
+            else:
+                unique_items[purl_tnv] = item.model_copy(deep=True)
 
         for item in unique_items.values():
             item.externalRefs = sorted(
@@ -562,14 +566,14 @@ class SPDXSbom(pydantic.BaseModel):
         for rel in self.relationships:
             direct_relationships[rel.spdxElementId].append(rel.relatedSpdxElement)
             inverse_relationships[rel.relatedSpdxElement] = rel.spdxElementId
-        # noqa because the name is bound to make local intent clearer and first() call easier to
-        # follow.
+        # noqa because the name is bound to make local intent clearer and
+        # first_for() call easier to follow.
         unidirectionally_related_package = (
             lambda p: inverse_relationships.get(p) == self.SPDXID  # noqa: E731
         )
         # Note: defaulting to top-level SPDXID is inherited from the original implementation.
         # It is unclear if it is really needed, but is left around to match the precedent.
-        root_id = first(unidirectionally_related_package, direct_relationships, self.SPDXID)
+        root_id = first_for(unidirectionally_related_package, direct_relationships, self.SPDXID)
         return root_id
 
     # NOTE: having this as cached will cause trouble when sequentially
@@ -603,23 +607,19 @@ class SPDXSbom(pydantic.BaseModel):
 
     def __add__(self, other: Union["SPDXSbom", Sbom]) -> "SPDXSbom":
         if isinstance(other, self.__class__):
-            # Packages are not going to be modified so it is OK to just pass references around.
+            # Packages are not going to be modified so it is OK to just pass
+            # references around.
             merged_packages = self.packages + other.non_root_packages
             # Relationships, on the other hand, are amended, so new
-            # relationships will be constructed.
-            # Further, identical relationships should be dropped.
-            # Deduplication based on building a set is considered safe because all
-            # fields of all elements are used to compute a hash.
-            # Just using set won't work satisfactory since that would shuffle relationships.
-            merged_relationships, seen_relationships = [], set()
+            # relationships will be constructed. Further, identical
+            # relationships should be dropped. Deduplication based on building
+            # a set is considered safe because all fields of all elements are
+            # used to compute a hash.
             processed_other = self.retarget_and_prune_relationships(from_sbom=other, to_sbom=self)
-            for r in self.relationships + processed_other:
-                if r not in seen_relationships:
-                    seen_relationships.add(r)
-                    merged_relationships.append(r)
+            merged_relationships = _unique(self.relationships + processed_other)
             # The same as packages: files are not modified, so keeping them as is.
             # Identical file entries should be skipped.
-            merged_files = list(set(self.files + other.files))
+            merged_files = _unique(self.files + other.files)
             res = self.model_copy(
                 update={
                     # At the moment of writing pydantic does not deem it necessary to
@@ -633,7 +633,16 @@ class SPDXSbom(pydantic.BaseModel):
             return res
         elif isinstance(other, Sbom):
             return self + other.to_spdx(doc_namespace="NOASSERTION")
-        raise Exception("Something smart goes here")
+        else:
+            self_class = self.__class__.__name__
+            other_class = other.__class__.__name__
+            raise ValueError(f"Cannot merge {other_class} to {self_class}")
+
+    def to_spdx(self, *a: Any, **k: Any) -> Self:
+        """Return self, ignore arguments, self is already a SPDX document."""
+        # This is a short-cut, but since it is unlikely that we would ever add more Sbom types
+        # it is acceptable. If, however this ever happens a proper base class will be needed.
+        return self
 
     def to_cyclonedx(self) -> Sbom:
         """Convert a SPDX SBOM to a CycloneDX SBOM."""
@@ -647,35 +656,21 @@ class SPDXSbom(pydantic.BaseModel):
                 )
                 for an in package.annotations
             ]
-            purls = [
-                ref.referenceLocator for ref in package.externalRefs if ref.referenceType == "purl"
-            ]
+            pComponent = partial(
+                Component, name=package.name, version=package.versionInfo, properties=properties
+            )
+            purls = _extract_purls(package.externalRefs)
 
             # cyclonedx doesn't support multiple purls, therefore
             # new component is created for each purl
-            for purl in purls:
-                components.append(
-                    Component(
-                        name=package.name,
-                        version=package.versionInfo,
-                        purl=purl,
-                        properties=properties,
-                    )
-                )
+            components += [pComponent(purl=purl) for purl in purls]
             # if there's no purl and no package name or version, it's just wrapping element for
             # spdx package which is one layer bellow SPDXDocument in relationships
             if not any((purls, package.name, package.versionInfo)):
                 continue
             # if there's no purl, add it as single component
             elif not purls:
-                components.append(
-                    Component(
-                        name=package.name,
-                        version=package.versionInfo,
-                        properties=properties,
-                        purl="",
-                    )
-                )
+                components.append(pComponent(purl=""))
         tools = []
         name, vendor = None, None
         # Following approach is used as position of "Organization" and "Tool" is not
@@ -693,6 +688,21 @@ class SPDXSbom(pydantic.BaseModel):
             components=components,
             metadata=Metadata(tools=tools),
         )
+
+
+def merge_component_properties(components: Iterable[Component]) -> list[Component]:
+    """Sort and de-duplicate components while merging their `properties`."""
+    components = sorted(components, key=Component.key)
+    grouped_components = groupby(components, key=Component.key)
+
+    def merge_component_group(component_group: Iterable[Component]) -> Component:
+        component_group = list(component_group)
+        prop_sets = (PropertySet.from_properties(c.properties) for c in component_group)
+        merged_prop_set = reduce(PropertySet.merge, prop_sets)
+        component = component_group[0]
+        return component.model_copy(update={"properties": merged_prop_set.to_properties()})
+
+    return [merge_component_group(g) for _, g in grouped_components]
 
 
 # References
