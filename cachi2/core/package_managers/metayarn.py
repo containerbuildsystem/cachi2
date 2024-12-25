@@ -1,12 +1,12 @@
 from cachi2.core.config import get_config
 from cachi2.core.models.input import Request
 from cachi2.core.models.output import RequestOutput
+from cachi2.core.package_managers.utils import merge_outputs
 from cachi2.core.package_managers.yarn.main import fetch_yarn_source as fetch_yarnberry_source
 from cachi2.core.package_managers.yarn_classic.main import MissingLockfile, NotV1Lockfile
 from cachi2.core.package_managers.yarn_classic.main import (
     fetch_yarn_source as fetch_yarn_classic_source,
 )
-from cachi2.core.utils import merge_outputs
 
 
 def fetch_yarn_source(request: Request) -> RequestOutput:
