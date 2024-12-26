@@ -86,56 +86,34 @@ def _prepare_yarnrc_file(rooted_tmp_path: RootedPath, data: str) -> YarnRc:
 def test_parse_yarnrc(rooted_tmp_path: RootedPath) -> None:
     yarn_rc = _prepare_yarnrc_file(rooted_tmp_path, VALID_YARNRC_FILE)
 
-    assert yarn_rc.cache_folder == "./.custom/cache"
-    assert yarn_rc.checksum_behavior == "ignore"
-    assert yarn_rc.enable_global_cache is True
-    assert yarn_rc.enable_immutable_cache is True
-    assert yarn_rc.enable_immutable_installs is True
-    assert yarn_rc.enable_mirror is False
-    assert yarn_rc.enable_scripts is False
-    assert yarn_rc.enable_strict_ssl is False
-    assert yarn_rc.enable_telemetry is False
-    assert yarn_rc.global_folder == "/a/global/folder"
-    assert yarn_rc.ignore_path is True
-    assert yarn_rc.install_state_path == "/custom/install-state.gz"
-    assert yarn_rc.node_linker == "pnp"
-    assert yarn_rc.patch_folder == "/custom/patches"
-    assert yarn_rc.pnp_data_path == "/custom/.pnp.data.json"
-    assert yarn_rc.pnp_mode == "loose"
-    assert yarn_rc.pnp_unplugged_folder == "/some/unplugged/folder"
-    assert yarn_rc.registry_server == "https://registry.alternative.com"
+    assert yarn_rc["cacheFolder"] == "./.custom/cache"
+    assert yarn_rc["checksumBehavior"] == "ignore"
+    assert yarn_rc["enableGlobalCache"] is True
+    assert yarn_rc["enableImmutableCache"] is True
+    assert yarn_rc["enableImmutableInstalls"] is True
+    assert yarn_rc["enableMirror"] is False
+    assert yarn_rc["enableScripts"] is False
+    assert yarn_rc["enableStrictSsl"] is False
+    assert yarn_rc["enableTelemetry"] is False
+    assert yarn_rc["globalFolder"] == "/a/global/folder"
+    assert yarn_rc["ignorePath"] is True
+    assert yarn_rc["installStatePath"] == "/custom/install-state.gz"
+    assert yarn_rc["nodeLinker"] == "pnp"
+    assert yarn_rc["patchFolder"] == "/custom/patches"
+    assert yarn_rc["pnpDataPath"] == "/custom/.pnp.data.json"
+    assert yarn_rc["pnpMode"] == "loose"
+    assert yarn_rc["pnpUnpluggedFolder"] == "/some/unplugged/folder"
+    assert yarn_rc["npmRegistryServer"] == "https://registry.alternative.com"
     assert yarn_rc.registry_server_for_scope("foobar") == "https://registry.foobar.com"
     assert yarn_rc.registry_server_for_scope("barfoo") == "https://registry.alternative.com"
-    assert yarn_rc.unsafe_http_whitelist == ["example.org", "foo.bar"]
-    assert yarn_rc.yarn_path == ".custom/path/yarn-3.6.1.cjs"
-    assert yarn_rc.virtual_folder == "/custom/__virtual__"
+    assert yarn_rc["unsafeHttpWhitelist"] == ["example.org", "foo.bar"]
+    assert yarn_rc["yarnPath"] == ".custom/path/yarn-3.6.1.cjs"
+    assert yarn_rc["virtualFolder"] == "/custom/__virtual__"
 
 
 def test_parse_empty_yarnrc(rooted_tmp_path: RootedPath) -> None:
     yarn_rc = _prepare_yarnrc_file(rooted_tmp_path, EMPTY_YML_FILE)
-
-    assert yarn_rc.cache_folder == "./.yarn/cache"
-    assert yarn_rc.checksum_behavior is None
-    assert yarn_rc.enable_global_cache is None
-    assert yarn_rc.enable_immutable_cache is None
-    assert yarn_rc.enable_immutable_installs is None
-    assert yarn_rc.enable_mirror is None
-    assert yarn_rc.enable_scripts is None
-    assert yarn_rc.enable_strict_ssl is None
-    assert yarn_rc.enable_telemetry is None
-    assert yarn_rc.global_folder is None
-    assert yarn_rc.ignore_path is None
-    assert yarn_rc.install_state_path is None
-    assert yarn_rc.node_linker is None
-    assert yarn_rc.patch_folder is None
-    assert yarn_rc.pnp_data_path is None
-    assert yarn_rc.pnp_mode is None
-    assert yarn_rc.pnp_unplugged_folder is None
-    assert yarn_rc.registry_server == "https://registry.yarnpkg.com"
-    assert yarn_rc.registry_server_for_scope("foobar") == "https://registry.yarnpkg.com"
-    assert yarn_rc.unsafe_http_whitelist == []
-    assert yarn_rc.yarn_path is None
-    assert yarn_rc.virtual_folder is None
+    assert len(yarn_rc.data) == 0
 
 
 def test_parse_invalid_yarnrc(rooted_tmp_path: RootedPath) -> None:
@@ -237,7 +215,7 @@ def test_parse_project_folder_without_yarnrc(rooted_tmp_path: RootedPath) -> Non
 
     assert project.yarn_cache == rooted_tmp_path.join_within_root("./.yarn/cache")
 
-    assert project.yarn_rc._data == {}
+    assert len(project.yarn_rc.data) == 0
     assert project.yarn_rc._path == rooted_tmp_path.join_within_root(".yarnrc.yml")
     assert project.package_json._path == rooted_tmp_path.join_within_root("package.json")
 

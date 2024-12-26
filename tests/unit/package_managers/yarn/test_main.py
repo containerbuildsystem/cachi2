@@ -100,6 +100,7 @@ def test_configure_yarn_version(
     package_manager_version: Optional[semver.version.Version],
 ) -> None:
     mock_project = mock.Mock()
+    mock_project.yarn_rc = mock.MagicMock()
     mock_project.package_json.package_manager = None
     mock_yarn_path_semver.return_value = yarn_path_version
     mock_package_manager_semver.return_value = package_manager_version
@@ -203,6 +204,7 @@ def test_configure_yarn_version_fail(
     expected_error: Exception,
 ) -> None:
     mock_project = mock.Mock()
+    mock_project.yarn_rc = mock.MagicMock()
     mock_yarn_path_semver.return_value = yarn_path_version
     mock_package_manager_semver.side_effect = [package_manager_version]
 
@@ -233,6 +235,7 @@ def test_yarn_unsupported_version_fail(
     yarn_path_version: semver.version.Version,
 ) -> None:
     mock_project = mock.Mock()
+    mock_project.yarn_rc = mock.MagicMock()
     mock_yarn_path_semver.return_value = None
     mock_package_manager_semver.return_value = package_manager_version
 
@@ -314,7 +317,7 @@ def test_set_yarnrc_configuration(
         "plugins": expected_plugins,
     }
 
-    assert yarn_rc._data == expected_data
+    assert yarn_rc.data == expected_data
     mock_write.assert_called_once()
 
 
@@ -345,7 +348,7 @@ def test_enable_constraints_checks_in_yarn_v4(
     _set_yarnrc_configuration(project, rooted_tmp_path)
 
     # for versions <4, enableConstraintsChecks should not be set
-    assert yarn_rc._data.get("enableConstraintsChecks", True) is enable_constraints_checks
+    assert yarn_rc.data.get("enableConstraintsChecks", True) is enable_constraints_checks
 
 
 @mock.patch("cachi2.core.package_managers.yarn.main.get_semver_from_package_manager")
@@ -364,9 +367,10 @@ def test_check_missing_lockfile(rooted_tmp_path: RootedPath) -> None:
     project.source_dir = rooted_tmp_path
     project.yarn_rc = YarnRc(project.source_dir.join_within_root(".yarnrc.yml"), {})
 
+    lockfile_name = project.yarn_rc.get("lockfileFilename", "yarn.lock")
     with pytest.raises(
         PackageRejected,
-        match=f"Yarn lockfile '{project.yarn_rc.lockfilename}' missing, refusing to continue",
+        match=f"Yarn lockfile '{lockfile_name}' missing, refusing to continue",
     ):
         _check_lockfile(project)
 
