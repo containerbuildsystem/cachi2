@@ -122,7 +122,9 @@ def _configure_yarn_version(project: Project) -> None:
         if there is a mismatch between the yarn version specified by yarnPath and PackageManager
     """
     yarn_path_version = get_semver_from_yarn_path(project.yarn_rc.get("yarnPath"))
-    package_manager_version = get_semver_from_package_manager(project.package_json.package_manager)
+    package_manager_version = get_semver_from_package_manager(
+        project.package_json.get("packageManager")
+    )
 
     if yarn_path_version is None and package_manager_version is None:
         raise PackageRejected(
@@ -158,7 +160,7 @@ def _configure_yarn_version(project: Project) -> None:
         )
 
     if not package_manager_version:
-        project.package_json.package_manager = f"yarn@{yarn_path_version}"
+        project.package_json["packageManager"] = f"yarn@{yarn_path_version}"
         project.package_json.write()
 
     # Note (mypy): version cannot be None anymore
@@ -213,7 +215,7 @@ def _set_yarnrc_configuration(project: Project, output_dir: RootedPath) -> None:
 
     # version can be read from `package.json` since we have already executed
     # `_configure_yarn_version` at this point
-    version = get_semver_from_package_manager(project.package_json.package_manager)
+    version = get_semver_from_package_manager(project.package_json["packageManager"])
 
     # In Yarn v4, constraints can be automatically executed as part of `yarn install`, so they
     # need to be explicitly disabled
