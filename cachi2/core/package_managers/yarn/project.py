@@ -8,6 +8,7 @@ should be implemented in other modules.
 import json
 import logging
 import re
+from collections import UserDict
 from pathlib import Path
 from typing import Any, Literal, NamedTuple, Optional, TypedDict
 
@@ -19,9 +20,6 @@ from cachi2.core.rooted_path import RootedPath
 
 log = logging.getLogger(__name__)
 
-
-DEFAULT_CACHE_FOLDER = "./.yarn/cache"
-DEFAULT_REGISTRY = "https://registry.yarnpkg.com"
 
 ChecksumBehavior = Literal["throw", "update", "ignore"]
 PnpMode = Literal["strict", "loose"]
@@ -35,11 +33,11 @@ class Plugin(TypedDict):
     spec: str
 
 
-class YarnRc:
+class YarnRc(UserDict):
     """A yarnrc file.
 
-    This class abstracts the underlying attributes and only exposes what
-    is relevant for the request processing.
+    This class maps the contents of a yarnrc file to a specialized dictionary while setting
+    defaults for a few attributes in order to allow the request's processing.
     """
 
     def __init__(self, path: RootedPath, data: dict[str, Any]) -> None:
@@ -49,220 +47,7 @@ class YarnRc:
         :param data: the raw data for the yarnrc file.
         """
         self._path = path
-        self._data = data
-
-    @property
-    def cache_folder(self) -> str:
-        """Get the configured location for the yarn cache folder.
-
-        Fallback to the default path in case the configuration key is missing.
-        """
-        return self._data.get("cacheFolder", DEFAULT_CACHE_FOLDER)
-
-    @property
-    def checksum_behavior(self) -> Optional[ChecksumBehavior]:
-        """Get the checksumBehavior configuration."""
-        return self._data.get("checksumBehavior", None)
-
-    @checksum_behavior.setter
-    def checksum_behavior(self, checksum_behavior: Optional[ChecksumBehavior]) -> None:
-        self._data["checksumBehavior"] = checksum_behavior
-
-    @property
-    def enable_constraints_checks(self) -> Optional[bool]:
-        """Get the enableConstraintsChecks configuration."""
-        return self._data.get("enableConstraintsChecks", None)
-
-    @enable_constraints_checks.setter
-    def enable_constraints_checks(self, enable_constraints_checks: Optional[bool]) -> None:
-        """Set the enableConstraintsChecks configuration."""
-        self._data["enableConstraintsChecks"] = enable_constraints_checks
-
-    @property
-    def enable_immutable_cache(self) -> Optional[bool]:
-        """Get the enableImmutableCache configuration."""
-        return self._data.get("enableImmutableCache", None)
-
-    @enable_immutable_cache.setter
-    def enable_immutable_cache(self, enable_immutable_cache: Optional[bool]) -> None:
-        self._data["enableImmutableCache"] = enable_immutable_cache
-
-    @property
-    def enable_immutable_installs(self) -> Optional[bool]:
-        """Get the enableImmutableInstalls configuration."""
-        return self._data.get("enableImmutableInstalls", None)
-
-    @enable_immutable_installs.setter
-    def enable_immutable_installs(self, enable_immutable_installs: Optional[bool]) -> None:
-        self._data["enableImmutableInstalls"] = enable_immutable_installs
-
-    @property
-    def enable_mirror(self) -> Optional[bool]:
-        """Get the enableMirror configuration."""
-        return self._data.get("enableMirror", None)
-
-    @enable_mirror.setter
-    def enable_mirror(self, enable_mirror: Optional[bool]) -> None:
-        self._data["enableMirror"] = enable_mirror
-
-    @property
-    def enable_scripts(self) -> Optional[bool]:
-        """Get the enableScripts configuration."""
-        return self._data.get("enableScripts", None)
-
-    @enable_scripts.setter
-    def enable_scripts(self, enable_scripts: Optional[bool]) -> None:
-        self._data["enableScripts"] = enable_scripts
-
-    @property
-    def enable_strict_ssl(self) -> Optional[bool]:
-        """Get the enableStrictSsl configuration."""
-        return self._data.get("enableStrictSsl", None)
-
-    @enable_strict_ssl.setter
-    def enable_strict_ssl(self, enable_strict_ssl: Optional[bool]) -> None:
-        self._data["enableStrictSsl"] = enable_strict_ssl
-
-    @property
-    def enable_telemetry(self) -> Optional[bool]:
-        """Get the enableTelemetry configuration."""
-        return self._data.get("enableTelemetry", None)
-
-    @enable_telemetry.setter
-    def enable_telemetry(self, enable_telemetry: Optional[bool]) -> None:
-        self._data["enableTelemetry"] = enable_telemetry
-
-    @property
-    def global_folder(self) -> Optional[str]:
-        """Get the global folder."""
-        return self._data.get("globalFolder", None)
-
-    @global_folder.setter
-    def global_folder(self, global_folder: Optional[str]) -> None:
-        self._data["globalFolder"] = global_folder
-
-    @property
-    def install_state_path(self) -> Optional[str]:
-        """Get the installStatePath configuration."""
-        return self._data.get("installStatePath", None)
-
-    @install_state_path.setter
-    def install_state_path(self, path: Optional[str]) -> None:
-        self._data["installStatePath"] = path
-
-    @property
-    def lockfilename(self) -> str:
-        """Get the installStatePath configuration."""
-        return self._data.get("lockfileFilename", "yarn.lock")
-
-    @property
-    def patch_folder(self) -> Optional[str]:
-        """Get the patch folder."""
-        return self._data.get("patchFolder")
-
-    @patch_folder.setter
-    def patch_folder(self, folder: Optional[str]) -> None:
-        self._data["patchFolder"] = folder
-
-    @property
-    def pnp_data_path(self) -> Optional[str]:
-        """Get the pnpDataPath configuration."""
-        return self._data.get("pnpDataPath", None)
-
-    @pnp_data_path.setter
-    def pnp_data_path(self, path: Optional[str]) -> None:
-        self._data["pnpDataPath"] = path
-
-    @property
-    def pnp_mode(self) -> Optional[PnpMode]:
-        """Get the pnpMode configuration."""
-        return self._data.get("pnpMode", None)
-
-    @pnp_mode.setter
-    def pnp_mode(self, mode: Optional[PnpMode]) -> None:
-        self._data["pnpMode"] = mode
-
-    @property
-    def pnp_unplugged_folder(self) -> Optional[str]:
-        """Get the PnP unplugged folder."""
-        return self._data.get("pnpUnpluggedFolder", None)
-
-    @pnp_unplugged_folder.setter
-    def pnp_unplugged_folder(self, folder: Optional[str]) -> None:
-        self._data["pnpUnpluggedFolder"] = folder
-
-    @property
-    def ignore_path(self) -> Optional[bool]:
-        """Get the ignorePath configuration."""
-        return self._data.get("ignorePath", None)
-
-    @ignore_path.setter
-    def ignore_path(self, ignore_path: Optional[bool]) -> None:
-        self._data["ignorePath"] = ignore_path
-
-    @property
-    def unsafe_http_whitelist(self) -> list[str]:
-        """Get the whitelisted urls that can be accessed via http.
-
-        Returns an empty array in case there are none defined.
-        """
-        return self._data.get("unsafeHttpWhitelist", [])
-
-    @unsafe_http_whitelist.setter
-    def unsafe_http_whitelist(self, urls: list[str]) -> None:
-        self._data["unsafeHttpWhitelist"] = urls
-
-    @property
-    def node_linker(self) -> NodeLinker:
-        """Get the nodeLinker configuration."""
-        return self._data.get("nodeLinker", None)
-
-    @node_linker.setter
-    def node_linker(self, node_linker: Optional[NodeLinker]) -> None:
-        self._data["nodeLinker"] = node_linker
-
-    @property
-    def plugins(self) -> list[Plugin]:
-        """Get the configured plugins.
-
-        Returns an empty array in case there are none defined.
-        """
-        return self._data.get("plugins", [])
-
-    @plugins.setter
-    def plugins(self, plugins: list[Plugin]) -> None:
-        self._data["plugins"] = plugins
-
-    @property
-    def virtual_folder(self) -> Optional[str]:
-        """Get the virtualFolder configuration."""
-        return self._data.get("virtualFolder", None)
-
-    @virtual_folder.setter
-    def virtual_folder(self, folder: Optional[str]) -> None:
-        self._data["virtualFolder"] = folder
-
-    @property
-    def registry_server(self) -> str:
-        """Get the globally configured registry server.
-
-        Fallback to the default server in case the configuration key is missing.
-        """
-        return self._data.get("npmRegistryServer", DEFAULT_REGISTRY)
-
-    @property
-    def yarn_path(self) -> Optional[str]:
-        """Path to the yarn script present in this directory."""
-        return self._data.get("yarnPath")
-
-    @property
-    def enable_global_cache(self) -> Optional[bool]:
-        """Get the enableGlobalCache configuration."""
-        return self._data.get("enableGlobalCache", None)
-
-    @enable_global_cache.setter
-    def enable_global_cache(self, enable_global_cache: Optional[bool]) -> None:
-        self._data["enableGlobalCache"] = enable_global_cache
+        super().__init__(data)
 
     def registry_server_for_scope(self, scope: str) -> str:
         """Get the configured registry server for a scoped package.
@@ -272,14 +57,13 @@ class YarnRc:
 
         See: https://v3.yarnpkg.com/configuration/yarnrc#npmScopes
         """
-        registry = self._data.get("npmScopes", {}).get(scope, {}).get("npmRegistryServer")
-
-        return registry or self.registry_server
+        registry = self.data.get("npmScopes", {}).get(scope, {}).get("npmRegistryServer")
+        return registry or self["npmRegistryServer"]
 
     def write(self) -> None:
         """Write the data to the yarnrc file."""
         with self._path.path.open("w") as f:
-            yaml.safe_dump(self._data, f)
+            yaml.safe_dump(self.data, f)
 
     @classmethod
     def from_file(cls, file_path: RootedPath) -> "YarnRc":
@@ -376,7 +160,7 @@ class Project(NamedTuple):
         similarly or exactly the same way as with the NPM ecosystem.
         For more details on zero-installs, see: https://v3.yarnpkg.com/features/zero-installs.
         """
-        node_linker = self.yarn_rc.node_linker
+        node_linker = self.yarn_rc.get("nodeLinker")
         if node_linker is None or node_linker == "pnp":
             if self.yarn_cache.path.exists() and self.yarn_cache.path.is_dir():
                 # in this case the cache folder will be populated with downloaded ZIP dependencies
@@ -396,7 +180,7 @@ class Project(NamedTuple):
         The cache location is affected by the cacheFolder configuration in yarnrc. See:
         https://v3.yarnpkg.com/configuration/yarnrc#cacheFolder.
         """
-        return self.source_dir.join_within_root(self.yarn_rc.cache_folder)
+        return self.source_dir.join_within_root(self.yarn_rc.get("cacheFolder", "./.yarn/cache"))
 
     @classmethod
     def from_source_dir(cls, source_dir: RootedPath) -> "Project":

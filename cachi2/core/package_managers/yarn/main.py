@@ -41,11 +41,11 @@ def fetch_yarn_source(request: Request) -> RequestOutput:
 def _verify_yarnrc_paths(project: Project) -> None:
     paths_conf_opts = {
         # pnpDataPath is only configurable in Yarn v3
-        project.yarn_rc.pnp_data_path: "pnpDataPath",
-        project.yarn_rc.pnp_unplugged_folder: "pnpUnpluggedFolder",
-        project.yarn_rc.install_state_path: "installStatePath",
-        project.yarn_rc.patch_folder: "patchFolder",
-        project.yarn_rc.virtual_folder: "virtualFolder",
+        project.yarn_rc.get("pnpDataPath"): "pnpDataPath",
+        project.yarn_rc.get("pnpUnpluggedFolder"): "pnpUnpluggedFolder",
+        project.yarn_rc.get("installStatePath"): "installStatePath",
+        project.yarn_rc.get("patchFolder"): "patchFolder",
+        project.yarn_rc.get("virtualFolder"): "virtualFolder",
     }
 
     for path in paths_conf_opts:
@@ -78,9 +78,10 @@ def _check_zero_installs(project: Project) -> None:
 
 
 def _check_lockfile(project: Project) -> None:
-    if not project.source_dir.join_within_root(project.yarn_rc.lockfilename).path.exists():
+    lockfile_filename = project.yarn_rc.get("lockfileFilename", "yarn.lock")
+    if not project.source_dir.join_within_root(lockfile_filename).path.exists():
         raise PackageRejected(
-            f"Yarn lockfile '{project.yarn_rc.lockfilename}' missing, refusing to continue",
+            f"Yarn lockfile '{lockfile_filename}' missing, refusing to continue",
             solution=(
                 "Make sure your repository has a Yarn lockfile (e.g. yarn.lock) checked in "
                 "to the repository"
@@ -120,7 +121,7 @@ def _configure_yarn_version(project: Project) -> None:
         if the yarn version can't be determined from either yarnPath or packageManager
         if there is a mismatch between the yarn version specified by yarnPath and PackageManager
     """
-    yarn_path_version = get_semver_from_yarn_path(project.yarn_rc.yarn_path)
+    yarn_path_version = get_semver_from_yarn_path(project.yarn_rc.get("yarnPath"))
     package_manager_version = get_semver_from_package_manager(project.package_json.package_manager)
 
     if yarn_path_version is None and package_manager_version is None:
@@ -185,7 +186,7 @@ def _get_plugin_allowlist(yarn_rc: YarnRc) -> list[Plugin]:
         Plugin(path=".yarn/plugins/@yarnpkg/plugin-exec.cjs", spec="@yarnpkg/plugin-exec"),
     ]
 
-    return [plugin for plugin in default_plugins if plugin in yarn_rc.plugins]
+    return [plugin for plugin in default_plugins if plugin in yarn_rc.get("plugins", [])]
 
 
 def _set_yarnrc_configuration(project: Project, output_dir: RootedPath) -> None:
@@ -197,18 +198,18 @@ def _set_yarnrc_configuration(project: Project, output_dir: RootedPath) -> None:
     """
     yarn_rc = project.yarn_rc
 
-    yarn_rc.plugins = _get_plugin_allowlist(yarn_rc)
-    yarn_rc.checksum_behavior = "throw"
-    yarn_rc.enable_immutable_installs = True
-    yarn_rc.pnp_mode = "strict"
-    yarn_rc.enable_strict_ssl = True
-    yarn_rc.enable_telemetry = False
-    yarn_rc.ignore_path = True
-    yarn_rc.unsafe_http_whitelist = []
-    yarn_rc.enable_mirror = False
-    yarn_rc.enable_scripts = False
-    yarn_rc.enable_global_cache = True
-    yarn_rc.global_folder = str(output_dir.join_within_root("deps", "yarn"))
+    yarn_rc["plugins"] = _get_plugin_allowlist(yarn_rc)
+    yarn_rc["checksumBehavior"] = "throw"
+    yarn_rc["enableImmutableInstalls"] = True
+    yarn_rc["pnpMode"] = "strict"
+    yarn_rc["enableStrictSsl"] = True
+    yarn_rc["enableTelemetry"] = False
+    yarn_rc["ignorePath"] = True
+    yarn_rc["unsafeHttpWhitelist"] = []
+    yarn_rc["enableMirror"] = False
+    yarn_rc["enableScripts"] = False
+    yarn_rc["enableGlobalCache"] = True
+    yarn_rc["globalFolder"] = str(output_dir.join_within_root("deps", "yarn"))
 
     # version can be read from `package.json` since we have already executed
     # `_configure_yarn_version` at this point
@@ -217,7 +218,7 @@ def _set_yarnrc_configuration(project: Project, output_dir: RootedPath) -> None:
     # In Yarn v4, constraints can be automatically executed as part of `yarn install`, so they
     # need to be explicitly disabled
     if version in VersionsRange("4.0.0-rc1", "5.0.0"):  # type: ignore
-        yarn_rc.enable_constraints_checks = False
+        yarn_rc["enableConstraintsChecks"] = False
 
     yarn_rc.write()
 
