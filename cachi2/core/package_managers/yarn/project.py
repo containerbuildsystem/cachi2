@@ -86,31 +86,20 @@ class YarnRc(UserDict):
         return cls(file_path, yarnrc_data)
 
 
-class PackageJson:
+class PackageJson(UserDict):
     """A package.json file.
 
-    This class abstracts the underlying attributes and only exposes what
-    is relevant for the request processing.
+    This class maps the contents of a package.json file to a specialized dictionary.
     """
 
     def __init__(self, path: RootedPath, data: dict[str, Any]) -> None:
         """Initialize a PackageJson object.
 
-        :param path: the path to the package.json file.
+        :param path: the path to the package.json file, relative to the request source dir.
         :param data: the raw data for the package.json file.
         """
         self._path = path
-        self._data = data
-
-    @property
-    def package_manager(self) -> Optional[str]:
-        """Get the package manager string."""
-        return self._data.get("packageManager")
-
-    @package_manager.setter
-    def package_manager(self, package_manager: str) -> None:
-        """Set the package manager string."""
-        self._data["packageManager"] = package_manager
+        super().__init__(data)
 
     @classmethod
     def from_file(cls, file_path: RootedPath) -> "PackageJson":
@@ -140,7 +129,7 @@ class PackageJson:
     def write(self) -> None:
         """Write the data to the package.json file."""
         with self._path.path.open("w") as f:
-            json.dump(self._data, f, indent=2)
+            json.dump(self.data, f, indent=2)
             f.write("\n")
 
 

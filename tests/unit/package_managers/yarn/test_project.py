@@ -164,12 +164,12 @@ def _prepare_package_json_file(rooted_tmp_path: RootedPath, data: str) -> Packag
 
 def test_parse_package_json(rooted_tmp_path: RootedPath) -> None:
     package_json = _prepare_package_json_file(rooted_tmp_path, VALID_PACKAGE_JSON_FILE)
-    assert package_json.package_manager == "yarn@3.6.1"
+    assert package_json["packageManager"] == "yarn@3.6.1"
 
 
 def test_parse_empty_package_json_file(rooted_tmp_path: RootedPath) -> None:
     package_json = _prepare_package_json_file(rooted_tmp_path, EMPTY_JSON_FILE)
-    assert package_json.package_manager is None
+    assert package_json.get("packageManager") is None
 
 
 def test_parse_invalid_package_json_file(rooted_tmp_path: RootedPath) -> None:
