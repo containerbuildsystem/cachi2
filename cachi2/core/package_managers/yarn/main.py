@@ -104,17 +104,17 @@ def _resolve_yarn_project(project: Project, output_dir: RootedPath) -> list[Comp
     """
     log.info(f"Fetching the yarn dependencies at the subpath {project.source_dir}")
 
-    _configure_yarn_version(project)
+    version = _configure_yarn_version(project)
     _verify_repository(project)
 
-    _set_yarnrc_configuration(project, output_dir)
+    _set_yarnrc_configuration(project, output_dir, version)
     packages = resolve_packages(project.source_dir)
     _fetch_dependencies(project.source_dir)
 
     return create_components(packages, project, output_dir)
 
 
-def _configure_yarn_version(project: Project) -> None:
+def _configure_yarn_version(project: Project) -> semver.Version:
     """Resolve the yarn version and set it in the package.json file if needed.
 
     :raises PackageRejected:
@@ -166,6 +166,8 @@ def _configure_yarn_version(project: Project) -> None:
 
     _verify_corepack_yarn_version(version, project.source_dir)
 
+    return version
+
 
 def _get_plugin_allowlist(yarn_rc: YarnRc) -> list[Plugin]:
     """Return a list of plugins that can be kept in .yarnrc.yml.
@@ -191,12 +193,15 @@ def _get_plugin_allowlist(yarn_rc: YarnRc) -> list[Plugin]:
     return [plugin for plugin in default_plugins if plugin in yarn_rc.get("plugins", [])]
 
 
-def _set_yarnrc_configuration(project: Project, output_dir: RootedPath) -> None:
+def _set_yarnrc_configuration(
+    project: Project, output_dir: RootedPath, version: semver.Version
+) -> None:
     """Set all the necessary configuration in yarnrc for the project processing.
 
     :param project: a Project instance
     :param output_dir: in case the dependencies need to be fetched, this is where they will be
         downloaded to.
+    :param version: the project's Yarn version.
     """
     yarn_rc = project.yarn_rc
 
@@ -212,10 +217,6 @@ def _set_yarnrc_configuration(project: Project, output_dir: RootedPath) -> None:
     yarn_rc["enableScripts"] = False
     yarn_rc["enableGlobalCache"] = True
     yarn_rc["globalFolder"] = str(output_dir.join_within_root("deps", "yarn"))
-
-    # version can be read from `package.json` since we have already executed
-    # `_configure_yarn_version` at this point
-    version = get_semver_from_package_manager(project.package_json["packageManager"])
 
     # In Yarn v4, constraints can be automatically executed as part of `yarn install`, so they
     # need to be explicitly disabled
