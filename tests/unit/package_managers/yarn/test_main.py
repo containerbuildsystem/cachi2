@@ -24,6 +24,7 @@ from cachi2.core.package_managers.yarn.main import (
     fetch_yarn_source,
 )
 from cachi2.core.package_managers.yarn.project import PackageJson, Plugin, YarnRc
+from cachi2.core.package_managers.yarn.utils import VersionsRange
 from cachi2.core.rooted_path import RootedPath
 
 
@@ -271,9 +272,9 @@ def test_resolve_zero_installs_fail() -> None:
 
 
 @pytest.mark.parametrize(
-    "yarn_rc_content, expected_plugins",
+    "yarn_rc_content, expected_plugins, yarn_version",
     [
-        pytest.param("", [], id="empty_yarn_rc"),
+        pytest.param("", [], "3.0.0", id="empty_yarn_rc"),
         pytest.param(
             SAMPLE_PLUGINS,
             [
@@ -282,17 +283,19 @@ def test_resolve_zero_installs_fail() -> None:
                     "spec": "@yarnpkg/plugin-exec",
                 },
             ],
+            "3.0.0",
             id="yarn_rc_with_default_plugins",
         ),
+        pytest.param("", [], "4.0.0", id="yarn_v4"),
+        pytest.param("", [], "4.0.0-rc1", id="yarn_v4_rc1"),
     ],
 )
 @mock.patch("cachi2.core.package_managers.yarn.project.YarnRc.write")
-@mock.patch("cachi2.core.package_managers.yarn.main.get_semver_from_package_manager")
 def test_set_yarnrc_configuration(
-    mock_get_semver: mock.Mock,
     mock_write: mock.Mock,
     yarn_rc_content: str,
     expected_plugins: list[Plugin],
+    yarn_version: semver.Version,
     rooted_tmp_path: RootedPath,
 ) -> None:
     yarn_rc_path = rooted_tmp_path.join_within_root(".yarnrc.yml")
@@ -305,7 +308,7 @@ def test_set_yarnrc_configuration(
     project.package_json = mock.MagicMock()
     output_dir = RootedPath("/tmp/output")
 
-    _set_yarnrc_configuration(project, output_dir)
+    _set_yarnrc_configuration(project, output_dir, yarn_version)
 
     expected_data = {
         "checksumBehavior": "throw",
@@ -322,37 +325,11 @@ def test_set_yarnrc_configuration(
         "plugins": expected_plugins,
     }
 
+    if yarn_version in VersionsRange("4.0.0-rc1", "5.0.0"):
+        expected_data["enableConstraintsChecks"] = False
+
     assert yarn_rc.data == expected_data
     mock_write.assert_called_once()
-
-
-@pytest.mark.parametrize(
-    "yarn_version, enable_constraints_checks",
-    [
-        pytest.param("yarn@4.0.0", False, id="yarn-v4"),
-        pytest.param("yarn@4.0.0-rc1", False, id="yarn-v4-rc1"),
-        pytest.param("yarn@3.5.0", True, id="yarn-v3"),
-    ],
-)
-@mock.patch("cachi2.core.package_managers.yarn.project.YarnRc.write")
-def test_enable_constraints_checks_in_yarn_v4(
-    mock_write: mock.Mock,
-    rooted_tmp_path: RootedPath,
-    yarn_version: str,
-    enable_constraints_checks: bool,
-) -> None:
-    yarn_rc = YarnRc(mock.Mock(), {})
-    package_json = PackageJson(mock.Mock(), {})
-    package_json["packageManager"] = yarn_version
-
-    project = mock.Mock()
-    project.yarn_rc = yarn_rc
-    project.package_json = package_json
-
-    _set_yarnrc_configuration(project, rooted_tmp_path)
-
-    # for versions <4, enableConstraintsChecks should not be set
-    assert yarn_rc.data.get("enableConstraintsChecks", True) is enable_constraints_checks
 
 
 @mock.patch("cachi2.core.package_managers.yarn.main.get_semver_from_package_manager")
@@ -363,7 +340,7 @@ def test_verify_yarnrc_paths(mock_get_semver: mock.Mock) -> None:
     project.yarn_rc = yarn_rc
     project.package_json = mock.MagicMock()
 
-    _set_yarnrc_configuration(project, output_dir)
+    _set_yarnrc_configuration(project, output_dir, semver.Version.parse("3.0.0"))
     _verify_yarnrc_paths(project)
 
 
