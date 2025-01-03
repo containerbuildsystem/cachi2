@@ -6,8 +6,9 @@ from cachi2.core.errors import UnsupportedFeature
 from cachi2.core.models.input import PackageManagerType, Request
 from cachi2.core.models.output import RequestOutput
 from cachi2.core.package_managers import bundler, generic, gomod, metayarn, npm, pip, rpm
+from cachi2.core.package_managers.utils import merge_outputs
 from cachi2.core.rooted_path import RootedPath
-from cachi2.core.utils import copy_directory, merge_outputs
+from cachi2.core.utils import copy_directory
 
 Handler = Callable[[Request], RequestOutput]
 

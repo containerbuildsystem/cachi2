@@ -1,7 +1,7 @@
 import pytest
 
-from cachi2.core.models.property_semantics import PropertySet, merge_component_properties
-from cachi2.core.models.sbom import Component, Property
+from cachi2.core.models.property_semantics import PropertySet
+from cachi2.core.models.sbom import Component, Property, merge_component_properties
 
 
 @pytest.mark.parametrize(

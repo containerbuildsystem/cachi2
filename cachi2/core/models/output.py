@@ -6,8 +6,7 @@ from typing import Any, Dict, Literal, Optional, Set
 import pydantic
 
 from cachi2.core.errors import Cachi2Error
-from cachi2.core.models.property_semantics import merge_component_properties
-from cachi2.core.models.sbom import Component, Sbom
+from cachi2.core.models.sbom import Component, Sbom, merge_component_properties
 from cachi2.core.models.validators import unique_sorted
 
 log = logging.getLogger(__name__)
