@@ -126,7 +126,10 @@ def _configure_yarn_version(project: Project) -> None:
         project.package_json.get("packageManager")
     )
 
-    if yarn_path_version is None and package_manager_version is None:
+    version = yarn_path_version if yarn_path_version else package_manager_version
+
+    # this check is done here to make mypy understand that version can't be Optional anymore
+    if version is None:
         raise PackageRejected(
             "Unable to determine the yarn version to use to process the request",
             solution=(
@@ -135,9 +138,7 @@ def _configure_yarn_version(project: Project) -> None:
             ),
         )
 
-    version = yarn_path_version if yarn_path_version else package_manager_version
-    # By this point version is not Optional anymore, but mypy does not think so.
-    if version not in VersionsRange("3.0.0", "5.0.0"):  # type: ignore
+    if version not in VersionsRange("3.0.0", "5.0.0"):
         raise PackageRejected(
             f"Unsupported Yarn version '{version}' detected",
             solution="Please pick a different version of Yarn (3.0.0<= Yarn version <5.0.0)",
@@ -163,8 +164,7 @@ def _configure_yarn_version(project: Project) -> None:
         project.package_json["packageManager"] = f"yarn@{yarn_path_version}"
         project.package_json.write()
 
-    # Note (mypy): version cannot be None anymore
-    _verify_corepack_yarn_version(version, project.source_dir)  # type: ignore
+    _verify_corepack_yarn_version(version, project.source_dir)
 
 
 def _get_plugin_allowlist(yarn_rc: YarnRc) -> list[Plugin]:
