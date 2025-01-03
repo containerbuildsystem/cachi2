@@ -23,7 +23,8 @@ from cachi2.core.package_managers.yarn.main import (
     _verify_yarnrc_paths,
     fetch_yarn_source,
 )
-from cachi2.core.package_managers.yarn.project import Plugin, YarnRc
+from cachi2.core.package_managers.yarn.project import PackageJson, Plugin, YarnRc
+from cachi2.core.package_managers.yarn.utils import VersionsRange
 from cachi2.core.rooted_path import RootedPath
 
 
@@ -92,7 +93,9 @@ plugins:
 @mock.patch("cachi2.core.package_managers.yarn.main._verify_corepack_yarn_version")
 @mock.patch("cachi2.core.package_managers.yarn.main.get_semver_from_package_manager")
 @mock.patch("cachi2.core.package_managers.yarn.main.get_semver_from_yarn_path")
+@mock.patch("cachi2.core.package_managers.yarn.project.PackageJson.write")
 def test_configure_yarn_version(
+    mock_package_json_write: mock.Mock,
     mock_yarn_path_semver: mock.Mock,
     mock_package_manager_semver: mock.Mock,
     mock_verify_corepack: mock.Mock,
@@ -100,18 +103,19 @@ def test_configure_yarn_version(
     package_manager_version: Optional[semver.version.Version],
 ) -> None:
     mock_project = mock.Mock()
-    mock_project.package_json.package_manager = None
+    mock_project.yarn_rc = mock.MagicMock()
+    mock_project.package_json = PackageJson(mock.Mock(), {})
     mock_yarn_path_semver.return_value = yarn_path_version
     mock_package_manager_semver.return_value = package_manager_version
 
     _configure_yarn_version(mock_project)
 
     if package_manager_version is None:
-        assert mock_project.package_json.package_manager == f"yarn@{yarn_path_version}"
-        mock_project.package_json.write.assert_called_once()
+        assert mock_project.package_json["packageManager"] == f"yarn@{yarn_path_version}"
+        mock_package_json_write.assert_called_once()
     else:
-        assert mock_project.package_json.package_manager is None
-        mock_project.package_json.write.assert_not_called()
+        assert mock_project.package_json["packageManager"] is None
+        mock_package_json_write.assert_not_called()
 
     mock_verify_corepack.assert_called_once_with(
         yarn_path_version or package_manager_version, mock_project.source_dir
@@ -203,6 +207,8 @@ def test_configure_yarn_version_fail(
     expected_error: Exception,
 ) -> None:
     mock_project = mock.Mock()
+    mock_project.yarn_rc = mock.MagicMock()
+    mock_project.package_json = mock.MagicMock()
     mock_yarn_path_semver.return_value = yarn_path_version
     mock_package_manager_semver.side_effect = [package_manager_version]
 
@@ -233,6 +239,8 @@ def test_yarn_unsupported_version_fail(
     yarn_path_version: semver.version.Version,
 ) -> None:
     mock_project = mock.Mock()
+    mock_project.yarn_rc = mock.MagicMock()
+    mock_project.package_json = mock.MagicMock()
     mock_yarn_path_semver.return_value = None
     mock_package_manager_semver.return_value = package_manager_version
 
@@ -264,9 +272,9 @@ def test_resolve_zero_installs_fail() -> None:
 
 
 @pytest.mark.parametrize(
-    "yarn_rc_content, expected_plugins",
+    "yarn_rc_content, expected_plugins, yarn_version",
     [
-        pytest.param("", [], id="empty_yarn_rc"),
+        pytest.param("", [], "3.0.0", id="empty_yarn_rc"),
         pytest.param(
             SAMPLE_PLUGINS,
             [
@@ -275,17 +283,19 @@ def test_resolve_zero_installs_fail() -> None:
                     "spec": "@yarnpkg/plugin-exec",
                 },
             ],
+            "3.0.0",
             id="yarn_rc_with_default_plugins",
         ),
+        pytest.param("", [], "4.0.0", id="yarn_v4"),
+        pytest.param("", [], "4.0.0-rc1", id="yarn_v4_rc1"),
     ],
 )
 @mock.patch("cachi2.core.package_managers.yarn.project.YarnRc.write")
-@mock.patch("cachi2.core.package_managers.yarn.main.get_semver_from_package_manager")
 def test_set_yarnrc_configuration(
-    mock_get_semver: mock.Mock,
     mock_write: mock.Mock,
     yarn_rc_content: str,
     expected_plugins: list[Plugin],
+    yarn_version: semver.Version,
     rooted_tmp_path: RootedPath,
 ) -> None:
     yarn_rc_path = rooted_tmp_path.join_within_root(".yarnrc.yml")
@@ -295,9 +305,10 @@ def test_set_yarnrc_configuration(
 
     project = mock.Mock()
     project.yarn_rc = yarn_rc
+    project.package_json = mock.MagicMock()
     output_dir = RootedPath("/tmp/output")
 
-    _set_yarnrc_configuration(project, output_dir)
+    _set_yarnrc_configuration(project, output_dir, yarn_version)
 
     expected_data = {
         "checksumBehavior": "throw",
@@ -314,38 +325,11 @@ def test_set_yarnrc_configuration(
         "plugins": expected_plugins,
     }
 
-    assert yarn_rc._data == expected_data
+    if yarn_version in VersionsRange("4.0.0-rc1", "5.0.0"):
+        expected_data["enableConstraintsChecks"] = False
+
+    assert yarn_rc.data == expected_data
     mock_write.assert_called_once()
-
-
-@pytest.mark.parametrize(
-    "yarn_version, enable_constraints_checks",
-    [
-        pytest.param("yarn@4.0.0", False, id="yarn-v4"),
-        pytest.param("yarn@4.0.0-rc1", False, id="yarn-v4-rc1"),
-        pytest.param("yarn@3.5.0", True, id="yarn-v3"),
-    ],
-)
-@mock.patch("cachi2.core.package_managers.yarn.project.YarnRc.write")
-def test_enable_constraints_checks_in_yarn_v4(
-    mock_write: mock.Mock,
-    rooted_tmp_path: RootedPath,
-    yarn_version: str,
-    enable_constraints_checks: bool,
-) -> None:
-    yarn_rc = YarnRc(mock.Mock(), {})
-
-    package_json = mock.Mock()
-    package_json.package_manager = yarn_version
-
-    project = mock.Mock()
-    project.yarn_rc = yarn_rc
-    project.package_json = package_json
-
-    _set_yarnrc_configuration(project, rooted_tmp_path)
-
-    # for versions <4, enableConstraintsChecks should not be set
-    assert yarn_rc._data.get("enableConstraintsChecks", True) is enable_constraints_checks
 
 
 @mock.patch("cachi2.core.package_managers.yarn.main.get_semver_from_package_manager")
@@ -354,8 +338,9 @@ def test_verify_yarnrc_paths(mock_get_semver: mock.Mock) -> None:
     yarn_rc = YarnRc(RootedPath("/tmp/.yarnrc.yml"), {})
     project = mock.Mock()
     project.yarn_rc = yarn_rc
+    project.package_json = mock.MagicMock()
 
-    _set_yarnrc_configuration(project, output_dir)
+    _set_yarnrc_configuration(project, output_dir, semver.Version.parse("3.0.0"))
     _verify_yarnrc_paths(project)
 
 
@@ -364,9 +349,10 @@ def test_check_missing_lockfile(rooted_tmp_path: RootedPath) -> None:
     project.source_dir = rooted_tmp_path
     project.yarn_rc = YarnRc(project.source_dir.join_within_root(".yarnrc.yml"), {})
 
+    lockfile_name = project.yarn_rc["lockfileFilename"]
     with pytest.raises(
         PackageRejected,
-        match=f"Yarn lockfile '{project.yarn_rc.lockfilename}' missing, refusing to continue",
+        match=f"Yarn lockfile '{lockfile_name}' missing, refusing to continue",
     ):
         _check_lockfile(project)
 
