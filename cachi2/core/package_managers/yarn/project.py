@@ -68,21 +68,8 @@ class YarnRc(ConfigurationFile):
     _defaults = {
         "cacheFolder": "./.yarn/cache",
         "lockfileFilename": "yarn.lock",
-        "unsafeHttpWhitelist": [],
         "plugins": [],
-        "npmRegistryServer": "https://registry.yarnpkg.com",
     }
-
-    def registry_server_for_scope(self, scope: str) -> str:
-        """Get the configured registry server for a scoped package.
-
-        Fallback to the global defined registry server if there's no configuration for this specific
-        scope.
-
-        See: https://v3.yarnpkg.com/configuration/yarnrc#npmScopes
-        """
-        registry = self.data.get("npmScopes", {}).get(scope, {}).get("npmRegistryServer")
-        return registry or self["npmRegistryServer"]
 
     def write(self) -> None:
         """Write the data to the yarnrc file."""

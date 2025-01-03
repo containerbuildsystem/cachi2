@@ -104,8 +104,7 @@ def test_parse_yarnrc(rooted_tmp_path: RootedPath) -> None:
     assert yarn_rc["pnpMode"] == "loose"
     assert yarn_rc["pnpUnpluggedFolder"] == "/some/unplugged/folder"
     assert yarn_rc["npmRegistryServer"] == "https://registry.alternative.com"
-    assert yarn_rc.registry_server_for_scope("foobar") == "https://registry.foobar.com"
-    assert yarn_rc.registry_server_for_scope("barfoo") == "https://registry.alternative.com"
+    assert yarn_rc["npmScopes"]["foobar"]["npmRegistryServer"] == "https://registry.foobar.com"
     assert yarn_rc["unsafeHttpWhitelist"] == ["example.org", "foo.bar"]
     assert yarn_rc["yarnPath"] == ".custom/path/yarn-3.6.1.cjs"
     assert yarn_rc["virtualFolder"] == "/custom/__virtual__"
@@ -131,9 +130,8 @@ def test_parse_empty_yarnrc(rooted_tmp_path: RootedPath) -> None:
     assert yarn_rc["pnpDataPath"] is None
     assert yarn_rc["pnpMode"] is None
     assert yarn_rc["pnpUnpluggedFolder"] is None
-    assert yarn_rc["npmRegistryServer"] == "https://registry.yarnpkg.com"
-    assert yarn_rc.registry_server_for_scope("foobar") == "https://registry.yarnpkg.com"
-    assert yarn_rc["unsafeHttpWhitelist"] == []
+    assert yarn_rc["npmRegistryServer"] is None
+    assert yarn_rc["unsafeHttpWhitelist"] is None
     assert yarn_rc["yarnPath"] is None
     assert yarn_rc["virtualFolder"] is None
 
