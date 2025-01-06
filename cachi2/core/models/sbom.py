@@ -184,7 +184,7 @@ class Sbom(pydantic.BaseModel):
 
         # Main function body.
         cydxfiles, libraries = partition_by(lambda c: c.type == "library", self.components)
-        # mypy is upset by patrition_by being broadly typed.
+        # mypy is upset by partition_by being broadly typed.
         packages = [create_document_root()] + libs_to_packages(libraries)  # type: ignore
         files = files_to_packages(cydxfiles)  # type: ignore
         relationships = [create_root_relationship()] + link_to_root(packages) + link_to_root(files)
@@ -514,30 +514,25 @@ class SPDXSbom(pydantic.BaseModel):
     def deduplicate_spdx_packages(items: Iterable[SPDXPackage]) -> list[SPDXPackage]:
         """Deduplicate SPDX packages and merge external references.
 
-        If package with same name and version is found multiple times in the list,
-        merge external references of all the packages into one package.
+        Deduplication is very conservative and does not consider two packages same if
+        their purls differ even if their type, name and version match. A package will be
+        dropped iff it is a full purl match.
         """
-        # NOTE: keeping this implementation mostly intact for historical reasons.
-        unique_items: dict[tuple, SPDXPackage] = {}
+        unique_items: dict[int, SPDXPackage] = {}
         for item in items:
             purls = _extract_purls(item.externalRefs)
             if purls:
-                # name can exist in multiple namespaces, e.g. rand exists in both math and
-                # crypto, and must be distinguished between.
-                purl = _parse_purls(purls)[0]
-                package_name = purl.name
-                if purl.namespace is not None:
-                    package_name = purl.namespace + "/" + purl.name
-                purl_tnv = (purl.type, package_name, purl.version)
+                purl_key = hash(sum(hash(p) for p in _parse_purls(purls)))
             else:
+                # This is likely just the root.
                 log.warning(f"No purls found for {item}.")
-                purl_tnv = ("", item.name, item.versionInfo or "")
+                purl_key = hash(("", item.name, item.versionInfo or ""))
 
-            if purl_tnv in unique_items:
-                unique_items[purl_tnv].externalRefs.extend(item.externalRefs)
-                unique_items[purl_tnv].annotations.extend(item.annotations)
+            if purl_key in unique_items:
+                unique_items[purl_key].externalRefs.extend(item.externalRefs)
+                unique_items[purl_key].annotations.extend(item.annotations)
             else:
-                unique_items[purl_tnv] = item.model_copy(deep=True)
+                unique_items[purl_key] = item.model_copy(deep=True)
 
         for item in unique_items.values():
             item.externalRefs = sorted(
@@ -546,11 +541,7 @@ class SPDXSbom(pydantic.BaseModel):
             )
             item.annotations = sorted(
                 set(item.annotations),
-                key=lambda annotation: (
-                    annotation.annotator,
-                    annotation.annotationDate,
-                    annotation.comment,
-                ),
+                key=lambda ann: (ann.annotator, ann.annotationDate, ann.comment),
             )
         return sorted(unique_items.values(), key=lambda item: (item.name, item.versionInfo or ""))
 
