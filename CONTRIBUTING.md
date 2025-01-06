@@ -205,6 +205,26 @@ nox -s python-3.9 -- tests/unit/extras/test_envfile.py::test_cannot_determine_fo
 
 In short, nox passes all arguments to the right of `--` directly to pytest.
 
+#### Generating new test data
+
+Whenever a particular package manager supported version is bumped it is considered good practice
+to also re-generate the mocked unit test data using that version of package manager (make sure you
+have it available in path). You do that by executing the corresponding script under
+`hack/mock-unittest-data`. Note that there may be times the data has to be re-generated even
+without bumping the backend version, e.g. we added support for a particular feature of the package
+manager which we didn't add at the time of the initial support release.
+
+Example:
+```shell
+hack/mock-unittest-data/gomod.sh
+```
+
+Generate data for test cases matching a pytest pattern:
+
+```shell
+nox -s generate-test-data -- -k test_e2e_gomod
+```
+
 ### Running integration tests
 
 Build Cachi2 image (localhost/cachi2:latest) and run most integration tests:
@@ -229,7 +249,7 @@ CACHI2_IMAGE=quay.io/konflux-ci/cachi2:{tag} nox -s integration-tests
 CACHI2_IMAGE=localhost/cachi2:latest nox -s  integration-tests
 ```
 
-#### Running integration tests and generating new test data
+#### Generating new test data
 
 To re-generate new data (output, dependencies checksums, vendor checksums) and run integration tests with them:
 
