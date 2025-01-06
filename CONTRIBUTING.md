@@ -69,7 +69,7 @@ Whenever adding a new feature to Cachi2, it is important to keep these fundament
 
     The content provided to the build will only be safe if all of the downloaded packages have their checksums verified. In case a mismatch is found, the entire request must be failed, since the prefetched content is tainted and is potentially malicious. There are two types of checksums: server-provided and user-provided. Cachi2 prefers but does not require the latter. Every dependency which does not have a user-provided checksum verified, must be clearly marked as such in the resulting SBOM (e.g. see 'pip' support). All dependencies must have at least one checksum in order to be considered validated.
 
-4. Favor reproducibilty
+4. Favor reproducibility
 
     Always use fully resolved lockfiles or similar input files to determine what content needs to be download for a specific project (e.g. npm's `package-lock.json`, a `pip-compile` generated `requirements.txt`, etc). Resolving the dependencies during the prefetch will prevent its behavior from being deterministic—in other words, the same repository and the same commit hash should always result in identical prefetch results.
 
