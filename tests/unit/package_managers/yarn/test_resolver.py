@@ -2,17 +2,28 @@ import json
 import re
 import zipfile
 from pathlib import Path
-from typing import Any, NamedTuple, Optional
+from typing import Any, NamedTuple, Optional, Union
 from unittest import mock
 from urllib.parse import quote
 
 import pytest
+from semver import Version
 
 from cachi2.core.errors import PackageRejected, UnsupportedFeature
-from cachi2.core.models.sbom import Component
-from cachi2.core.package_managers.yarn.locators import parse_locator
+from cachi2.core.models.sbom import Component, Patch, PatchDiff, Pedigree
+from cachi2.core.package_managers.yarn.locators import (
+    NpmLocator,
+    PatchLocator,
+    WorkspaceLocator,
+    parse_locator,
+)
 from cachi2.core.package_managers.yarn.project import PackageJson, Project, YarnRc
-from cachi2.core.package_managers.yarn.resolver import Package, create_components, resolve_packages
+from cachi2.core.package_managers.yarn.resolver import (
+    Package,
+    _ComponentResolver,
+    create_components,
+    resolve_packages,
+)
 from cachi2.core.rooted_path import RootedPath
 from cachi2.core.scm import RepoID
 
@@ -549,13 +560,29 @@ def test_create_components_single_package(
     assert caplog.messages == expect_logs
 
 
+@mock.patch("cachi2.core.package_managers.yarn.resolver.get_repo_id")
+@mock.patch("cachi2.core.package_managers.yarn.resolver.extract_yarn_version_from_env")
 def test_create_components_patched_packages(
+    mock_get_yarn_version: mock.Mock,
+    mock_get_repo_id: mock.Mock,
     rooted_tmp_path: RootedPath,
-    caplog: pytest.LogCaptureFixture,
 ) -> None:
+    mock_get_yarn_version.return_value = Version(3, 0, 0)
+    mock_get_repo_id.return_value = MOCK_REPO_ID
     project_dir = rooted_tmp_path
 
     mocked_packages = [
+        MockedPackage(
+            Package(
+                raw_locator="fsevents@npm:2.3.2",
+                version="2.3.2",
+                checksum="97ade64e75091afee5265e6956cb72ba34db7819b4c3e94c431d4be2b19b8bb7a2d4116da417950c3425f17c8fe693d25e20212cac583ac1521ad066b77ae31f",
+                cache_path=project_dir.join_within_root(
+                    ".yarn/cache/fsevents-npm-2.3.2-a881d6ac9f-97ade64e75.zip"
+                ).path.as_posix(),
+            ),
+            is_hardlink=True,
+        ),
         MockedPackage(
             Package(
                 raw_locator="fsevents@patch:fsevents@npm%3A2.3.2#./my-patches/fsevents.patch::version=2.3.2&hash=cf0bf0&locator=berryscary%40workspace%3A.",
@@ -566,16 +593,12 @@ def test_create_components_patched_packages(
                 ).path.as_posix(),
             ),
             is_hardlink=True,
-            packjson_path="node_modules/fsevents/package.json",
-            packjson_content=json.dumps({"name": "@patch1/fsevents"}),
         ),
         MockedPackage(
             Package(
                 # Note: this package patches the patched package above
-                raw_locator="fsevents@patch:fsevents@patch%3Afsevents@npm%253A2.3.2%23./my-patches/fsevents.patch%3A%3Aversion=2.3.2&hash=cf0bf0&locator=berryscary%2540workspace%253A.#~builtin<compat/fsevents>::version=2.3.2&hash=df0bf1",
-                # normally, the versions would almost certainly be the same, but we need something
-                #   to tell the two packages apart
-                version="2.3.2-patch2",
+                raw_locator="fsevents@patch:fsevents@patch%3Afsevents@npm%253A2.3.2%23./my-patches/fsevents.patch%3A%3Aversion=2.3.2&hash=cf0bf0&locator=berryscary%2540workspace%253A.#./my-patches/fsevents-2.patch::version=2.3.2&hash=df0bf1&locator=berryscary%40workspace%3A.",
+                version="2.3.2",
                 checksum=None,
                 cache_path=project_dir.join_within_root(
                     ".yarn/cache/fsevents-patch-e4409ad759-8.zip"
@@ -585,10 +608,74 @@ def test_create_components_patched_packages(
         ),
     ]
 
-    # the first package has a zip archive in the cache
-    mock_package_json(mocked_packages[0], project_dir)
-    # the second one does not
-    # ~~mock_package_json(mocked_packages[1], project_dir)~~
+    components = create_components(
+        [mocked_package.package for mocked_package in mocked_packages],
+        mock_project(project_dir),
+        output_dir=RootedPath("/unused"),
+    )
+
+    expect_components = [
+        Component(
+            name="fsevents",
+            version="2.3.2",
+            purl="pkg:npm/fsevents@2.3.2",
+            pedigree=Pedigree(
+                patches=[
+                    Patch(
+                        type="unofficial",
+                        diff=PatchDiff(
+                            url="git+https://github.com/org/project.git@fffffff#my-patches/fsevents.patch"
+                        ),
+                    ),
+                    Patch(
+                        type="unofficial",
+                        diff=PatchDiff(
+                            url="git+https://github.com/org/project.git@fffffff#my-patches/fsevents-2.patch"
+                        ),
+                    ),
+                ],
+            ),
+        ),
+    ]
+
+    assert components == expect_components
+
+
+@mock.patch("cachi2.core.package_managers.yarn.resolver.get_repo_id")
+@mock.patch("cachi2.core.package_managers.yarn.resolver.extract_yarn_version_from_env")
+def test_create_components_patched_packages_with_multiple_paths(
+    mock_get_yarn_version: mock.Mock,
+    mock_get_repo_id: mock.Mock,
+    rooted_tmp_path: RootedPath,
+) -> None:
+    mock_get_yarn_version.return_value = Version(3, 0, 0)
+    mock_get_repo_id.return_value = MOCK_REPO_ID
+    project_dir = rooted_tmp_path
+
+    mocked_packages = [
+        MockedPackage(
+            Package(
+                raw_locator="fsevents@npm:2.3.2",
+                version="2.3.2",
+                checksum="97ade64e75091afee5265e6956cb72ba34db7819b4c3e94c431d4be2b19b8bb7a2d4116da417950c3425f17c8fe693d25e20212cac583ac1521ad066b77ae31f",
+                cache_path=project_dir.join_within_root(
+                    ".yarn/cache/fsevents-npm-2.3.2-a881d6ac9f-97ade64e75.zip"
+                ).path.as_posix(),
+            ),
+            is_hardlink=True,
+        ),
+        MockedPackage(
+            Package(
+                raw_locator="fsevents@patch:fsevents@npm%3A2.3.2#./my-patches/fsevents.patch&./my-patches/fsevents-2.patch::version=2.3.2&hash=cf0bf0&locator=berryscary%40workspace%3A.",
+                version="2.3.2",
+                checksum="f73215b04b52395389a612af4d30f7f412752cdfba1580c9e32c7ec259e448b57b464a4d0474427d6142f5ed9a6260fc1841d61834caf44706d77874fba6f17f",
+                cache_path=project_dir.join_within_root(
+                    ".yarn/cache/fsevents-patch-9d1204d729-f73215b04b.zip"
+                ).path.as_posix(),
+            ),
+            is_hardlink=True,
+        ),
+    ]
 
     components = create_components(
         [mocked_package.package for mocked_package in mocked_packages],
@@ -598,32 +685,29 @@ def test_create_components_patched_packages(
 
     expect_components = [
         Component(
-            name="@patch1/fsevents",
+            name="fsevents",
             version="2.3.2",
-            purl=f"pkg:npm/{quote('@patch1')}/fsevents@2.3.2",
-        ),
-        Component(
-            name="@patch1/fsevents",
-            version="2.3.2-patch2",
-            purl=f"pkg:npm/{quote('@patch1')}/fsevents@2.3.2-patch2",
+            purl="pkg:npm/fsevents@2.3.2",
+            pedigree=Pedigree(
+                patches=[
+                    Patch(
+                        type="unofficial",
+                        diff=PatchDiff(
+                            url="git+https://github.com/org/project.git@fffffff#my-patches/fsevents.patch"
+                        ),
+                    ),
+                    Patch(
+                        type="unofficial",
+                        diff=PatchDiff(
+                            url="git+https://github.com/org/project.git@fffffff#my-patches/fsevents-2.patch"
+                        ),
+                    ),
+                ],
+            ),
         ),
     ]
 
     assert components == expect_components
-
-    patch_locator = "fsevents@patch:fsevents@npm%3A2.3.2#./my-patches/fsevents.patch::version=2.3.2&hash=cf0bf0&locator=berryscary%40workspace%3A."
-    patchpatch_locator = "fsevents@patch:fsevents@patch%3Afsevents@npm%253A2.3.2%23./my-patches/fsevents.patch%3A%3Aversion=2.3.2&hash=cf0bf0&locator=berryscary%2540workspace%253A.#~builtin<compat/fsevents>::version=2.3.2&hash=df0bf1"
-
-    expect_logs = [
-        # the first package has an archive in the cache
-        f"{patch_locator}: reading package name from .yarn/cache/fsevents-patch-9d1204d729-f73215b04b.zip",
-        # the second one does not, so we fall back to the original package
-        f"{patchpatch_locator}: resolving the name of the original package",
-        # ...which is the first package
-        f"{patch_locator}: reading package name from .yarn/cache/fsevents-patch-9d1204d729-f73215b04b.zip",
-    ]
-
-    assert caplog.messages == expect_logs
 
 
 @pytest.mark.parametrize(
@@ -802,24 +886,6 @@ def test_create_components_patched_packages(
             ),
             id="https_no_cache_path",
         ),
-        # No cache_path for a Patch package, missing original package
-        pytest.param(
-            MockedPackage(
-                Package(
-                    raw_locator="fsevents@patch:fsevents@npm%3A2.3.2#./my-patches/fsevents.patch::version=2.3.2&hash=cf0bf0&locator=berryscary%40workspace%3A.",
-                    version="2.3.2",
-                    checksum="f73215b04b52395389a612af4d30f7f412752cdfba1580c9e32c7ec259e448b57b464a4d0474427d6142f5ed9a6260fc1841d61834caf44706d77874fba6f17f",
-                    cache_path=None,
-                ),
-                is_hardlink=True,
-            ),
-            (
-                "Failed to resolve the name and version for "
-                "fsevents@patch:fsevents@npm%3A2.3.2#./my-patches/fsevents.patch::version=2.3.2&hash=cf0bf0&locator=berryscary%40workspace%3A.: "
-                "the 'yarn info' output does not include either an existing zip archive or the original unpatched package"
-            ),
-            id="patch_no_cache_path_no_orig_package",
-        ),
     ],
 )
 def test_create_components_failed_to_resolve(
@@ -861,3 +927,99 @@ def test_create_components_cache_path_reported_but_missing(rooted_tmp_path: Root
             mock_project(rooted_tmp_path),
             output_dir=RootedPath("/unused"),
         )
+
+
+@mock.patch("cachi2.core.package_managers.yarn.resolver.get_repo_id")
+@mock.patch("cachi2.core.package_managers.yarn.resolver.extract_yarn_version_from_env")
+def test_get_pedigree(
+    mock_get_yarn_version: mock.Mock, mock_get_repo_id: mock.Mock, rooted_tmp_path: RootedPath
+) -> None:
+    mock_get_yarn_version.return_value = Version(3, 0, 0)
+    mock_get_repo_id.return_value = MOCK_REPO_ID
+
+    project_workspace = WorkspaceLocator(None, "foo-project", Path("."))
+    patched_package = NpmLocator(None, "fsevents", "1.0.0")
+
+    first_patch_locator = PatchLocator(
+        patched_package,
+        [Path("./my-patches/fsevents.patch"), Path("./my-patches/fsevents-2.patch")],
+        project_workspace,
+    )
+    second_patch_locator = PatchLocator(
+        first_patch_locator, [Path("./my-patches/fsevents-3.patch")], project_workspace
+    )
+    third_patch_locator = PatchLocator(second_patch_locator, ["builtin<compat/fsevents>"], None)
+    patch_locators = [
+        first_patch_locator,
+        second_patch_locator,
+        third_patch_locator,
+    ]
+
+    expected_pedigree = {
+        patched_package: Pedigree(
+            patches=[
+                Patch(
+                    type="unofficial",
+                    diff=PatchDiff(
+                        url="git+https://github.com/org/project.git@fffffff#my-patches/fsevents.patch"
+                    ),
+                ),
+                Patch(
+                    type="unofficial",
+                    diff=PatchDiff(
+                        url="git+https://github.com/org/project.git@fffffff#my-patches/fsevents-2.patch"
+                    ),
+                ),
+                Patch(
+                    type="unofficial",
+                    diff=PatchDiff(
+                        url="git+https://github.com/org/project.git@fffffff#my-patches/fsevents-3.patch"
+                    ),
+                ),
+                Patch(
+                    type="unofficial",
+                    diff=PatchDiff(
+                        url="git+https://github.com/yarnpkg/berry@%40yarnpkg/cli/3.0.0#packages/plugin-compat/sources/patches/fsevents.patch.ts"
+                    ),
+                ),
+            ]
+        ),
+    }
+
+    mock_project = mock.Mock(source_dir=rooted_tmp_path.re_root("source"))
+    resolver = _ComponentResolver(
+        {}, patch_locators, mock_project, rooted_tmp_path.re_root("output")
+    )
+
+    assert resolver._pedigree_mapping == expected_pedigree
+
+
+@pytest.mark.parametrize(
+    "patch",
+    [
+        pytest.param(
+            Path("foo.patch"),
+            id="path_patch_without_workspace",
+        ),
+        pytest.param(
+            "builtin<bogus/patch>",
+            id="builtin_patch_from_unknown_plugin",
+        ),
+    ],
+)
+@mock.patch("cachi2.core.package_managers.yarn.resolver.get_repo_id")
+@mock.patch("cachi2.core.package_managers.yarn.resolver.extract_yarn_version_from_env")
+def test_get_pedigree_with_unsupported_locators(
+    mock_get_yarn_version: mock.Mock,
+    mock_get_repo_id: mock.Mock,
+    patch: Union[Path, str],
+    rooted_tmp_path: RootedPath,
+) -> None:
+    mock_get_yarn_version.return_value = Version(3, 0, 0)
+    mock_get_repo_id.return_value = MOCK_REPO_ID
+
+    patch_locators = [PatchLocator(NpmLocator(None, "foo", "1.0.0"), [patch], None)]
+    mock_project = mock.Mock(source_dir=rooted_tmp_path.re_root("source"))
+
+    with pytest.raises(UnsupportedFeature):
+        _ComponentResolver({}, patch_locators, mock_project, rooted_tmp_path.re_root("output"))
