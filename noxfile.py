@@ -136,8 +136,8 @@ def generate_test_data(session: Session) -> None:
     _run_integration_tests(
         session,
         {
+            "CACHI2_RUN_ALL_INTEGRATION_TESTS": "true",
             "CACHI2_GENERATE_TEST_DATA": "true",
-            "PYTEST_ADDOPTS": "-k test_e2e",
         },
     )
 
