@@ -314,18 +314,16 @@
     },
     {
       "name": "cachito-npm-without-deps",
-      "properties": [
-        {
-          "name": "cachi2:found_by",
-          "value": "cachi2"
-        }
-      ],
-      "purl": "pkg:npm/cachito-npm-without-deps@1.0.0",
-      "type": "library",
-      "version": "1.0.0"
-    },
-    {
-      "name": "cachito-npm-without-deps",
+      "pedigree": {
+        "patches": [
+          {
+            "diff": {
+              "url": "git+https://github.com/cachito-testing/cachi2-yarn-berry.git@70515793108df42547d3320c7ea4cd6b6e505c46#.yarn/patches/ccto-wo-deps-git@github.com-e0fce8c89c.patch"
+            },
+            "type": "unofficial"
+          }
+        ]
+      },
       "properties": [
         {
           "name": "cachi2:found_by",
@@ -662,6 +660,22 @@
     },
     {
       "name": "fsevents",
+      "pedigree": {
+        "patches": [
+          {
+            "diff": {
+              "url": "git+https://github.com/cachito-testing/cachi2-yarn-berry.git@70515793108df42547d3320c7ea4cd6b6e505c46#my-patches/fsevents.patch"
+            },
+            "type": "unofficial"
+          },
+          {
+            "diff": {
+              "url": "git+https://github.com/yarnpkg/berry@%40yarnpkg/cli/3.6.1#packages/plugin-compat/sources/patches/fsevents.patch.ts"
+            },
+            "type": "unofficial"
+          }
+        ]
+      },
       "properties": [
         {
           "name": "cachi2:found_by",
@@ -961,6 +975,22 @@
     },
     {
       "name": "left-pad",
+      "pedigree": {
+        "patches": [
+          {
+            "diff": {
+              "url": "git+https://github.com/cachito-testing/cachi2-yarn-berry.git@70515793108df42547d3320c7ea4cd6b6e505c46#my-patches/left-pad.patch"
+            },
+            "type": "unofficial"
+          },
+          {
+            "diff": {
+              "url": "git+https://github.com/cachito-testing/cachi2-yarn-berry.git@70515793108df42547d3320c7ea4cd6b6e505c46#my-patches/left-pad-2.patch"
+            },
+            "type": "unofficial"
+          }
+        ]
+      },
       "properties": [
         {
           "name": "cachi2:found_by",
@@ -1691,6 +1721,16 @@
     },
     {
       "name": "typescript",
+      "pedigree": {
+        "patches": [
+          {
+            "diff": {
+              "url": "git+https://github.com/yarnpkg/berry@%40yarnpkg/cli/3.6.1#packages/plugin-compat/sources/patches/typescript.patch.ts"
+            },
+            "type": "unofficial"
+          }
+        ]
+      },
       "properties": [
         {
           "name": "cachi2:found_by",

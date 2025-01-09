@@ -7,18 +7,22 @@ processed.
 
 import json
 import logging
+import re
 import zipfile
+from collections import defaultdict
 from dataclasses import dataclass
 from functools import cached_property
 from pathlib import Path
 from textwrap import dedent
 from typing import TYPE_CHECKING, Any, Mapping, Union
+from urllib.parse import quote
 
 import pydantic
 from packageurl import PackageURL
+from semver import Version
 
 from cachi2.core.errors import PackageManagerError, PackageRejected, UnsupportedFeature
-from cachi2.core.models.sbom import Component
+from cachi2.core.models.sbom import Component, Patch, PatchDiff, Pedigree
 from cachi2.core.package_managers.yarn.locators import (
     FileLocator,
     HttpsLocator,
@@ -31,7 +35,7 @@ from cachi2.core.package_managers.yarn.locators import (
     parse_locator,
 )
 from cachi2.core.package_managers.yarn.project import Optional, Project
-from cachi2.core.package_managers.yarn.utils import run_yarn_cmd
+from cachi2.core.package_managers.yarn.utils import extract_yarn_version_from_env, run_yarn_cmd
 from cachi2.core.rooted_path import RootedPath
 from cachi2.core.scm import get_repo_id
 
@@ -42,6 +46,10 @@ if TYPE_CHECKING:
     from typing_extensions import assert_never
 
 log = logging.getLogger(__name__)
+
+COMPAT_PATCHES_SUBPATH = "packages/plugin-compat/sources/patches"
+COMPAT_PATCHES_REGEX = re.compile(r"builtin<compat/([^>]+)>")
+YARN_REPO_URL = "https://github.com/yarnpkg/berry"
 
 
 @dataclass(frozen=True)
@@ -165,8 +173,18 @@ def create_components(
     packages: list[Package], project: Project, output_dir: RootedPath
 ) -> list[Component]:
     """Create SBOM components for all the packages parsed from the 'yarn info' output."""
-    package_mapping = {package.parsed_locator: package for package in packages}
-    component_resolver = _ComponentResolver(package_mapping, project, output_dir)
+    package_mapping: dict[Locator, Package] = {}
+    patch_locators: list[PatchLocator] = []
+
+    # Patches are not components themselves, but they are necessary to
+    # resolve pedigree for their non-patch parent package components
+    for package in packages:
+        if isinstance(package.parsed_locator, PatchLocator):
+            patch_locators.append(package.parsed_locator)
+        else:
+            package_mapping[package.parsed_locator] = package
+
+    component_resolver = _ComponentResolver(package_mapping, patch_locators, project, output_dir)
     return [component_resolver.get_component(package) for package in package_mapping.values()]
 
 
@@ -192,11 +210,51 @@ class _CouldNotResolve(ValueError):
 
 class _ComponentResolver:
     def __init__(
-        self, package_mapping: Mapping[Locator, Package], project: Project, output_dir: RootedPath
+        self,
+        package_mapping: Mapping[Locator, Package],
+        patch_locators: list[PatchLocator],
+        project: Project,
+        output_dir: RootedPath,
     ) -> None:
         self._project = project
         self._output_dir = output_dir
         self._package_mapping = package_mapping
+        self._pedigree_mapping = self._get_pedigree_mapping(patch_locators)
+
+    def _get_pedigree_mapping(self, patch_locators: list[PatchLocator]) -> dict[Locator, Pedigree]:
+        """Map locators for dependencies that get patched to their Pedigree."""
+        pedigree_mapping: defaultdict[Locator, Pedigree] = defaultdict(lambda: Pedigree(patches=[]))
+
+        if patch_locators:
+            # Builtin patches are included with the version of yarn being used
+            yarn_version = extract_yarn_version_from_env(self._project.source_dir)
+
+        for patch_locator in patch_locators:
+            # Patches can patch other patches, so find the true parent Component
+            patched_package = self._get_patched_package(patch_locator)
+            pedigree = pedigree_mapping[patched_package]
+
+            for patch in patch_locator.patches:
+                patch_url = self._get_patch_url(patch_locator, patch, yarn_version)
+                pedigree.patches.append(Patch(type="unofficial", diff=PatchDiff(url=patch_url)))
+
+        return dict(pedigree_mapping)
+
+    def _get_patch_url(
+        self, patch_locator: PatchLocator, patch: Union[Path, str], yarn_version: Version
+    ) -> str:
+        if isinstance(patch, Path):
+            return self._get_path_patch_url(patch_locator, patch)
+
+        return self._get_builtin_patch_url(patch, yarn_version)
+
+    def _get_patched_package(self, patch_locator: PatchLocator) -> Locator:
+        """Return the non-patch parent package for a given patch locator."""
+        patched_locator = patch_locator.package
+        while isinstance(patched_locator, PatchLocator):
+            patched_locator = patched_locator.package
+
+        return patched_locator
 
     def get_component(self, package: Package) -> Component:
         """Create an SBOM component for a yarn Package."""
@@ -217,6 +275,7 @@ class _ComponentResolver:
             name=resolved_package.name,
             version=resolved_package.version,
             purl=purl,
+            pedigree=self._pedigree_mapping.get(package.parsed_locator),
         )
 
     @staticmethod
@@ -262,10 +321,7 @@ class _ComponentResolver:
             subpath = str(normalized.subpath_from_root)
 
         elif isinstance(package.locator, PatchLocator):
-            # ignore patch locators
-            # the actual dependency that is patched is reported separately
-            # the patch itself will be reported via SBOM pedigree patches
-            pass
+            raise _CouldNotResolve("Patches cannot be resolved into Components")
         else:
             assert_never(package.locator)
 
@@ -329,23 +385,7 @@ class _ComponentResolver:
                 )
                 name, version = self._read_name_version_from_packjson(packjson)
         elif isinstance(locator, PatchLocator):
-            if (
-                package.cache_path
-                # yarn info seems to always report the cache path for patch dependencies,
-                # but the path doesn't always exist
-                and (cache_path := self._cache_path_as_rooted(package.cache_path)).path.exists()
-            ):
-                log_for_locator("reading package name from %s", cache_path.subpath_from_root)
-                name = self._read_name_from_cache(cache_path)
-            elif orig_package := self._package_mapping.get(locator.package):
-                log_for_locator("resolving the name of the original package")
-                name = self._resolve_package(orig_package).name
-            else:
-                raise _CouldNotResolve(
-                    "the 'yarn info' output does not include either an existing zip archive "
-                    "or the original unpatched package",
-                )
-            version = package.version
+            raise _CouldNotResolve("Patches cannot be resolved into Components")
         else:
             # This line can never be reached assuming type-checker checks are passing
             # https://typing.readthedocs.io/en/latest/source/unreachable.html#assert-never-and-exhaustiveness-checking
@@ -412,3 +452,33 @@ class _ComponentResolver:
             return self._project_subpath(cache_path)
         else:
             return self._output_dir.join_within_root(cache_path)
+
+    def _get_path_patch_url(self, patch_locator: PatchLocator, patch_path: Path) -> str:
+        """Return a PURL-style VCS URL qualifier with subpath for a Patch."""
+        if patch_locator.locator is None:
+            raise UnsupportedFeature(
+                (
+                    f"{patch_locator} is missing an associated workspace locator "
+                    "and Cachi2 expects all non-builtin yarn patches to have one"
+                )
+            )
+
+        project_path = self._project.source_dir
+        workspace_path = patch_locator.locator.relpath
+        normalized = self._project.source_dir.join_within_root(workspace_path, patch_path)
+        repo_url = get_repo_id(project_path.root).as_vcs_url_qualifier()
+        subpath_from_root = str(normalized.subpath_from_root)
+
+        return f"{repo_url}#{subpath_from_root}"
+
+    def _get_builtin_patch_url(self, patch: str, yarn_version: Version) -> str:
+        """Return a PURL-style VCS URL qualifier with subpath for a builtin Patch."""
+        match = re.match(COMPAT_PATCHES_REGEX, patch)
+        if not match:
+            raise UnsupportedFeature(f"{patch} is not a builtin patch from plugin-compat")
+
+        patch_filename = f"{match.group(1)}.patch.ts"
+        patch_subpath = Path(COMPAT_PATCHES_SUBPATH, patch_filename)
+        yarn_git_tag = quote(f"@yarnpkg/cli/{yarn_version}")
+
+        return f"git+{YARN_REPO_URL}@{yarn_git_tag}#{patch_subpath}"
