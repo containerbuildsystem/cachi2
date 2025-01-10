@@ -42,9 +42,11 @@ SUPPORTED_LOCATORS = [
     # optional custom patch for a registry dep
     "left-pad@npm:1.3.0",
     "left-pad@patch:left-pad@npm%3A1.3.0#~./my-patches/left-pad.patch::version=1.3.0&hash=629bda&locator=berryscary%40workspace%3A.",
+    "left-pad@patch:left-pad@npm%3A1.3.0#optional!./my-patches/left-pad.patch::version=1.3.0&hash=629bda&locator=berryscary%40workspace%3A.",
     # optional builtin patch
     "fsevents@npm:2.3.2",
     "fsevents@patch:fsevents@npm%3A2.3.2#~builtin<compat/fsevents>::version=2.3.2&hash=df0bf1",
+    "fsevents@patch:fsevents@npm%3A2.3.2#optional!builtin<compat/fsevents>::version=2.3.2&hash=df0bf1",
     # patched patch dependency
     "fsevents@patch:fsevents@patch%3Afsevents@npm%253A2.3.2%23./my-patches/fsevents.patch%3A%3Aversion=2.3.2&hash=cf0bf0&locator=berryscary%2540workspace%253A.#~builtin<compat/fsevents>::version=2.3.2&hash=df0bf1",
     # non-optional builtin patch (in reality, the typescript patch is optional)
@@ -202,6 +204,23 @@ PARSED_LOCATORS_AND_REFERENCES = [
         ),
     ),
     (
+        _ParsedLocator(
+            scope=None,
+            name="left-pad",
+            raw_reference="patch:left-pad@npm%3A1.3.0#optional!./my-patches/left-pad.patch::version=1.3.0&hash=629bda&locator=berryscary%40workspace%3A.",
+        ),
+        _ParsedReference(
+            protocol="patch:",
+            source="left-pad@npm:1.3.0",
+            selector="optional!./my-patches/left-pad.patch",
+            params={
+                "version": ["1.3.0"],
+                "hash": ["629bda"],
+                "locator": ["berryscary@workspace:."],
+            },
+        ),
+    ),
+    (
         _ParsedLocator(scope=None, name="fsevents", raw_reference="npm:2.3.2"),
         _ParsedReference(protocol="npm:", source=None, selector="2.3.2", params=None),
     ),
@@ -215,6 +234,19 @@ PARSED_LOCATORS_AND_REFERENCES = [
             protocol="patch:",
             source="fsevents@npm:2.3.2",
             selector="~builtin<compat/fsevents>",
+            params={"version": ["2.3.2"], "hash": ["df0bf1"]},
+        ),
+    ),
+    (
+        _ParsedLocator(
+            scope=None,
+            name="fsevents",
+            raw_reference="patch:fsevents@npm%3A2.3.2#optional!builtin<compat/fsevents>::version=2.3.2&hash=df0bf1",
+        ),
+        _ParsedReference(
+            protocol="patch:",
+            source="fsevents@npm:2.3.2",
+            selector="optional!builtin<compat/fsevents>",
             params={"version": ["2.3.2"], "hash": ["df0bf1"]},
         ),
     ),
@@ -376,7 +408,17 @@ PARSED_SUPPORTED_LOCATORS = [
         patches=(Path("my-patches/left-pad.patch"),),
         locator=WorkspaceLocator(scope=None, name="berryscary", relpath=Path(".")),
     ),
+    PatchLocator(
+        package=NpmLocator(scope=None, name="left-pad", version="1.3.0"),
+        patches=(Path("my-patches/left-pad.patch"),),
+        locator=WorkspaceLocator(scope=None, name="berryscary", relpath=Path(".")),
+    ),
     NpmLocator(scope=None, name="fsevents", version="2.3.2"),
+    PatchLocator(
+        package=NpmLocator(scope=None, name="fsevents", version="2.3.2"),
+        patches=("builtin<compat/fsevents>",),
+        locator=None,
+    ),
     PatchLocator(
         package=NpmLocator(scope=None, name="fsevents", version="2.3.2"),
         patches=("builtin<compat/fsevents>",),

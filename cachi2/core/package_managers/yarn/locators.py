@@ -205,10 +205,14 @@ def _parse_patch_locator(locator: "_ParsedLocator") -> PatchLocator:
 
     original_package = parse_locator(reference.source)
 
-    # https://github.com/yarnpkg/berry/blob/b6026842dfec4b012571b5982bb74420c7682a73/packages/plugin-patch/sources/patchUtils.ts#L92
     def process_patch_path(patch: str) -> Union[str, Path]:
-        # '~' denotes an optional patch (failing to apply the patch is not fatal, only a warning)
+        # Yarn patches can be optional, where failing to apply the patch is not fatal, only a warning
+        # '~' denotes an optional patch in Yarn v3
+        # https://github.com/yarnpkg/berry/blob/b6026842dfec4b012571b5982bb74420c7682a73/packages/plugin-patch/sources/patchUtils.ts#L92
         patch = patch.removeprefix("~")
+        # `optional!' denotes an optional patch in Yarn v4
+        # https://github.com/yarnpkg/berry/blob/93a56643ba3c813a87920dcf75c644eaf3b38e6f/packages/plugin-patch/sources/patchUtils.ts#L147
+        patch = patch.removeprefix("optional!")
         if re.match(r"^builtin<([^>]+)>$", patch):
             return patch
         else:
