@@ -255,7 +255,6 @@ def test_resolve_generic_lockfile_invalid(
                     "properties": [{"name": "cachi2:found_by", "value": "cachi2"}],
                     "purl": "pkg:generic/archive.zip?checksum=md5:3a18656e1cea70504b905836dee14db0&download_url=https://example.com/artifact",
                     "type": "file",
-                    "version": None,
                 },
                 {
                     "external_references": [
@@ -268,7 +267,6 @@ def test_resolve_generic_lockfile_invalid(
                     "properties": [{"name": "cachi2:found_by", "value": "cachi2"}],
                     "purl": "pkg:generic/file.tar.gz?checksum=md5:32112bed1914cfe3799600f962750b1d&download_url=https://example.com/more/complex/path/file.tar.gz%3Ffoo%3Dbar%23fragment",
                     "type": "file",
-                    "version": None,
                 },
             ],
             id="valid_lockfile",
@@ -324,7 +322,8 @@ def test_resolve_generic_lockfile_valid(
         f.write(lockfile_content)
 
     assert [
-        c.model_dump() for c in _resolve_generic_lockfile(lockfile_path.path, rooted_tmp_path)
+        c.model_dump(exclude_none=True)
+        for c in _resolve_generic_lockfile(lockfile_path.path, rooted_tmp_path)
     ] == expected_components
     mock_checksums.assert_called()
 
