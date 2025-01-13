@@ -16,8 +16,7 @@ from cachi2.core.errors import Cachi2Error, InvalidInput, UnexpectedFormat
 from cachi2.core.extras.envfile import EnvFormat, generate_envfile
 from cachi2.core.models.input import Flag, PackageInput, Request, parse_user_input
 from cachi2.core.models.output import BuildConfig
-from cachi2.core.models.property_semantics import merge_component_properties
-from cachi2.core.models.sbom import Sbom
+from cachi2.core.models.sbom import merge_component_properties, Sbom
 from cachi2.core.resolver import inject_files_post, resolve_packages, supported_package_managers
 from cachi2.core.rooted_path import RootedPath
 from cachi2.interface.logging import LogLevel, setup_logging
