@@ -7,8 +7,9 @@ import shutil
 import subprocess
 import sys
 from functools import cache
+from itertools import filterfalse, tee
 from pathlib import Path
-from typing import Callable, Iterable, Iterator, Optional, Sequence
+from typing import Any, Callable, Iterable, Iterator, Optional, Sequence
 
 from cachi2.core.config import get_config
 from cachi2.core.errors import Cachi2Error
@@ -195,3 +196,14 @@ def get_cache_dir() -> Path:
     except KeyError:
         cache_dir = Path.home().joinpath(".cache")
     return cache_dir.joinpath("cachi2")
+
+
+def first_for(predicate: Callable, iterable: Iterable, fallback: Any) -> Any:
+    """Return the first match of predicate in iterable or fallback value."""
+    return next((x for x in iterable if predicate(x)), fallback)
+
+
+def partition_by(predicate: Callable, iterable: Iterable) -> tuple[Iterable, Iterable]:
+    """Partition iterable in two by predicate."""
+    i1, i2 = tee(iterable)
+    return filterfalse(predicate, i1), filter(predicate, i2)
