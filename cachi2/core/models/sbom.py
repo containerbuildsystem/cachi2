@@ -1,25 +1,11 @@
-from typing import Any, Literal, Optional
+from functools import reduce
+from itertools import groupby
+from typing import Any, Iterable, Literal, Optional
 
 import pydantic
 
+from cachi2.core.models.property_semantics import Property, PropertySet
 from cachi2.core.models.validators import unique_sorted
-
-PropertyName = Literal[
-    "cachi2:bundler:package:binary",
-    "cachi2:found_by",
-    "cachi2:rpm_summary",
-    "cachi2:missing_hash:in_file",
-    "cachi2:pip:package:binary",
-    "cdx:npm:package:bundled",
-    "cdx:npm:package:development",
-]
-
-
-class Property(pydantic.BaseModel):
-    """A property inside an SBOM component."""
-
-    name: PropertyName
-    value: str
 
 
 class ExternalReference(pydantic.BaseModel):
@@ -105,3 +91,18 @@ class Sbom(pydantic.BaseModel):
     def _unique_components(cls, components: list[Component]) -> list[Component]:
         """Sort and de-duplicate components."""
         return unique_sorted(components, by=lambda component: component.key())
+
+
+def merge_component_properties(components: Iterable[Component]) -> list[Component]:
+    """Sort and de-duplicate components while merging their `properties`."""
+    components = sorted(components, key=Component.key)
+    grouped_components = groupby(components, key=Component.key)
+
+    def merge_component_group(component_group: Iterable[Component]) -> Component:
+        component_group = list(component_group)
+        prop_sets = (PropertySet.from_properties(c.properties) for c in component_group)
+        merged_prop_set = reduce(PropertySet.merge, prop_sets)
+        component = component_group[0]
+        return component.model_copy(update={"properties": merged_prop_set.to_properties()})
+
+    return [merge_component_group(g) for _, g in grouped_components]
