@@ -33,6 +33,7 @@ dependencies = [
   "tomli",
   "typer",
   "createrepo-c",
+  "packageurl-python"
 ]
 [project.optional-dependencies]
 dev = [

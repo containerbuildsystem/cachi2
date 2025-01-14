@@ -1,3 +1,4 @@
+import datetime
 import importlib.metadata
 import logging
 import os
@@ -22,6 +23,7 @@ from cachi2.core.models.output import (
     RequestOutput,
     Sbom,
 )
+from cachi2.core.models.sbom import SPDXSbom
 from cachi2.interface.cli import DEFAULT_OUTPUT, DEFAULT_SOURCE, app
 
 runner = typer.testing.CliRunner()
@@ -596,7 +598,11 @@ class TestFetchDeps:
             ),
         ],
     )
-    def test_write_json_output(self, request_output: RequestOutput, tmp_cwd: Path) -> None:
+    def test_write_json_output(
+        self,
+        request_output: RequestOutput,
+        tmp_cwd: Path,
+    ) -> None:
         with mock_fetch_deps(output=request_output):
             invoke_expecting_sucess(app, ["fetch-deps", "gomod"])
 
@@ -608,6 +614,42 @@ class TestFetchDeps:
 
         assert written_build_config == request_output.build_config
         assert written_sbom == request_output.generate_sbom()
+
+    @pytest.mark.parametrize(
+        "request_output",
+        [
+            RequestOutput.empty(),
+            RequestOutput.from_obj_list(
+                components=[
+                    Component(
+                        name="cool-package",
+                        version="v1.0.0",
+                        purl="pkg:generic/cool-package@v1.0.0",
+                        type="library",
+                    )
+                ],
+                environment_variables=[
+                    EnvironmentVariable(name="GOMOD_SOMETHING", value="yes"),
+                ],
+                project_files=[],
+            ),
+        ],
+    )
+    def test_write_json_output_spdx(
+        self, request_output: RequestOutput, tmp_cwd: Path, isodate: datetime.datetime
+    ) -> None:
+        with mock_fetch_deps(output=request_output):
+            invoke_expecting_sucess(app, ["fetch-deps", "--sbom-output-type", "spdx", "gomod"])
+
+        build_config_path = tmp_cwd / DEFAULT_OUTPUT / ".build-config.json"
+        sbom_path = tmp_cwd / DEFAULT_OUTPUT / "bom.json"
+
+        written_build_config = BuildConfig.model_validate_json(build_config_path.read_text())
+        sbom_text = sbom_path.read_text()
+        written_sbom = SPDXSbom.model_validate_json(sbom_text)
+
+        assert written_build_config == request_output.build_config
+        assert written_sbom == request_output.generate_sbom().to_spdx("NOASSERTION")
 
     def test_delete_existing_deps_dir(self, tmp_cwd: Path) -> None:
         ouput_dir = tmp_cwd / DEFAULT_OUTPUT
@@ -925,4 +967,46 @@ class TestMergeSboms:
         with tempfile.NamedTemporaryFile(delete=False) as fp:
             fp.close()
             invoke_expecting_sucess(app, ["merge-sboms", "-o", fp.name, *sbom_files_to_merge])
+            assert Path(fp.name).lstat().st_size > 0, "SBOM failed to be written to output file!"
+
+    @pytest.mark.parametrize(
+        "sbom_files_to_merge",
+        [
+            [
+                "./tests/unit/data/sboms/cachi2.bom.spdx.json",
+                "./tests/unit/data/something.simple0.100.0.spdx.pretty.json",
+            ],
+        ],
+    )
+    def test_a_user_can_successfully_save_sboms_merge_results_to_a_file_in_spdx_format(
+        self,
+        sbom_files_to_merge: list[str],
+    ) -> None:
+        with tempfile.NamedTemporaryFile(delete=False) as fp:
+            fp.close()
+            invoke_expecting_sucess(
+                app,
+                ["merge-sboms", "-o", fp.name, "--sbom-output-type", "spdx", *sbom_files_to_merge],
+            )
+            assert Path(fp.name).lstat().st_size > 0, "SBOM failed to be written to output file!"
+
+    @pytest.mark.parametrize(
+        "sbom_files_to_merge",
+        [
+            [
+                "./tests/unit/data/sboms/cachi2.bom.json",
+                "./tests/unit/data/sboms/syft.bom.spdx.json",
+            ],
+        ],
+    )
+    def test_a_user_can_successfully_save_mixed_sboms_merge_results_to_a_file_in_spdx_format(
+        self,
+        sbom_files_to_merge: list[str],
+    ) -> None:
+        with tempfile.NamedTemporaryFile(delete=False) as fp:
+            fp.close()
+            invoke_expecting_sucess(
+                app,
+                ["merge-sboms", "-o", fp.name, "--sbom-output-type", "spdx", *sbom_files_to_merge],
+            )
             assert Path(fp.name).lstat().st_size > 0, "SBOM failed to be written to output file!"

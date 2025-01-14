@@ -1,12 +1,12 @@
+import enum
 import functools
 import importlib.metadata
 import json
 import logging
 import shutil
 import sys
-from itertools import chain
 from pathlib import Path
-from typing import Any, Callable, Optional
+from typing import Any, Callable, List, Optional, Union
 
 import pydantic
 import typer
@@ -16,7 +16,7 @@ from cachi2.core.errors import Cachi2Error, InvalidInput, UnexpectedFormat
 from cachi2.core.extras.envfile import EnvFormat, generate_envfile
 from cachi2.core.models.input import Flag, PackageInput, Request, parse_user_input
 from cachi2.core.models.output import BuildConfig
-from cachi2.core.models.sbom import Sbom, merge_component_properties
+from cachi2.core.models.sbom import Sbom, SPDXSbom, spdx_now
 from cachi2.core.resolver import inject_files_post, resolve_packages, supported_package_managers
 from cachi2.core.rooted_path import RootedPath
 from cachi2.interface.logging import LogLevel, setup_logging
@@ -34,6 +34,20 @@ OUTFILE_OPTION = typer.Option(
     "--output",
     dir_okay=False,
     help="Write to this file instead of standard output.",
+)
+
+
+class SBOMFormat(str, enum.Enum):
+    """The type of SBOM to generate."""
+
+    cyclonedx = "cyclonedx"
+    spdx = "spdx"
+
+
+SBOM_TYPE_OPTION = typer.Option(
+    SBOMFormat.cyclonedx,
+    "--sbom-output-type",
+    help=("Format of generated SBOM. Default is CycloneDX"),
 )
 
 
@@ -182,6 +196,7 @@ def fetch_deps(
             "already have a vendor/ directory (will fail if changes would be made)."
         ),
     ),
+    sbom_type: SBOMFormat = SBOM_TYPE_OPTION,
 ) -> None:
     """Fetch dependencies for supported package managers.
 
@@ -287,7 +302,10 @@ def fetch_deps(
         request_output.build_config.model_dump_json(indent=2, exclude_none=True)
     )
 
-    sbom = request_output.generate_sbom()
+    if sbom_type == SBOMFormat.cyclonedx:
+        sbom: Union[Sbom, SPDXSbom] = request_output.generate_sbom()
+    else:
+        sbom = request_output.generate_sbom().to_spdx(doc_namespace="NOASSERTION")
     request.output_dir.join_within_root("bom.json").path.write_text(
         # the Sbom model has camelCase aliases in some fields
         sbom.model_dump_json(indent=2, by_alias=True, exclude_none=True)
@@ -402,26 +420,43 @@ def merge_sboms(
         help="Names of files with SBOMs to merge.",
     ),
     output_sbom_file_name: Optional[Path] = OUTFILE_OPTION,
+    sbom_type: SBOMFormat = SBOM_TYPE_OPTION,
+    sbom_name: Optional[str] = typer.Option(
+        None, "--sbom-name", help="Name of the resulting merged SBOM."
+    ),
 ) -> None:
     """Merge two or more SBOMs into one.
 
-    The command works with Cachi2-generated SBOMs only. You might want to run
+    The command works with Cachi2-generated SBOMs and with a supported subset of
+    SPDX SBOMs. You might want to run
 
-    cachi2 fetch-deps <args...>
+        cachi2 fetch-deps <args...>
 
     first to produce SBOMs to merge.
     """
-    sboms_to_merge = []
+    sboms_to_merge: List[Union[SPDXSbom, Sbom]] = []
     for sbom_file in sbom_files_to_merge:
+        sbom_dict = json.loads(sbom_file.read_text())
+        # Remove extra fields which are not in Sbom or SPDXSbom models
+        # Both SBom and SPDXSBom models are only subset of cyclonedx and SPDX specifications
+        # Therefore we need to make sure only fields accepted by the models are present
         try:
-            sboms_to_merge.append(Sbom.model_validate_json(sbom_file.read_text()))
+            sboms_to_merge.append(Sbom(**sbom_dict))
         except pydantic.ValidationError:
-            raise UnexpectedFormat(f"{sbom_file} does not appear to be a valid Cachi2 SBOM.")
-    sbom = Sbom(
-        components=merge_component_properties(
-            chain.from_iterable(s.components for s in sboms_to_merge)
-        )
-    )
+            try:
+                sboms_to_merge.append(SPDXSbom(**sbom_dict))
+            except pydantic.ValidationError:
+                raise UnexpectedFormat(f"{sbom_file} does not appear to be a valid Cachi2 SBOM.")
+    # start_sbom will later coerce every other SBOM to its type.
+    start_sbom: Union[Sbom, SPDXSbom]  # this visual noise is demanded by mypy.
+    if sbom_type == SBOMFormat.cyclonedx:
+        start_sbom = sboms_to_merge[0].to_cyclonedx()
+    else:
+        start_sbom = sboms_to_merge[0].to_spdx(doc_namespace="NOASSERTION")
+        if sbom_name is not None:
+            start_sbom.name = sbom_name
+        start_sbom.creationInfo.created = spdx_now()
+    sbom = sum(sboms_to_merge[1:], start=start_sbom)
     sbom_json = sbom.model_dump_json(indent=2, by_alias=True, exclude_none=True)
 
     if output_sbom_file_name is not None:

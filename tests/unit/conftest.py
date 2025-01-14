@@ -1,5 +1,7 @@
 import tarfile
 from pathlib import Path
+from typing import Generator
+from unittest import mock
 
 import git
 import pytest
@@ -57,3 +59,10 @@ def input_request(tmp_path: Path, request: pytest.FixtureRequest) -> Request:
         output_dir=tmp_path / "output",
         packages=package_input,
     )
+
+
+@pytest.fixture
+def isodate() -> Generator:
+    with mock.patch("datetime.datetime") as mock_datetime:
+        mock_datetime.now.return_value.strftime.return_value = "2021-07-01T00:00:00Z"
+        yield mock_datetime
