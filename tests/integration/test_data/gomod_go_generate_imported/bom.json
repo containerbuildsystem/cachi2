@@ -86,9 +86,9 @@
           "value": "cachi2"
         }
       ],
-      "purl": "pkg:golang/github.com/cachito-testing/go-generate-imported/foobar@v0.0.0-20211021010705-56659413f7db?type=package",
+      "purl": "pkg:golang/github.com/cachito-testing/integration-tests/foobar@v0.0.0-20211026214220-a5af4262860e?type=package",
       "type": "library",
-      "version": "v0.0.0-20211021010705-56659413f7db"
+      "version": "v0.0.0-20211026214220-a5af4262860e"
     },
     {
       "name": "github.com/cachito-testing/go-generate-imported/internal/generate",
@@ -98,9 +98,9 @@
           "value": "cachi2"
         }
       ],
-      "purl": "pkg:golang/github.com/cachito-testing/go-generate-imported/internal/generate@v0.0.0-20211021010705-56659413f7db?type=package",
+      "purl": "pkg:golang/github.com/cachito-testing/integration-tests/internal/generate@v0.0.0-20211026214220-a5af4262860e?type=package",
       "type": "library",
-      "version": "v0.0.0-20211021010705-56659413f7db"
+      "version": "v0.0.0-20211026214220-a5af4262860e"
     },
     {
       "name": "github.com/cachito-testing/go-generate-imported",
@@ -110,9 +110,9 @@
           "value": "cachi2"
         }
       ],
-      "purl": "pkg:golang/github.com/cachito-testing/go-generate-imported@v0.0.0-20211021010705-56659413f7db?type=module",
+      "purl": "pkg:golang/github.com/cachito-testing/integration-tests@v0.0.0-20211026214220-a5af4262860e?type=module",
       "type": "library",
-      "version": "v0.0.0-20211021010705-56659413f7db"
+      "version": "v0.0.0-20211026214220-a5af4262860e"
     },
     {
       "name": "github.com/cachito-testing/go-generate-imported",
@@ -122,9 +122,9 @@
           "value": "cachi2"
         }
       ],
-      "purl": "pkg:golang/github.com/cachito-testing/go-generate-imported@v0.0.0-20211021010705-56659413f7db?type=package",
+      "purl": "pkg:golang/github.com/cachito-testing/integration-tests@v0.0.0-20211026214220-a5af4262860e?type=package",
       "type": "library",
-      "version": "v0.0.0-20211021010705-56659413f7db"
+      "version": "v0.0.0-20211026214220-a5af4262860e"
     },
     {
       "name": "internal/abi",

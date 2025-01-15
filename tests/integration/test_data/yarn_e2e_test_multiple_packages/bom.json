@@ -297,7 +297,7 @@
           "value": "cachi2"
         }
       ],
-      "purl": "pkg:npm/first-pkg?vcs_url=git%2Bhttps://github.com/cachito-testing/cachi2-yarn-berry.git%40b6f47bd07e669c8d2eced8015c4bfb06db499493",
+      "purl": "pkg:npm/first-pkg?vcs_url=git%2Bhttps://github.com/cachito-testing/integration-tests.git%40b6f47bd07e669c8d2eced8015c4bfb06db499493",
       "type": "library"
     },
     {
@@ -752,7 +752,7 @@
           "value": "cachi2"
         }
       ],
-      "purl": "pkg:npm/second-pkg?vcs_url=git%2Bhttps://github.com/cachito-testing/cachi2-yarn-berry.git%40b6f47bd07e669c8d2eced8015c4bfb06db499493",
+      "purl": "pkg:npm/second-pkg?vcs_url=git%2Bhttps://github.com/cachito-testing/integration-tests.git%40b6f47bd07e669c8d2eced8015c4bfb06db499493",
       "type": "library"
     },
     {

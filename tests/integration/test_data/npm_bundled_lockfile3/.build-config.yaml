@@ -1,6 +1,6 @@
 environment_variables: []
 project_files:
-- abspath: ${test_case_tmpdir}/npm_bundled_lockfile3-source/package-lock.json
+- abspath: ${test_case_tmp_path}/package-lock.json
   template: |
     {
       "name": "npm-cachi2-bundled",
@@ -579,7 +579,7 @@ project_files:
         }
       }
     }
-- abspath: ${test_case_tmpdir}/npm_bundled_lockfile3-source/package.json
+- abspath: ${test_case_tmp_path}/package.json
   template: |
     {
       "name": "npm-cachi2-bundled",

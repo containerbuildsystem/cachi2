@@ -14,28 +14,6 @@
       "version": "0.8"
     },
     {
-      "name": "cachi2-pip-extra-subpath1-subpath2",
-      "properties": [
-        {
-          "name": "cachi2:found_by",
-          "value": "cachi2"
-        }
-      ],
-      "purl": "pkg:pypi/cachi2-pip-extra-subpath1-subpath2?vcs_url=git%2Bhttps://github.com/cachito-testing/cachi2-pip-extra.git%40ece153b4e3eb1f64b3cd8e73b0de7fa8991c3afc#subpath1/subpath2",
-      "type": "library"
-    },
-    {
-      "name": "cachi2-pip-extra",
-      "properties": [
-        {
-          "name": "cachi2:found_by",
-          "value": "cachi2"
-        }
-      ],
-      "purl": "pkg:pypi/cachi2-pip-extra?vcs_url=git%2Bhttps://github.com/cachito-testing/cachi2-pip-extra.git%40ece153b4e3eb1f64b3cd8e73b0de7fa8991c3afc",
-      "type": "library"
-    },
-    {
       "name": "certifi",
       "properties": [
         {
@@ -70,6 +48,28 @@
       "purl": "pkg:pypi/idna@3.4",
       "type": "library",
       "version": "3.4"
+    },
+    {
+      "name": "integration-tests-subpath1-subpath2",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:pypi/integration-tests-subpath1-subpath2?vcs_url=git%2Bhttps://github.com/cachito-testing/integration-tests.git%40ece153b4e3eb1f64b3cd8e73b0de7fa8991c3afc#subpath1/subpath2",
+      "type": "library"
+    },
+    {
+      "name": "integration-tests",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:pypi/integration-tests?vcs_url=git%2Bhttps://github.com/cachito-testing/integration-tests.git%40ece153b4e3eb1f64b3cd8e73b0de7fa8991c3afc",
+      "type": "library"
     },
     {
       "name": "requests",

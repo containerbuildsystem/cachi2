@@ -537,9 +537,9 @@
           "value": "cachi2"
         }
       ],
-      "purl": "pkg:golang/github.com/cachito-testing/cachi2-gomod/workspace_modules/hello/echo/middleware@v4.0.0-20240522074442-449f904ecf26?type=package",
+      "purl": "pkg:golang/github.com/cachito-testing/integration-tests/workspace_modules/hello/echo/middleware@v4.0.0-20240626205759-b97aca303b29?type=package",
       "type": "library",
-      "version": "v4.0.0-20240522074442-449f904ecf26"
+      "version": "v4.0.0-20240626205759-b97aca303b29"
     },
     {
       "name": "github.com/labstack/echo/v4",
@@ -549,9 +549,9 @@
           "value": "cachi2"
         }
       ],
-      "purl": "pkg:golang/github.com/cachito-testing/cachi2-gomod/workspace_modules/hello/echo@v4.0.0-20240522074442-449f904ecf26?type=module",
+      "purl": "pkg:golang/github.com/cachito-testing/integration-tests/workspace_modules/hello/echo@v4.0.0-20240626205759-b97aca303b29?type=module",
       "type": "library",
-      "version": "v4.0.0-20240522074442-449f904ecf26"
+      "version": "v4.0.0-20240626205759-b97aca303b29"
     },
     {
       "name": "github.com/labstack/echo/v4",
@@ -561,9 +561,9 @@
           "value": "cachi2"
         }
       ],
-      "purl": "pkg:golang/github.com/cachito-testing/cachi2-gomod/workspace_modules/hello/echo@v4.0.0-20240522074442-449f904ecf26?type=package",
+      "purl": "pkg:golang/github.com/cachito-testing/integration-tests/workspace_modules/hello/echo@v4.0.0-20240626205759-b97aca303b29?type=package",
       "type": "library",
-      "version": "v4.0.0-20240522074442-449f904ecf26"
+      "version": "v4.0.0-20240626205759-b97aca303b29"
     },
     {
       "name": "example.com/hiii",
@@ -573,9 +573,9 @@
           "value": "cachi2"
         }
       ],
-      "purl": "pkg:golang/github.com/cachito-testing/cachi2-gomod/workspace_modules/hello/hi/hiii@v0.0.0-20240522074442-449f904ecf26?type=module",
+      "purl": "pkg:golang/github.com/cachito-testing/integration-tests/workspace_modules/hello/hi/hiii@v0.0.0-20240626205759-b97aca303b29?type=module",
       "type": "library",
-      "version": "v0.0.0-20240522074442-449f904ecf26"
+      "version": "v0.0.0-20240626205759-b97aca303b29"
     },
     {
       "name": "example.com/hiii",
@@ -585,9 +585,9 @@
           "value": "cachi2"
         }
       ],
-      "purl": "pkg:golang/github.com/cachito-testing/cachi2-gomod/workspace_modules/hello/hi/hiii@v0.0.0-20240522074442-449f904ecf26?type=package",
+      "purl": "pkg:golang/github.com/cachito-testing/integration-tests/workspace_modules/hello/hi/hiii@v0.0.0-20240626205759-b97aca303b29?type=package",
       "type": "library",
-      "version": "v0.0.0-20240522074442-449f904ecf26"
+      "version": "v0.0.0-20240626205759-b97aca303b29"
     },
     {
       "name": "example.com/hello",
@@ -597,9 +597,9 @@
           "value": "cachi2"
         }
       ],
-      "purl": "pkg:golang/github.com/cachito-testing/cachi2-gomod/workspace_modules/hello@v1.1.0?type=module",
+      "purl": "pkg:golang/github.com/cachito-testing/integration-tests/workspace_modules/hello@v0.0.0-20240626205759-b97aca303b29?type=module",
       "type": "library",
-      "version": "v1.1.0"
+      "version": "v0.0.0-20240626205759-b97aca303b29"
     },
     {
       "name": "example.com/hello",
@@ -609,9 +609,9 @@
           "value": "cachi2"
         }
       ],
-      "purl": "pkg:golang/github.com/cachito-testing/cachi2-gomod/workspace_modules/hello@v1.1.0?type=package",
+      "purl": "pkg:golang/github.com/cachito-testing/integration-tests/workspace_modules/hello@v0.0.0-20240626205759-b97aca303b29?type=package",
       "type": "library",
-      "version": "v1.1.0"
+      "version": "v0.0.0-20240626205759-b97aca303b29"
     },
     {
       "name": "github.com/davecgh/go-spew",

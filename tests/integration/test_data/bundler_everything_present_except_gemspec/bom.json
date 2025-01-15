@@ -158,17 +158,6 @@
       "version": "3.3.0"
     },
     {
-      "name": "cachi2-bundler",
-      "properties": [
-        {
-          "name": "cachi2:found_by",
-          "value": "cachi2"
-        }
-      ],
-      "purl": "pkg:gem/cachi2-bundler?vcs_url=git%2Bhttps://github.com/cachito-testing/cachi2-bundler.git%404930d38034ef437d6c6e54c344210aa14e5c40dd",
-      "type": "library"
-    },
-    {
       "name": "concurrent-ruby",
       "properties": [
         {
@@ -239,6 +228,17 @@
       "purl": "pkg:gem/i18n@1.14.5",
       "type": "library",
       "version": "1.14.5"
+    },
+    {
+      "name": "integration-tests",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:gem/integration-tests?vcs_url=git%2Bhttps://github.com/cachito-testing/integration-tests.git%404930d38034ef437d6c6e54c344210aa14e5c40dd",
+      "type": "library"
     },
     {
       "name": "json-schema",

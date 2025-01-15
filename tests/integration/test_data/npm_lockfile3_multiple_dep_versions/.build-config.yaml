@@ -1,6 +1,6 @@
 environment_variables: []
 project_files:
-- abspath: ${test_case_tmpdir}/npm_lockfile3_multiple_dep_versions-source/foo/package.json
+- abspath: ${test_case_tmp_path}/foo/package.json
   template: |
     {
       "name": "foo",
@@ -17,7 +17,7 @@ project_files:
         "is-positive": ""
       }
     }
-- abspath: ${test_case_tmpdir}/npm_lockfile3_multiple_dep_versions-source/package-lock.json
+- abspath: ${test_case_tmp_path}/package-lock.json
   template: |
     {
       "name": "cachito-npm-with-multiple-dep-versions",
@@ -76,7 +76,7 @@ project_files:
         }
       }
     }
-- abspath: ${test_case_tmpdir}/npm_lockfile3_multiple_dep_versions-source/package.json
+- abspath: ${test_case_tmp_path}/package.json
   template: |
     {
       "name": "cachito-npm-with-multiple-dep-versions",
