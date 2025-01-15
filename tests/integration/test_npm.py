@@ -32,7 +32,7 @@ log = logging.getLogger(__name__)
         ),
     ],
 )
-def test_npm_smoketest(
+def test_npm_packages(
     test_params: utils.TestParameters,
     cachi2_image: utils.ContainerImage,
     tmp_path: Path,
