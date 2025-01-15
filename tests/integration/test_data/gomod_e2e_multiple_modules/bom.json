@@ -42,7 +42,7 @@
           "value": "cachi2"
         }
       ],
-      "purl": "pkg:golang/github.com/cachito-testing/gomod-multiple-modules/eggs-module@v0.0.0-20230130152700-d909c337ffc8?type=module",
+      "purl": "pkg:golang/github.com/cachito-testing/integration-tests/eggs-module@v0.0.0-20230130152700-d909c337ffc8?type=module",
       "type": "library",
       "version": "v0.0.0-20230130152700-d909c337ffc8"
     },
@@ -54,7 +54,7 @@
           "value": "cachi2"
         }
       ],
-      "purl": "pkg:golang/github.com/cachito-testing/gomod-multiple-modules/eggs-module@v0.0.0-20230130152700-d909c337ffc8?type=package",
+      "purl": "pkg:golang/github.com/cachito-testing/integration-tests/eggs-module@v0.0.0-20230130152700-d909c337ffc8?type=package",
       "type": "library",
       "version": "v0.0.0-20230130152700-d909c337ffc8"
     },
@@ -66,9 +66,9 @@
           "value": "cachi2"
         }
       ],
-      "purl": "pkg:golang/github.com/cachito-testing/gomod-multiple-modules/spam-module@v1.2.0?type=module",
+      "purl": "pkg:golang/github.com/cachito-testing/integration-tests/spam-module@v0.0.0-20230130152700-d909c337ffc8?type=module",
       "type": "library",
-      "version": "v1.2.0"
+      "version": "v0.0.0-20230130152700-d909c337ffc8"
     },
     {
       "name": "github.com/cachito-testing/gomod-multiple-modules/spam-module",
@@ -78,9 +78,9 @@
           "value": "cachi2"
         }
       ],
-      "purl": "pkg:golang/github.com/cachito-testing/gomod-multiple-modules/spam-module@v1.2.0?type=package",
+      "purl": "pkg:golang/github.com/cachito-testing/integration-tests/spam-module@v0.0.0-20230130152700-d909c337ffc8?type=package",
       "type": "library",
-      "version": "v1.2.0"
+      "version": "v0.0.0-20230130152700-d909c337ffc8"
     },
     {
       "name": "github.com/cachito-testing/gomod-multiple-modules",
@@ -90,9 +90,9 @@
           "value": "cachi2"
         }
       ],
-      "purl": "pkg:golang/github.com/cachito-testing/gomod-multiple-modules@v1.0.0?type=module",
+      "purl": "pkg:golang/github.com/cachito-testing/integration-tests@v0.0.0-20230130152700-d909c337ffc8?type=module",
       "type": "library",
-      "version": "v1.0.0"
+      "version": "v0.0.0-20230130152700-d909c337ffc8"
     },
     {
       "name": "golang.org/x/text/internal/tag",

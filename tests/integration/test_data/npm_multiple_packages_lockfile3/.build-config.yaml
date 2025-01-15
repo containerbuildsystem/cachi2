@@ -1,6 +1,6 @@
 environment_variables: []
 project_files:
-- abspath: ${test_case_tmpdir}/npm_multiple_packages_lockfile3-source/first_pkg/package-lock.json
+- abspath: ${test_case_tmp_path}/first_pkg/package-lock.json
   template: |
     {
       "name": "npm-cachi2-first-package",
@@ -715,7 +715,7 @@ project_files:
         }
       }
     }
-- abspath: ${test_case_tmpdir}/npm_multiple_packages_lockfile3-source/first_pkg/package.json
+- abspath: ${test_case_tmp_path}/first_pkg/package.json
   template: |
     {
       "name": "npm-cachi2-first-package",
@@ -744,7 +744,7 @@ project_files:
         "is-positive": ""
       }
     }
-- abspath: ${test_case_tmpdir}/npm_multiple_packages_lockfile3-source/second_pkg/package-lock.json
+- abspath: ${test_case_tmp_path}/second_pkg/package-lock.json
   template: |
     {
       "name": "npm-cachi2-second-pkg",
@@ -1425,7 +1425,7 @@ project_files:
         }
       }
     }
-- abspath: ${test_case_tmpdir}/npm_multiple_packages_lockfile3-source/second_pkg/package.json
+- abspath: ${test_case_tmp_path}/second_pkg/package.json
   template: |
     {
       "name": "npm-cachi2-second-pkg",
@@ -1452,7 +1452,7 @@ project_files:
         "sax": "0.1.1"
       }
     }
-- abspath: ${test_case_tmpdir}/npm_multiple_packages_lockfile3-source/third_pkg/package-lock.json
+- abspath: ${test_case_tmp_path}/third_pkg/package-lock.json
   template: |
     {
       "name": "npm-cachi2-third-package",
@@ -1559,7 +1559,7 @@ project_files:
         }
       }
     }
-- abspath: ${test_case_tmpdir}/npm_multiple_packages_lockfile3-source/third_pkg/package.json
+- abspath: ${test_case_tmp_path}/third_pkg/package.json
   template: |
     {
       "name": "npm-cachi2-third-package",

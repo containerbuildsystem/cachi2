@@ -9,8 +9,8 @@
           "value": "cachi2"
         },
         {
-            "name": "cachi2:rpm_summary",
-            "value": "Common binaries and locale data for glibc"
+          "name": "cachi2:rpm_summary",
+          "value": "Common binaries and locale data for glibc"
         }
       ],
       "purl": "pkg:rpm/fedora/glibc-common@2.39-6.fc40?arch=x86_64&checksum=sha256:45fe79ffea9358fc7a4f233e2358b08678bdec476680d0655063b4a4058e8789&repository_id=releases",
@@ -53,8 +53,8 @@
           "value": "cachi2"
         },
         {
-            "name": "cachi2:rpm_summary",
-            "value": "Minimal language packs for glibc."
+          "name": "cachi2:rpm_summary",
+          "value": "Minimal language packs for glibc."
         }
       ],
       "purl": "pkg:rpm/fedora/glibc-minimal-langpack@2.39-6.fc40?arch=x86_64&checksum=sha256:9982f68ddcc3e972a2f3f220f29d56b0e9dde0e409bdecfe0bc559fe39013dde&repository_id=releases",
@@ -69,8 +69,8 @@
           "value": "cachi2"
         },
         {
-            "name": "cachi2:rpm_summary",
-            "value": "GNU data compression program"
+          "name": "cachi2:rpm_summary",
+          "value": "GNU data compression program"
         }
       ],
       "purl": "pkg:rpm/fedora/gzip@1.13-1.fc40?arch=x86_64&checksum=sha256:6dcc2f8885135fc873c8ab94a6c7df05883060c5b25287956bebb3aa15a84e71&repository_id=releases",

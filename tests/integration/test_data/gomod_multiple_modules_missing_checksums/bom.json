@@ -20,7 +20,7 @@
           "value": "cachi2"
         }
       ],
-      "purl": "pkg:golang/github.com/cachito-testing/gomod-multiple-modules/eggs-module@v0.0.0-20230829115309-5a8c00ce4921?type=module",
+      "purl": "pkg:golang/github.com/cachito-testing/integration-tests/eggs-module@v0.0.0-20230829115309-5a8c00ce4921?type=module",
       "type": "library",
       "version": "v0.0.0-20230829115309-5a8c00ce4921"
     },
@@ -32,7 +32,7 @@
           "value": "cachi2"
         }
       ],
-      "purl": "pkg:golang/github.com/cachito-testing/gomod-multiple-modules/eggs-module@v0.0.0-20230829115309-5a8c00ce4921?type=package",
+      "purl": "pkg:golang/github.com/cachito-testing/integration-tests/eggs-module@v0.0.0-20230829115309-5a8c00ce4921?type=package",
       "type": "library",
       "version": "v0.0.0-20230829115309-5a8c00ce4921"
     },
@@ -44,9 +44,9 @@
           "value": "cachi2"
         }
       ],
-      "purl": "pkg:golang/github.com/cachito-testing/gomod-multiple-modules/spam-module@v1.2.1-0.20230829115309-5a8c00ce4921?type=module",
+      "purl": "pkg:golang/github.com/cachito-testing/integration-tests/spam-module@v0.0.0-20230829115309-5a8c00ce4921?type=module",
       "type": "library",
-      "version": "v1.2.1-0.20230829115309-5a8c00ce4921"
+      "version": "v0.0.0-20230829115309-5a8c00ce4921"
     },
     {
       "name": "github.com/cachito-testing/gomod-multiple-modules/spam-module",
@@ -56,9 +56,9 @@
           "value": "cachi2"
         }
       ],
-      "purl": "pkg:golang/github.com/cachito-testing/gomod-multiple-modules/spam-module@v1.2.1-0.20230829115309-5a8c00ce4921?type=package",
+      "purl": "pkg:golang/github.com/cachito-testing/integration-tests/spam-module@v0.0.0-20230829115309-5a8c00ce4921?type=package",
       "type": "library",
-      "version": "v1.2.1-0.20230829115309-5a8c00ce4921"
+      "version": "v0.0.0-20230829115309-5a8c00ce4921"
     },
     {
       "name": "github.com/cachito-testing/gomod-multiple-modules",
@@ -68,9 +68,9 @@
           "value": "cachi2"
         }
       ],
-      "purl": "pkg:golang/github.com/cachito-testing/gomod-multiple-modules@v1.0.1-0.20230829115309-5a8c00ce4921?type=module",
+      "purl": "pkg:golang/github.com/cachito-testing/integration-tests@v0.0.0-20230829115309-5a8c00ce4921?type=module",
       "type": "library",
-      "version": "v1.0.1-0.20230829115309-5a8c00ce4921"
+      "version": "v0.0.0-20230829115309-5a8c00ce4921"
     },
     {
       "name": "golang.org/x/text/language",

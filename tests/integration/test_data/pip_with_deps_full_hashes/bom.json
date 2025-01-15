@@ -56,7 +56,7 @@
           "value": "cachi2"
         }
       ],
-      "purl": "pkg:pypi/cachito-pip-with-deps@1.0.0?vcs_url=git%2Bhttps://github.com/cachito-testing/cachito-pip-with-deps.git%40bbe76b351bf06fcfbaede8f9e2050976d9fd6f3b",
+      "purl": "pkg:pypi/cachito-pip-with-deps@1.0.0?vcs_url=git%2Bhttps://github.com/cachito-testing/integration-tests.git%40bbe76b351bf06fcfbaede8f9e2050976d9fd6f3b",
       "type": "library",
       "version": "1.0.0"
     },

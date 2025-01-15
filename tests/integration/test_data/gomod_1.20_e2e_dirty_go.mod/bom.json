@@ -24,30 +24,6 @@
       "type": "library"
     },
     {
-      "name": "github.com/cachito-testing/cachi2-gomod/twenty",
-      "properties": [
-        {
-          "name": "cachi2:found_by",
-          "value": "cachi2"
-        }
-      ],
-      "purl": "pkg:golang/github.com/cachito-testing/cachi2-gomod/twenty@v0.0.0?type=module",
-      "type": "library",
-      "version": "v0.0.0"
-    },
-    {
-      "name": "github.com/cachito-testing/cachi2-gomod/twenty",
-      "properties": [
-        {
-          "name": "cachi2:found_by",
-          "value": "cachi2"
-        }
-      ],
-      "purl": "pkg:golang/github.com/cachito-testing/cachi2-gomod/twenty@v0.0.0?type=package",
-      "type": "library",
-      "version": "v0.0.0"
-    },
-    {
       "name": "github.com/cachito-testing/cachi2-gomod/twentyone",
       "properties": [
         {
@@ -70,6 +46,30 @@
       "purl": "pkg:golang/github.com/cachito-testing/cachi2-gomod/twentyone@v0.0.0?type=package",
       "type": "library",
       "version": "v0.0.0"
+    },
+    {
+      "name": "github.com/cachito-testing/cachi2-gomod/twenty",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:golang/github.com/cachito-testing/integration-tests/twenty@v0.0.0-20240321211820-3353e4526728?type=module",
+      "type": "library",
+      "version": "v0.0.0-20240321211820-3353e4526728"
+    },
+    {
+      "name": "github.com/cachito-testing/cachi2-gomod/twenty",
+      "properties": [
+        {
+          "name": "cachi2:found_by",
+          "value": "cachi2"
+        }
+      ],
+      "purl": "pkg:golang/github.com/cachito-testing/integration-tests/twenty@v0.0.0-20240321211820-3353e4526728?type=package",
+      "type": "library",
+      "version": "v0.0.0-20240321211820-3353e4526728"
     },
     {
       "name": "internal/abi",

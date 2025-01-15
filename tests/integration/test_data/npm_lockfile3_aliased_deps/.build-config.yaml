@@ -1,6 +1,6 @@
 environment_variables: []
 project_files:
-- abspath: ${test_case_tmpdir}/npm_lockfile3_aliased_deps-source/package-lock.json
+- abspath: ${test_case_tmp_path}/package-lock.json
   template: |
     {
       "name": "npm-with-aliased-deps",
@@ -38,7 +38,7 @@ project_files:
         }
       }
     }
-- abspath: ${test_case_tmpdir}/npm_lockfile3_aliased_deps-source/package.json
+- abspath: ${test_case_tmp_path}/package.json
   template: |
     {
       "name": "npm-with-aliased-deps",

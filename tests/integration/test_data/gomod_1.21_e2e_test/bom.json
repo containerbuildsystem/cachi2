@@ -572,9 +572,9 @@
           "value": "cachi2"
         }
       ],
-      "purl": "pkg:golang/github.com/cachito-testing/retrodep/retrodep/glide@v2.1.2-0.20240308152237-d0c316edef82?type=package",
+      "purl": "pkg:golang/github.com/cachito-testing/integration-tests/retrodep/glide@v2.0.0-20240308152237-d0c316edef82?type=package",
       "type": "library",
-      "version": "v2.1.2-0.20240308152237-d0c316edef82"
+      "version": "v2.0.0-20240308152237-d0c316edef82"
     },
     {
       "name": "github.com/release-engineering/retrodep/v2/retrodep",
@@ -584,9 +584,9 @@
           "value": "cachi2"
         }
       ],
-      "purl": "pkg:golang/github.com/cachito-testing/retrodep/retrodep@v2.1.2-0.20240308152237-d0c316edef82?type=package",
+      "purl": "pkg:golang/github.com/cachito-testing/integration-tests/retrodep@v2.0.0-20240308152237-d0c316edef82?type=package",
       "type": "library",
-      "version": "v2.1.2-0.20240308152237-d0c316edef82"
+      "version": "v2.0.0-20240308152237-d0c316edef82"
     },
     {
       "name": "github.com/release-engineering/retrodep/v2",
@@ -596,9 +596,9 @@
           "value": "cachi2"
         }
       ],
-      "purl": "pkg:golang/github.com/cachito-testing/retrodep@v2.1.2-0.20240308152237-d0c316edef82?type=module",
+      "purl": "pkg:golang/github.com/cachito-testing/integration-tests@v2.0.0-20240308152237-d0c316edef82?type=module",
       "type": "library",
-      "version": "v2.1.2-0.20240308152237-d0c316edef82"
+      "version": "v2.0.0-20240308152237-d0c316edef82"
     },
     {
       "name": "github.com/release-engineering/retrodep/v2",
@@ -608,9 +608,9 @@
           "value": "cachi2"
         }
       ],
-      "purl": "pkg:golang/github.com/cachito-testing/retrodep@v2.1.2-0.20240308152237-d0c316edef82?type=package",
+      "purl": "pkg:golang/github.com/cachito-testing/integration-tests@v2.0.0-20240308152237-d0c316edef82?type=package",
       "type": "library",
-      "version": "v2.1.2-0.20240308152237-d0c316edef82"
+      "version": "v2.0.0-20240308152237-d0c316edef82"
     },
     {
       "name": "github.com/kr/pretty",
