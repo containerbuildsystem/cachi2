@@ -184,25 +184,6 @@ def _build_image(podman_cmd: list[str], *, tag: str) -> ContainerImage:
     return ContainerImage(tag)
 
 
-def clone_repository(repo_url: str, ref: str, folder_name: str, tmpdir: Path) -> Path:
-    """
-    Clone repository and checkout specific commit.
-
-    :param repo_url: Git repository URL
-    :param ref: Git reference
-    :param folder_name: Name of folder where content will be cloned
-    :param tmpdir: Temp directory for pytest
-    :return: Absolute path to cloned repository
-    :rtype: str
-    """
-    folder = tmpdir / folder_name
-
-    repo = Repo.clone_from(repo_url, folder)
-    repo.git.checkout(ref)
-    log.info("Cloned repository path: %s", folder)
-    return folder
-
-
 def run_cmd(cmd: List[str]) -> Tuple[str, int]:
     """
     Run command via subprocess.
