@@ -120,7 +120,7 @@ def test_source_dir_copy(
         packages=packages,
     )
 
-    def _resolve_packages(request: Request) -> None:
+    def _resolve_packages(request: Request) -> RequestOutput:
         if copy_exists:
             tmp_dir_name = request.source_dir.path.name
 
@@ -132,12 +132,48 @@ def test_source_dir_copy(
             # assert the original source_dir is being used
             assert request.source_dir == RootedPath(tmp_path)
 
+        return RequestOutput.empty()
+
     mock_resolve_packages.side_effect = _resolve_packages
 
     resolver.resolve_packages(request)
 
     # assert source_dir is restored to the original value
     assert request.source_dir == RootedPath(tmp_path)
+
+
+@mock.patch("cachi2.core.resolver._resolve_packages")
+def test_project_files_fix_for_work_copy(
+    mock_resolve_packages: mock.Mock,
+    tmp_path: Path,
+) -> None:
+    request = Request(
+        source_dir=tmp_path,
+        output_dir=tmp_path,
+        packages=[{"type": "yarn"}],
+    )
+
+    def _resolve_packages(request: Request) -> RequestOutput:
+        # assert request is based on a copy of the source dir
+        assert request.source_dir.path != tmp_path
+        assert request.source_dir.path.name.endswith(".cachi2-source-copy")
+
+        # return a project file pointing to the source dir copy
+        return RequestOutput(
+            components=[],
+            build_config=BuildConfig(
+                environment_variables=[],
+                project_files=[
+                    ProjectFile(abspath=request.source_dir.path / "package.json", template="n/a"),
+                ],
+            ),
+        )
+
+    mock_resolve_packages.side_effect = _resolve_packages
+    output = resolver.resolve_packages(request)
+
+    # assert the project file path was corrected to point to the original source dir
+    assert output.build_config.project_files[0].abspath == tmp_path / "package.json"
 
 
 @pytest.mark.parametrize(
