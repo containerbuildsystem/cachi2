@@ -79,7 +79,7 @@ log = logging.getLogger(__name__)
                 check_deps_checksums=False,
                 check_vendor_checksums=False,
                 expected_exit_code=1,
-                expected_output="Duplicate tarballs detected",
+                expected_output="Tarball collision in the offline mirror",
             ),
             id="yarn_classic_offline_mirror_collision",
         ),

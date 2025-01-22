@@ -22,8 +22,10 @@ from cachi2.core.package_managers.yarn_classic.main import (
 )
 from cachi2.core.package_managers.yarn_classic.project import Project
 from cachi2.core.package_managers.yarn_classic.resolver import (
-    GitPackage,
+    FilePackage,
+    LinkPackage,
     RegistryPackage,
+    UrlPackage,
     YarnClassicPackage,
 )
 from cachi2.core.rooted_path import RootedPath
@@ -247,47 +249,87 @@ def test_verify_corepack_yarn_version_invalid_version(
         _verify_corepack_yarn_version(RootedPath(tmp_path), env={"foo": "bar"})
 
 
-def test_verify_offline_mirror_collisions_registry_packages() -> None:
-    packages: Iterable[YarnClassicPackage] = [
-        RegistryPackage(
-            name="foo",
-            version="1.0.0",
-            url="https://registry.yarnpkg.com/same/-/same-1.0.0.tgz",
+@pytest.mark.parametrize(
+    "packages",
+    [
+        pytest.param(
+            [
+                RegistryPackage(
+                    name="foo",
+                    version="1.0.0",
+                    url="https://registry.yarnpkg.com/same/-/same-1.0.0.tgz",
+                ),
+                RegistryPackage(
+                    name="foo",
+                    version="1.0.0",
+                    url="https://registry.yarnpkg.com/same/-/same-1.0.0.tgz",
+                ),
+            ],
+            id="same_registry_packages",
         ),
-        RegistryPackage(
-            name="bar",
-            version="1.0.0",
-            url="https://registry.yarnpkg.com/same/-/same-1.0.0.tgz",
+        pytest.param(
+            [
+                RegistryPackage(
+                    name="foo",
+                    version="1.0.0",
+                    url="https://registry.yarnpkg.com/@colors/colors/-/colors-1.6.0.tgz",
+                ),
+                RegistryPackage(
+                    name="foo",
+                    version="1.0.0",
+                    url="https://registry.yarnpkg.com/@colors/colors/-/colors-1.6.0.tgz",
+                ),
+            ],
+            id="same_scoped_registry_packages",
         ),
-    ]
-
-    with pytest.raises(PackageManagerError):
-        _verify_no_offline_mirror_collisions(packages)
-
-
-def test_verify_offline_mirror_collisions_scoped_registry_packages() -> None:
-    packages: Iterable[YarnClassicPackage] = [
-        RegistryPackage(
-            name="foo",
-            version="1.0.0",
-            url="https://registry.yarnpkg.com/@colors/colors/-/colors-1.6.0.tgz",
+        pytest.param(
+            [
+                LinkPackage(name="foo", version="1.0.0", path=RootedPath("/path/to/foo")),
+                FilePackage(name="bar", version="1.0.0", path=RootedPath("/path/to/bar")),
+            ],
+            id="skipped_packages",
         ),
-        RegistryPackage(
-            name="bar",
-            version="1.0.0",
-            url="https://registry.yarnpkg.com/@colors/colors/-/colors-1.6.0.tgz",
+    ],
+)
+def test_verify_offline_mirror_collisions_pass(packages: Iterable[YarnClassicPackage]) -> None:
+    _verify_no_offline_mirror_collisions(packages)
+
+
+@pytest.mark.parametrize(
+    "packages",
+    [
+        pytest.param(
+            [
+                RegistryPackage(
+                    name="foo",
+                    version="1.0.0",
+                    url="https://registry.yarnpkg.com/same/-/same-1.0.0.tgz",
+                ),
+                UrlPackage(
+                    name="bar",
+                    version="1.0.0",
+                    url="https://mirror.example.com/same-1.0.0.tgz",
+                ),
+            ],
+            id="registry_and_url_package_conflict",
         ),
-    ]
-
-    with pytest.raises(PackageManagerError):
-        _verify_no_offline_mirror_collisions(packages)
-
-
-def test_verify_offline_mirror_collisions_git_packages() -> None:
-    packages: Iterable[YarnClassicPackage] = [
-        GitPackage(name="foo", version="1.0.0", url="https://github.com/user/repo.git#commit-hash"),
-        GitPackage(name="bar", version="1.0.0", url="https://github.com/user/repo.git#commit-hash"),
-    ]
-
+        pytest.param(
+            [
+                UrlPackage(
+                    name="foo",
+                    version="1.0.0",
+                    url="https://mirror.example.com/same-1.0.0.tgz",
+                ),
+                UrlPackage(
+                    name="bar",
+                    version="1.0.0",
+                    url="https://mirror.example.com/same-1.0.0.tgz",
+                ),
+            ],
+            id="url_and_url_package_conflict",
+        ),
+    ],
+)
+def test_verify_offline_mirror_collisions_fail(packages: Iterable[YarnClassicPackage]) -> None:
     with pytest.raises(PackageManagerError):
         _verify_no_offline_mirror_collisions(packages)
