@@ -1,5 +1,5 @@
 import logging
-from collections import Counter
+from collections import defaultdict
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -202,23 +202,33 @@ def _verify_corepack_yarn_version(source_dir: RootedPath, env: dict[str, str]) -
 
 
 def _verify_no_offline_mirror_collisions(packages: Iterable[YarnClassicPackage]) -> None:
-    """Verify that there are no duplicate tarballs in the offline mirror."""
-    tarballs = []
+    """
+    Verify that there are no duplicate tarballs in the offline mirror.
+
+    This is a safety check to ensure that the offline mirror is not corrupted.
+    The only exception is when all the packages are the same. It may happen when
+    yarn.lock contains multiple references to the same package, as it is with npm aliases.
+    """
+    tarball_collisions = defaultdict(list)
+
     for p in packages:
         if isinstance(p, (RegistryPackage, UrlPackage)):
             tarball_name = get_tarball_mirror_name(p.url)
-            tarballs.append(tarball_name)
         elif isinstance(p, GitPackage):
             tarball_name = get_git_tarball_mirror_name(p.url)
-            tarballs.append(tarball_name)
         else:
             # file, link, and workspace packages are not copied to the offline mirror
             continue
 
-    c = Counter(tarballs)
-    duplicate_tarballs = [f"{name} ({count}x)" for name, count in c.most_common() if count > 1]
-    if len(duplicate_tarballs) > 0:
-        raise PackageManagerError(f"Duplicate tarballs detected: {', '.join(duplicate_tarballs)}")
+        tarball_collisions[tarball_name].append(p)
+
+    for tarball_name, packages in tarball_collisions.items():
+        if all(pkg == packages[0] for pkg in packages):
+            continue
+
+        raise PackageManagerError(
+            f"Tarball collision in the offline mirror: {tarball_name} ({len(packages)}x)"
+        )
 
 
 # References
