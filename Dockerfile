@@ -11,6 +11,7 @@ RUN dnf -y install \
     --setopt install_weak_deps=0 \
     --nodocs \
     git-core \
+    jq \
     python3 \
     rubygem-bundler \
     rubygem-json \
