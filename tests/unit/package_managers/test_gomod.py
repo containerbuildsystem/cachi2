@@ -2455,7 +2455,7 @@ class TestGoWork:
         ],
     )
     @mock.patch("cachi2.core.package_managers.gomod.run_cmd")
-    def test__init__(
+    def test_init(
         self,
         mock_run: mock.Mock,
         rooted_tmp_path: RootedPath,
@@ -2474,7 +2474,7 @@ class TestGoWork:
         assert go_work.data == {}
 
     @mock.patch("cachi2.core.package_managers.gomod.run_cmd")
-    def test__init__fail(self, mock_run: mock.Mock, rooted_tmp_path: RootedPath) -> None:
+    def test_init_fail(self, mock_run: mock.Mock, rooted_tmp_path: RootedPath) -> None:
         mock_run.return_value = "/a/random/path/go.work"
         with pytest.raises(PathOutsideRoot):
             GoWork(rooted_tmp_path)
@@ -2487,7 +2487,7 @@ class TestGoWork:
         ],
     )
     @mock.patch("cachi2.core.package_managers.gomod.run_cmd")
-    def test__bool__(
+    def test_bool(
         self, mock_run: mock.Mock, rooted_tmp_path: RootedPath, go_work_env: str, expected: bool
     ) -> None:
         if go_work_env:

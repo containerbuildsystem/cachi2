@@ -77,22 +77,22 @@ INVALID_TARBALL_URLS = [
 
 
 @pytest.mark.parametrize("url", VALID_TARBALL_URLS)
-def test__is_tarball_url_can_parse_correct_tarball_urls(url: str) -> None:
+def test_is_tarball_url_can_parse_correct_tarball_urls(url: str) -> None:
     assert _is_tarball_url(url)
 
 
 @pytest.mark.parametrize("url", INVALID_TARBALL_URLS)
-def test__is_tarball_url_rejects_incorrect_tarball_urls(url: str) -> None:
+def test_is_tarball_url_rejects_incorrect_tarball_urls(url: str) -> None:
     assert not _is_tarball_url(url)
 
 
 @pytest.mark.parametrize("url", VALID_GIT_URLS)
-def test__is_git_url_can_parse_correct_git_urls(url: str) -> None:
+def test_is_git_url_can_parse_correct_git_urls(url: str) -> None:
     assert _is_git_url(url)
 
 
 @pytest.mark.parametrize("url", INVALID_GIT_URLS)
-def test__is_git_url_rejects_incorrect_git_urls(url: str) -> None:
+def test_is_git_url_rejects_incorrect_git_urls(url: str) -> None:
     assert not _is_git_url(url)
 
 
@@ -103,11 +103,11 @@ def test__is_git_url_rejects_incorrect_git_urls(url: str) -> None:
         "https://registry.yarnpkg.com/chai/-/chai-4.2.0.tgz",
     ],
 )
-def test__is_from_npm_registry_can_parse_correct_registry_urls(url: str) -> None:
+def test_is_from_npm_registry_can_parse_correct_registry_urls(url: str) -> None:
     assert _is_from_npm_registry(url)
 
 
-def test__is_from_npm_registry_can_parse_incorrect_registry_urls() -> None:
+def test_is_from_npm_registry_can_parse_incorrect_registry_urls() -> None:
     assert not _is_from_npm_registry("https://example.org/fecha.tar.gz")
 
 
@@ -246,7 +246,7 @@ def test_create_package_from_pyarn_package_fail_unexpected_format(
 @mock.patch(
     "cachi2.core.package_managers.yarn_classic.resolver._YarnClassicPackageFactory.create_package_from_pyarn_package"
 )
-def test__get_packages_from_lockfile(
+def test_get_packages_from_lockfile(
     mock_create_package: mock.Mock, rooted_tmp_path: RootedPath
 ) -> None:
     # Setup lockfile instance
@@ -316,7 +316,7 @@ def test_resolve_packages(
     assert list(output) == expected_output
 
 
-def test__get_main_package(rooted_tmp_path: RootedPath) -> None:
+def test_get_main_package(rooted_tmp_path: RootedPath) -> None:
     package_json = PackageJson(
         _path=rooted_tmp_path.join_within_root("package.json"),
         _data={"name": "foo", "version": "1.0.0"},
@@ -331,7 +331,7 @@ def test__get_main_package(rooted_tmp_path: RootedPath) -> None:
     assert output == expected_output
 
 
-def test__get_main_package_no_name(rooted_tmp_path: RootedPath) -> None:
+def test_get_main_package_no_name(rooted_tmp_path: RootedPath) -> None:
     package_json = PackageJson(
         _path=rooted_tmp_path.join_within_root("package.json"),
         _data={},
@@ -344,7 +344,7 @@ def test__get_main_package_no_name(rooted_tmp_path: RootedPath) -> None:
         _get_main_package(rooted_tmp_path, package_json)
 
 
-def test__get_workspace_packages(rooted_tmp_path: RootedPath) -> None:
+def test_get_workspace_packages(rooted_tmp_path: RootedPath) -> None:
     workspace_path = rooted_tmp_path.join_within_root("foo")
     workspace_path.path.mkdir()
 
