@@ -119,7 +119,7 @@ def test_get_main_package_name_and_version_from_repo_without_origin(
     assert "Failed to extract package name from origin remote" in exc_info.value.friendly_msg()
 
 
-def test__prepare_for_hermetic_build_injects_necessary_variable_into_empty_config(
+def test_prepare_for_hermetic_build_injects_necessary_variable_into_empty_config(
     rooted_tmp_path: RootedPath,
 ) -> None:
     expected_config_location = rooted_tmp_path.join_within_root(".bundle/config").path
@@ -141,7 +141,7 @@ def test__prepare_for_hermetic_build_injects_necessary_variable_into_empty_confi
     assert result.template == expected_config_contents
 
 
-def test__prepare_for_hermetic_build_injects_necessary_variable_into_existing_config(
+def test_prepare_for_hermetic_build_injects_necessary_variable_into_existing_config(
     rooted_tmp_path: RootedPath,
 ) -> None:
     expected_config_location = rooted_tmp_path.join_within_root(".bundle/config").path
@@ -173,7 +173,7 @@ def test__prepare_for_hermetic_build_injects_necessary_variable_into_existing_co
     assert result.template == existing_preamble + expected_config_contents
 
 
-def test__prepare_for_hermetic_build_injects_necessary_variable_into_existing_alternate_config(
+def test_prepare_for_hermetic_build_injects_necessary_variable_into_existing_alternate_config(
     rooted_tmp_path: RootedPath,
 ) -> None:
     expected_alternate_config_location = rooted_tmp_path.join_within_root("alternate/config").path
@@ -210,7 +210,7 @@ def test__prepare_for_hermetic_build_injects_necessary_variable_into_existing_al
     assert result.template == existing_preamble + expected_alternate_config_contents
 
 
-def test__prepare_for_hermetic_build_ignores_a_directory_in_place_of_config(
+def test_prepare_for_hermetic_build_ignores_a_directory_in_place_of_config(
     rooted_tmp_path: RootedPath,
 ) -> None:
     expected_config_location = rooted_tmp_path.join_within_root(".bundle/config").path

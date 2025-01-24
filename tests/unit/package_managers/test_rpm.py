@@ -706,6 +706,6 @@ class TestRepofile:
         pytest.param(False, ssl.CERT_NONE, id="host_verification_disabled_when_verify_false"),
     ],
 )
-def test__get_ssl_context_verify_mode(ssl_verify: bool, expected_mode: int) -> None:
+def test_get_ssl_context_verify_mode(ssl_verify: bool, expected_mode: int) -> None:
     ssl_context = _get_ssl_context(SSLOptions(ssl_verify=ssl_verify))
     assert ssl_context.verify_mode is expected_mode
