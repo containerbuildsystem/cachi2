@@ -1,5 +1,8 @@
 FROM docker.io/ibmjava:11-jdk
 
+# Test disabled network access
+RUN if curl -IsS www.google.com; then echo "Has network access!"; exit 1; fi
+
 RUN cp -r /tmp/generic_maven_e2e-output/deps/generic/ /deps
 
 CMD ["java", "-cp", "/deps/ant.jar:/deps/ant-launcher.jar", "org.apache.tools.ant.Main", "-version"]
