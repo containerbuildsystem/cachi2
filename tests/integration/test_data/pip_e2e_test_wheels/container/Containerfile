@@ -1,6 +1,6 @@
 FROM docker.io/python:3.12
 
-# check network access
+# Test disabled network access
 RUN if curl -IsS www.google.com; then echo "Has network access!"; exit 1; fi
 
 # check source code
