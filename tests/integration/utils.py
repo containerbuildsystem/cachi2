@@ -18,6 +18,7 @@ import yaml
 from git import Repo
 
 from cachi2.core import resolver
+from cachi2.interface.cli import DEFAULT_OUTPUT
 
 # force IPv4 localhost as 'localhost' can resolve with IPv6 as well
 TEST_SERVER_LOCALHOST = "127.0.0.1"
@@ -63,8 +64,7 @@ CYCLONEDX_SCHEMA_URL = (
 
 @dataclass
 class TestParameters:
-    repo: str
-    ref: str
+    branch: str
     packages: Tuple[Dict[str, Any], ...]
     check_output: bool = True
     check_deps_checksums: bool = True
@@ -94,12 +94,12 @@ class ContainerImage:
 
     def run_cmd_on_image(
         self,
-        cmd: List,
-        tmpdir: StrPath,
+        cmd: list[str],
+        tmp_path: Path,
         mounts: Sequence[tuple[StrPath, StrPath]] = (),
         net: Optional[str] = None,
     ) -> Tuple[str, int]:
-        flags = ["-v", f"{tmpdir}:{tmpdir}:z"]
+        flags = ["-v", f"{tmp_path}:{tmp_path}:z"]
         for src, dest in mounts:
             flags.append("-v")
             flags.append(f"{src}:{dest}:z")
@@ -118,8 +118,8 @@ class ContainerImage:
 class Cachi2Image(ContainerImage):
     def run_cmd_on_image(
         self,
-        cmd: List,
-        tmpdir: StrPath,
+        cmd: list[str],
+        tmp_path: Path,
         mounts: Sequence[tuple[StrPath, StrPath]] = (),
         net: Optional[str] = "host",
     ) -> Tuple[str, int]:
@@ -129,30 +129,42 @@ class Cachi2Image(ContainerImage):
                 netrc_path = Path(netrc_tmpdir, ".netrc")
                 netrc_path.write_text(netrc_content)
                 return super().run_cmd_on_image(
-                    cmd, tmpdir, [*mounts, (netrc_path, "/root/.netrc")], net
+                    cmd, tmp_path, [*mounts, (netrc_path, "/root/.netrc")], net
                 )
-        return super().run_cmd_on_image(cmd, tmpdir, mounts, net)
+        return super().run_cmd_on_image(cmd, tmp_path, mounts, net)
 
 
 def build_image(context_dir: Path, tag: str) -> ContainerImage:
     return _build_image(["podman", "build", str(context_dir)], tag=tag)
 
 
-def build_image_for_test_case(tmp_path: Path, containerfile: str, test_case: str) -> ContainerImage:
+def build_image_for_test_case(
+    source_dir: Path,
+    output_dir: Path,
+    containerfile_path: Path,
+    test_case: str,
+) -> ContainerImage:
+    # mounts the source code of the test case
+    source_dir_mount_point = "/src"
+    # mounts the output of the fetch-deps command and cachi2.env
+    output_dir_mount_point = "/tmp"
+
     cmd = [
         "podman",
         "build",
         "-f",
-        containerfile,
+        str(containerfile_path),
         "-v",
-        f"{tmp_path}:/tmp:Z",
+        f"{source_dir}:{source_dir_mount_point}:Z",
+        "-v",
+        f"{output_dir}:{output_dir_mount_point}:Z",
         "--no-cache",
         "--network",
         "none",
     ]
 
     # this should be extended to support more archs when we have the means of testing it in our CI
-    rpm_repos_path = f"{tmp_path}/{test_case}-output/deps/rpm/x86_64/repos.d"
+    rpm_repos_path = f"{output_dir}/cachi2-output/deps/rpm/x86_64/repos.d"
     if Path(rpm_repos_path).exists():
         cmd.extend(
             [
@@ -328,37 +340,48 @@ def fetch_deps_and_check_output(
     tmp_path: Path,
     test_case: str,
     test_params: TestParameters,
-    source_folder: Path,
+    test_repo_dir: Path,
     test_data_dir: Path,
     cachi2_image: ContainerImage,
     mounts: Sequence[tuple[StrPath, StrPath]] = (),
-) -> Path:
+) -> None:
     """
     Fetch dependencies for source repo and check expected output.
 
-    :param tmp_path: Temp directory for pytest
+    :param tmp_path: pytest fixture for temporary directory
     :param test_case: Test case name retrieved from pytest id
     :param test_params: Test case arguments
-    :param source_folder: Folder path to source repository content
+    :param test_repo_dir: Path to source repository
     :param test_data_dir: Relative path to expected output test data
     :param cachi2_image: ContainerImage instance with Cachi2 image
     :param mounts: Additional volumes to be mounted to the image
-    :return: Path to output folder with fetched dependencies and output.json
+    :return: None
     """
-    output_folder = tmp_path.joinpath(f"{test_case}-output")
+    repo = Repo(test_repo_dir)
+    repo.git.reset("--hard")
+    # remove untracked files and directories from the working tree
+    # git will refuse to modify untracked nested git repositories unless a second -f is given
+    repo.git.clean("-ffdx")
+    repo.git.checkout(test_params.branch)
+
+    output_dir = tmp_path.joinpath(DEFAULT_OUTPUT)
     cmd = [
         "fetch-deps",
         "--source",
-        source_folder,
+        str(test_repo_dir),
         "--output",
-        output_folder,
+        str(output_dir),
     ]
     if test_params.flags:
         cmd += test_params.flags
 
-    cmd.append(json.dumps(test_params.packages).encode("utf-8"))
+    cmd.append(json.dumps(test_params.packages))
 
-    (output, exit_code) = cachi2_image.run_cmd_on_image(cmd, tmp_path, mounts)
+    (output, exit_code) = cachi2_image.run_cmd_on_image(
+        cmd,
+        tmp_path,
+        [*mounts, (test_repo_dir, test_repo_dir)],
+    )
     assert exit_code == test_params.expected_exit_code, (
         f"Fetching deps ended with unexpected exitcode: {exit_code} != "
         f"{test_params.expected_exit_code}, output-cmd: {output}"
@@ -368,11 +391,11 @@ def fetch_deps_and_check_output(
     ), f"Expected msg {test_params.expected_output} was not found in cmd output: {output}"
 
     if test_params.check_output:
-        build_config = _load_json_or_yaml(output_folder.joinpath(".build-config.json"))
-        sbom = _load_json_or_yaml(output_folder.joinpath("bom.json"))
+        build_config = _load_json_or_yaml(output_dir.joinpath(".build-config.json"))
+        sbom = _load_json_or_yaml(output_dir.joinpath("bom.json"))
 
         if "project_files" in build_config:
-            _replace_tmp_path_with_placeholder(build_config["project_files"], tmp_path)
+            _replace_tmp_path_with_placeholder(build_config["project_files"], test_repo_dir)
 
         # store .build_config as yaml for more readable test data
         expected_build_config_path = test_data_dir.joinpath(test_case, ".build-config.yaml")
@@ -394,10 +417,10 @@ def fetch_deps_and_check_output(
 
     deps_content_file = Path(test_data_dir, test_case, "fetch_deps_file_contents.yaml")
     if deps_content_file.exists():
-        _validate_expected_dep_file_contents(deps_content_file, Path(output_folder))
+        _validate_expected_dep_file_contents(deps_content_file, output_dir)
 
     if test_params.check_deps_checksums:
-        files_checksums = _calculate_files_checksums_in_dir(output_folder.joinpath("deps"))
+        files_checksums = _calculate_files_checksums_in_dir(output_dir.joinpath("deps"))
         expected_files_checksums_path = test_data_dir.joinpath(
             test_data_dir, test_case, "fetch_deps_sha256sums.json"
         )
@@ -408,7 +431,7 @@ def fetch_deps_and_check_output(
         assert files_checksums == expected_files_checksums
 
     if test_params.check_vendor_checksums:
-        files_checksums = _calculate_files_checksums_in_dir(source_folder.joinpath("vendor"))
+        files_checksums = _calculate_files_checksums_in_dir(test_repo_dir.joinpath("vendor"))
         expected_files_checksums_path = test_data_dir.joinpath(test_case, "vendor_sha256sums.json")
         update_test_data_if_needed(expected_files_checksums_path, files_checksums)
         expected_files_checksums = _load_json_or_yaml(expected_files_checksums_path)
@@ -416,12 +439,10 @@ def fetch_deps_and_check_output(
         log.info("Compare checksums of files in source vendor folder")
         assert files_checksums == expected_files_checksums
 
-    return output_folder
-
 
 def build_image_and_check_cmd(
     tmp_path: Path,
-    output_folder: Path,
+    test_repo_dir: Path,
     test_data_dir: Path,
     test_case: str,
     check_cmd: List,
@@ -431,55 +452,71 @@ def build_image_and_check_cmd(
     """
     Build image and check that Cachi2 provided sources properly.
 
-    :param tmp_path: Temp directory for pytest
-    :param output_folder: Path to output folder with fetched dependencies and output.json
-    :param test_case: Test case name retrieved from pytest id
+    :param tmp_path: pytest fixture for temporary directory
+    :param test_repo_dir: Path to source repository
     :param test_data_dir: Relative path to expected output test data
+    :param test_case: Test case name retrieved from pytest id
     :param check_cmd: Command to be run on image to check provided sources
     :param expected_cmd_output: Expected output of check_cmd
     :param cachi2_image: ContainerImage instance with Cachi2 image
+    :return: None
     """
-    log.info("Create cachi2.env file")
+    output_dir = tmp_path.joinpath(DEFAULT_OUTPUT)
+
+    log.info("Creating cachi2.env file")
     env_vars_file = tmp_path.joinpath("cachi2.env")
     cmd = [
         "generate-env",
-        output_folder,
+        str(output_dir),
         "--output",
-        env_vars_file,
+        str(env_vars_file),
         "--for-output-dir",
-        Path("/tmp").joinpath(f"{test_case}-output"),
+        f"/tmp/{DEFAULT_OUTPUT}",
     ]
     (output, exit_code) = cachi2_image.run_cmd_on_image(cmd, tmp_path)
     assert exit_code == 0, f"Env var file creation failed. output-cmd: {output}"
 
-    log.info("Inject project files")
+    log.info("Injecting project files")
     cmd = [
         "inject-files",
-        output_folder,
+        str(output_dir),
         "--for-output-dir",
-        Path("/tmp").joinpath(f"{test_case}-output"),
+        f"/tmp/{DEFAULT_OUTPUT}",
     ]
-    (output, exit_code) = cachi2_image.run_cmd_on_image(cmd, tmp_path)
+    (output, exit_code) = cachi2_image.run_cmd_on_image(
+        cmd, tmp_path, [(test_repo_dir, test_repo_dir)]
+    )
     assert exit_code == 0, f"Injecting project files failed. output-cmd: {output}"
 
     log.info("Build container image with all prerequisites retrieved in previous steps")
     container_folder = test_data_dir.joinpath(test_case, "container")
 
-    with build_image_for_test_case(
-        tmp_path, str(container_folder.joinpath("Containerfile")), test_case
-    ) as test_image:
-        log.info(f"Run command {check_cmd} on built image {test_image.repository}")
-        (output, exit_code) = test_image.run_cmd_on_image(check_cmd, tmp_path)
+    test_image = build_image_for_test_case(
+        source_dir=test_repo_dir,
+        output_dir=tmp_path,
+        containerfile_path=container_folder.joinpath("Containerfile"),
+        test_case=test_case,
+    )
 
-        assert exit_code == 0, f"{check_cmd} command failed, Output: {output}"
-        for expected_output in expected_cmd_output:
-            assert expected_output in output, f"{expected_output} is missing in {output}"
+    log.info(f"Run command {check_cmd} on built image {test_image.repository}")
+    (output, exit_code) = test_image.run_cmd_on_image(check_cmd, tmp_path)
+
+    assert exit_code == 0, f"{check_cmd} command failed, Output: {output}"
+    for expected_output in expected_cmd_output:
+        assert expected_output in output, f"{expected_output} is missing in {output}"
 
 
-def _replace_tmp_path_with_placeholder(project_files: list[dict[str, str]], tmp_path: Path) -> None:
+def _replace_tmp_path_with_placeholder(
+    project_files: list[dict[str, str]], test_repo_dir: Path
+) -> None:
     for item in project_files:
-        relative_path = item["abspath"].replace(str(tmp_path), "")
-        item["abspath"] = "${test_case_tmpdir}" + str(relative_path)
+        if "bundler" in item["abspath"]:
+            # special case for bundler, as it is not a real project file
+            item["abspath"] = "${test_case_tmp_path}/cachi2-output/bundler/config_override/config"
+            continue
+
+        relative_path = Path(item["abspath"]).relative_to(test_repo_dir)
+        item["abspath"] = "${test_case_tmp_path}/" + str(relative_path)
 
 
 def _validate_expected_dep_file_contents(dep_contents_file: Path, output_dir: Path) -> None:

@@ -13,8 +13,7 @@ log = logging.getLogger(__name__)
     [
         pytest.param(
             utils.TestParameters(
-                repo="https://github.com/cachito-testing/cachi2-yarn-berry.git",
-                ref="08f09b9340c85fbb84c8fb46fc19a235056a178b",
+                branch="yarn/zero-installs",
                 packages=({"path": ".", "type": "yarn"},),
                 check_output=False,
                 check_deps_checksums=False,
@@ -26,8 +25,7 @@ log = logging.getLogger(__name__)
         ),
         pytest.param(
             utils.TestParameters(
-                repo="https://github.com/cachito-testing/cachi2-yarn-berry.git",
-                ref="ea24d50fcc20f44f74fc0e7beb482c18349b1002",
+                branch="yarn/disallowed-protocols",
                 packages=({"path": ".", "type": "yarn"},),
                 check_output=False,
                 check_vendor_checksums=False,
@@ -39,8 +37,7 @@ log = logging.getLogger(__name__)
         ),
         pytest.param(
             utils.TestParameters(
-                repo="https://github.com/cachito-testing/cachi2-yarn-berry.git",
-                ref="712e2e1baff80f8ad6e493babf08318b9051b3c7",
+                branch="yarn/corepack-install",
                 packages=({"path": ".", "type": "yarn"},),
                 check_vendor_checksums=False,
                 expected_exit_code=0,
@@ -50,8 +47,7 @@ log = logging.getLogger(__name__)
         ),
         pytest.param(
             utils.TestParameters(
-                repo="https://github.com/cachito-testing/cachi2-yarn-berry.git",
-                ref="53a2bfe8d5ee7ed9c2f752fe75831a881d54895f",
+                branch="yarn/v4",
                 packages=({"path": ".", "type": "yarn"},),
                 check_vendor_checksums=False,
                 expected_exit_code=0,
@@ -61,8 +57,7 @@ log = logging.getLogger(__name__)
         ),
         pytest.param(
             utils.TestParameters(
-                repo="https://github.com/cachito-testing/cachi2-yarn-berry.git",
-                ref="9d6a941220a1dfb14a6bdb6f3c52d7204a939688",
+                branch="yarn/immutable-installs",
                 packages=({"path": ".", "type": "yarn"},),
                 check_output=False,
                 check_vendor_checksums=False,
@@ -74,8 +69,7 @@ log = logging.getLogger(__name__)
         ),
         pytest.param(
             utils.TestParameters(
-                repo="https://github.com/cachito-testing/cachi2-yarn-berry.git",
-                ref="c5268f91f0a0b68fa72d4f2c3a570d348d194241",
+                branch="yarn/incorrect-checksum",
                 packages=({"path": ".", "type": "yarn"},),
                 check_output=False,
                 check_deps_checksums=False,
@@ -87,8 +81,7 @@ log = logging.getLogger(__name__)
         ),
         pytest.param(
             utils.TestParameters(
-                repo="https://github.com/cachito-testing/cachi2-yarn-berry.git",
-                ref="c1da60842aa94aaab8ed48122dc44522bd2a5ab1",
+                branch="yarn/missing-lockfile",
                 packages=({"path": ".", "type": "yarn"},),
                 check_output=False,
                 check_deps_checksums=False,
@@ -104,6 +97,7 @@ def test_yarn_packages(
     test_params: utils.TestParameters,
     cachi2_image: utils.ContainerImage,
     tmp_path: Path,
+    test_repo_dir: Path,
     test_data_dir: Path,
     request: pytest.FixtureRequest,
 ) -> None:
@@ -115,12 +109,8 @@ def test_yarn_packages(
     """
     test_case = request.node.callspec.id
 
-    source_folder = utils.clone_repository(
-        test_params.repo, test_params.ref, f"{test_case}-source", tmp_path
-    )
-
     utils.fetch_deps_and_check_output(
-        tmp_path, test_case, test_params, source_folder, test_data_dir, cachi2_image
+        tmp_path, test_case, test_params, test_repo_dir, test_data_dir, cachi2_image
     )
 
 
@@ -129,8 +119,7 @@ def test_yarn_packages(
     [
         pytest.param(
             utils.TestParameters(
-                repo="https://github.com/cachito-testing/cachi2-yarn-berry.git",
-                ref="70515793108df42547d3320c7ea4cd6b6e505c46",
+                branch="yarn/e2e",
                 packages=({"path": ".", "type": "yarn"},),
                 check_vendor_checksums=False,
                 expected_exit_code=0,
@@ -142,8 +131,7 @@ def test_yarn_packages(
         ),
         pytest.param(
             utils.TestParameters(
-                repo="https://github.com/cachito-testing/cachi2-yarn-berry.git",
-                ref="b6f47bd07e669c8d2eced8015c4bfb06db499493",
+                branch="yarn/e2e-multiple-packages",
                 packages=(
                     {"path": "first-pkg", "type": "yarn"},
                     {"path": "second-pkg", "type": "yarn"},
@@ -164,23 +152,20 @@ def test_e2e_yarn(
     expected_cmd_output: str,
     cachi2_image: utils.ContainerImage,
     tmp_path: Path,
+    test_repo_dir: Path,
     test_data_dir: Path,
     request: pytest.FixtureRequest,
 ) -> None:
     """End to end test for yarn berry."""
     test_case = request.node.callspec.id
 
-    source_folder = utils.clone_repository(
-        test_params.repo, test_params.ref, f"{test_case}-source", tmp_path
-    )
-
-    output_folder = utils.fetch_deps_and_check_output(
-        tmp_path, test_case, test_params, source_folder, test_data_dir, cachi2_image
+    utils.fetch_deps_and_check_output(
+        tmp_path, test_case, test_params, test_repo_dir, test_data_dir, cachi2_image
     )
 
     utils.build_image_and_check_cmd(
         tmp_path,
-        output_folder,
+        test_repo_dir,
         test_data_dir,
         test_case,
         check_cmd,

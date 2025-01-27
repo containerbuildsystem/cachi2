@@ -13,8 +13,7 @@ log = logging.getLogger(__name__)
     [
         pytest.param(
             utils.TestParameters(
-                repo="https://github.com/cachito-testing/cachi2-yarn.git",
-                ref="corepack_packagemanager_ignored",
+                branch="yarn-classic/corepack-ignored",
                 packages=({"path": ".", "type": "yarn"},),
                 check_output=False,
                 check_deps_checksums=False,
@@ -26,8 +25,7 @@ log = logging.getLogger(__name__)
         ),
         pytest.param(
             utils.TestParameters(
-                repo="https://github.com/cachito-testing/cachi2-yarn.git",
-                ref="yarnpath_ignored",
+                branch="yarn-classic/yarn-path-ignored",
                 packages=({"path": ".", "type": "yarn"},),
                 check_output=False,
                 check_deps_checksums=False,
@@ -39,8 +37,7 @@ log = logging.getLogger(__name__)
         ),
         pytest.param(
             utils.TestParameters(
-                repo="https://github.com/cachito-testing/cachi2-yarn.git",
-                ref="invalid_checksum",
+                branch="yarn-classic/invalid-checksum",
                 packages=({"path": ".", "type": "yarn"},),
                 check_output=False,
                 check_deps_checksums=False,
@@ -52,8 +49,7 @@ log = logging.getLogger(__name__)
         ),
         pytest.param(
             utils.TestParameters(
-                repo="https://github.com/cachito-testing/cachi2-yarn.git",
-                ref="invalid_frozen_lockfile_add_dependency",
+                branch="yarn-classic/frozen-lockfile",
                 packages=({"path": ".", "type": "yarn"},),
                 check_output=False,
                 check_deps_checksums=False,
@@ -65,8 +61,7 @@ log = logging.getLogger(__name__)
         ),
         pytest.param(
             utils.TestParameters(
-                repo="https://github.com/cachito-testing/cachi2-yarn.git",
-                ref="lifecycle_scripts",
+                branch="yarn-classic/lifecycle-scripts",
                 packages=({"path": ".", "type": "yarn"},),
                 check_output=False,
                 check_deps_checksums=False,
@@ -78,8 +73,7 @@ log = logging.getLogger(__name__)
         ),
         pytest.param(
             utils.TestParameters(
-                repo="https://github.com/cachito-testing/cachi2-yarn.git",
-                ref="offline-mirror-collision",
+                branch="yarn-classic/offline-mirror-collision",
                 packages=({"path": ".", "type": "yarn"},),
                 check_output=False,
                 check_deps_checksums=False,
@@ -95,6 +89,7 @@ def test_yarn_classic_packages(
     test_params: utils.TestParameters,
     cachi2_image: utils.ContainerImage,
     tmp_path: Path,
+    test_repo_dir: Path,
     test_data_dir: Path,
     request: pytest.FixtureRequest,
 ) -> None:
@@ -106,12 +101,8 @@ def test_yarn_classic_packages(
     """
     test_case = request.node.callspec.id
 
-    source_folder = utils.clone_repository(
-        test_params.repo, test_params.ref, f"{test_case}-source", tmp_path
-    )
-
     utils.fetch_deps_and_check_output(
-        tmp_path, test_case, test_params, source_folder, test_data_dir, cachi2_image
+        tmp_path, test_case, test_params, test_repo_dir, test_data_dir, cachi2_image
     )
 
 
@@ -120,8 +111,7 @@ def test_yarn_classic_packages(
     [
         pytest.param(
             utils.TestParameters(
-                repo="https://github.com/cachito-testing/cachi2-yarn.git",
-                ref="valid_yarn_all_dependency_types",
+                branch="yarn-classic/e2e",
                 packages=({"path": ".", "type": "yarn"},),
                 check_vendor_checksums=False,
                 expected_exit_code=0,
@@ -133,8 +123,7 @@ def test_yarn_classic_packages(
         ),
         pytest.param(
             utils.TestParameters(
-                repo="https://github.com/cachito-testing/cachi2-yarn.git",
-                ref="valid_multiple_packages",
+                branch="yarn-classic/e2e-multiple-packages",
                 packages=(
                     {"path": "first-pkg", "type": "yarn"},
                     {"path": "second-pkg", "type": "yarn"},
@@ -155,23 +144,20 @@ def test_e2e_yarn_classic(
     expected_cmd_output: str,
     cachi2_image: utils.ContainerImage,
     tmp_path: Path,
+    test_repo_dir: Path,
     test_data_dir: Path,
     request: pytest.FixtureRequest,
 ) -> None:
     """End to end test for yarn classic."""
     test_case = request.node.callspec.id
 
-    source_folder = utils.clone_repository(
-        test_params.repo, test_params.ref, f"{test_case}-source", tmp_path
-    )
-
-    output_folder = utils.fetch_deps_and_check_output(
-        tmp_path, test_case, test_params, source_folder, test_data_dir, cachi2_image
+    utils.fetch_deps_and_check_output(
+        tmp_path, test_case, test_params, test_repo_dir, test_data_dir, cachi2_image
     )
 
     utils.build_image_and_check_cmd(
         tmp_path,
-        output_folder,
+        test_repo_dir,
         test_data_dir,
         test_case,
         check_cmd,

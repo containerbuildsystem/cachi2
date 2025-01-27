@@ -3,17 +3,10 @@ FROM docker.io/node:18.19.0
 # Test disabled network access
 RUN if curl -IsS www.google.com; then echo "Has network access!"; exit 1; fi
 
-# Print cachi2 env vars file
-RUN cat /tmp/cachi2.env
-
-# Check yarn deps
-RUN ls /tmp/yarn_e2e_test-output/deps/yarn
-
-# Check content of source repository folder
-RUN ls /tmp/yarn_e2e_test-source/
-
-# This should be a COPY, but the source code and Containerfile are in different directories
-RUN cp -r /tmp/yarn_e2e_test-source /src
-
 WORKDIR /src
 RUN . /tmp/cachi2.env && yarn install --mode skip-build && yarn build
+
+# During the build, the source code is only mounted, not copied
+# Some integration tests use CMD that requires the source code to be present
+RUN cp -r /src /app
+WORKDIR /app

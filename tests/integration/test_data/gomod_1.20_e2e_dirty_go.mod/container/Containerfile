@@ -1,18 +1,9 @@
-FROM docker.io/golang:1.20.0 AS build
+FROM docker.io/golang:1.20.0
 
 # Test disabled network access
 RUN if curl -IsS www.google.com; then echo "Has network access!"; exit 1; fi
 
-# Print cachi2 env vars file
-RUN cat /tmp/cachi2.env
-
-# Check content of source repository folder
-RUN ls /tmp/gomod_1.20_e2e_dirty_go.mod-source/
-
-WORKDIR /tmp/gomod_1.20_e2e_dirty_go.mod-source/twenty
-
-# Check that repository is clean (go.mod should not be updated)
-RUN if [ -n "$(git status --porcelain)" ]; then echo "Repo is dirty. Check go.mod"; exit 1; fi
+WORKDIR /src/twenty
 
 RUN . /tmp/cachi2.env && go build -o /usr/bin/twenty
 

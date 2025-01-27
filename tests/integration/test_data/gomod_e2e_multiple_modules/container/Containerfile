@@ -3,10 +3,7 @@ FROM docker.io/golang:1.18.1
 # Test disabled network access
 RUN if curl -IsS www.google.com; then echo "Has network access!"; exit 1; fi
 
-# Print cachi2 env vars file
-RUN cat /tmp/cachi2.env
-
-WORKDIR /tmp/gomod_e2e_multiple_modules-source
+WORKDIR /src
 RUN . /tmp/cachi2.env && \
     cd spam-module && go build -o /usr/bin/spam-module && \
     cd ../eggs-module && go build -o /usr/bin/eggs-module
