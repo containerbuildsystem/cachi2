@@ -138,6 +138,11 @@ def local_dnfserver(top_level_test_dir: Path) -> Iterator[None]:
             try:
                 _check_ssl_configuration()
                 break
+            except requests.ConnectionError:
+                # ConnectionResetError is often reported locally, waiting it over
+                # helps.
+                log.info("Failed to connect to the DNF server, retrying...")
+                continue
             except requests.RequestException as e:
                 raise RuntimeError(e)
         else:
