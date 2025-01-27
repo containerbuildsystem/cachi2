@@ -13,8 +13,7 @@ log = logging.getLogger(__name__)
     [
         pytest.param(
             utils.TestParameters(
-                repo="https://github.com/cachito-testing/cachi2-bundler.git",
-                ref="malformed_ruby_missing_gemfile",
+                branch="bundler/missing-gemfile",
                 packages=({"path": ".", "type": "bundler"},),
                 check_output=False,
                 check_deps_checksums=False,
@@ -26,8 +25,7 @@ log = logging.getLogger(__name__)
         ),
         pytest.param(
             utils.TestParameters(
-                repo="https://github.com/cachito-testing/cachi2-bundler.git",
-                ref="malformed_ruby_missing_gemfile_lock",
+                branch="bundler/missing-lockfile",
                 packages=({"path": ".", "type": "bundler"},),
                 check_output=False,
                 check_deps_checksums=False,
@@ -39,8 +37,7 @@ log = logging.getLogger(__name__)
         ),
         pytest.param(
             utils.TestParameters(
-                repo="https://github.com/cachito-testing/cachi2-bundler.git",
-                ref="malformed_ruby_missing_git_revision",
+                branch="bundler/missing-git-revision",
                 packages=({"path": ".", "type": "bundler"},),
                 check_output=False,
                 check_deps_checksums=False,
@@ -56,18 +53,15 @@ def test_bundler_packages(
     test_params: utils.TestParameters,
     cachi2_image: utils.ContainerImage,
     tmp_path: Path,
+    test_repo_dir: Path,
     test_data_dir: Path,
     request: pytest.FixtureRequest,
 ) -> None:
     """Integration tests for bundler package manager."""
     test_case = request.node.callspec.id
 
-    source_folder = utils.clone_repository(
-        test_params.repo, test_params.ref, f"{test_case}-source", tmp_path
-    )
-
     utils.fetch_deps_and_check_output(
-        tmp_path, test_case, test_params, source_folder, test_data_dir, cachi2_image
+        tmp_path, test_case, test_params, test_repo_dir, test_data_dir, cachi2_image
     )
 
 
@@ -76,8 +70,7 @@ def test_bundler_packages(
     [
         pytest.param(
             utils.TestParameters(
-                repo="https://github.com/cachito-testing/cachi2-bundler.git",
-                ref="well_formed_ruby_all_features",
+                branch="bundler/e2e",
                 packages=({"path": ".", "type": "bundler", "allow_binary": "true"},),
                 check_output=True,
                 check_deps_checksums=False,
@@ -91,8 +84,7 @@ def test_bundler_packages(
         ),
         pytest.param(
             utils.TestParameters(
-                repo="https://github.com/cachito-testing/cachi2-bundler.git",
-                ref="well_formed_ruby_without_gemspec",
+                branch="bundler/e2e-missing-gemspec",
                 packages=({"path": ".", "type": "bundler", "allow_binary": "true"},),
                 check_output=True,
                 check_deps_checksums=False,
@@ -112,6 +104,7 @@ def test_e2e_bundler(
     expected_cmd_output: str,
     cachi2_image: utils.ContainerImage,
     tmp_path: Path,
+    test_repo_dir: Path,
     test_data_dir: Path,
     request: pytest.FixtureRequest,
 ) -> None:
@@ -123,17 +116,13 @@ def test_e2e_bundler(
     """
     test_case = request.node.callspec.id
 
-    source_folder = utils.clone_repository(
-        test_params.repo, test_params.ref, f"{test_case}-source", tmp_path
-    )
-
-    output_folder = utils.fetch_deps_and_check_output(
-        tmp_path, test_case, test_params, source_folder, test_data_dir, cachi2_image
+    utils.fetch_deps_and_check_output(
+        tmp_path, test_case, test_params, test_repo_dir, test_data_dir, cachi2_image
     )
 
     utils.build_image_and_check_cmd(
         tmp_path,
-        output_folder,
+        test_repo_dir,
         test_data_dir,
         test_case,
         check_cmd,

@@ -3,17 +3,10 @@ FROM docker.io/python:3.8
 # Test disabled network access
 RUN if curl -IsS www.google.com; then echo "Has network access!"; exit 1; fi
 
-# Print cachi2 env vars file
-RUN cat /tmp/cachi2.env
-
-# Check pip deps
-RUN ls /tmp/pip_e2e_test-output/deps/pip
-
-# Check content of source repository folder
-RUN ls /tmp/pip_e2e_test-source/
-
-WORKDIR /tmp/pip_e2e_test-source
-
-# Install packages
+WORKDIR /src
 RUN . /tmp/cachi2.env && python3 -m pip install -r requirements.txt
-RUN cp /tmp/pip_e2e_test-source/src/test_package_cachi2/main.py /opt/test_package_cachi2
+
+# During the build, the source code is only mounted, not copied
+# Some integration tests use CMD that requires the source code to be present
+RUN cp -r /src /app
+WORKDIR /app

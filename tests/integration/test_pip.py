@@ -15,8 +15,7 @@ log = logging.getLogger(__name__)
     [
         pytest.param(
             utils.TestParameters(
-                repo="https://github.com/cachito-testing/cachito-pip-without-deps.git",
-                ref="3fe2fc3cb8ffa36317cacbd9d356e35e17af2824",
+                branch="pip/without-deps",
                 packages=({"path": ".", "type": "pip"},),
                 check_vendor_checksums=False,
                 expected_exit_code=0,
@@ -26,8 +25,7 @@ log = logging.getLogger(__name__)
         ),
         pytest.param(
             utils.TestParameters(
-                repo="https://github.com/cachito-testing/cachito-pip-with-deps.git",
-                ref="56efa5f7eb4ff1b7ea1409dbad76f5bb378291e6",
+                branch="pip/mixed-hashes",
                 packages=({"path": ".", "type": "pip"},),
                 check_vendor_checksums=False,
                 expected_exit_code=0,
@@ -38,8 +36,7 @@ log = logging.getLogger(__name__)
         ),
         pytest.param(
             utils.TestParameters(
-                repo="https://github.com/cachito-testing/cachito-pip-with-deps.git",
-                ref="bbe76b351bf06fcfbaede8f9e2050976d9fd6f3b",
+                branch="pip/full-hashes",
                 packages=({"path": ".", "type": "pip"},),
                 check_vendor_checksums=False,
                 expected_exit_code=0,
@@ -49,8 +46,7 @@ log = logging.getLogger(__name__)
         ),
         pytest.param(
             utils.TestParameters(
-                repo="https://github.com/cachito-testing/cachito-pip-multiple.git",
-                ref="d8a0c2789446f4119604a0cc5e7eb97f30652f9f",
+                branch="pip/multiple-packages",
                 packages=(
                     {"path": "first_pkg", "type": "pip"},
                     {
@@ -69,8 +65,7 @@ log = logging.getLogger(__name__)
         # Test case checks that an attempt to fetch a local file will result in failure.
         pytest.param(
             utils.TestParameters(
-                repo="https://github.com/cachito-testing/cachito-pip-local-path.git",
-                ref="d66f7e029a15e8dc96ced65865344e6088c3fdd5",
+                branch="pip/local-path",
                 packages=({"path": ".", "type": "pip"},),
                 check_output=False,
                 check_deps_checksums=False,
@@ -86,8 +81,7 @@ log = logging.getLogger(__name__)
         ),
         pytest.param(
             utils.TestParameters(
-                repo="https://github.com/cachito-testing/cachi2-pip-extra.git",
-                ref="ece153b4e3eb1f64b3cd8e73b0de7fa8991c3afc",
+                branch="pip/no-metadata",
                 packages=(
                     {"path": ".", "type": "pip"},
                     {"path": "subpath1/subpath2", "type": "pip"},
@@ -100,8 +94,7 @@ log = logging.getLogger(__name__)
         ),
         pytest.param(
             utils.TestParameters(
-                repo="https://github.com/cachito-testing/cachi2-pip-extra.git",
-                ref="5f4d168cd573712e56914c326d5f7eff488d7f32",
+                branch="pip/yanked",
                 packages=({"path": ".", "type": "pip"},),
                 check_vendor_checksums=False,
                 expected_exit_code=0,
@@ -111,8 +104,7 @@ log = logging.getLogger(__name__)
         ),
         pytest.param(
             utils.TestParameters(
-                repo="https://github.com/cachito-testing/cachi2-pip-wheels.git",
-                ref="3697d63affaec82985f1d9b4035d5305e58c91d6",
+                branch="pip/no-wheels",
                 packages=({"path": ".", "type": "pip", "allow_binary": "true"},),
                 check_vendor_checksums=False,
                 expected_exit_code=0,
@@ -122,8 +114,7 @@ log = logging.getLogger(__name__)
         ),
         pytest.param(
             utils.TestParameters(
-                repo="https://github.com/cachito-testing/cachi2-pip-wheels.git",
-                ref="eee59273542ee7d412fb359d471386b645cf166e",
+                branch="pip/no-sdists",
                 packages=({"path": ".", "type": "pip", "allow_binary": "false"},),
                 check_output=False,
                 check_deps_checksums=False,
@@ -135,8 +126,7 @@ log = logging.getLogger(__name__)
         ),
         pytest.param(
             utils.TestParameters(
-                repo="https://github.com/cachito-testing/cachi2-pip-custom-index.git",
-                ref="55376bc13904c2f450aac6ee89969d539c8d9f05",
+                branch="pip/custom-index",
                 packages=({"path": ".", "type": "pip", "allow_binary": True},),
                 check_vendor_checksums=False,
                 expected_exit_code=0,
@@ -154,6 +144,7 @@ def test_pip_packages(
     test_params: utils.TestParameters,
     cachi2_image: utils.ContainerImage,
     tmp_path: Path,
+    test_repo_dir: Path,
     test_data_dir: Path,
     request: pytest.FixtureRequest,
 ) -> None:
@@ -165,12 +156,8 @@ def test_pip_packages(
     """
     test_case = request.node.callspec.id
 
-    source_folder = utils.clone_repository(
-        test_params.repo, test_params.ref, f"{test_case}-source", tmp_path
-    )
-
-    _ = utils.fetch_deps_and_check_output(
-        tmp_path, test_case, test_params, source_folder, test_data_dir, cachi2_image
+    utils.fetch_deps_and_check_output(
+        tmp_path, test_case, test_params, test_repo_dir, test_data_dir, cachi2_image
     )
 
 
@@ -182,8 +169,7 @@ def test_pip_packages(
         # in built image
         pytest.param(
             utils.TestParameters(
-                repo="https://github.com/cachito-testing/pip-e2e-test.git",
-                ref="bae083d57dc265a899b59859b769e88eb8319404",
+                branch="pip/e2e",
                 packages=(
                     {
                         "type": "pip",
@@ -195,14 +181,13 @@ def test_pip_packages(
                 expected_exit_code=0,
                 expected_output="All dependencies fetched successfully",
             ),
-            ["python3", "/opt/test_package_cachi2"],
+            ["python3", "/app/src/test_package_cachi2/main.py"],
             ["registry.fedoraproject.org/fedora-minimal:37"],
             id="pip_e2e_test",
         ),
         pytest.param(
             utils.TestParameters(
-                repo="https://github.com/cachito-testing/cachi2-pip-wheels",
-                ref="eee59273542ee7d412fb359d471386b645cf166e",
+                branch="pip/e2e-wheels",
                 packages=(
                     {
                         "type": "pip",
@@ -215,7 +200,7 @@ def test_pip_packages(
                 expected_exit_code=0,
                 expected_output="All dependencies fetched successfully",
             ),
-            ["python3", "/opt/package"],
+            ["python3", "/app/package/main.py"],
             ["Hello, world!"],
             id="pip_e2e_test_wheels",
         ),
@@ -227,6 +212,7 @@ def test_e2e_pip(
     expected_cmd_output: str,
     cachi2_image: utils.ContainerImage,
     tmp_path: Path,
+    test_repo_dir: Path,
     test_data_dir: Path,
     request: pytest.FixtureRequest,
 ) -> None:
@@ -238,17 +224,13 @@ def test_e2e_pip(
     """
     test_case = request.node.callspec.id
 
-    source_folder = utils.clone_repository(
-        test_params.repo, test_params.ref, f"{test_case}-source", tmp_path
-    )
-
-    output_folder = utils.fetch_deps_and_check_output(
-        tmp_path, test_case, test_params, source_folder, test_data_dir, cachi2_image
+    utils.fetch_deps_and_check_output(
+        tmp_path, test_case, test_params, test_repo_dir, test_data_dir, cachi2_image
     )
 
     utils.build_image_and_check_cmd(
         tmp_path,
-        output_folder,
+        test_repo_dir,
         test_data_dir,
         test_case,
         check_cmd,

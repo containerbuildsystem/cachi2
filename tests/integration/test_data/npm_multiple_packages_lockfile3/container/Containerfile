@@ -3,17 +3,8 @@ FROM docker.io/node:17
 # Test disabled network access
 RUN if curl -IsS www.google.com; then echo "Has network access!"; exit 1; fi
 
-# Print cachi2 env vars file
-RUN cat /tmp/cachi2.env
+WORKDIR /src/first_pkg
+RUN . /tmp/cachi2.env && npm install && npm ls
 
-# Check npm deps
-RUN ls /tmp/npm_multiple_packages_lockfile3-output/deps/npm
-
-# Check content of source repository folder
-RUN ls /tmp/npm_multiple_packages_lockfile3-source/
-
-WORKDIR /tmp/npm_multiple_packages_lockfile3-source
-
-# Install packages
-RUN cd ./first_pkg && . /tmp/cachi2.env && npm i && npm ls
-RUN cd ./second_pkg && . /tmp/cachi2.env && npm i && npm ls
+WORKDIR /src/second_pkg
+RUN . /tmp/cachi2.env && npm install && npm ls

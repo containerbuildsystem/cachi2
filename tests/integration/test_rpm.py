@@ -6,6 +6,8 @@ from typing import List
 
 import pytest
 
+from cachi2.interface.cli import DEFAULT_OUTPUT
+
 from . import utils
 
 
@@ -14,8 +16,7 @@ from . import utils
     [
         pytest.param(
             utils.TestParameters(
-                repo="https://github.com/cachito-testing/cachi2-rpm",
-                ref="missing-checksum",
+                branch="rpm/missing-checksum",
                 packages=({"path": ".", "type": "rpm"},),
                 flags=["--dev-package-managers"],
                 check_output=True,
@@ -27,8 +28,7 @@ from . import utils
         ),
         pytest.param(
             utils.TestParameters(
-                repo="https://github.com/cachito-testing/cachi2-rpm",
-                ref="unmatched-checksum",
+                branch="rpm/unmatched-checksum",
                 packages=({"path": ".", "type": "rpm"},),
                 flags=["--dev-package-managers"],
                 check_output=False,
@@ -41,8 +41,7 @@ from . import utils
         ),
         pytest.param(
             utils.TestParameters(
-                repo="https://github.com/cachito-testing/cachi2-rpm",
-                ref="unexpected-size",
+                branch="rpm/unexpected-size",
                 packages=({"path": ".", "type": "rpm"},),
                 flags=["--dev-package-managers"],
                 check_output=False,
@@ -55,8 +54,7 @@ from . import utils
         ),
         pytest.param(
             utils.TestParameters(
-                repo="https://github.com/cachito-testing/cachi2-rpm",
-                ref="multiple-packages",
+                branch="rpm/multiple-packages",
                 packages=(
                     {"path": "this-project", "type": "rpm"},
                     {"path": "another-project", "type": "rpm"},
@@ -71,8 +69,7 @@ from . import utils
         ),
         pytest.param(
             utils.TestParameters(
-                repo="https://github.com/cachito-testing/cachi2-rpm",
-                ref="multiple-archs",
+                branch="rpm/multiple-archs",
                 packages=({"path": ".", "type": "rpm"},),
                 flags=["--dev-package-managers"],
                 check_output=True,
@@ -84,8 +81,7 @@ from . import utils
         ),
         pytest.param(
             utils.TestParameters(
-                repo="https://github.com/cachito-testing/cachi2-rpm",
-                ref="dnf_tls_client_auth",
+                branch="rpm/dnf-tls-client-auth",
                 packages=(
                     {
                         "path": ".",
@@ -114,8 +110,7 @@ from . import utils
         ),
         pytest.param(
             utils.TestParameters(
-                repo="https://github.com/cachito-testing/cachi2-rpm",
-                ref="multiple-packages",
+                branch="rpm/multiple-packages",
                 packages=(
                     {"path": "this-project", "type": "rpm", "include_summary_in_sbom": "true"},
                     {"path": "another-project", "type": "rpm"},
@@ -134,6 +129,7 @@ def test_rpm_packages(
     test_params: utils.TestParameters,
     cachi2_image: utils.ContainerImage,
     tmp_path: Path,
+    test_repo_dir: Path,
     test_data_dir: Path,
     top_level_test_dir: Path,
     request: pytest.FixtureRequest,
@@ -146,15 +142,11 @@ def test_rpm_packages(
     """
     test_case = request.node.callspec.id
 
-    source_folder = utils.clone_repository(
-        test_params.repo, test_params.ref, f"{test_case}-source", tmp_path
-    )
-
     utils.fetch_deps_and_check_output(
         tmp_path,
         test_case,
         test_params,
-        source_folder,
+        test_repo_dir,
         test_data_dir,
         cachi2_image,
         mounts=[(top_level_test_dir / "dnfserver/certificates", "/certificates")],
@@ -166,8 +158,7 @@ def test_rpm_packages(
     [
         pytest.param(
             utils.TestParameters(
-                repo="https://github.com/cachito-testing/cachi2-rpm",
-                ref="test-repo-file",
+                branch="rpm/repo-file",
                 packages=({"path": ".", "type": "rpm"},),
                 flags=["--dev-package-managers"],
                 check_output=False,
@@ -183,27 +174,24 @@ def test_repo_files(
     test_params: utils.TestParameters,
     cachi2_image: utils.ContainerImage,
     tmp_path: Path,
+    test_repo_dir: Path,
     test_data_dir: Path,
     request: pytest.FixtureRequest,
 ) -> None:
     """Test if the contents of the generated .repo file are correct."""
     test_case = request.node.callspec.id
-    output_folder = tmp_path.joinpath(f"{test_case}-output")
-
-    source_folder = utils.clone_repository(
-        test_params.repo, test_params.ref, f"{test_case}-source", tmp_path
-    )
+    output_dir = tmp_path.joinpath(DEFAULT_OUTPUT)
 
     utils.fetch_deps_and_check_output(
-        tmp_path, test_case, test_params, source_folder, test_data_dir, cachi2_image
+        tmp_path, test_case, test_params, test_repo_dir, test_data_dir, cachi2_image
     )
 
     # call inject-files to create the .repo file
     cmd = [
         "inject-files",
-        output_folder,
+        str(output_dir),
         "--for-output-dir",
-        Path("/tmp", f"{test_case}-output"),
+        f"/tmp/{DEFAULT_OUTPUT}",
     ]
     (output, exit_code) = cachi2_image.run_cmd_on_image(cmd, tmp_path)
     assert exit_code == 0, f"Injecting project files failed. output-cmd: {output}"
@@ -217,7 +205,7 @@ def test_repo_files(
             return re.sub(r"cachi2-[a-f0-9]{6}", "cachi2-aaa000", file.read())
 
     repo_file_content = read_and_normalize_repofile(
-        output_folder.joinpath("deps/rpm/x86_64/repos.d/cachi2.repo")
+        output_dir.joinpath("deps/rpm/x86_64/repos.d/cachi2.repo")
     )
 
     # update test data if needed
@@ -247,8 +235,7 @@ def test_repo_files(
         # RPMs were properly installed
         pytest.param(
             utils.TestParameters(
-                repo="https://github.com/cachito-testing/cachi2-rpm.git",
-                ref="e2e",
+                branch="rpm/e2e",
                 packages=(
                     {
                         "type": "rpm",
@@ -267,8 +254,7 @@ def test_repo_files(
         # if the RPMs (including modular packages) were properly installed.
         pytest.param(
             utils.TestParameters(
-                repo="https://github.com/cachito-testing/cachi2-rpm.git",
-                ref="e2e-modularity",
+                branch="rpm/e2e-modularity",
                 packages=(
                     {
                         "type": "rpm",
@@ -290,6 +276,7 @@ def test_e2e_rpm(
     expected_cmd_output: str,
     cachi2_image: utils.ContainerImage,
     tmp_path: Path,
+    test_repo_dir: Path,
     test_data_dir: Path,
     request: pytest.FixtureRequest,
 ) -> None:
@@ -301,17 +288,13 @@ def test_e2e_rpm(
     """
     test_case = request.node.callspec.id
 
-    source_folder = utils.clone_repository(
-        test_params.repo, test_params.ref, f"{test_case}-source", tmp_path
-    )
-
-    output_folder = utils.fetch_deps_and_check_output(
-        tmp_path, test_case, test_params, source_folder, test_data_dir, cachi2_image
+    utils.fetch_deps_and_check_output(
+        tmp_path, test_case, test_params, test_repo_dir, test_data_dir, cachi2_image
     )
 
     utils.build_image_and_check_cmd(
         tmp_path,
-        output_folder,
+        test_repo_dir,
         test_data_dir,
         test_case,
         check_cmd,

@@ -16,8 +16,7 @@ log = logging.getLogger(__name__)
     [
         pytest.param(
             utils.TestParameters(
-                repo="https://github.com/cachito-testing/cachito-gomod-with-deps.git",
-                ref="4c65d49cae6bfbada4d479b321d8c0109fa1aa97",
+                branch="gomod/with-deps",
                 packages=({"path": ".", "type": "gomod"},),
                 check_vendor_checksums=False,
                 expected_exit_code=0,
@@ -27,8 +26,7 @@ log = logging.getLogger(__name__)
         ),
         pytest.param(
             utils.TestParameters(
-                repo="https://github.com/cachito-testing/cachito-gomod-without-deps.git",
-                ref="a888f7261b9a9683972fbd77da2d12fe86faef5e",
+                branch="gomod/without-deps",
                 packages=({"path": ".", "type": "gomod"},),
                 check_vendor_checksums=False,
                 expected_exit_code=0,
@@ -40,8 +38,7 @@ log = logging.getLogger(__name__)
         # source repo, deps folder in output folder should be empty.
         pytest.param(
             utils.TestParameters(
-                repo="https://github.com/cachito-testing/gomod-vendor-check-pass.git",
-                ref="0543a5034b687df174c6b12b7b6b9c04770a856f",
+                branch="gomod/vendor-check-pass",
                 packages=({"path": ".", "type": "gomod"},),
                 flags=["--gomod-vendor-check"],
                 expected_exit_code=0,
@@ -52,8 +49,7 @@ log = logging.getLogger(__name__)
         # Test case checks if request will fail when source provided wrong vendor.
         pytest.param(
             utils.TestParameters(
-                repo="https://github.com/cachito-testing/gomod-vendor-check-fail.git",
-                ref="8553df6498705b2b36614320ca0c65bc24a1d9e6",
+                branch="gomod/vendor-check-fail",
                 packages=({"path": ".", "type": "gomod"},),
                 flags=["--gomod-vendor-check"],
                 check_output=False,
@@ -70,8 +66,7 @@ log = logging.getLogger(__name__)
         # Test case checks if request will fail when source provided empty vendor.
         pytest.param(
             utils.TestParameters(
-                repo="https://github.com/cachito-testing/gomod-vendor-check-empty-vendor.git",
-                ref="9989e210ac2993196e22d0a23fe18ce460012058",
+                branch="gomod/vendor-check-empty",
                 packages=({"path": ".", "type": "gomod"},),
                 flags=["--gomod-vendor-check"],
                 check_output=False,
@@ -88,8 +83,7 @@ log = logging.getLogger(__name__)
         # Test case checks if package can be replaced with local dependency
         pytest.param(
             utils.TestParameters(
-                repo="https://github.com/cachito-testing/cachito-gomod-local-deps.git",
-                ref="b2e465b91a6a272540c77d4dde1e317773ed700b",
+                branch="gomod/local-deps",
                 packages=({"path": ".", "type": "gomod"},),
                 check_vendor_checksums=False,
                 expected_exit_code=0,
@@ -103,8 +97,7 @@ log = logging.getLogger(__name__)
         # a package and `foobar` as its dependency.
         pytest.param(
             utils.TestParameters(
-                repo="https://github.com/cachito-testing/go-generate-imported.git",
-                ref="56659413f7db4f5feed9bbde4560cb55fbb85d67",
+                branch="gomod/generate-imported",
                 packages=({"path": ".", "type": "gomod"},),
                 check_vendor_checksums=False,
                 expected_exit_code=0,
@@ -117,8 +110,7 @@ log = logging.getLogger(__name__)
         # See also https://github.com/cachito-testing/gomod-multiple-modules/tree/missing-checksums
         pytest.param(
             utils.TestParameters(
-                repo="https://github.com/cachito-testing/gomod-multiple-modules.git",
-                ref="5a8c00ce49210e4b42a02003ef9ed0d1574abdae",
+                branch="gomod/missing-checksums",
                 packages=(
                     {"path": ".", "type": "gomod"},
                     {"path": "spam-module", "type": "gomod"},
@@ -133,8 +125,7 @@ log = logging.getLogger(__name__)
         # Test case checks if cachi2 can process go workspaces properly.
         pytest.param(
             utils.TestParameters(
-                repo="https://github.com/cachito-testing/cachi2-gomod.git",
-                ref="449f904ecf268856ef335b2033cb64cc417b7c26",
+                branch="gomod/workspaces",
                 packages=({"path": "./workspace_modules/hello", "type": "gomod"},),
                 check_vendor_checksums=False,
                 expected_exit_code=0,
@@ -148,6 +139,7 @@ def test_gomod_packages(
     test_params: utils.TestParameters,
     cachi2_image: utils.ContainerImage,
     tmp_path: Path,
+    test_repo_dir: Path,
     test_data_dir: Path,
     request: pytest.FixtureRequest,
 ) -> None:
@@ -159,12 +151,8 @@ def test_gomod_packages(
     """
     test_case = request.node.callspec.id
 
-    source_folder = utils.clone_repository(
-        test_params.repo, test_params.ref, f"{test_case}-source", tmp_path
-    )
-
-    _ = utils.fetch_deps_and_check_output(
-        tmp_path, test_case, test_params, source_folder, test_data_dir, cachi2_image
+    utils.fetch_deps_and_check_output(
+        tmp_path, test_case, test_params, test_repo_dir, test_data_dir, cachi2_image
     )
 
 
@@ -176,8 +164,7 @@ def test_gomod_packages(
         # app in built image
         pytest.param(
             utils.TestParameters(
-                repo="https://github.com/cachito-testing/retrodep.git",
-                ref="c3496edd5d45523a1ed300de1575a212b86d00d3",
+                branch="gomod/e2e-1.18",
                 packages=({"path": ".", "type": "gomod"},),
                 check_vendor_checksums=False,
                 expected_exit_code=0,
@@ -192,8 +179,7 @@ def test_gomod_packages(
         # app in built image. The retrodep module specifies minimum go version 1.21.
         pytest.param(
             utils.TestParameters(
-                repo="https://github.com/cachito-testing/retrodep.git",
-                ref="d0c316edef82e527fed5713f9960cfe7f7c29945",
+                branch="gomod/e2e-1.21",
                 packages=({"path": ".", "type": "gomod"},),
                 check_vendor_checksums=False,
                 expected_exit_code=0,
@@ -207,8 +193,7 @@ def test_gomod_packages(
         # repository for more details.
         pytest.param(
             utils.TestParameters(
-                repo="https://github.com/cachito-testing/gomod-multiple-modules.git",
-                ref="d909c337ffc82c7b92a8efa1281a7b6e8152b4a7",
+                branch="gomod/e2e-multiple-modules",
                 packages=(
                     {"path": ".", "type": "gomod"},
                     {"path": "spam-module", "type": "gomod"},
@@ -226,8 +211,7 @@ def test_gomod_packages(
         # update the go directive in go.mod, but go versions >= 1.21 will and dirty the repository
         pytest.param(
             utils.TestParameters(
-                repo="https://github.com/cachito-testing/cachi2-gomod",
-                ref="3353e452672851079f1926b6b2d7372447104b31",
+                branch="gomod/e2e-1.21-dirty",
                 packages=({"path": "twenty", "type": "gomod"},),
                 check_vendor_checksums=False,
                 expected_exit_code=0,
@@ -242,8 +226,7 @@ def test_gomod_packages(
         ),
         pytest.param(
             utils.TestParameters(
-                repo="https://github.com/eskultety/cachito-testing-cachi2-gomod",
-                ref="5aabb6779a3263103d77f2829cdc8d083fe7e1c5",
+                branch="gomod/e2e-1.22-workspace-vendoring",
                 packages=({"path": "hi/hiii", "type": "gomod"},),
                 flags=["--gomod-vendor"],
                 expected_exit_code=0,
@@ -261,6 +244,7 @@ def test_e2e_gomod(
     expected_cmd_output: str,
     cachi2_image: utils.ContainerImage,
     tmp_path: Path,
+    test_repo_dir: Path,
     test_data_dir: Path,
     request: pytest.FixtureRequest,
 ) -> None:
@@ -272,17 +256,13 @@ def test_e2e_gomod(
     """
     test_case = request.node.callspec.id
 
-    source_folder = utils.clone_repository(
-        test_params.repo, test_params.ref, f"{test_case}-source", tmp_path
-    )
-
-    output_folder = utils.fetch_deps_and_check_output(
-        tmp_path, test_case, test_params, source_folder, test_data_dir, cachi2_image
+    utils.fetch_deps_and_check_output(
+        tmp_path, test_case, test_params, test_repo_dir, test_data_dir, cachi2_image
     )
 
     utils.build_image_and_check_cmd(
         tmp_path,
-        output_folder,
+        test_repo_dir,
         test_data_dir,
         test_case,
         check_cmd,

@@ -14,8 +14,7 @@ log = logging.getLogger(__name__)
     [
         pytest.param(
             utils.TestParameters(
-                repo="https://github.com/cachito-testing/npm-cachi2-bundled.git",
-                ref="de68ac6aa88a81272660b6d0f6d44ce157207799",
+                branch="npm/bundled-lockfile3",
                 packages=({"path": ".", "type": "npm"},),
                 check_vendor_checksums=False,
             ),
@@ -23,8 +22,7 @@ log = logging.getLogger(__name__)
         ),
         pytest.param(
             utils.TestParameters(
-                repo="https://github.com/cachito-testing/npm-cachi2-registry-yarnpkg.git",
-                ref="f830b62780e75357c38abb7e1102871b51bfbcfe",
+                branch="npm/yarn-registry-lockfile3",
                 packages=({"path": ".", "type": "npm"},),
                 check_vendor_checksums=False,
             ),
@@ -36,6 +34,7 @@ def test_npm_packages(
     test_params: utils.TestParameters,
     cachi2_image: utils.ContainerImage,
     tmp_path: Path,
+    test_repo_dir: Path,
     test_data_dir: Path,
     request: pytest.FixtureRequest,
 ) -> None:
@@ -47,12 +46,8 @@ def test_npm_packages(
     """
     test_case = request.node.callspec.id
 
-    source_folder = utils.clone_repository(
-        test_params.repo, test_params.ref, f"{test_case}-source", tmp_path
-    )
-
     utils.fetch_deps_and_check_output(
-        tmp_path, test_case, test_params, source_folder, test_data_dir, cachi2_image
+        tmp_path, test_case, test_params, test_repo_dir, test_data_dir, cachi2_image
     )
 
 
@@ -61,8 +56,7 @@ def test_npm_packages(
     [
         pytest.param(
             utils.TestParameters(
-                repo="https://github.com/cachito-testing/npm-cachi2-smoketest.git",
-                ref="532dd79bde494e90fae261afbb7b464dae2d2e32",
+                branch="npm/smoketest-lockfile2",
                 packages=({"path": ".", "type": "npm"},),
                 check_vendor_checksums=False,
             ),
@@ -72,8 +66,7 @@ def test_npm_packages(
         ),
         pytest.param(
             utils.TestParameters(
-                repo="https://github.com/cachito-testing/npm-cachi2-smoketest.git",
-                ref="f1d31c2b051b218c84399b12461e0957d87bd0cd",
+                branch="npm/smoketest-lockfile3",
                 packages=({"path": ".", "type": "npm"},),
                 check_vendor_checksums=False,
             ),
@@ -83,8 +76,7 @@ def test_npm_packages(
         ),
         pytest.param(
             utils.TestParameters(
-                repo="https://github.com/cachito-testing/cachito-npm-with-multiple-dep-versions.git",
-                ref="97070a9eb06bad62eb581890731221660ade9ea3",
+                branch="npm/multiple-dep-versions",
                 packages=({"path": ".", "type": "npm"},),
                 check_vendor_checksums=False,
             ),
@@ -94,8 +86,7 @@ def test_npm_packages(
         ),
         pytest.param(
             utils.TestParameters(
-                repo="https://github.com/cachito-testing/npm-with-aliased-deps.git",
-                ref="48c5f156b43b8727b10bf464c00847b09e2f25f6",
+                branch="npm/aliased-deps",
                 packages=({"path": ".", "type": "npm"},),
                 check_vendor_checksums=False,
             ),
@@ -105,8 +96,7 @@ def test_npm_packages(
         ),
         pytest.param(
             utils.TestParameters(
-                repo="https://github.com/cachito-testing/npm-dev-optional-peer-deps.git",
-                ref="77018bf73295ef1248d24479da897d960576f933",
+                branch="npm/dev-optional-peer-deps",
                 packages=({"path": ".", "type": "npm"},),
                 check_vendor_checksums=False,
             ),
@@ -116,8 +106,7 @@ def test_npm_packages(
         ),
         pytest.param(
             utils.TestParameters(
-                repo="https://github.com/cachito-testing/npm-cachi2-multiple-packages.git",
-                ref="a721cb61d43d07b0d8276a5b8c4555b1ed75bd39",
+                branch="npm/multiple-packages",
                 packages=(
                     {"path": "first_pkg", "type": "npm"},
                     {"path": "second_pkg", "type": "npm"},
@@ -137,6 +126,7 @@ def test_e2e_npm(
     expected_cmd_output: str,
     cachi2_image: utils.ContainerImage,
     tmp_path: Path,
+    test_repo_dir: Path,
     test_data_dir: Path,
     request: pytest.FixtureRequest,
 ) -> None:
@@ -148,17 +138,13 @@ def test_e2e_npm(
     """
     test_case = request.node.callspec.id
 
-    source_folder = utils.clone_repository(
-        test_params.repo, test_params.ref, f"{test_case}-source", tmp_path
-    )
-
-    output_folder = utils.fetch_deps_and_check_output(
-        tmp_path, test_case, test_params, source_folder, test_data_dir, cachi2_image
+    utils.fetch_deps_and_check_output(
+        tmp_path, test_case, test_params, test_repo_dir, test_data_dir, cachi2_image
     )
 
     utils.build_image_and_check_cmd(
         tmp_path,
-        output_folder,
+        test_repo_dir,
         test_data_dir,
         test_case,
         check_cmd,
