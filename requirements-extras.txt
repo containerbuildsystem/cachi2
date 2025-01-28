@@ -100,6 +100,10 @@ annotated-types==0.7.0 \
     --hash=sha256:1f02e8b43a8fbbc3f3e0d4f0f4bfc8131bcb4eebe8849b8e5c773f3a1c582a53 \
     --hash=sha256:aff07c09a53a08bc8cfccb9c85b05f1aa9a2a6f23728d790723543408344ce89
     # via pydantic
+argcomplete==3.5.3 \
+    --hash=sha256:2ab2c4a215c59fd6caaff41a869480a23e8f6a5f910b266c1808037f4e375b61 \
+    --hash=sha256:c12bf50eded8aebb298c7b7da7a5ff3ee24dffd9f5281867dfe1424b58c55392
+    # via nox
 async-timeout==5.0.1 \
     --hash=sha256:39e3809566ff85354557ec2398b55e096c8364bacac9405a7a1fa429e77fe76c \
     --hash=sha256:d9321a7a3d5a6a5e187e824d2fa0793ce379a202935782d555d6e9d2735677d3
@@ -259,6 +263,10 @@ colorama==0.4.6 \
     --hash=sha256:08695f5cb7ed6e0531a20572697297273c47b8cae5a63ffc6d6ed5c201be6e44 \
     --hash=sha256:4f1d9991f5acc0ca119f9d443620b77f9d6b33703e51011c16baf57afb285fc6
     # via isort
+colorlog==6.9.0 \
+    --hash=sha256:5906e71acd67cb07a71e779c47c4bcb45fb8c2993eebe9e5adcd6a6f1b283eff \
+    --hash=sha256:bfba54a1b93b94f54e1f4fe48395725a3d92fd2a4af702f6bd70946bdc0c6ac2
+    # via nox
 coverage[toml]==7.6.10 \
     --hash=sha256:05fca8ba6a87aabdd2d30d0b6c838b50510b56cdcfc604d40760dae7153b73d9 \
     --hash=sha256:0aa9692b4fdd83a4647eeb7db46410ea1322b5ed94cd1715ef09d1d5922ba87f \
@@ -334,10 +342,18 @@ createrepo-c==1.2.0 \
     --hash=sha256:e99cb0a8fffadc558d034b0cc2736e40e588859ec248cbb00c1b0a902faf1914 \
     --hash=sha256:f515be267ecd4c30f7272608dcaf5bb3635773fe7940d8841062c7cc93d6cd35
     # via cachi2 (pyproject.toml)
+distlib==0.3.9 \
+    --hash=sha256:47f8c22fd27c27e25a65601af709b38e4f0a45ea4fc2e710f65755fa8caaaf87 \
+    --hash=sha256:a60f20dea646b8a33f3e7772f74dc0b2d0772d2837ee1342a00645c81edf9403
+    # via virtualenv
 exceptiongroup==1.2.2 \
     --hash=sha256:3111b9d131c238bec2f8f516e123e14ba243563fb135d3fe885990585aa7795b \
     --hash=sha256:47c2edf7c6738fafb49fd34290706d1a1a2f4d1c6df275526b62cbb4aa5393cc
     # via pytest
+filelock==3.17.0 \
+    --hash=sha256:533dc2f7ba78dc2f0f531fc6c4940addf7b70a481e269a5a3b93be94ffbe8338 \
+    --hash=sha256:ee4e77401ef576ebb38cd7f13b9b28893194acc20a8e68e18730ba9c0e54660e
+    # via virtualenv
 flake8==7.1.1 \
     --hash=sha256:049d058491e228e03e67b390f311bbf88fce2dbaa8fa673e7aea87b7198b8d38 \
     --hash=sha256:597477df7860daa5aa0fdd84bf5208a043ab96b8e96ab708770ae0364dd03213
@@ -636,6 +652,10 @@ mypy-extensions==1.0.0 \
     # via
     #   black
     #   mypy
+nox==2024.10.9 \
+    --hash=sha256:1d36f309a0a2a853e9bccb76bbef6bb118ba92fa92674d15604ca99adeb29eab \
+    --hash=sha256:7aa9dc8d1c27e9f45ab046ffd1c3b2c4f7c91755304769df231308849ebded95
+    # via cachi2 (pyproject.toml)
 packageurl-python==0.16.0 \
     --hash=sha256:5c3872638b177b0f1cf01c3673017b7b27ebee485693ae12a8bed70fa7fa7c35 \
     --hash=sha256:69e3bf8a3932fe9c2400f56aaeb9f86911ecee2f9398dbe1b58ec34340be365d
@@ -646,6 +666,7 @@ packaging==24.2 \
     # via
     #   black
     #   cachi2 (pyproject.toml)
+    #   nox
     #   pypi-simple
     #   pytest
 pathspec==0.12.1 \
@@ -659,7 +680,9 @@ pbr==6.1.0 \
 platformdirs==4.3.6 \
     --hash=sha256:357fb2acbc885b0419afd3ce3ed34564c13c9b95c89360cd9563f73aa5e2b907 \
     --hash=sha256:73e575e1408ab8103900836b97580d5307456908a03e92031bab39e4554cc3fb
-    # via black
+    # via
+    #   black
+    #   virtualenv
 pluggy==1.5.0 \
     --hash=sha256:2cffa88e94fdc978c4c574f15f9e59b7f4201d439195c3715ca9e2486f1d0cf1 \
     --hash=sha256:44e1ad92c8ca002de6377e165f3e0f1be63266ab4d554740532335b9d75ea669
@@ -1151,6 +1174,7 @@ tomli==2.2.1 \
     #   coverage
     #   flake8-pyproject
     #   mypy
+    #   nox
     #   pytest
     #   pytest-env
 typer==0.15.1 \
@@ -1173,6 +1197,10 @@ urllib3==2.3.0 \
     --hash=sha256:1cee9ad369867bfdbbb48b7dd50374c0967a0bb7710050facf0dd6911440e3df \
     --hash=sha256:f8c5449b3cf0861679ce7e0503c7b44b5ec981bec0d1d3795a07f1ba96f0204d
     # via requests
+virtualenv==20.29.1 \
+    --hash=sha256:4e4cb403c0b0da39e13b46b1b2476e505cb0046b25f242bee80f62bf990b2779 \
+    --hash=sha256:b8b8970138d32fb606192cb97f6cd4bb644fa486be9308fb9b63f81091b5dc35
+    # via nox
 yarl==1.18.3 \
     --hash=sha256:00e5a1fea0fd4f5bfa7440a47eff01d9822a65b4488f7cff83155a0f31a2ecba \
     --hash=sha256:02ddb6756f8f4517a2d5e99d8b2f272488e18dd0bfbc802f31c16c6c20f22193 \
