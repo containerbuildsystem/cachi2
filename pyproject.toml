@@ -45,6 +45,7 @@ dev = [
   "flake8-pyproject",
   "isort[colors]",
   "mypy",
+  "nox",
   "typing-extensions",
 ]
 test = [
