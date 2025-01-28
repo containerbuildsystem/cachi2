@@ -45,7 +45,6 @@ jobs:
           pip-compile --generate-hashes --output-file=requirements.txt pyproject.toml
           pip-compile \
               --all-extras \
-              --allow-unsafe \
               --generate-hashes \
               --output-file=requirements-extras.txt \
               pyproject.toml
