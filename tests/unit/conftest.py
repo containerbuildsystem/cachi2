@@ -1,3 +1,4 @@
+import sys
 import tarfile
 from pathlib import Path
 from typing import Generator
@@ -20,7 +21,10 @@ def data_dir() -> Path:
 def golang_repo_path(data_dir: Path, tmp_path: Path) -> Path:
     """Return extracted Golang git repository inside a temporary directory."""
     with tarfile.open(data_dir / "golang_git_repo.tar.gz") as tar:
-        tar.extractall(tmp_path)
+        if sys.version_info >= (3, 12):
+            tar.extractall(tmp_path, filter="fully_trusted")
+        else:
+            tar.extractall(tmp_path)
 
     return tmp_path / "golang_git_repo"
 

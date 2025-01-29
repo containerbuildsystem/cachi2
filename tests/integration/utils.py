@@ -5,6 +5,7 @@ import json
 import logging
 import os
 import shutil
+import sys
 import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -285,7 +286,12 @@ def _safe_extract(tar: TarFile, path: str = ".", *, numeric_owner: bool = False)
         if not abs_member_path.is_relative_to(abs_path):
             raise ExtractError("Attempted Path Traversal in Tar File")
 
-    tar.extractall(path, numeric_owner=numeric_owner)
+    # This 'if' block is to deal with deprectaion warning for unfiltered tar
+    # extraction in 3.12.
+    if sys.version_info >= (3, 12):
+        tar.extractall(path, numeric_owner=numeric_owner, filter="fully_trusted")
+    else:
+        tar.extractall(path, numeric_owner=numeric_owner)
 
 
 def _json_serialize(data: dict[str, Any]) -> str:

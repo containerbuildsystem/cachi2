@@ -1,4 +1,5 @@
 import filecmp
+import sys
 import tarfile
 from pathlib import Path
 from typing import Union
@@ -76,7 +77,10 @@ def test_clone_as_tarball(golang_repo_path: Path, tmp_path: Path) -> None:
     clone_as_tarball(f"file://{original_path}", INITIAL_COMMIT, to_path)
 
     with tarfile.open(to_path) as tar:
-        tar.extractall(tmp_path / "my-repo")
+        if sys.version_info >= (3, 12):
+            tar.extractall(tmp_path / "my-repo", filter="fully_trusted")
+        else:
+            tar.extractall(tmp_path / "my-repo")
 
     my_path = tmp_path / "my-repo" / "app"
 
