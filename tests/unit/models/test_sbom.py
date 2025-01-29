@@ -559,12 +559,14 @@ DEFAULT_ROOT_PACKAGE = SPDXPackage(
     }
 )
 
-DEFAULT_ROOT_RELATION = {
-    "spdxElementId": "SPDXRef-DOCUMENT",
-    "comment": "",
-    "relatedSpdxElement": "SPDXRef-DocumentRoot-File-",
-    "relationshipType": "DESCRIBES",
-}
+DEFAULT_ROOT_RELATION = SPDXRelation(
+    **{
+        "spdxElementId": "SPDXRef-DOCUMENT",
+        "comment": "",
+        "relatedSpdxElement": "SPDXRef-DocumentRoot-File-",
+        "relationshipType": "DESCRIBES",
+    }
+)
 
 
 def _gen_ref(locator: str) -> dict:
