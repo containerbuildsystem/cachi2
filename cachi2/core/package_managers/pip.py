@@ -194,6 +194,10 @@ def fetch_pip_source(request: Request) -> RequestOutput:
             if dependency["package_type"] == "wheel":
                 pip_package_binary = True
 
+            pip_build_dependency = False
+            if dependency["build_dependency"] is True:
+                pip_build_dependency = True
+
             components.append(
                 Component(
                     name=dependency["name"],
@@ -202,6 +206,7 @@ def fetch_pip_source(request: Request) -> RequestOutput:
                     properties=PropertySet(
                         missing_hash_in_file=missing_hash_in_file,
                         pip_package_binary=pip_package_binary,
+                        pip_build_dependency=pip_build_dependency,
                     ).to_properties(),
                 )
             )
@@ -2130,9 +2135,9 @@ def _resolve_pip(
         output_dir, resolved_build_req_files, allow_binary
     )
 
-    # Mark all build dependencies as Cachi2 dev dependencies
+    # Mark all build dependencies as such
     for dependency in build_requires:
-        dependency["dev"] = True
+        dependency["build_dependency"] = True
 
     def _version(dep: dict[str, Any]) -> str:
         if dep["kind"] == "pypi":
@@ -2151,7 +2156,7 @@ def _resolve_pip(
             "version": _version(dep),
             "index_url": dep.get("index_url"),
             "type": "pip",
-            "dev": dep.get("dev", False),
+            "build_dependency": dep.get("build_dependency", False),
             "kind": dep["kind"],
             "requirement_file": dep["requirement_file"],
             "missing_req_file_checksum": dep["missing_req_file_checksum"],

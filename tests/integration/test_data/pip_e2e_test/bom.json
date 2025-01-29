@@ -42,6 +42,10 @@
         {
           "name": "cachi2:found_by",
           "value": "cachi2"
+        },
+        {
+          "name": "cachi2:pip:package:build-dependency",
+          "value": "true"
         }
       ],
       "purl": "pkg:pypi/flit-core@3.8.0",
@@ -78,6 +82,10 @@
         {
           "name": "cachi2:found_by",
           "value": "cachi2"
+        },
+        {
+          "name": "cachi2:pip:package:build-dependency",
+          "value": "true"
         }
       ],
       "purl": "pkg:pypi/setuptools@67.1.0",
@@ -114,6 +122,10 @@
         {
           "name": "cachi2:found_by",
           "value": "cachi2"
+        },
+        {
+          "name": "cachi2:pip:package:build-dependency",
+          "value": "true"
         }
       ],
       "purl": "pkg:pypi/wheel@0.38.4",
