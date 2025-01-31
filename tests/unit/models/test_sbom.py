@@ -115,7 +115,7 @@ class TestSPDXPackage:
         [
             (
                 {
-                    "SPDXID": "SPDXRef-Package-mypkg--4035f88e9e6be21e9717c7170c40cbdce83f591dc862c5a8e4ac21b5636fa875",
+                    "SPDXID": "SPDXRef-Package-mypkg-4035f88e9e6be21e9717c7170c40cbdce83f591dc862c5a8e4ac21b5636fa875",
                     "name": "mypkg",
                     "externalRefs": [
                         {
@@ -126,7 +126,7 @@ class TestSPDXPackage:
                     ],
                 },
                 SPDXPackage(
-                    SPDXID="SPDXRef-Package-mypkg--4035f88e9e6be21e9717c7170c40cbdce83f591dc862c5a8e4ac21b5636fa875",
+                    SPDXID="SPDXRef-Package-mypkg-4035f88e9e6be21e9717c7170c40cbdce83f591dc862c5a8e4ac21b5636fa875",
                     name="mypkg",
                     externalRefs=[
                         SPDXPackageExternalRefPackageManagerPURL(
@@ -350,7 +350,7 @@ class TestSbom:
                 downloadLocation="NOASSERTION",
             ),
             SPDXPackage(
-                SPDXID="SPDXRef-Package-archive.zip-None-965cfdf16e9275d1b3b562dee596de0474cdc751ba4c30715cfc3934fab3b300",
+                SPDXID="SPDXRef-Package-archive.zip-965cfdf16e9275d1b3b562dee596de0474cdc751ba4c30715cfc3934fab3b300",
                 name="archive.zip",
                 versionInfo=None,
                 externalRefs=[
@@ -1146,7 +1146,7 @@ class TestSPDXSbom:
                         SPDXPackage(
                             **{
                                 "name": "bytes",
-                                "SPDXID": "SPDXRef-Package-bytes--159a73f12ce40d92d01ba213c0ec5b442a301c842533acb3487aed9454ae17e7",
+                                "SPDXID": "SPDXRef-Package-bytes-159a73f12ce40d92d01ba213c0ec5b442a301c842533acb3487aed9454ae17e7",
                                 "versionInfo": "",
                                 "externalRefs": [_gen_ref("pkg:golang/bytes")],
                                 "annotations": [STOCK_ANNOTATION],
@@ -1155,7 +1155,7 @@ class TestSPDXSbom:
                         SPDXPackage(
                             **{
                                 "name": "fmt",
-                                "SPDXID": "SPDXRef-Package-fmt--7e4d2ed76d4ea914ece19cdfb657d52dfe5c22193e31c8141497806571490439",
+                                "SPDXID": "SPDXRef-Package-fmt-7e4d2ed76d4ea914ece19cdfb657d52dfe5c22193e31c8141497806571490439",
                                 "versionInfo": "",
                                 "externalRefs": [_gen_ref("pkg:golang/fmt")],
                                 "annotations": [STOCK_ANNOTATION],
@@ -1211,10 +1211,10 @@ class TestSPDXSbom:
                     "relationships": [
                         DEFAULT_ROOT_RELATION,
                         _root_contains(
-                            "SPDXRef-Package-bytes--159a73f12ce40d92d01ba213c0ec5b442a301c842533acb3487aed9454ae17e7"
+                            "SPDXRef-Package-bytes-159a73f12ce40d92d01ba213c0ec5b442a301c842533acb3487aed9454ae17e7"
                         ),
                         _root_contains(
-                            "SPDXRef-Package-fmt--7e4d2ed76d4ea914ece19cdfb657d52dfe5c22193e31c8141497806571490439"
+                            "SPDXRef-Package-fmt-7e4d2ed76d4ea914ece19cdfb657d52dfe5c22193e31c8141497806571490439"
                         ),
                         _root_contains(
                             "SPDXRef-Package-github.com-org-A-v1.0.0-8090f86e9eb851549de5f8391948c1df6a2c8976bfa33c3cbd82e917564ac94f"

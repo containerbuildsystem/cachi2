@@ -204,10 +204,16 @@ class Sbom(pydantic.BaseModel):
 
             for component in libraries:
                 package_hash = SPDXPackage._calculate_package_hash_from_dict(hashdict(component))
+
+                if component.version:
+                    human_readable_id = f"{component.name}-{component.version}"
+                else:
+                    human_readable_id = component.name
+
                 packages.append(
                     SPDXPackage(
                         SPDXID=sanitize_spdxid(
-                            f"SPDXRef-Package-{component.name}-{component.version}-{package_hash}"
+                            f"SPDXRef-Package-{human_readable_id}-{package_hash}"
                         ),
                         name=component.name,
                         versionInfo=component.version,
