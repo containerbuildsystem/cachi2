@@ -408,7 +408,7 @@ class TestSbom:
                 annotations=[],
             ),
             SPDXPackage(
-                SPDXID="SPDXRef-Package-github.com/org/A-v1.0.0-8090f86e9eb851549de5f8391948c1df6a2c8976bfa33c3cbd82e917564ac94f",
+                SPDXID="SPDXRef-Package-github.com-org-A-v1.0.0-8090f86e9eb851549de5f8391948c1df6a2c8976bfa33c3cbd82e917564ac94f",
                 name="github.com/org/A",
                 versionInfo="v1.0.0",
                 externalRefs=[
@@ -434,7 +434,7 @@ class TestSbom:
                 ],
             ),
             SPDXPackage(
-                SPDXID="SPDXRef-Package-github.com/org/A-v1.1.0-898f4d436d82296d12247741855acc48a1f80639d2418e556268f30ae2336303",
+                SPDXID="SPDXRef-Package-github.com-org-A-v1.1.0-898f4d436d82296d12247741855acc48a1f80639d2418e556268f30ae2336303",
                 name="github.com/org/A",
                 versionInfo="v1.1.0",
                 externalRefs=[
@@ -484,13 +484,13 @@ class TestSbom:
             SPDXRelation(
                 spdxElementId="SPDXRef-DocumentRoot-File-",
                 comment="",
-                relatedSpdxElement="SPDXRef-Package-github.com/org/A-v1.0.0-8090f86e9eb851549de5f8391948c1df6a2c8976bfa33c3cbd82e917564ac94f",
+                relatedSpdxElement="SPDXRef-Package-github.com-org-A-v1.0.0-8090f86e9eb851549de5f8391948c1df6a2c8976bfa33c3cbd82e917564ac94f",
                 relationshipType="CONTAINS",
             ),
             SPDXRelation(
                 spdxElementId="SPDXRef-DocumentRoot-File-",
                 comment="",
-                relatedSpdxElement="SPDXRef-Package-github.com/org/A-v1.1.0-898f4d436d82296d12247741855acc48a1f80639d2418e556268f30ae2336303",
+                relatedSpdxElement="SPDXRef-Package-github.com-org-A-v1.1.0-898f4d436d82296d12247741855acc48a1f80639d2418e556268f30ae2336303",
                 relationshipType="CONTAINS",
             ),
             SPDXRelation(
@@ -950,7 +950,7 @@ class TestSPDXSbom:
                         SPDXPackage(
                             **{
                                 "name": "github.com/org/B",
-                                "SPDXID": "SPDXRef-Package-github.com/org/B-v1.0.0-f75a590094f92d64111235b9ae298c34b9acd126f8fc6263b7924810bfe6470c",
+                                "SPDXID": "SPDXRef-Package-github.com-org-B-v1.0.0-f75a590094f92d64111235b9ae298c34b9acd126f8fc6263b7924810bfe6470c",
                                 "versionInfo": "v1.0.0",
                                 "externalRefs": [
                                     _gen_ref(locator="pkg:golang/github.com/org/B@v1.0.0")
@@ -962,7 +962,7 @@ class TestSPDXSbom:
                     "relationships": [
                         DEFAULT_ROOT_RELATION,
                         _root_contains(
-                            "SPDXRef-Package-github.com/org/B-v1.0.0-f75a590094f92d64111235b9ae298c34b9acd126f8fc6263b7924810bfe6470c"
+                            "SPDXRef-Package-github.com-org-B-v1.0.0-f75a590094f92d64111235b9ae298c34b9acd126f8fc6263b7924810bfe6470c"
                         ),
                     ],
                 }
@@ -975,7 +975,7 @@ class TestSPDXSbom:
                         SPDXPackage(
                             **{
                                 "name": "github.com/org/A",
-                                "SPDXID": "SPDXRef-Package-github.com/org/A-v1.1.0-e4e45c4dc4bfb505f298188b3156fcee718b13e618a73a270401f5a3b77e49b3",
+                                "SPDXID": "SPDXRef-Package-github.com-org-A-v1.1.0-e4e45c4dc4bfb505f298188b3156fcee718b13e618a73a270401f5a3b77e49b3",
                                 "versionInfo": "v1.1.0",
                                 "externalRefs": [
                                     _gen_ref(
@@ -988,7 +988,7 @@ class TestSPDXSbom:
                         SPDXPackage(
                             **{
                                 "name": "github.com/org/B",
-                                "SPDXID": "SPDXRef-Package-github.com/org/B-v1.0.0-f75a590094f92d64111235b9ae298c34b9acd126f8fc6263b7924810bfe6470c",
+                                "SPDXID": "SPDXRef-Package-github.com-org-B-v1.0.0-f75a590094f92d64111235b9ae298c34b9acd126f8fc6263b7924810bfe6470c",
                                 "versionInfo": "v1.0.0",
                                 "externalRefs": [
                                     _gen_ref(locator="pkg:golang/github.com/org/B@v1.0.0")
@@ -1001,10 +1001,10 @@ class TestSPDXSbom:
                         DEFAULT_ROOT_RELATION,
                         # NOTE: for the time being test object has to be constructed in order.
                         _root_contains(
-                            "SPDXRef-Package-github.com/org/A-v1.1.0-e4e45c4dc4bfb505f298188b3156fcee718b13e618a73a270401f5a3b77e49b3"
+                            "SPDXRef-Package-github.com-org-A-v1.1.0-e4e45c4dc4bfb505f298188b3156fcee718b13e618a73a270401f5a3b77e49b3"
                         ),
                         _root_contains(
-                            "SPDXRef-Package-github.com/org/B-v1.0.0-f75a590094f92d64111235b9ae298c34b9acd126f8fc6263b7924810bfe6470c"
+                            "SPDXRef-Package-github.com-org-B-v1.0.0-f75a590094f92d64111235b9ae298c34b9acd126f8fc6263b7924810bfe6470c"
                         ),
                     ],
                 }
@@ -1017,7 +1017,7 @@ class TestSPDXSbom:
                         SPDXPackage(
                             **{
                                 "name": "github.com/org/A",
-                                "SPDXID": "SPDXRef-Package-github.com/org/A-v1.1.0-e4e45c4dc4bfb505f298188b3156fcee718b13e618a73a270401f5a3b77e49b3",
+                                "SPDXID": "SPDXRef-Package-github.com-org-A-v1.1.0-e4e45c4dc4bfb505f298188b3156fcee718b13e618a73a270401f5a3b77e49b3",
                                 "versionInfo": "v1.1.0",
                                 "externalRefs": [
                                     _gen_ref(
@@ -1032,7 +1032,7 @@ class TestSPDXSbom:
                                 "name": "github.com/org/A",
                                 # NOTE: now a full purl goes into package hash
                                 # computation procedure:
-                                "SPDXID": "SPDXRef-Package-github.com/org/A-v1.1.0-e92e3a95e71ca3b2ef7bd075547593856dec87255626aa3db90a05dcde1b05ec",
+                                "SPDXID": "SPDXRef-Package-github.com-org-A-v1.1.0-e92e3a95e71ca3b2ef7bd075547593856dec87255626aa3db90a05dcde1b05ec",
                                 "versionInfo": "v1.1.0",
                                 "externalRefs": [
                                     _gen_ref(
@@ -1045,7 +1045,7 @@ class TestSPDXSbom:
                         SPDXPackage(
                             **{
                                 "name": "github.com/org/B",
-                                "SPDXID": "SPDXRef-Package-github.com/org/B-v1.0.0-f75a590094f92d64111235b9ae298c34b9acd126f8fc6263b7924810bfe6470c",
+                                "SPDXID": "SPDXRef-Package-github.com-org-B-v1.0.0-f75a590094f92d64111235b9ae298c34b9acd126f8fc6263b7924810bfe6470c",
                                 "versionInfo": "v1.0.0",
                                 "externalRefs": [
                                     _gen_ref(locator="pkg:golang/github.com/org/B@v1.0.0")
@@ -1057,13 +1057,13 @@ class TestSPDXSbom:
                     "relationships": [
                         DEFAULT_ROOT_RELATION,
                         _root_contains(
-                            "SPDXRef-Package-github.com/org/A-v1.1.0-e4e45c4dc4bfb505f298188b3156fcee718b13e618a73a270401f5a3b77e49b3"
+                            "SPDXRef-Package-github.com-org-A-v1.1.0-e4e45c4dc4bfb505f298188b3156fcee718b13e618a73a270401f5a3b77e49b3"
                         ),
                         _root_contains(
-                            "SPDXRef-Package-github.com/org/A-v1.1.0-e92e3a95e71ca3b2ef7bd075547593856dec87255626aa3db90a05dcde1b05ec"
+                            "SPDXRef-Package-github.com-org-A-v1.1.0-e92e3a95e71ca3b2ef7bd075547593856dec87255626aa3db90a05dcde1b05ec"
                         ),
                         _root_contains(
-                            "SPDXRef-Package-github.com/org/B-v1.0.0-f75a590094f92d64111235b9ae298c34b9acd126f8fc6263b7924810bfe6470c"
+                            "SPDXRef-Package-github.com-org-B-v1.0.0-f75a590094f92d64111235b9ae298c34b9acd126f8fc6263b7924810bfe6470c"
                         ),
                     ],
                 }
@@ -1076,7 +1076,7 @@ class TestSPDXSbom:
                         SPDXPackage(
                             **{
                                 "name": "github.com/org/A",
-                                "SPDXID": "SPDXRef-Package-github.com/org/A-v1.0.0-8090f86e9eb851549de5f8391948c1df6a2c8976bfa33c3cbd82e917564ac94f",
+                                "SPDXID": "SPDXRef-Package-github.com-org-A-v1.0.0-8090f86e9eb851549de5f8391948c1df6a2c8976bfa33c3cbd82e917564ac94f",
                                 "versionInfo": "v1.0.0",
                                 "externalRefs": [_gen_ref("pkg:golang/github.com/org/A@v1.0.0")],
                                 "annotations": [STOCK_ANNOTATION],
@@ -1085,7 +1085,7 @@ class TestSPDXSbom:
                         SPDXPackage(
                             **{
                                 "name": "github.com/org/A",
-                                "SPDXID": "SPDXRef-Package-github.com/org/A-v1.1.0-e4e45c4dc4bfb505f298188b3156fcee718b13e618a73a270401f5a3b77e49b3",
+                                "SPDXID": "SPDXRef-Package-github.com-org-A-v1.1.0-e4e45c4dc4bfb505f298188b3156fcee718b13e618a73a270401f5a3b77e49b3",
                                 "versionInfo": "v1.1.0",
                                 "externalRefs": [
                                     _gen_ref(
@@ -1098,7 +1098,7 @@ class TestSPDXSbom:
                         SPDXPackage(
                             **{
                                 "name": "github.com/org/A",
-                                "SPDXID": "SPDXRef-Package-github.com/org/A-v1.1.0-e92e3a95e71ca3b2ef7bd075547593856dec87255626aa3db90a05dcde1b05ec",
+                                "SPDXID": "SPDXRef-Package-github.com-org-A-v1.1.0-e92e3a95e71ca3b2ef7bd075547593856dec87255626aa3db90a05dcde1b05ec",
                                 "versionInfo": "v1.1.0",
                                 "externalRefs": [
                                     _gen_ref(
@@ -1111,7 +1111,7 @@ class TestSPDXSbom:
                         SPDXPackage(
                             **{
                                 "name": "github.com/org/B",
-                                "SPDXID": "SPDXRef-Package-github.com/org/B-v1.0.0-f75a590094f92d64111235b9ae298c34b9acd126f8fc6263b7924810bfe6470c",
+                                "SPDXID": "SPDXRef-Package-github.com-org-B-v1.0.0-f75a590094f92d64111235b9ae298c34b9acd126f8fc6263b7924810bfe6470c",
                                 "versionInfo": "v1.0.0",
                                 "externalRefs": [
                                     _gen_ref(locator="pkg:golang/github.com/org/B@v1.0.0")
@@ -1123,16 +1123,16 @@ class TestSPDXSbom:
                     "relationships": [
                         DEFAULT_ROOT_RELATION,
                         _root_contains(
-                            "SPDXRef-Package-github.com/org/A-v1.0.0-8090f86e9eb851549de5f8391948c1df6a2c8976bfa33c3cbd82e917564ac94f"
+                            "SPDXRef-Package-github.com-org-A-v1.0.0-8090f86e9eb851549de5f8391948c1df6a2c8976bfa33c3cbd82e917564ac94f"
                         ),
                         _root_contains(
-                            "SPDXRef-Package-github.com/org/A-v1.1.0-e4e45c4dc4bfb505f298188b3156fcee718b13e618a73a270401f5a3b77e49b3"
+                            "SPDXRef-Package-github.com-org-A-v1.1.0-e4e45c4dc4bfb505f298188b3156fcee718b13e618a73a270401f5a3b77e49b3"
                         ),
                         _root_contains(
-                            "SPDXRef-Package-github.com/org/A-v1.1.0-e92e3a95e71ca3b2ef7bd075547593856dec87255626aa3db90a05dcde1b05ec"
+                            "SPDXRef-Package-github.com-org-A-v1.1.0-e92e3a95e71ca3b2ef7bd075547593856dec87255626aa3db90a05dcde1b05ec"
                         ),
                         _root_contains(
-                            "SPDXRef-Package-github.com/org/B-v1.0.0-f75a590094f92d64111235b9ae298c34b9acd126f8fc6263b7924810bfe6470c"
+                            "SPDXRef-Package-github.com-org-B-v1.0.0-f75a590094f92d64111235b9ae298c34b9acd126f8fc6263b7924810bfe6470c"
                         ),
                     ],
                 }
@@ -1164,7 +1164,7 @@ class TestSPDXSbom:
                         SPDXPackage(
                             **{
                                 "name": "github.com/org/A",
-                                "SPDXID": "SPDXRef-Package-github.com/org/A-v1.0.0-8090f86e9eb851549de5f8391948c1df6a2c8976bfa33c3cbd82e917564ac94f",
+                                "SPDXID": "SPDXRef-Package-github.com-org-A-v1.0.0-8090f86e9eb851549de5f8391948c1df6a2c8976bfa33c3cbd82e917564ac94f",
                                 "versionInfo": "v1.0.0",
                                 "externalRefs": [_gen_ref("pkg:golang/github.com/org/A@v1.0.0")],
                                 "annotations": [STOCK_ANNOTATION],
@@ -1173,7 +1173,7 @@ class TestSPDXSbom:
                         SPDXPackage(
                             **{
                                 "name": "github.com/org/A",
-                                "SPDXID": "SPDXRef-Package-github.com/org/A-v1.1.0-e4e45c4dc4bfb505f298188b3156fcee718b13e618a73a270401f5a3b77e49b3",
+                                "SPDXID": "SPDXRef-Package-github.com-org-A-v1.1.0-e4e45c4dc4bfb505f298188b3156fcee718b13e618a73a270401f5a3b77e49b3",
                                 "versionInfo": "v1.1.0",
                                 "externalRefs": [
                                     _gen_ref(
@@ -1186,7 +1186,7 @@ class TestSPDXSbom:
                         SPDXPackage(
                             **{
                                 "name": "github.com/org/A",
-                                "SPDXID": "SPDXRef-Package-github.com/org/A-v1.1.0-e92e3a95e71ca3b2ef7bd075547593856dec87255626aa3db90a05dcde1b05ec",
+                                "SPDXID": "SPDXRef-Package-github.com-org-A-v1.1.0-e92e3a95e71ca3b2ef7bd075547593856dec87255626aa3db90a05dcde1b05ec",
                                 "versionInfo": "v1.1.0",
                                 "externalRefs": [
                                     _gen_ref(
@@ -1199,7 +1199,7 @@ class TestSPDXSbom:
                         SPDXPackage(
                             **{
                                 "name": "github.com/org/B",
-                                "SPDXID": "SPDXRef-Package-github.com/org/B-v1.0.0-f75a590094f92d64111235b9ae298c34b9acd126f8fc6263b7924810bfe6470c",
+                                "SPDXID": "SPDXRef-Package-github.com-org-B-v1.0.0-f75a590094f92d64111235b9ae298c34b9acd126f8fc6263b7924810bfe6470c",
                                 "versionInfo": "v1.0.0",
                                 "externalRefs": [
                                     _gen_ref(locator="pkg:golang/github.com/org/B@v1.0.0")
@@ -1217,16 +1217,16 @@ class TestSPDXSbom:
                             "SPDXRef-Package-fmt--7e4d2ed76d4ea914ece19cdfb657d52dfe5c22193e31c8141497806571490439"
                         ),
                         _root_contains(
-                            "SPDXRef-Package-github.com/org/A-v1.0.0-8090f86e9eb851549de5f8391948c1df6a2c8976bfa33c3cbd82e917564ac94f"
+                            "SPDXRef-Package-github.com-org-A-v1.0.0-8090f86e9eb851549de5f8391948c1df6a2c8976bfa33c3cbd82e917564ac94f"
                         ),
                         _root_contains(
-                            "SPDXRef-Package-github.com/org/A-v1.1.0-e4e45c4dc4bfb505f298188b3156fcee718b13e618a73a270401f5a3b77e49b3"
+                            "SPDXRef-Package-github.com-org-A-v1.1.0-e4e45c4dc4bfb505f298188b3156fcee718b13e618a73a270401f5a3b77e49b3"
                         ),
                         _root_contains(
-                            "SPDXRef-Package-github.com/org/A-v1.1.0-e92e3a95e71ca3b2ef7bd075547593856dec87255626aa3db90a05dcde1b05ec"
+                            "SPDXRef-Package-github.com-org-A-v1.1.0-e92e3a95e71ca3b2ef7bd075547593856dec87255626aa3db90a05dcde1b05ec"
                         ),
                         _root_contains(
-                            "SPDXRef-Package-github.com/org/B-v1.0.0-f75a590094f92d64111235b9ae298c34b9acd126f8fc6263b7924810bfe6470c"
+                            "SPDXRef-Package-github.com-org-B-v1.0.0-f75a590094f92d64111235b9ae298c34b9acd126f8fc6263b7924810bfe6470c"
                         ),
                     ],
                 },
