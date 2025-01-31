@@ -2,6 +2,7 @@ import datetime
 import hashlib
 import json
 import logging
+import re
 from collections import defaultdict
 from functools import cached_property, partial, reduce
 from itertools import chain, groupby
@@ -115,6 +116,17 @@ def spdx_now() -> str:
     return datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
+def sanitize_spdxid(spdxid: str) -> str:
+    """Sanitize an SPDXID.
+
+    See https://spdx.github.io/spdx-spec/v2.3/package-information/#7.2:
+
+    Format  "SPDXRef-"[idstring]
+            where [idstring] is a unique string containing letters, numbers, ., and/or -.
+    """
+    return re.sub(r"[^0-9a-zA-Z\.\-]", "-", spdxid)
+
+
 class Sbom(pydantic.BaseModel):
     """Software bill of materials in the CycloneDX format.
 
@@ -194,7 +206,9 @@ class Sbom(pydantic.BaseModel):
                 package_hash = SPDXPackage._calculate_package_hash_from_dict(hashdict(component))
                 packages.append(
                     SPDXPackage(
-                        SPDXID=f"SPDXRef-Package-{component.name}-{component.version}-{package_hash}",
+                        SPDXID=sanitize_spdxid(
+                            f"SPDXRef-Package-{component.name}-{component.version}-{package_hash}"
+                        ),
                         name=component.name,
                         versionInfo=component.version,
                         externalRefs=[erefdict(component)],
