@@ -159,6 +159,10 @@ def pytest_collection_modifyitems(
     This function implements a standard pytest hook. Please refer to pytest
     docs for further information.
     """
+    # do not try to skip tests if a keyword or marker is specified
+    if config.getoption("-k") or config.getoption("-m"):
+        return
+
     skip_mark = pytest.mark.skip(reason="No changes to tested code")
     tests_to_skip = utils.determine_integration_tests_to_skip()
     for item in items:
