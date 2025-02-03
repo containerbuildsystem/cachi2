@@ -52,7 +52,7 @@ def _present_user_input_error(validation_error: pydantic.ValidationError) -> str
 
 
 # Supported package managers
-PackageManagerType = Literal["bundler", "generic", "gomod", "npm", "pip", "rpm", "yarn"]
+PackageManagerType = Literal["bundler", "cargo", "generic", "gomod", "npm", "pip", "rpm", "yarn"]
 
 Flag = Literal[
     "cgo-disable", "dev-package-managers", "force-gomod-tidy", "gomod-vendor", "gomod-vendor-check"
@@ -114,6 +114,12 @@ class BundlerPackageInput(_PackageInputBase):
 
     type: Literal["bundler"]
     allow_binary: bool = False
+
+
+class CargoPackageInput(_PackageInputBase):
+    """Accepted input for a cargo package."""
+
+    type: Literal["cargo"]
 
 
 class GenericPackageInput(_PackageInputBase):
@@ -227,6 +233,7 @@ class YarnPackageInput(_PackageInputBase):
 PackageInput = Annotated[
     Union[
         BundlerPackageInput,
+        CargoPackageInput,
         GenericPackageInput,
         GomodPackageInput,
         NpmPackageInput,
@@ -302,6 +309,11 @@ class Request(pydantic.BaseModel):
     def bundler_packages(self) -> list[BundlerPackageInput]:
         """Get the bundler packages specified for this request."""
         return self._packages_by_type(BundlerPackageInput)
+
+    @property
+    def cargo_packages(self) -> list[CargoPackageInput]:
+        """Get the cargo packages specified for this request."""
+        return self._packages_by_type(CargoPackageInput)
 
     @property
     def generic_packages(self) -> list[GenericPackageInput]:
