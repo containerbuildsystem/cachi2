@@ -16,9 +16,10 @@ $ nox -l
 
 import os
 from pathlib import Path
+from typing import Any
 
 import nox
-import tomli
+import tomlkit
 from nox.sessions import Session
 
 # default sessions to run (sorted alphabetically)
@@ -39,7 +40,7 @@ def install_requirements(session: Session) -> None:
 def parse_supported_python_versions() -> list[str]:
     """Parse supported Python versions from pyproject.toml."""
     pyproject_path = Path("pyproject.toml")
-    pyproject = tomli.loads(pyproject_path.read_text())
+    pyproject: dict[str, Any] = tomlkit.parse(pyproject_path.read_text())
     classifiers: list[str] = pyproject["project"]["classifiers"]
 
     result = []
