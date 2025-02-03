@@ -30,7 +30,6 @@ dependencies = [
   "pyyaml",
   "requests",
   "semver",
-  "tomli",
   "tomlkit",
   "typer",
   "createrepo-c",

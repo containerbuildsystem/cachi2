@@ -27,7 +27,7 @@ from typing import (
     cast,
 )
 
-import tomli
+import tomlkit
 from packageurl import PackageURL
 
 from cachi2.core.rooted_path import RootedPath
@@ -462,11 +462,11 @@ class PyProjectTOML(SetupFile):
     @functools.cached_property
     def _parsed_toml(self) -> dict[str, Any]:
         try:
-            with open(self._setup_file, "rb") as f:
-                log.debug("Parsing pyproject.toml at %r", str(self._setup_file))
-                data = tomli.load(f)
-                return data
-        except tomli.TOMLDecodeError as e:
+            log.debug("Parsing pyproject.toml at %r", str(self._setup_file))
+            return tomlkit.parse(self._setup_file.path.read_text())
+        # no exceptions are exposed in the public API reference for tomlkit
+        # check https://github.com/python-poetry/tomlkit/issues/399
+        except Exception as e:
             log.error("Failed to parse pyproject.toml: %s", e)
             return {}
 
