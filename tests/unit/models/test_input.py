@@ -160,7 +160,7 @@ class TestPackageInput:
             ),
             pytest.param(
                 {"type": "go-package"},
-                r"Input tag 'go-package' found using 'type' does not match any of the expected tags: 'bundler', 'generic', 'gomod', 'npm', 'pip', 'rpm', 'yarn'",
+                r"Input tag 'go-package' found using 'type' does not match any of the expected tags: 'bundler', 'cargo', 'generic', 'gomod', 'npm', 'pip', 'rpm', 'yarn'",
                 id="incorrect_type_tag",
             ),
             pytest.param(
