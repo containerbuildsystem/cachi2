@@ -5,7 +5,7 @@ from typing import Any, Callable
 from cachi2.core.errors import UnsupportedFeature
 from cachi2.core.models.input import PackageManagerType, Request
 from cachi2.core.models.output import RequestOutput
-from cachi2.core.package_managers import bundler, generic, gomod, metayarn, npm, pip, rpm
+from cachi2.core.package_managers import bundler, cargo, generic, gomod, metayarn, npm, pip, rpm
 from cachi2.core.package_managers.utils import merge_outputs
 from cachi2.core.rooted_path import RootedPath
 from cachi2.core.utils import copy_directory
@@ -24,6 +24,7 @@ _package_managers: dict[PackageManagerType, Handler] = {
 # This is where we put package managers currently under development in order to
 # invoke them via CLI
 _dev_package_managers: dict[PackageManagerType, Handler] = {
+    "cargo": cargo.fetch_cargo_source,
     "rpm": rpm.fetch_rpm_source,
 }
 
