@@ -478,19 +478,19 @@ def build_image_and_check_cmd(
     log.info("Build container image with all prerequisites retrieved in previous steps")
     container_folder = test_data_dir.joinpath(test_case, "container")
 
-    test_image = build_image_for_test_case(
+    with build_image_for_test_case(
         source_dir=test_repo_dir,
         output_dir=tmp_path,
         containerfile_path=container_folder.joinpath("Containerfile"),
         test_case=test_case,
-    )
+    ) as test_image:
 
-    log.info(f"Run command {check_cmd} on built image {test_image.repository}")
-    (output, exit_code) = test_image.run_cmd_on_image(check_cmd, tmp_path)
+        log.info(f"Run command {check_cmd} on built image {test_image.repository}")
+        (output, exit_code) = test_image.run_cmd_on_image(check_cmd, tmp_path)
 
-    assert exit_code == 0, f"{check_cmd} command failed, Output: {output}"
-    for expected_output in expected_cmd_output:
-        assert expected_output in output, f"{expected_output} is missing in {output}"
+        assert exit_code == 0, f"{check_cmd} command failed, Output: {output}"
+        for expected_output in expected_cmd_output:
+            assert expected_output in output, f"{expected_output} is missing in {output}"
 
 
 def _replace_tmp_path_with_placeholder(
