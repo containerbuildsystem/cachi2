@@ -281,11 +281,11 @@ nox -s pip-compile
 
 ## Releasing
 
-To release a new version of Cachi2, simply create a [GitHub release][cachi2-releases]. Note that
-Cachi2 follows [semantic versioning](https://semver.org/) rules.
+To release a new version of Cachi2, simply create a [GitHub release](https://github.com/hermetoproject/cachi2/releases).
+Note that Cachi2 follows [semantic versioning](https://semver.org/) rules.
 
 Upon release, the [.tekton/release.yaml](.tekton/release.yaml) pipeline tags the corresponding
-[Cachi2 image][cachi2-container] with the newly released version tag (after validating that the
+image with the newly released version tag (after validating that the
 tag follows the expected format: `$major.$minor.$patch`, without a `v` prefix).
 
 *You apply a release tag to a specific commit. The [.tekton/push.yaml](.tekton/push.yaml) pipeline

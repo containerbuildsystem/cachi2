@@ -16,7 +16,6 @@ The primary intended use of Cachi2's outputs is for network-isolated container b
 * [Installation](#installation)
 * [Basic usage](#basic-usage)
 * [Configuration](#configuration)
-* [Releasing](#releasing)
 * [Package managers](#package-managers)
 * [Project status](#project-status)
 * [Contributing](CONTRIBUTING.md)
@@ -57,7 +56,7 @@ technologies - such as containers - to achieve isolation (see [usage](docs/usage
 
 We do not distribute Cachi2 as a standalone package as of now.
 
-To install Cachi2 for local development, see the [development](#development) section.
+To install Cachi2 for local development, see the [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ### Container image
 
@@ -256,7 +255,6 @@ Cachi2 was derived (but is not a direct fork) from [Cachito](https://github.com/
 [cachi2-container-badge]: https://img.shields.io/badge/container-latest-blue
 [cachi2-container-status]: https://quay.io/repository/konflux-ci/cachi2/tag/latest
 
-[cachi2-releases]: https://github.com/containerbuildsystem/cachi2/releases
 [sdist-spec]: https://packaging.python.org/en/latest/specifications/source-distribution-format/
 [wheel-spec]: https://packaging.python.org/en/latest/specifications/binary-distribution-format/
 [setuppy-discouraged]: https://setuptools.pypa.io/en/latest/userguide/quickstart.html#setuppy-discouraged
