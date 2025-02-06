@@ -5,11 +5,11 @@ import json
 import logging
 import os
 import shutil
+import subprocess
 import sys
 import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
-from subprocess import PIPE, Popen
 from tarfile import ExtractError, TarFile
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
@@ -185,19 +185,29 @@ def _build_image(podman_cmd: list[str], *, tag: str) -> ContainerImage:
     return ContainerImage(tag)
 
 
-def run_cmd(cmd: List[str]) -> Tuple[str, int]:
+def run_cmd(cmd: Union[List[str], str], **subprocess_kwargs: Any) -> Tuple[str, int]:
     """
     Run command via subprocess.
 
     :param cmd: command to be executed
+    :param subprocess_kwargs: passthrough kwargs to subprocess.run
     :return: Command output and exitcode
     :rtype: Tuple
     """
     log.info("Run command: %s.", cmd)
 
-    process = Popen(cmd, stdout=PIPE, stderr=PIPE)
-    out, err = process.communicate()
-    return (out + err).decode("utf-8"), process.returncode
+    # redirect stderr to stdout for easier evaluation/handling of a single stream
+    forced_options = {
+        "stdout": subprocess.PIPE,
+        "stderr": subprocess.STDOUT,
+        "encoding": "utf-8",
+        "text": True,
+    }
+
+    subprocess_kwargs.update(forced_options)
+    process = subprocess.run(cmd, **subprocess_kwargs)
+
+    return process.stdout, process.returncode
 
 
 def _calculate_files_checksums_in_dir(root_dir: Path) -> Dict:
