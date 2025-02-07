@@ -219,6 +219,12 @@ Example:
 hack/mock-unittest-data/gomod.sh
 ```
 
+To generate new data (output, dependencies checksums, vendor checksums) and run integration tests with them:
+
+```shell
+nox -s generate-test-data
+```
+
 Generate data for test cases matching a pytest pattern:
 
 ```shell
@@ -247,20 +253,6 @@ To run integration-tests with custom image, specify the CACHI2\_IMAGE environmen
 ```shell
 CACHI2_IMAGE=quay.io/konflux-ci/cachi2:{tag} nox -s integration-tests
 CACHI2_IMAGE=localhost/cachi2:latest nox -s  integration-tests
-```
-
-#### Generating new test data
-
-To re-generate new data (output, dependencies checksums, vendor checksums) and run integration tests with them:
-
-```shell
-nox -s generate-test-data
-```
-
-Generate data for test cases matching a pytest pattern:
-
-```shell
-nox -s generate-test-data -- -k test_e2e_gomod
 ```
 
 ### Adding new dependencies to the project
