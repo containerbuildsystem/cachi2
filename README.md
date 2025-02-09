@@ -260,7 +260,7 @@ still in early development phase.
 [cachi2-container-badge]: https://img.shields.io/badge/container-latest-blue
 [cachi2-container-status]: https://quay.io/repository/konflux-ci/cachi2/tag/latest
 
-[cachi2-releases]: https://github.com/containerbuildsystem/cachi2/releases
+[cachi2-releases]: https://github.com/hermetoproject/cachi2/releases
 [sdist-spec]: https://packaging.python.org/en/latest/specifications/source-distribution-format/
 [wheel-spec]: https://packaging.python.org/en/latest/specifications/binary-distribution-format/
 [setuppy-discouraged]: https://setuptools.pypa.io/en/latest/userguide/quickstart.html#setuppy-discouraged
