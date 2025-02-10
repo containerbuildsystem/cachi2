@@ -143,9 +143,6 @@ Planned:
 * dnf
 * cargo
 
-*Based on the [supported package managers](https://github.com/containerbuildsystem/cachito#package-managers) in the
-original Cachito.*
-
 ### gomod
 
 <https://go.dev/ref/mod>
@@ -251,8 +248,7 @@ See [docs/generic.md](docs/generic.md) for more details.
 
 ## Project status
 
-Cachi2 was derived (but is not a direct fork) from [Cachito](https://github.com/containerbuildsystem/cachito) and is
-still in early development phase.
+Cachi2 was derived (but is not a direct fork) from [Cachito](https://github.com/containerbuildsystem/cachito).
 
 [cachi2-coverage-badge]: https://codecov.io/github/containerbuildsystem/cachi2/graph/badge.svg?token=VJKRTZQBMY
 [cachi2-coverage-status]: https://codecov.io/github/containerbuildsystem/cachi2
