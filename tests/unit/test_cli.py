@@ -931,10 +931,6 @@ class TestMergeSboms:
             [
                 "./tests/unit/data/sboms/cachi2.bom.json",
                 "./tests/unit/data/sboms/cachito_gomod.bom.json",
-            ],
-            [
-                "./tests/unit/data/sboms/cachi2.bom.json",
-                "./tests/unit/data/sboms/cachito_gomod.bom.json",
                 "./tests/unit/data/sboms/cachito_gomod_nodeps.bom.json",
             ],
         ],
@@ -949,10 +945,6 @@ class TestMergeSboms:
     @pytest.mark.parametrize(
         "sbom_files_to_merge",
         [
-            [
-                "./tests/unit/data/sboms/cachi2.bom.json",
-                "./tests/unit/data/sboms/cachito_gomod.bom.json",
-            ],
             [
                 "./tests/unit/data/sboms/cachi2.bom.json",
                 "./tests/unit/data/sboms/cachito_gomod.bom.json",
