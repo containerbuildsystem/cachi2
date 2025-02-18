@@ -128,19 +128,46 @@ when downloading Go modules. See [Go environment variables](https://go.dev/ref/m
 
 ## Package managers
 
-Supported:
+| Package manager                                | Ecosystem            |
+|------------------------------------------------|----------------------|
+| [bundler](#bundler)                            | Ruby                 |
+| [generic](#generic-fetcher)                    | N/A                  |
+| [gomod](#gomod)                                | Go                   |
+| [npm](#npm)                                    | JavaScript           |
+| [pip](#pip)                                    | Python               |
+| rpm*                                           | RPM                  |
+| [yarn](#yarn)                                  | JavaScript           |
 
-* [gomod](#gomod)
-* [pip](#pip)
-* [npm](#npm)
-* [yarn](#yarn)
-* [bundler](#bundler)
-* [generic fetcher](#generic-fetcher)
+\*Currently, **rpm** is not fully supported. Therefore, we do not have documentation for it.
 
-Planned:
+### bundler
 
-* dnf
-* cargo
+<https://bundler.io/>
+
+Cachi2 supports bundler by parsing the [Gemfile.lock](https://bundler.io/guides/using_bundler_in_applications.html#gemfilelock)
+file present in the source repository and downloading the declared dependencies.
+
+To generate a lockfile or to make sure the file is up to date, you can use
+for example the `bundle lock` command, which generates the `Gemfile.lock` file based
+on the dependencies specified in the [Gemfile](https://bundler.io/v2.5/man/gemfile.5.html).
+Both files must be present in the source repository so you should check them into your git repository.
+
+See [docs/bundler.md](docs/bundler.md) for more details.
+
+### generic fetcher
+
+Generic fetcher is a way for Cachi2 to support prefetching arbitrary files that don't fit into other package managers.
+With the generic fetcher, you can easily fetch those files with Cachi2 along with your other language-specific dependencies,
+satisfy the hermetic build condition and have them recorded in the SBOM.
+
+Cachi2 uses a simple custom lockfile named `artifacts.lock.yaml` that is expected to be present in the repository, or
+supplied in JSON input. The lockfile describes the urls, checksums and output filenames for the downloaded files.
+
+Currently supported types of artifacts:
+- Arbitrary files
+- Maven artifacts
+
+See [docs/generic.md](docs/generic.md) for more details.
 
 ### gomod
 
@@ -173,20 +200,6 @@ See [docs/gomod.md](docs/gomod.md) for more details.
   you are or have been experiencing issues with cachi2 related to Go 1.21+, please refer to
   [docs/gomod.md](docs/gomod.md#go-121-since-cachi2-v050).
 
-### pip
-
-<https://pip.pypa.io/en/stable/>
-
-Cachi2 supports pip by parsing [requirements.txt](https://pip.pypa.io/en/stable/reference/requirements-file-format/)
-files present in the source repository and downloading the declared dependencies.
-
-The files must be lockfiles, i.e. declare all the transitive dependencies and pin them to specific versions. Generating
-such a lockfile is best done using tools like [pip-compile](https://pip-tools.readthedocs.io/en/stable/).
-
-We support source distribution file format ([sdist][sdist-spec]) as well as binary distribution file format ([wheel][wheel-spec]).
-
-See [docs/pip.md](docs/pip.md) for more details.
-
 ### npm
 
 <https://docs.npmjs.com/>
@@ -200,6 +213,20 @@ you can use [npm install](https://docs.npmjs.com/cli/v9/commands/npm-install?v=t
 Make sure lockfile version is higher than v1 (Node.js 15 or higher).
 
 See [docs/npm.md](docs/npm.md) for more details.
+
+### pip
+
+<https://pip.pypa.io/en/stable/>
+
+Cachi2 supports pip by parsing [requirements.txt](https://pip.pypa.io/en/stable/reference/requirements-file-format/)
+files present in the source repository and downloading the declared dependencies.
+
+The files must be lockfiles, i.e. declare all the transitive dependencies and pin them to specific versions. Generating
+such a lockfile is best done using tools like [pip-compile](https://pip-tools.readthedocs.io/en/stable/).
+
+We support source distribution file format ([sdist][sdist-spec]) as well as binary distribution file format ([wheel][wheel-spec]).
+
+See [docs/pip.md](docs/pip.md) for more details.
 
 ### yarn
 
@@ -215,35 +242,6 @@ install](https://v3.yarnpkg.com/getting-started/usage#installing-all-the-depende
 prior to pointing cachi2 to your project.
 
 See [docs/yarn.md](docs/yarn.md) for more details.
-
-### bundler
-
-<https://bundler.io/>
-
-Cachi2 supports bundler by parsing the [Gemfile.lock](https://bundler.io/guides/using_bundler_in_applications.html#gemfilelock)
-file present in the source repository and downloading the declared dependencies.
-
-To generate a lockfile or to make sure the file is up to date, you can use
-for example the `bundle lock` command, which generates the `Gemfile.lock` file based
-on the dependencies specified in the [Gemfile](https://bundler.io/v2.5/man/gemfile.5.html).
-Both files must be present in the source repository so you should check them into your git repository.
-
-See [docs/bundler.md](docs/bundler.md) for more details.
-
-### generic fetcher
-
-Generic fetcher is a way for Cachi2 to support prefetching arbitrary files that don't fit into other package managers.
-With the generic fetcher, you can easily fetch those files with Cachi2 along with your other language-specific dependencies,
-satisfy the hermetic build condition and have them recorded in the SBOM.
-
-Cachi2 uses a simple custom lockfile named `artifacts.lock.yaml` that is expected to be present in the repository, or
-supplied in JSON input. The lockfile describes the urls, checksums and output filenames for the downloaded files.
-
-Currently supported types of artifacts:
-- Arbitrary files
-- Maven artifacts
-
-See [docs/generic.md](docs/generic.md) for more details.
 
 ## Project status
 
